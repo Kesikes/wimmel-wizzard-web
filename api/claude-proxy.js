@@ -163,7 +163,7 @@ module.exports = async (req, res) => {
       body: JSON.stringify({
         model: MODEL,
         max_tokens: 800,
-        temperature: 0.85,
+        // Hinweis: "temperature" wird von diesem Modell nicht akzeptiert (führt zu 400 invalid_request_error) – bewusst weggelassen.
         system,
         messages: cleanMessages,
         tools: [tool],
