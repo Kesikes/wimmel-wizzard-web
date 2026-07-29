@@ -21,6 +21,9 @@ module.exports = async (req, res) => {
   const body = req.body || {};
   const prompt = String(body.prompt || "").trim();
   const kind = body.kind === "scene" ? "scene" : "char";
+  // Seed: wird vom Client mitgegeben, um bei gezielten Änderungswünschen ("Etwas ändern")
+  // Pose/Komposition stabil zu halten, statt bei jeder Generierung neu zu würfeln.
+  const seed = Number.isFinite(body.seed) ? Math.trunc(body.seed) : undefined;
 
   if (!prompt) {
     res.status(400).json({ error: "Kein Prompt übergeben." });
@@ -44,7 +47,9 @@ module.exports = async (req, res) => {
     guidance_scale: 4,
     num_images: 1,
     enable_safety_checker: true,
-    output_format: "jpeg",
+    // PNG statt JPEG: verlustfrei, wichtig für die dünnen schwarzen Outlines im Stil (JPEG-Kompression macht sie weich/unscharf).
+    output_format: "png",
+    ...(seed !== undefined ? { seed } : {}),
   };
 
   try {
@@ -66,7 +71,7 @@ module.exports = async (req, res) => {
       res.status(502).json({ error: "fal.ai hat kein Bild geliefert." });
       return;
     }
-    res.status(200).json({ url });
+    res.status(200).json({ url, seed: typeof data.seed === "number" ? data.seed : seed });
   } catch (e) {
     res.status(502).json({ error: "Verbindung zu fal.ai fehlgeschlagen: " + String(e) });
   }

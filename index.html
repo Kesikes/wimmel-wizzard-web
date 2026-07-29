@@ -892,7 +892,7 @@ function proxyUrl(){
   if(o) return o;
   return isHttp() ? "/api/fal-proxy" : ""; // nach Vercel-Deployment automatisch aktiv, lokal (file://) aus
 }
-async function generateImage(prompt, kind){ // kind: "char" | "scene"
+async function generateImage(prompt, kind, seed){ // kind: "char" | "scene"; seed: optional, für konsistente Änderungen
   const proxy = proxyUrl();
   const key = falKey();
   if(!proxy && !key) return {url: placeholderSVG(kind), placeholder: true};
@@ -902,13 +902,13 @@ async function generateImage(prompt, kind){ // kind: "char" | "scene"
     const resp = await fetch(proxy, {
       method: "POST",
       headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({prompt, kind})
+      body: JSON.stringify({prompt, kind, ...(seed!=null ? {seed} : {})})
     });
     let data;
     try{ data = await resp.json(); }catch(e){ throw new Error("Antwort vom Bild-Server war kein gültiges JSON."); }
     if(!resp.ok || data.error) throw new Error(data.error || ("Bild-Server-Fehler " + resp.status));
     if(!data.url) throw new Error("Bild-Server hat keine Bild-URL geliefert.");
-    return {url: data.url, placeholder: false};
+    return {url: data.url, seed: data.seed, placeholder: false};
   }
 
   // Nur fürs lokale Testen: direkter Aufruf mit Key aus dem Browser (siehe Warnhinweis in ⚙️)
@@ -920,7 +920,8 @@ async function generateImage(prompt, kind){ // kind: "char" | "scene"
     guidance_scale: 4,
     num_images: 1,
     enable_safety_checker: true,
-    output_format: "jpeg"
+    output_format: "png",
+    ...(seed!=null ? {seed} : {})
   };
   const resp = await fetch("https://fal.run/fal-ai/flux-lora", {
     method: "POST",
@@ -934,7 +935,7 @@ async function generateImage(prompt, kind){ // kind: "char" | "scene"
   const data = await resp.json();
   const url = data.images && data.images[0] && data.images[0].url;
   if(!url) throw new Error("fal.ai hat kein Bild geliefert.");
-  return {url, placeholder: false};
+  return {url, seed: data.seed, placeholder: false};
 }
 function placeholderSVG(kind){
   const w = kind==="char" ? 300 : 480, h = kind==="char" ? 400 : 270;
@@ -1042,6 +1043,9 @@ async function aiCollectScene(){
 }
 
 async function handleCharacterTool(input){
+  // Seed vom vorherigen Entwurf übernehmen (falls schon generiert) – sonst würde jeder
+  // Änderungswunsch den Seed verlieren und wieder ein komplett anderes Bild erzeugen.
+  const prevSeed = state.charDraft && state.charDraft.seed;
   state.charDraft = {
     name: input.name || "Kind",
     roleLabel: input.role_label || "",
@@ -1050,18 +1054,23 @@ async function handleCharacterTool(input){
     feature: input.scene_fragment_en || "",
     sceneFragment: input.scene_fragment_en || "",
     hair: "", clothing: "",
-    prompt: input.sheet_prompt
+    prompt: input.sheet_prompt,
+    seed: prevSeed
   };
   saveState();
   await generateCharSheet();
 }
 
 async function handleSceneTool(input){
+  // Seed vom vorherigen Entwurf übernehmen (falls schon generiert) – sonst würde jeder
+  // Änderungswunsch den Seed verlieren und wieder ein komplett anderes Bild erzeugen.
+  const prevSeed = state.sceneDraft && state.sceneDraft.seed;
   state.sceneDraft = {
     loc: {label: input.location_label || "Szene", type: input.location_type === "cutaway" ? "cutaway" : "landscape"},
     story: input.summary_de || "",
     extras: [],
-    prompt: input.prompt
+    prompt: input.prompt,
+    seed: prevSeed
   };
   saveState();
   await generateScene();
@@ -1216,8 +1225,10 @@ async function generateCharSheet(){
   state.phase = "char_generating"; saveState();
   const card = await botSay(`<div class="gen-card"><div class="gen-status"><span class="sparkle-loader">✨</span><br>Der Wizzard zeichnet ${c.name} …</div></div>`, {log:false});
   try{
-    const res = await generateImage(c.prompt, "char");
+    // Seed wiederverwenden, falls schon einer da ist (z.B. bei "Etwas ändern") – hält Pose/Komposition stabil
+    const res = await generateImage(c.prompt, "char", c.seed);
     c.img = res.url;
+    if(res.seed != null) c.seed = res.seed;
     const html = `${res.placeholder?"":"Tadaa!"} Hier ist <b>${c.name}</b>! 🎉<div class="gen-card"><img src="${c.img}" alt="${c.name}"></div><button class="prompt-toggle" onclick="this.nextElementSibling.classList.toggle('hidden')">Prompt anzeigen</button><textarea class="prompt-box hidden" readonly>${escapeHtml(c.prompt)}</textarea>`;
     card.querySelector(".bubble").innerHTML = html;
     state.chatLog.push({w:"bot", h:html});
@@ -1242,8 +1253,10 @@ async function generateCharSheetRetry(){
   const c = state.charDraft;
   const card = await botSay(`<div class="gen-card"><div class="gen-status"><span class="sparkle-loader">✨</span><br>Neuer Versuch für ${c.name} …</div></div>`, {log:false});
   try{
+    // Bewusst OHNE c.seed: "Nochmal würfeln" soll eine wirklich andere Variante liefern
     const res = await generateImage(c.prompt, "char");
     c.img = res.url;
+    if(res.seed != null) c.seed = res.seed;
     const html = `Wie gefällt dir diese Version von <b>${c.name}</b>?<div class="gen-card"><img src="${c.img}" alt="${c.name}"></div>`;
     card.querySelector(".bubble").innerHTML = html;
     state.chatLog.push({w:"bot", h:html}); saveState(); scrollChat();
@@ -1363,22 +1376,24 @@ function scTweakFree(text){
     generateScene();
   })();
 }
-async function generateScene(){
+async function generateScene(forceReroll){
   const s = state.sceneDraft;
   s.prompt = s.prompt || scenePrompt(s);
   state.phase = "scene_generating"; saveState();
   const i = state.scenes.length + 1;
   const card = await botSay(`<div class="gen-card"><div class="gen-status"><span class="sparkle-loader">✨</span><br>Der Wizzard wimmelt Szene ${i} zusammen …<br><span style="font-size:14px">(dauert einen Moment)</span></div></div>`, {log:false});
   try{
-    const res = await generateImage(s.prompt, "scene");
+    // forceReroll ("Nochmal würfeln"): bewusst neuer Seed. Sonst: vorhandenen Seed wiederverwenden (z.B. bei "Etwas ändern").
+    const res = await generateImage(s.prompt, "scene", forceReroll ? undefined : s.seed);
     s.img = res.url;
+    if(res.seed != null) s.seed = res.seed;
     const html = `Szene ${i}: <b>${s.loc.label}</b> 🎉<div class="gen-card"><img src="${s.img}" alt="Szene ${i}"></div><button class="prompt-toggle" onclick="this.nextElementSibling.classList.toggle('hidden')">Prompt anzeigen & anpassen</button><textarea class="prompt-box hidden" onchange="state.sceneDraft&&(state.sceneDraft.prompt=this.value)">${escapeHtml(s.prompt)}</textarea>`;
     card.querySelector(".bubble").innerHTML = html;
     state.chatLog.push({w:"bot", h:html}); saveState(); scrollChat();
     showChips([
       {label:"❤️ Behalten", accent:true, action:acceptScene},
       {label:"✏️ Etwas ändern", action:requestSceneTweak},
-      {label:"🎲 Nochmal zaubern", action:()=>{ userSay("🎲 Nochmal zaubern"); generateScene(); }}
+      {label:"🎲 Nochmal zaubern", action:()=>{ userSay("🎲 Nochmal zaubern"); generateScene(true); }}
     ]);
   }catch(e){
     const html = `Hoppla: <b>${escapeHtml(e.message)}</b><span class="note">Key in ⚙️ prüfen oder gleich nochmal versuchen.</span>`;
@@ -1535,7 +1550,7 @@ function restoreChips(saved){
   const actions = {
     "🪄 Ja, zaubern!": confirmCharGen,
     "❤️ Behalten": state.phase && String(state.phase).startsWith("char") ? acceptChar : acceptScene,
-    "🎲 Nochmal zaubern": state.phase && String(state.phase).startsWith("char") ? generateCharSheetRetry : ()=>generateScene(),
+    "🎲 Nochmal zaubern": state.phase && String(state.phase).startsWith("char") ? generateCharSheetRetry : ()=>generateScene(true),
     "✏️ Etwas ändern": state.phase && String(state.phase).startsWith("char") ? requestCharTweak : requestSceneTweak,
     "✅ Das sind alle": startScenes,
     "🎲 Überrasch mich!": addSurprises,
