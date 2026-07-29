@@ -16,7 +16,9 @@
   --shadow-sm:0 8px 24px -12px oklch(30% 0.03 50 / 0.15);
   --shadow-md:0 12px 32px -16px oklch(30% 0.03 50 / 0.2);
   --shadow-lg:0 30px 60px -20px oklch(30% 0.03 50 / 0.35);
+  --col:560px;
 }
+@media (min-width:900px){ :root{ --col:760px; } }
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
 body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--ink);line-height:1.55;-webkit-font-smoothing:antialiased}
@@ -46,7 +48,8 @@ input,textarea,select{font-family:inherit;font-size:16px}
 .btn-ghost{background:transparent;color:var(--muted);font-weight:700;text-decoration:underline;padding:8px 12px}
 .btn-small{padding:10px 20px;font-size:.92rem}
 .btn[disabled]{opacity:.5;cursor:not-allowed}
-.icon-btn{background:#fff;border-radius:10px;width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;font-size:16px;box-shadow:var(--shadow-sm)}
+.icon-btn{background:#fff;border-radius:10px;width:42px;height:42px;display:inline-flex;align-items:center;justify-content:center;font-size:18px;box-shadow:var(--shadow-sm);flex-shrink:0}
+.icon-btn:hover{background:var(--bg-deep)}
 
 /* ---------- Landing ---------- */
 .landing{overflow-x:hidden}
@@ -130,15 +133,42 @@ input,textarea,select{font-family:inherit;font-size:16px}
 /* ---------- App shell ---------- */
 .app{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;background:var(--bg)}
 .app-top{position:sticky;top:0;z-index:20;background:oklch(97% 0.018 85 / .95);backdrop-filter:blur(6px);border-bottom:1px solid var(--line)}
-.app-top-inner{max-width:560px;margin:0 auto;display:flex;align-items:center;gap:12px;padding:12px 16px}
-.app-title{font-family:'Fredoka',sans-serif;font-weight:600;font-size:1.15rem;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.progress-wrap{max-width:560px;margin:0 auto;display:flex;align-items:center;gap:10px;padding:0 16px 10px}
+.app-top-inner{max-width:1080px;margin:0 auto;display:flex;align-items:center;gap:8px;padding:12px 20px;flex-wrap:wrap}
+.brand-link{display:flex;align-items:center;gap:9px;cursor:pointer;border-radius:10px;padding:4px 6px;margin:-4px -6px;transition:background .15s}
+.brand-link:hover{background:var(--bg-deep)}
+.brand-link span.wlogo{margin:0}
+.brand-txt{font-family:'Fredoka',sans-serif;font-weight:600;font-size:1.1rem;color:var(--ink);white-space:nowrap}
+.app-title{font-family:'Fredoka',sans-serif;font-weight:600;font-size:1rem;color:var(--muted);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}
+.topbar-btn{display:inline-flex;align-items:center;gap:7px;background:#fff;border-radius:999px;padding:9px 16px;font-weight:800;font-size:.88rem;color:var(--ink);box-shadow:var(--shadow-sm);flex-shrink:0;white-space:nowrap}
+.topbar-btn:hover{background:var(--bg-deep)}
+.topbar-btn .tb-ic{font-size:1rem}
+.spacer{flex-basis:100%;height:0}
+@media (min-width:640px){ .spacer{flex-basis:0;height:auto;flex:1} }
+@media (max-width:639px){ .topbar-btn .tb-label{display:none}; .topbar-btn{padding:9px 11px} .app-title{order:1;flex-basis:100%;text-align:left;font-size:.85rem} }
+.progress-wrap{max-width:1080px;margin:0 auto;display:flex;align-items:center;gap:10px;padding:0 20px 10px}
 .progress-bar{flex:1;height:8px;background:var(--line);border-radius:999px;overflow:hidden}
 .progress-fill{height:100%;width:0%;background:var(--accent);border-radius:999px;transition:width .5s ease}
 .progress-pct{font-size:.78rem;font-weight:800;color:var(--muted2)}
+.app-body{max-width:1080px;margin:0 auto;width:100%;display:flex;gap:28px;flex:1;min-height:0;align-items:flex-start}
+.chat-col{flex:1;min-width:0;display:flex;flex-direction:column;min-height:0}
+.side-col{display:none}
+@media (min-width:1180px){
+  .side-col{display:flex;flex-direction:column;gap:16px;width:280px;flex-shrink:0;position:sticky;top:96px;max-height:calc(100vh - 116px);overflow-y:auto;padding-bottom:20px}
+  .side-card{background:#fff;border-radius:16px;padding:16px;box-shadow:var(--shadow-sm)}
+  .side-card h4{font-family:'Fredoka',sans-serif;font-weight:600;font-size:.95rem;margin-bottom:10px;color:var(--muted)}
+  .side-chars{display:flex;flex-direction:column;gap:8px}
+  .side-char-item{display:flex;align-items:center;gap:9px;font-size:.85rem;font-weight:800}
+  .side-char-item .dot{width:30px;height:30px;border-radius:50%;background:var(--green-soft);display:flex;align-items:center;justify-content:center;font-size:13px;overflow:hidden;flex-shrink:0}
+  .side-char-item .dot img{width:100%;height:100%;object-fit:cover;object-position:top}
+  .side-scenes{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .side-scenes img{width:100%;aspect-ratio:16/10;object-fit:cover;border-radius:10px;display:block;background:var(--bg-deep)}
+  .side-empty{font-size:.8rem;color:var(--muted2)}
+}
 
 /* ---------- Chat ---------- */
-.chat-area{flex:1;overflow-y:auto;padding:18px 16px 140px;max-width:560px;margin:0 auto;width:100%}
+.chat-panel{display:flex;flex-direction:column;flex:1;min-height:0}
+.chat-scroll{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column}
+.chat-area{padding:18px 16px 4px;max-width:var(--col);margin:0 auto;width:100%}
 .msg{display:flex;gap:10px;margin-bottom:14px;animation:fadeUp .35s ease both}
 .msg .avatar{width:34px;height:34px;flex-shrink:0;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px}
 .msg.user .avatar{background:#fff;box-shadow:var(--shadow-sm);border-radius:50%}
@@ -167,8 +197,8 @@ input,textarea,select{font-family:inherit;font-size:16px}
 .prompt-box{width:100%;margin-top:8px;padding:10px;border:2px solid var(--line);border-radius:10px;font-size:.78rem;font-family:monospace;min-height:90px;background:#fff}
 
 /* ---------- Input bar ---------- */
-.input-bar{position:fixed;bottom:0;left:0;right:0;background:oklch(97% 0.018 85 / .97);backdrop-filter:blur(6px);border-top:1px solid var(--line);padding:12px 14px calc(12px + env(safe-area-inset-bottom));z-index:30}
-.input-inner{max-width:560px;margin:0 auto;display:flex;gap:10px;align-items:flex-end}
+.input-bar{position:sticky;bottom:0;background:oklch(97% 0.018 85 / .97);backdrop-filter:blur(6px);border-top:1px solid var(--line);padding:12px 16px calc(12px + env(safe-area-inset-bottom));z-index:5;margin-top:auto}
+.input-inner{max-width:var(--col);margin:0 auto;display:flex;gap:10px;align-items:flex-end}
 .input-inner textarea{flex:1;resize:none;border:2px solid var(--line);background:#fff;border-radius:16px;padding:12px 16px;max-height:120px;outline:none;line-height:1.4}
 .input-inner textarea:focus{border-color:var(--accent)}
 .mic-btn,.send-btn{width:48px;height:48px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:20px}
@@ -179,7 +209,7 @@ input,textarea,select{font-family:inherit;font-size:16px}
 .voice-hint{text-align:center;font-size:.75rem;color:var(--muted2);max-width:560px;margin:6px auto 0}
 
 /* ---------- Panels ---------- */
-.panel{max-width:560px;margin:0 auto;width:100%;padding:20px 16px 80px;animation:fadeUp .3s ease both}
+.panel{max-width:var(--col);margin:0 auto;width:100%;padding:20px 16px 80px;animation:fadeUp .3s ease both}
 .panel h2{font-size:1.5rem;margin:10px 0 4px}
 .panel .lead{color:var(--muted);margin-bottom:22px;font-size:.98rem}
 .select-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:26px}
@@ -196,7 +226,7 @@ input,textarea,select{font-family:inherit;font-size:16px}
 .panel-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
 
 /* ---------- Charakter-Leiste ---------- */
-.char-strip{display:flex;gap:10px;overflow-x:auto;padding:10px 16px 4px;max-width:560px;margin:0 auto;width:100%}
+.char-strip{display:flex;gap:10px;overflow-x:auto;padding:10px 16px 4px;max-width:var(--col);margin:0 auto;width:100%}
 .char-pill{flex-shrink:0;display:flex;align-items:center;gap:8px;background:#fff;border-radius:999px;padding:5px 14px 5px 6px;font-size:.85rem;font-weight:800;box-shadow:var(--shadow-sm)}
 .char-pill .dot{width:28px;height:28px;border-radius:50%;background:var(--green-soft);display:flex;align-items:center;justify-content:center;font-size:13px;overflow:hidden}
 .char-pill img{width:100%;height:100%;object-fit:cover;object-position:top}
@@ -361,8 +391,13 @@ input,textarea,select{font-family:inherit;font-size:16px}
 <div id="view-app" class="app hidden">
   <div class="app-top">
     <div class="app-top-inner">
-      <span class="wlogo">W<i>✨</i></span>
+      <span class="brand-link" onclick="goHome()" title="Zur Startseite" role="button" tabindex="0" onkeydown="if(event.key==='Enter')goHome()">
+        <span class="wlogo">W<i>✨</i></span><span class="brand-txt">Wimmel Wizard</span>
+      </span>
       <span class="app-title" id="progress-step">Wimmel Wizard</span>
+      <span class="spacer"></span>
+      <button class="topbar-btn" onclick="goHome()" title="Zur Startseite"><span class="tb-ic">🏠</span><span class="tb-label">Startseite</span></button>
+      <button class="topbar-btn" onclick="confirmResetAll()" title="Ganz von vorn beginnen"><span class="tb-ic">↺</span><span class="tb-label">Neu starten</span></button>
       <button class="icon-btn" title="Einstellungen" onclick="openSettings()">⚙️</button>
       <button class="icon-btn" title="Abmelden" onclick="logout()">🚪</button>
     </div>
@@ -372,47 +407,64 @@ input,textarea,select{font-family:inherit;font-size:16px}
     </div>
   </div>
 
-  <div class="char-strip" id="char-strip"></div>
+  <div class="app-body">
+    <div class="chat-col">
+      <div class="char-strip" id="char-strip"></div>
 
-  <!-- Produkt -->
-  <div id="panel-product" class="panel hidden">
-    <h2>Was soll es werden?</h2>
-    <p class="lead">Du kannst dich später jederzeit umentscheiden – deine Geschichten bleiben erhalten.</p>
-    <div class="select-grid" id="product-grid"></div>
-    <div class="panel-actions"><button class="btn btn-primary" onclick="confirmProduct()">Weiter ✨</button></div>
-  </div>
-
-  <!-- Stil -->
-  <div id="panel-style" class="panel hidden">
-    <h2>Euer Zeichenstil</h2>
-    <p class="lead">So werden eure Bilder aussehen. Weitere Stile sind schon in Arbeit!</p>
-    <div class="select-grid" id="style-grid"></div>
-    <div class="panel-actions"><button class="btn btn-primary" onclick="confirmStyle()">Weiter ✨</button></div>
-  </div>
-
-  <!-- Chat -->
-  <div id="panel-chat" class="hidden" style="display:flex; flex-direction:column; flex:1">
-    <div class="chat-area" id="chat-area"></div>
-    <div class="input-bar" id="input-bar">
-      <div class="input-inner">
-        <button class="mic-btn" id="mic-btn" title="Sprechen" onclick="toggleMic()">🎤</button>
-        <textarea id="chat-input" rows="1" placeholder="Schreib oder sprich einfach los …"></textarea>
-        <button class="send-btn" onclick="sendUserInput()" title="Senden">➤</button>
+      <!-- Produkt -->
+      <div id="panel-product" class="panel hidden">
+        <h2>Was soll es werden?</h2>
+        <p class="lead">Du kannst dich später jederzeit umentscheiden – deine Geschichten bleiben erhalten.</p>
+        <div class="select-grid" id="product-grid"></div>
+        <div class="panel-actions"><button class="btn btn-primary" onclick="confirmProduct()">Weiter ✨</button></div>
       </div>
-      <div class="voice-hint" id="voice-hint"></div>
-    </div>
-  </div>
 
-  <!-- Zusammenfassung -->
-  <div id="panel-summary" class="panel hidden">
-    <h2>Euer Wimmelwerk 🎉</h2>
-    <p class="lead">Schau alles in Ruhe an – einzelne Szenen kannst du jederzeit neu zaubern lassen.</p>
-    <div class="gallery" id="summary-gallery"></div>
-    <div class="summary-box" id="summary-box"></div>
-    <div class="panel-actions">
-      <button class="btn btn-sage btn-small" onclick="backToChat()">↩ Weiter erzählen</button>
-      <button class="btn btn-primary" onclick="openCheckout()">🛒 Zur Bestellung</button>
+      <!-- Stil -->
+      <div id="panel-style" class="panel hidden">
+        <h2>Euer Zeichenstil</h2>
+        <p class="lead">So werden eure Bilder aussehen. Weitere Stile sind schon in Arbeit!</p>
+        <div class="select-grid" id="style-grid"></div>
+        <div class="panel-actions"><button class="btn btn-primary" onclick="confirmStyle()">Weiter ✨</button></div>
+      </div>
+
+      <!-- Chat -->
+      <div id="panel-chat" class="hidden chat-panel">
+        <div class="chat-scroll" id="chat-scroll">
+          <div class="chat-area" id="chat-area"></div>
+          <div class="input-bar" id="input-bar">
+            <div class="input-inner">
+              <button class="mic-btn" id="mic-btn" title="Sprechen" onclick="toggleMic()">🎤</button>
+              <textarea id="chat-input" rows="1" placeholder="Schreib oder sprich einfach los …"></textarea>
+              <button class="send-btn" onclick="sendUserInput()" title="Senden">➤</button>
+            </div>
+            <div class="voice-hint" id="voice-hint"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Zusammenfassung -->
+      <div id="panel-summary" class="panel hidden">
+        <h2>Euer Wimmelwerk 🎉</h2>
+        <p class="lead">Schau alles in Ruhe an – einzelne Szenen kannst du jederzeit neu zaubern lassen.</p>
+        <div class="gallery" id="summary-gallery"></div>
+        <div class="summary-box" id="summary-box"></div>
+        <div class="panel-actions">
+          <button class="btn btn-sage btn-small" onclick="backToChat()">↩ Weiter erzählen</button>
+          <button class="btn btn-primary" onclick="openCheckout()">🛒 Zur Bestellung</button>
+        </div>
+      </div>
     </div>
+
+    <aside class="side-col" id="side-col">
+      <div class="side-card">
+        <h4>Eure Helden</h4>
+        <div class="side-chars" id="side-characters"><span class="side-empty">Noch niemand erfasst.</span></div>
+      </div>
+      <div class="side-card">
+        <h4>Euer Wimmelwerk bisher</h4>
+        <div class="side-scenes" id="side-scenes"><span class="side-empty">Noch keine Szene fertig.</span></div>
+      </div>
+    </aside>
   </div>
 </div>
 
@@ -442,6 +494,17 @@ input,textarea,select{font-family:inherit;font-size:16px}
     <h3>🛒 Bestellung</h3>
     <div id="checkout-body"></div>
     <div class="modal-actions"><button class="btn btn-small btn-ghost" onclick="document.getElementById('modal-checkout').classList.add('hidden')">Schließen</button></div>
+  </div>
+</div>
+
+<div id="modal-reset" class="modal-bg hidden" onclick="if(event.target===this)closeResetModal()">
+  <div class="modal">
+    <h3>↺ Neu starten?</h3>
+    <p>Das löscht alle bisher erfassten Personen und Szenen für dieses Buch unwiderruflich. Dein Login bleibt bestehen.</p>
+    <div class="modal-actions">
+      <button class="btn btn-small btn-ghost" onclick="closeResetModal()">Abbrechen</button>
+      <button class="btn btn-small btn-primary" style="background:#C0392B" onclick="performReset()">Ja, neu starten</button>
+    </div>
   </div>
 </div>
 
@@ -608,6 +671,26 @@ function logout(){
   if(recog && recording) stopMic();
   showView("view-landing");
 }
+function goHome(){
+  // Nur zur Landingpage wechseln – Login & Fortschritt bleiben erhalten,
+  // "Kostenlos starten"/"Anmelden" führt danach exakt zurück an diese Stelle.
+  showView("view-landing");
+}
+function confirmResetAll(){ $("modal-reset").classList.remove("hidden"); }
+function closeResetModal(){ $("modal-reset").classList.add("hidden"); }
+function performReset(){
+  closeResetModal();
+  if(recording) stopMic();
+  clearChips();
+  const chatArea = $("chat-area");
+  if(chatArea) chatArea.innerHTML = "";
+  state = freshState();
+  saveState();
+  renderCharStrip();
+  renderSidebar();
+  showPanel("product");
+  toast("Neu gestartet – auf geht's! ✨");
+}
 
 /* ---------------- App-Flow ---------------- */
 function enterApp(){
@@ -689,11 +772,24 @@ function updateProgress(){
 function renderCharStrip(){
   $("char-strip").innerHTML = state.characters.map(c=>`
     <span class="char-pill"><span class="dot">${c.img?`<img src="${c.img}" alt="">`:"👤"}</span>${c.name}</span>`).join("");
+  renderSidebar();
+}
+function renderSidebar(){
+  // Nur relevant auf breiten Bildschirmen (CSS blendet die Sidebar sonst aus) – live Vorschau, während erzählt wird
+  const sc = $("side-characters"), ss = $("side-scenes");
+  if(!sc || !ss || !state) return;
+  sc.innerHTML = state.characters.length
+    ? state.characters.map(c=>`<span class="side-char-item"><span class="dot">${c.img?`<img src="${c.img}" alt="">`:"👤"}</span>${escapeHtml(c.name)}</span>`).join("")
+    : `<span class="side-empty">Noch niemand erfasst.</span>`;
+  const doneScenes = state.scenes.filter(s=>s.img);
+  ss.innerHTML = doneScenes.length
+    ? doneScenes.map((s,i)=>`<img src="${s.img}" alt="Szene ${i+1}" title="${escapeHtml(s.loc.label)}">`).join("")
+    : `<span class="side-empty">Noch keine Szene fertig.</span>`;
 }
 
 /* ---------------- Chat-Grundfunktionen ---------------- */
 function chatEl(){ return $("chat-area"); }
-function scrollChat(){ requestAnimationFrame(()=>{ chatEl().scrollTop = chatEl().scrollHeight; window.scrollTo(0, document.body.scrollHeight); }); }
+function scrollChat(){ requestAnimationFrame(()=>{ const s = $("chat-scroll"); if(s) s.scrollTop = s.scrollHeight; }); }
 function wizAvatar(){ return `<span class="avatar wlogo">W<i>✨</i></span>`; }
 function addMsgDom(who, html){
   const d = document.createElement("div");
@@ -987,6 +1083,8 @@ function handleInput(text){
   const p = state.phase;
   if(!p) return;
   if(p==="ai_wait") return runClaudeTurn(text);
+  if(p==="char_tweak_free") return chTweakFree(text);
+  if(p==="scene_tweak_free") return scTweakFree(text);
   if(p==="char_name") return chName(text);
   if(p==="char_role_custom") return chRoleCustom(text);
   if(p==="char_age") return chAge(text);
@@ -1081,6 +1179,28 @@ function chFeature(text){
   })();
 }
 function confirmCharGen(){ userSay("🪄 Ja, zaubern!"); generateCharSheet(); }
+
+function requestCharTweak(){
+  userSay("✏️ Etwas ändern");
+  if(useAI()){
+    botSay("Klar, sag mir einfach, was ich anders machen soll – ich pass's an.");
+    state.aiUnit = "character"; state.phase = "ai_wait"; saveState();
+  } else {
+    botSay("Kein Problem – was soll anders sein? Beschreib's kurz, ich versuch's einzubauen.<span class='note'>Tipp: Ganz gezielte Änderungswünsche klappen am besten mit aktiviertem KI-Chat.</span>");
+    state.phase = "char_tweak_free"; saveState();
+  }
+}
+function chTweakFree(text){
+  userSay(text);
+  const c = state.charDraft;
+  if(!c){ botSay("Hoppla, dazu fehlt mir gerade der Entwurf – lass uns nochmal von vorn starten."); return; }
+  c.clothing = (c.clothing || "") + (c.clothing ? ", " : "") + text;
+  c.prompt = null;
+  (async()=>{
+    await botSay(`Alles klar, ich passe ${c.name} an. 🪄`);
+    generateCharSheet();
+  })();
+}
 async function generateCharSheet(){
   const c = state.charDraft;
   c.prompt = c.prompt || charPrompt(c);
@@ -1095,6 +1215,7 @@ async function generateCharSheet(){
     scrollChat();
     showChips([
       {label:"❤️ Behalten", accent:true, action:acceptChar},
+      {label:"✏️ Etwas ändern", action:requestCharTweak},
       {label:"🎲 Nochmal zaubern", action:()=>{ userSay("🎲 Nochmal zaubern"); generateCharSheetRetry(); }}
     ]);
     saveState();
@@ -1212,6 +1333,27 @@ function scExtra(text){
   state.sceneDraft.extras = [translate(text)];
   generateScene();
 }
+function requestSceneTweak(){
+  userSay("✏️ Etwas ändern");
+  if(useAI()){
+    botSay("Klar, sag mir einfach, was ich an der Szene anders machen soll.");
+    state.aiUnit = "scene"; state.phase = "ai_wait"; saveState();
+  } else {
+    botSay("Kein Problem – was soll anders sein? Beschreib's kurz, ich versuch's einzubauen.<span class='note'>Tipp: Ganz gezielte Änderungswünsche klappen am besten mit aktiviertem KI-Chat.</span>");
+    state.phase = "scene_tweak_free"; saveState();
+  }
+}
+function scTweakFree(text){
+  userSay(text);
+  const s = state.sceneDraft;
+  if(!s){ botSay("Hoppla, dazu fehlt mir gerade der Entwurf – lass uns nochmal von vorn starten."); return; }
+  s.story = (s.story || "") + (s.story ? ", " : "") + text;
+  s.prompt = null;
+  (async()=>{
+    await botSay(`Alles klar, ich passe die Szene an. 🪄`);
+    generateScene();
+  })();
+}
 async function generateScene(){
   const s = state.sceneDraft;
   s.prompt = s.prompt || scenePrompt(s);
@@ -1226,6 +1368,7 @@ async function generateScene(){
     state.chatLog.push({w:"bot", h:html}); saveState(); scrollChat();
     showChips([
       {label:"❤️ Behalten", accent:true, action:acceptScene},
+      {label:"✏️ Etwas ändern", action:requestSceneTweak},
       {label:"🎲 Nochmal zaubern", action:()=>{ userSay("🎲 Nochmal zaubern"); generateScene(); }}
     ]);
   }catch(e){
@@ -1242,7 +1385,7 @@ function acceptScene(){
   userSay("❤️ Behalten");
   state.scenes.push(state.sceneDraft);
   state.sceneDraft = null;
-  saveState(); updateProgress();
+  saveState(); updateProgress(); renderSidebar();
   const n = product().scenes, k = state.scenes.length;
   (async()=>{
     if(k < n){
@@ -1282,7 +1425,7 @@ async function regenFromSummary(i){
   toast("Der Wizzard zaubert Szene " + (i+1) + " neu … ✨");
   try{
     const res = await generateImage(s.prompt, "scene");
-    s.img = res.url; saveState(); renderSummary();
+    s.img = res.url; saveState(); renderSummary(); renderSidebar();
     toast("Szene " + (i+1) + " ist neu gezaubert! 🎉");
   }catch(e){ toast("Fehler: " + e.message); }
 }
@@ -1384,6 +1527,7 @@ function restoreChips(saved){
     "🪄 Ja, zaubern!": confirmCharGen,
     "❤️ Behalten": state.phase && String(state.phase).startsWith("char") ? acceptChar : acceptScene,
     "🎲 Nochmal zaubern": state.phase && String(state.phase).startsWith("char") ? generateCharSheetRetry : ()=>generateScene(),
+    "✏️ Etwas ändern": state.phase && String(state.phase).startsWith("char") ? requestCharTweak : requestSceneTweak,
     "✅ Das sind alle": startScenes,
     "🎲 Überrasch mich!": addSurprises,
     "➡️ So ist es perfekt": ()=>generateScene(),
