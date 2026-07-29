@@ -159,6 +159,7 @@ module.exports = async (req, res) => {
       body: JSON.stringify({
         model: MODEL,
         max_tokens: 800,
+        temperature: 0.85,
         system,
         messages: cleanMessages,
         tools: [tool],
