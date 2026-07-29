@@ -1085,6 +1085,15 @@ function handleInput(text){
   if(p==="ai_wait") return runClaudeTurn(text);
   if(p==="char_tweak_free") return chTweakFree(text);
   if(p==="scene_tweak_free") return scTweakFree(text);
+  if(p==="char_generating"){
+    // Direkt getippter/diktierter Änderungswunsch, ohne erst "✏️ Etwas ändern" anklicken zu müssen
+    if(useAI()){ state.aiUnit = "character"; state.phase = "ai_wait"; saveState(); return runClaudeTurn(text); }
+    return chTweakFree(text);
+  }
+  if(p==="scene_generating"){
+    if(useAI()){ state.aiUnit = "scene"; state.phase = "ai_wait"; saveState(); return runClaudeTurn(text); }
+    return scTweakFree(text);
+  }
   if(p==="char_name") return chName(text);
   if(p==="char_role_custom") return chRoleCustom(text);
   if(p==="char_age") return chAge(text);
@@ -1559,6 +1568,7 @@ function genericChipFallback(label){
 /* ---------------- Eingabe: Text + Sprache ---------------- */
 function sendUserInput(){
   const inp = $("chat-input");
+  if(recording) stopMic(); // Senden beendet immer die Aufnahme, unabhängig davon ob Text da ist
   const text = inp.value.trim();
   if(!text) return;
   inp.value = ""; autosize(inp);
@@ -1581,6 +1591,7 @@ if(SR){
   recog.continuous = true;
   let finalText = "";
   recog.onresult = e=>{
+    if(!recording) return; // Aufnahme wurde inzwischen (z.B. per Senden) beendet – späte Ergebnisse ignorieren
     let interim = "";
     for(let i=e.resultIndex; i<e.results.length; i++){
       if(e.results[i].isFinal) finalText += e.results[i][0].transcript + " ";
