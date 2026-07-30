@@ -1112,10 +1112,17 @@ async function runClaudeTurn(userText){
       state.aiMessages.push({role:"assistant", content: data.reply});
     }
     if(data.tool_call){
-      state.aiMessages.push({role:"assistant", content: "[Person/Szene wurde erfasst.]"});
-      saveState();
-      if(data.tool_call.name === "add_character") await handleCharacterTool(data.tool_call.input);
-      else if(data.tool_call.name === "add_scene") await handleSceneTool(data.tool_call.input);
+      if(data.tool_call.name === "confirm_result"){
+        // Reine Zustimmung ("ja, passt so") ohne Änderungswunsch -> wie Klick auf "❤️ Behalten"
+        state.aiMessages.push({role:"assistant", content: "[Bestätigt.]"});
+        saveState();
+        if(state.aiUnit === "scene") acceptScene(); else acceptChar();
+      } else {
+        state.aiMessages.push({role:"assistant", content: "[Person/Szene wurde erfasst.]"});
+        saveState();
+        if(data.tool_call.name === "add_character") await handleCharacterTool(data.tool_call.input);
+        else if(data.tool_call.name === "add_scene") await handleSceneTool(data.tool_call.input);
+      }
     }
     saveState();
   }catch(e){
@@ -1205,6 +1212,19 @@ function startChat(){
   })();
 }
 
+function looksLikeAcceptance(text){
+  // Erkennt eine reine Zustimmung ("ja, passt so", "perfekt", "ja super, so passt es") OHNE
+  // gleichzeitigen Änderungswunsch, damit man nicht erst auf "❤️ Behalten" klicken muss.
+  const raw = (text || "").trim();
+  if(!raw) return false;
+  const t = raw.toLowerCase().replace(/[!?.,;:]+/g, " ").replace(/\s+/g, " ").trim();
+  const words = t.split(" ");
+  if(words.length > 8) return false; // eher eine neue Beschreibung als eine reine Zustimmung
+  // Enthält eines dieser Wörter -> (fast) immer noch ein Änderungswunsch dabei, nicht auto-akzeptieren
+  if(/\b(mach|ändere|aendere|anders|nochmal|neu|anstatt|statt|dafür|dafuer|ohne|hinzu|entferne|tausche|wechsle|lieber|doch|aber|noch)\b/.test(t)) return false;
+  const strong = ["ja","jep","jap","jup","jo","joa","genau","exakt","stimmt","richtig","korrekt","passt","perfekt","super","klasse","toll","prima","top","einverstanden","behalten"];
+  return words.some(w => strong.includes(w));
+}
 function handleInput(text){
   const p = state.phase;
   if(!p) return;
@@ -1212,11 +1232,14 @@ function handleInput(text){
   if(p==="char_tweak_free") return chTweakFree(text);
   if(p==="scene_tweak_free") return scTweakFree(text);
   if(p==="char_generating"){
+    // Direkte Zustimmung ("ja, passt so") wirkt wie ein Klick auf "❤️ Behalten".
+    if(looksLikeAcceptance(text)) return acceptChar(text);
     // Direkt getippter/diktierter Änderungswunsch, ohne erst "✏️ Etwas ändern" anklicken zu müssen
     if(useAI()){ state.aiUnit = "character"; state.phase = "ai_wait"; saveState(); return runClaudeTurn(text); }
     return chTweakFree(text);
   }
   if(p==="scene_generating"){
+    if(looksLikeAcceptance(text)) return acceptScene(text);
     if(useAI()){ state.aiUnit = "scene"; state.phase = "ai_wait"; saveState(); return runClaudeTurn(text); }
     return scTweakFree(text);
   }
@@ -1377,8 +1400,8 @@ async function generateCharSheet(forceReroll){
   }
 }
 function generateCharSheetRetry(){ return generateCharSheet(true); }
-function acceptChar(){
-  userSay("❤️ Behalten");
+function acceptChar(userText){
+  userSay(userText || "❤️ Behalten");
   state.characters.push(state.charDraft);
   state.charDraft = null;
   renderCharStrip(); saveState(); updateProgress();
@@ -1523,8 +1546,8 @@ async function generateScene(forceReroll){
     ]);
   }
 }
-function acceptScene(){
-  userSay("❤️ Behalten");
+function acceptScene(userText){
+  userSay(userText || "❤️ Behalten");
   state.scenes.push(state.sceneDraft);
   state.sceneDraft = null;
   saveState(); updateProgress(); renderSidebar();

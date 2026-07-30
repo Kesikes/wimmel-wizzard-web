@@ -37,6 +37,8 @@ Sobald genug beisammen ist, fasse kurz und locker zusammen, was du notiert hast,
 
 SONDERFALL Änderungswunsch nach bereits generiertem Bild: Wenn die Unterhaltung bereits ein Bild für diese Person hervorgebracht hat (erkennbar an vorherigen Nachrichten) und der Nutzer jetzt einen konkreten Änderungswunsch äußert (z. B. "mach die Jacke rot", "sie soll eine Brille tragen"), dann NICHT von vorne alle Fragen stellen. Übernimm den Wunsch direkt in die bestehende Beschreibung, baue sofort einen aktualisierten \`sheet_prompt\` (und bei Bedarf \`scene_fragment_en\`) und rufe \`add_character\` im selben Zug erneut auf – ohne Rückfrage, ohne erneute Zusammenfassung.
 
+SONDERFALL reine Zustimmung nach bereits generiertem Bild: Wenn die Unterhaltung bereits ein Bild für diese Person hervorgebracht hat und der Nutzer jetzt lediglich zustimmt, OHNE einen weiteren Änderungswunsch zu äußern (z. B. "ja, passt so", "perfekt", "genau so lassen", "ja super, so passt es"), rufe stattdessen \`confirm_result\` auf – NICHT \`add_character\` erneut.
+
 Beim Aufruf von \`add_character\` übersetzt und baust du selbst den fertigen englischen Bildgenerierungs-Prompt nach dieser Vorlage (Platzhalter füllen, Struktur exakt beibehalten):
 
 "wmlstil, [Alter/Rolle], [Frisur], [Kleidungsstück 1], [Kleidungsstück 2], [Kleidungsstück 3], round head, minimal face, dot eyes, single vertical line nose, no ears, no mouth, no visible neck, standing, flat color fill, thick black marker outline, graphic recording sketchnote style, white background, full body, front view"
@@ -56,6 +58,8 @@ Dein Ziel für diese eine Szene:
 Sobald Ort und Geschichte klar genug sind, fasse kurz zusammen und frage, ob es passt. Rufe \`add_scene\` ERST auf, nachdem der Nutzer erkennbar zugestimmt hat.
 
 SONDERFALL Änderungswunsch nach bereits generiertem Bild: Wenn die Unterhaltung bereits ein Bild für diese Szene hervorgebracht hat und der Nutzer jetzt einen konkreten Änderungswunsch äußert (z. B. "mach es Winter statt Sommer", "noch ein Hund soll dabei sein"), dann NICHT von vorne alle Fragen stellen. Übernimm den Wunsch direkt, baue sofort einen aktualisierten \`prompt\` und rufe \`add_scene\` im selben Zug erneut auf – ohne Rückfrage, ohne erneute Zusammenfassung.
+
+SONDERFALL reine Zustimmung nach bereits generiertem Bild: Wenn die Unterhaltung bereits ein Bild für diese Szene hervorgebracht hat und der Nutzer jetzt lediglich zustimmt, OHNE einen weiteren Änderungswunsch zu äußern (z. B. "ja, passt so", "perfekt", "genau so lassen", "ja super, so passt es"), rufe stattdessen \`confirm_result\` auf – NICHT \`add_scene\` erneut.
 
 Zusätzliche, nur für Szenen geltende Prompt-Regeln:
 - Bei Innenräumen/Gebäuden (Zuhause, Kita, Laden, Museum, Schiff, Zug): "[Ort] building cutaway scene, multiple floors, rooms visible, many small characters" – location_type = "cutaway".
@@ -108,6 +112,13 @@ const ADD_SCENE_TOOL = {
     },
     required: ["location_label", "location_type", "summary_de", "prompt"],
   },
+};
+
+const CONFIRM_TOOL = {
+  name: "confirm_result",
+  description:
+    "Rufe dieses Werkzeug auf, wenn für die aktuelle Person/Szene bereits ein Bild erzeugt wurde (erkennbar an vorherigen Nachrichten) und der Nutzer jetzt lediglich zustimmt, OHNE einen weiteren Änderungswunsch zu äußern (z. B. 'ja, passt so', 'perfekt', 'genau so lassen'). NICHT aufrufen, wenn der Nutzer noch etwas geändert haben möchte oder noch gar kein Bild erzeugt wurde – dann stattdessen add_character/add_scene verwenden.",
+  input_schema: { type: "object", properties: {} },
 };
 
 module.exports = async (req, res) => {
@@ -166,7 +177,7 @@ module.exports = async (req, res) => {
         // Hinweis: "temperature" wird von diesem Modell nicht akzeptiert (führt zu 400 invalid_request_error) – bewusst weggelassen.
         system,
         messages: cleanMessages,
-        tools: [tool],
+        tools: [tool, CONFIRM_TOOL],
       }),
     });
 
