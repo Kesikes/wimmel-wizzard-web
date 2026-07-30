@@ -925,9 +925,17 @@ function charInScene(c){
 function scenePrompt(s){
   const loc = s.loc;
   const parts = ["wmlstil"];
-  if(loc.type==="cutaway") parts.push(`${loc.en} building cutaway scene, multiple floors, rooms visible, many small characters`);
-  else parts.push(`${loc.en} landscape scene, many small characters`);
-  state.characters.forEach(c=>parts.push(`including ${charInScene(c)}`));
+  if(loc.type==="cutaway") parts.push(`${loc.en} building cutaway scene, multiple floors, rooms visible`);
+  else parts.push(`${loc.en} landscape scene`);
+  // Wichtig fürs Wiederfinden der Charaktere: sie zuerst und explizit als "im Vordergrund,
+  // deutlich sichtbar" nennen, statt sie in "many small characters" untergehen zu lassen.
+  const heroes = state.characters.map(c=>charInScene(c)).filter(Boolean);
+  if(heroes.length){
+    parts.push(`in the foreground, clearly visible and prominently featured: ${heroes.join(" and ")}`);
+    parts.push("surrounded by many small background characters");
+  } else {
+    parts.push("many small characters");
+  }
   if(s.story) parts.push(translate(s.story));
   if(s.extras && s.extras.length) parts.push(s.extras.join(", "));
   parts.push("plain sky background, no text, no signage, flat color fill, thick black marker outline, graphic recording sketchnote style, high detail, wide composition");
@@ -942,7 +950,12 @@ function proxyUrl(){
   if(o) return o;
   return isHttp() ? "/api/fal-proxy" : ""; // nach Vercel-Deployment automatisch aktiv, lokal (file://) aus
 }
-async function generateImage(prompt, kind, seed){ // kind: "char" | "scene"; seed: optional, für konsistente Änderungen
+async function generateImage(prompt, kind, seed, editImageUrl, editStrength){
+  // kind: "char" | "scene"; seed: optional, für konsistente Neu-Generierungen.
+  // editImageUrl (+ editStrength): wenn gesetzt, läuft die Anfrage über Bild-zu-Bild statt Text-zu-Bild –
+  // das vorhandene Bild wird als Ausgangspunkt genommen und nur leicht (je nach Strength) verändert.
+  // Das hält bei "Etwas ändern" Pose/Komposition VIEL zuverlässiger stabil als nur denselben Seed
+  // mit geändertem Prompt wiederzuverwenden (das kann trotzdem stark abweichen).
   const proxy = proxyUrl();
   const key = falKey();
   if(!proxy && !key) return {url: placeholderSVG(kind), placeholder: true};
@@ -952,7 +965,11 @@ async function generateImage(prompt, kind, seed){ // kind: "char" | "scene"; see
     const resp = await fetch(proxy, {
       method: "POST",
       headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({prompt, kind, ...(seed!=null ? {seed} : {})})
+      body: JSON.stringify({
+        prompt, kind,
+        ...(seed!=null ? {seed} : {}),
+        ...(editImageUrl ? {imageUrl: editImageUrl, strength: editStrength!=null ? editStrength : 0.3} : {})
+      })
     });
     let data;
     try{ data = await resp.json(); }catch(e){ throw new Error("Antwort vom Bild-Server war kein gültiges JSON."); }
@@ -966,14 +983,16 @@ async function generateImage(prompt, kind, seed){ // kind: "char" | "scene"; see
     prompt,
     loras: [{path: LORA_URL, scale: 1}],
     image_size: kind==="char" ? {width:768, height:1024} : {width:1024, height:576},
-    num_inference_steps: kind==="char" ? 35 : 40,
-    guidance_scale: 4,
+    num_inference_steps: kind==="char" ? 42 : 46,
+    guidance_scale: 5,
     num_images: 1,
     enable_safety_checker: true,
     output_format: "png",
-    ...(seed!=null ? {seed} : {})
+    ...(seed!=null ? {seed} : {}),
+    ...(editImageUrl ? {image_url: editImageUrl, strength: editStrength!=null ? editStrength : 0.3} : {})
   };
-  const resp = await fetch("https://fal.run/fal-ai/flux-lora", {
+  const endpoint = editImageUrl ? "https://fal.run/fal-ai/flux-lora/image-to-image" : "https://fal.run/fal-ai/flux-lora";
+  const resp = await fetch(endpoint, {
     method: "POST",
     headers: {"Authorization": "Key " + key, "Content-Type": "application/json"},
     body: JSON.stringify(body)
@@ -1327,7 +1346,12 @@ async function generateCharSheet(forceReroll){
   const isTweak = !forceReroll && c.seed != null;
   const card = await botSay(`<div class="gen-card"><div class="gen-status"><span class="sparkle-loader">✨</span><br>Der Wizzard ${isTweak ? "passt "+c.name+" an" : "zeichnet "+c.name} …</div></div>`, {log:false});
   try{
-    const res = await generateImage(c.prompt, "char", isTweak ? c.seed : undefined);
+    // Gezielte Änderung: Bild-zu-Bild statt Text-zu-Bild – nimmt das AKTUELLE Bild als Ausgangspunkt
+    // und verändert es nur leicht (strength 0.3), statt komplett neu zu würfeln. Das hält Pose,
+    // Proportionen und Look viel zuverlässiger stabil als nur denselben Seed wiederzuverwenden.
+    const res = isTweak
+      ? await generateImage(c.prompt, "char", c.seed, c.img, 0.3)
+      : await generateImage(c.prompt, "char");
     c.img = res.url;
     if(res.seed != null) c.seed = res.seed;
     c.drafts.push({url: res.url, seed: res.seed});
@@ -1472,7 +1496,11 @@ async function generateScene(forceReroll){
   const isTweak = !forceReroll && s.seed != null;
   const card = await botSay(`<div class="gen-card"><div class="gen-status"><span class="sparkle-loader">✨</span><br>${isTweak ? "Der Wizzard passt Szene "+i+" an" : "Der Wizzard wimmelt Szene "+i+" zusammen"} …<br><span style="font-size:14px">(dauert einen Moment)</span></div></div>`, {log:false});
   try{
-    const res = await generateImage(s.prompt, "scene", isTweak ? s.seed : undefined);
+    // Gezielte Änderung: Bild-zu-Bild statt Text-zu-Bild – nimmt die AKTUELLE Szene als Ausgangspunkt
+    // und verändert sie nur leicht (strength 0.3), statt komplett neu zu würfeln.
+    const res = isTweak
+      ? await generateImage(s.prompt, "scene", s.seed, s.img, 0.3)
+      : await generateImage(s.prompt, "scene");
     s.img = res.url;
     if(res.seed != null) s.seed = res.seed;
     s.drafts.push({url: res.url, seed: res.seed});

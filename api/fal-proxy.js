@@ -21,9 +21,15 @@ module.exports = async (req, res) => {
   const body = req.body || {};
   const prompt = String(body.prompt || "").trim();
   const kind = body.kind === "scene" ? "scene" : "char";
-  // Seed: wird vom Client mitgegeben, um bei gezielten Änderungswünschen ("Etwas ändern")
-  // Pose/Komposition stabil zu halten, statt bei jeder Generierung neu zu würfeln.
+  // Seed: wird vom Client mitgegeben, um bei Neu-Generierungen ("Nochmal zaubern") reproduzierbar
+  // zu bleiben. Für gezielte Änderungen ("Etwas ändern") ist imageUrl/strength (s.u.) der eigentliche
+  // Konsistenz-Mechanismus – Seed allein reicht bei geändertem Prompt nicht zuverlässig.
   const seed = Number.isFinite(body.seed) ? Math.trunc(body.seed) : undefined;
+  // imageUrl + strength: wenn gesetzt, läuft die Anfrage über Bild-zu-Bild (image-to-image) statt
+  // Text-zu-Bild. Das vorhandene Bild wird als Ausgangspunkt genommen; strength (0=unverändert,
+  // 1=komplett neu) steuert, wie stark sich das Ergebnis vom Original entfernen darf.
+  const imageUrl = typeof body.imageUrl === "string" && /^https?:\/\//.test(body.imageUrl) ? body.imageUrl : undefined;
+  const strength = Number.isFinite(body.strength) ? Math.min(1, Math.max(0, body.strength)) : 0.3;
 
   if (!prompt) {
     res.status(400).json({ error: "Kein Prompt übergeben." });
@@ -42,18 +48,23 @@ module.exports = async (req, res) => {
   const falBody = {
     prompt,
     loras: [{ path: LORA_URL, scale: 1 }],
-    image_size: kind === "char" ? { width: 768, height: 1024 } : { width: 1024, height: 576 },
-    num_inference_steps: kind === "char" ? 35 : 40,
-    guidance_scale: 4,
+    num_inference_steps: kind === "char" ? 42 : 46,
+    guidance_scale: 5,
     num_images: 1,
     enable_safety_checker: true,
     // PNG statt JPEG: verlustfrei, wichtig für die dünnen schwarzen Outlines im Stil (JPEG-Kompression macht sie weich/unscharf).
     output_format: "png",
     ...(seed !== undefined ? { seed } : {}),
+    ...(imageUrl
+      ? { image_url: imageUrl, strength }
+      : { image_size: kind === "char" ? { width: 768, height: 1024 } : { width: 1024, height: 576 } }),
   };
+  const falEndpoint = imageUrl
+    ? "https://fal.run/fal-ai/flux-lora/image-to-image"
+    : "https://fal.run/fal-ai/flux-lora";
 
   try {
-    const resp = await fetch("https://fal.run/fal-ai/flux-lora", {
+    const resp = await fetch(falEndpoint, {
       method: "POST",
       headers: { Authorization: "Key " + FAL_KEY, "Content-Type": "application/json" },
       body: JSON.stringify(falBody),
