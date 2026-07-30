@@ -191,12 +191,13 @@ input,textarea,select{font-family:inherit;font-size:16px}
 .chip.accent:hover{filter:brightness(.9);color:#fff}
 .gen-card{background:oklch(95% 0.015 85);border-radius:16px;padding:10px;margin-top:8px;text-align:center}
 .gen-card img{width:100%;border-radius:12px;display:block}
-.draft-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:8px}
-@media(min-width:640px){.draft-grid{grid-template-columns:repeat(4,1fr)}}
-.draft-thumb{position:relative;cursor:pointer;border-radius:12px;overflow:hidden;border:3px solid transparent;transition:border-color .15s,transform .1s;background:#fff}
+.draft-history{display:flex;gap:8px;margin-top:10px;overflow-x:auto;padding:2px}
+.draft-history .draft-thumb{flex:0 0 56px;width:56px;height:56px}
+.draft-thumb{position:relative;cursor:pointer;border-radius:10px;overflow:hidden;border:3px solid transparent;transition:border-color .15s,transform .1s;background:#fff}
 .draft-thumb:hover{border-color:var(--accent);transform:translateY(-2px)}
-.draft-thumb img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block}
-.draft-badge{position:absolute;top:6px;left:6px;background:rgba(0,0,0,.55);color:#fff;font-weight:800;font-size:.75rem;padding:2px 7px;border-radius:999px}
+.draft-thumb.selected{border-color:var(--accent)}
+.draft-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.draft-badge{position:absolute;top:2px;left:2px;background:rgba(0,0,0,.55);color:#fff;font-weight:800;font-size:.65rem;padding:1px 5px;border-radius:999px}
 .gen-status{font-family:'Fredoka',sans-serif;font-weight:500;font-size:1.05rem;color:var(--muted);padding:22px 8px}
 .sparkle-loader{display:inline-block;font-size:1.9rem;animation:wiggle 2.2s ease-in-out infinite;transform-origin:75% 85%}
 .prompt-toggle{font-size:.8rem;color:var(--muted2);text-decoration:underline;background:none;margin-top:8px}
@@ -523,10 +524,6 @@ input,textarea,select{font-family:inherit;font-size:16px}
    ===================================================================== */
 
 const LORA_URL = "https://v3b.fal.media/files/b/0aa36425/nJRUo6q_ooBzcjEy5KaWZ_pytorch_lora_weights.safetensors";
-// Anzahl der Bild-Entwürfe, aus denen bei einer Neu-Generierung ausgewählt werden kann.
-// Jeder Entwurf ist ein eigener fal.ai-Aufruf (nötig, damit jeder Entwurf seinen eigenen,
-// später wiederverwendbaren Seed hat) – höherer Wert = mehr Auswahl, aber auch mehr Kosten/Wartezeit.
-const DRAFT_COUNT = 4;
 
 const PRODUCTS = [
   {id:"posterA3", name:"Wimmelbild Poster A3", meta:"1 große Szene · zum Aufhängen", price:34, scenes:1},
@@ -947,60 +944,41 @@ async function generateImage(prompt, kind, seed){ // kind: "char" | "scene"; see
   if(!url) throw new Error("fal.ai hat kein Bild geliefert.");
   return {url, seed: data.seed, placeholder: false};
 }
-async function generateImageDrafts(prompt, kind, count){
-  // Mehrere EINZELNE Generierungen (statt ein num_images>1-Batch): so bekommt jeder
-  // Entwurf seinen eigenen, korrekten Seed zurück, den wir bei Auswahl dieses Entwurfs
-  // später für "Etwas ändern" konsistent wiederverwenden können. Ein gemeinsamer
-  // Batch-Seed würde das nicht zuverlässig ermöglichen.
-  const settled = await Promise.allSettled(
-    Array.from({length: count}, () => generateImage(prompt, kind))
-  );
-  const ok = settled.filter(r => r.status === "fulfilled").map(r => r.value);
-  if(ok.length === 0){
-    const firstErr = settled.find(r => r.status === "rejected");
-    throw new Error((firstErr && firstErr.reason && firstErr.reason.message) || "Bildgenerierung fehlgeschlagen.");
-  }
-  return ok;
-}
-function draftGridHtml(drafts){
-  return `<div class="draft-grid">${drafts.map((d,i)=>
-    `<div class="draft-thumb" onclick="pickDraft(${i})" title="Entwurf ${i+1} auswählen"><img src="${d.url}" alt="Entwurf ${i+1}"><span class="draft-badge">${i+1}</span></div>`
+// ---- Entwurfs-Historie ----
+// Jede Generierung (erster Versuch, "Nochmal zaubern", "Etwas ändern") kommt zu c.drafts/s.drafts
+// dazu, statt frühere Versuche zu verwerfen. So kann man z.B. nach dem 3. Versuch feststellen
+// "eigentlich war der 2. am besten" und per Klick auf die kleine Vorschau dorthin zurückwechseln –
+// ohne neu zu generieren. c.currentDraftIndex/s.currentDraftIndex merkt sich, welcher gerade aktiv ist.
+function draftHistoryHtml(drafts, currentIndex){
+  if(!drafts || drafts.length <= 1) return "";
+  return `<div class="draft-history">${drafts.map((d,i)=>
+    `<div class="draft-thumb${i===currentIndex?" selected":""}" onclick="pickDraft(${i})" title="Entwurf ${i+1} auswählen"><img src="${d.url}" alt="Entwurf ${i+1}"><span class="draft-badge">${i+1}</span></div>`
   ).join("")}</div>`;
 }
+function renderCharResultHtml(c, placeholder){
+  return `${placeholder?"":"Fertig!"} Hier ist <b>${c.name}</b>! 🎉<div class="gen-card"><img src="${c.img}" alt="${c.name}">${draftHistoryHtml(c.drafts, c.currentDraftIndex)}</div><button class="prompt-toggle" onclick="this.nextElementSibling.classList.toggle('hidden')">Prompt anzeigen</button><textarea class="prompt-box hidden" readonly>${escapeHtml(c.prompt)}</textarea>`;
+}
+function renderSceneResultHtml(s, idx){
+  return `Szene ${idx}: <b>${s.loc.label}</b> 🎉<div class="gen-card"><img src="${s.img}" alt="Szene ${idx}">${draftHistoryHtml(s.drafts, s.currentDraftIndex)}</div><button class="prompt-toggle" onclick="this.nextElementSibling.classList.toggle('hidden')">Prompt anzeigen & anpassen</button><textarea class="prompt-box hidden" onchange="state.sceneDraft&&(state.sceneDraft.prompt=this.value)">${escapeHtml(s.prompt)}</textarea>`;
+}
 function pickDraft(i){
+  // Klick auf einen früheren Entwurf in der Historie-Leiste: macht ihn zum aktuellen Bild,
+  // OHNE neu zu generieren. Die Chips (Behalten/Etwas ändern/Nochmal zaubern) bleiben unverändert
+  // gültig, da sie immer auf state.charDraft/state.sceneDraft zugreifen.
   const isChar = state.phase && String(state.phase).startsWith("char");
   const draft = isChar ? state.charDraft : state.sceneDraft;
-  if(!draft || !draft.pendingDrafts || !draft.pendingDrafts[i]) return;
-  const chosen = draft.pendingDrafts[i];
+  if(!draft || !draft.drafts || !draft.drafts[i]) return;
+  const chosen = draft.drafts[i];
   draft.img = chosen.url;
   draft.seed = chosen.seed;
-  draft.pendingDrafts = null;
-
-  let html, chips;
-  if(isChar){
-    const c = draft;
-    html = `Tolle Wahl! Hier ist <b>${c.name}</b>! 🎉<div class="gen-card"><img src="${c.img}" alt="${c.name}"></div><button class="prompt-toggle" onclick="this.nextElementSibling.classList.toggle('hidden')">Prompt anzeigen</button><textarea class="prompt-box hidden" readonly>${escapeHtml(c.prompt)}</textarea>`;
-    chips = [
-      {label:"❤️ Behalten", accent:true, action:acceptChar},
-      {label:"✏️ Etwas ändern", action:requestCharTweak},
-      {label:"🎲 Nochmal zaubern", action:()=>{ userSay("🎲 Nochmal zaubern"); generateCharSheetRetry(); }}
-    ];
-  } else {
-    const s = draft;
-    const idx = state.scenes.length + 1;
-    html = `Szene ${idx}: <b>${s.loc.label}</b> 🎉<div class="gen-card"><img src="${s.img}" alt="Szene ${idx}"></div><button class="prompt-toggle" onclick="this.nextElementSibling.classList.toggle('hidden')">Prompt anzeigen & anpassen</button><textarea class="prompt-box hidden" onchange="state.sceneDraft&&(state.sceneDraft.prompt=this.value)">${escapeHtml(s.prompt)}</textarea>`;
-    chips = [
-      {label:"❤️ Behalten", accent:true, action:acceptScene},
-      {label:"✏️ Etwas ändern", action:requestSceneTweak},
-      {label:"🎲 Nochmal zaubern", action:()=>{ userSay("🎲 Nochmal zaubern"); generateScene(true); }}
-    ];
-  }
-  // Die Entwurfs-Auswahl-Bubble durch das gewählte Bild ersetzen (statt eine neue anzuhängen)
+  draft.currentDraftIndex = i;
+  const html = isChar
+    ? renderCharResultHtml(draft, false)
+    : renderSceneResultHtml(draft, state.scenes.length + 1);
   const bubbles = chatEl().querySelectorAll(".msg.bot .bubble");
   const lastBubble = bubbles[bubbles.length-1];
   if(lastBubble) lastBubble.innerHTML = html;
   if(state.chatLog.length) state.chatLog[state.chatLog.length-1].h = html;
-  showChips(chips);
   saveState();
   scrollChat();
 }
@@ -1110,9 +1088,12 @@ async function aiCollectScene(){
 }
 
 async function handleCharacterTool(input){
-  // Seed vom vorherigen Entwurf übernehmen (falls schon generiert) – sonst würde jeder
-  // Änderungswunsch den Seed verlieren und wieder ein komplett anderes Bild erzeugen.
+  // Seed + Entwurfs-Historie vom vorherigen Entwurf übernehmen (falls schon generiert) –
+  // sonst würde jeder Änderungswunsch den Seed verlieren (komplett anderes Bild) und die
+  // Historie zurückgesetzt werden (frühere Versuche nicht mehr anklickbar).
   const prevSeed = state.charDraft && state.charDraft.seed;
+  const prevDrafts = (state.charDraft && state.charDraft.drafts) || [];
+  const prevIdx = state.charDraft ? state.charDraft.currentDraftIndex : undefined;
   state.charDraft = {
     name: input.name || "Kind",
     roleLabel: input.role_label || "",
@@ -1122,22 +1103,29 @@ async function handleCharacterTool(input){
     sceneFragment: input.scene_fragment_en || "",
     hair: "", clothing: "",
     prompt: input.sheet_prompt,
-    seed: prevSeed
+    seed: prevSeed,
+    drafts: prevDrafts,
+    currentDraftIndex: prevIdx
   };
   saveState();
   await generateCharSheet();
 }
 
 async function handleSceneTool(input){
-  // Seed vom vorherigen Entwurf übernehmen (falls schon generiert) – sonst würde jeder
-  // Änderungswunsch den Seed verlieren und wieder ein komplett anderes Bild erzeugen.
+  // Seed + Entwurfs-Historie vom vorherigen Entwurf übernehmen (falls schon generiert) –
+  // sonst würde jeder Änderungswunsch den Seed verlieren (komplett anderes Bild) und die
+  // Historie zurückgesetzt werden (frühere Versuche nicht mehr anklickbar).
   const prevSeed = state.sceneDraft && state.sceneDraft.seed;
+  const prevDrafts = (state.sceneDraft && state.sceneDraft.drafts) || [];
+  const prevIdx = state.sceneDraft ? state.sceneDraft.currentDraftIndex : undefined;
   state.sceneDraft = {
     loc: {label: input.location_label || "Szene", type: input.location_type === "cutaway" ? "cutaway" : "landscape"},
     story: input.summary_de || "",
     extras: [],
     prompt: input.prompt,
-    seed: prevSeed
+    seed: prevSeed,
+    drafts: prevDrafts,
+    currentDraftIndex: prevIdx
   };
   saveState();
   await generateScene();
@@ -1286,65 +1274,42 @@ function chTweakFree(text){
     generateCharSheet();
   })();
 }
-async function generateCharSheet(){
+async function generateCharSheet(forceReroll){
   const c = state.charDraft;
   c.prompt = c.prompt || charPrompt(c);
+  c.drafts = c.drafts || [];
   state.phase = "char_generating"; saveState();
-  if(c.seed != null){
-    // Gezielte Änderung ("Etwas ändern"): Seed wiederverwenden – hält Pose/Komposition
-    // stabil, EIN Ergebnis (kein Sinn, hier mehrere Zufalls-Entwürfe anzubieten).
-    const card = await botSay(`<div class="gen-card"><div class="gen-status"><span class="sparkle-loader">✨</span><br>Der Wizzard passt ${c.name} an …</div></div>`, {log:false});
-    try{
-      const res = await generateImage(c.prompt, "char", c.seed);
-      c.img = res.url;
-      if(res.seed != null) c.seed = res.seed;
-      const html = `${res.placeholder?"":"Fertig!"} Hier ist <b>${c.name}</b>! 🎉<div class="gen-card"><img src="${c.img}" alt="${c.name}"></div><button class="prompt-toggle" onclick="this.nextElementSibling.classList.toggle('hidden')">Prompt anzeigen</button><textarea class="prompt-box hidden" readonly>${escapeHtml(c.prompt)}</textarea>`;
-      card.querySelector(".bubble").innerHTML = html;
-      state.chatLog.push({w:"bot", h:html});
-      scrollChat();
-      showChips([
-        {label:"❤️ Behalten", accent:true, action:acceptChar},
-        {label:"✏️ Etwas ändern", action:requestCharTweak},
-        {label:"🎲 Nochmal zaubern", action:()=>{ userSay("🎲 Nochmal zaubern"); generateCharSheetRetry(); }}
-      ]);
-      saveState();
-    }catch(e){
-      const html = `Hoppla, da hat der Zauberstab gestreikt: <b>${escapeHtml(e.message)}</b><span class="note">Prüfe deinen fal.ai-Key in ⚙️ oder versuch es gleich nochmal.</span>`;
-      card.querySelector(".bubble").innerHTML = html;
-      state.chatLog.push({w:"bot", h:html}); saveState();
-      showChips([
-        {label:"🔁 Nochmal versuchen", accent:true, action:()=>{ clearChips(); generateCharSheet(); }},
-        {label:"➡️ Ohne Bild weiter", action:acceptChar}
-      ]);
-    }
-  } else {
-    // Erste Generierung: mehrere Entwürfe zur Auswahl anbieten
-    await generateCharDrafts();
-  }
-}
-async function generateCharDrafts(){
-  const c = state.charDraft;
-  const card = await botSay(`<div class="gen-card"><div class="gen-status"><span class="sparkle-loader">✨</span><br>Der Wizzard zaubert ${DRAFT_COUNT} Entwürfe von ${c.name} …</div></div>`, {log:false});
+  // Gezielte Änderung ("Etwas ändern"): Seed des aktuell gewählten Entwurfs wiederverwenden –
+  // hält Pose/Komposition stabil. "Nochmal zaubern": bewusst neuer, zufälliger Versuch.
+  const isTweak = !forceReroll && c.seed != null;
+  const card = await botSay(`<div class="gen-card"><div class="gen-status"><span class="sparkle-loader">✨</span><br>Der Wizzard ${isTweak ? "passt "+c.name+" an" : "zeichnet "+c.name} …</div></div>`, {log:false});
   try{
-    const drafts = await generateImageDrafts(c.prompt, "char", DRAFT_COUNT);
-    c.pendingDrafts = drafts;
-    const html = `Hier sind ${drafts.length} Ideen für <b>${c.name}</b> – klick auf deinen Favoriten! 🪄${draftGridHtml(drafts)}`;
+    const res = await generateImage(c.prompt, "char", isTweak ? c.seed : undefined);
+    c.img = res.url;
+    if(res.seed != null) c.seed = res.seed;
+    c.drafts.push({url: res.url, seed: res.seed});
+    c.currentDraftIndex = c.drafts.length - 1;
+    const html = renderCharResultHtml(c, res.placeholder);
     card.querySelector(".bubble").innerHTML = html;
-    state.chatLog.push({w:"bot", h:html}); saveState(); scrollChat();
-    const chips = [];
-    if(c.img) chips.push({label:"❤️ Vorherigen behalten", accent:true, action:acceptChar});
-    chips.push({label:"🔄 Andere Vorschläge", action:()=>{ userSay("🔄 Andere Vorschläge"); generateCharDrafts(); }});
-    showChips(chips);
+    state.chatLog.push({w:"bot", h:html});
+    scrollChat();
+    showChips([
+      {label:"❤️ Behalten", accent:true, action:acceptChar},
+      {label:"✏️ Etwas ändern", action:requestCharTweak},
+      {label:"🎲 Nochmal zaubern", action:()=>{ userSay("🎲 Nochmal zaubern"); generateCharSheet(true); }}
+    ]);
+    saveState();
   }catch(e){
     const html = `Hoppla, da hat der Zauberstab gestreikt: <b>${escapeHtml(e.message)}</b><span class="note">Prüfe deinen fal.ai-Key in ⚙️ oder versuch es gleich nochmal.</span>`;
     card.querySelector(".bubble").innerHTML = html;
     state.chatLog.push({w:"bot", h:html}); saveState();
-    const chips = [{label:"🔁 Nochmal versuchen", accent:true, action:()=>{ clearChips(); generateCharDrafts(); }}];
-    chips.push(c.img ? {label:"❤️ Vorherigen behalten", action:acceptChar} : {label:"➡️ Ohne Bild weiter", action:acceptChar});
-    showChips(chips);
+    showChips([
+      {label:"🔁 Nochmal versuchen", accent:true, action:()=>{ clearChips(); generateCharSheet(forceReroll); }},
+      {label:"➡️ Ohne Bild weiter", action:acceptChar}
+    ]);
   }
 }
-function generateCharSheetRetry(){ return generateCharDrafts(); }
+function generateCharSheetRetry(){ return generateCharSheet(true); }
 function acceptChar(){
   userSay("❤️ Behalten");
   state.characters.push(state.charDraft);
@@ -1456,59 +1421,35 @@ function scTweakFree(text){
 async function generateScene(forceReroll){
   const s = state.sceneDraft;
   s.prompt = s.prompt || scenePrompt(s);
+  s.drafts = s.drafts || [];
   state.phase = "scene_generating"; saveState();
   const i = state.scenes.length + 1;
-  if(!forceReroll && s.seed != null){
-    // Gezielte Änderung ("Etwas ändern"): Seed wiederverwenden – hält Komposition stabil,
-    // EIN Ergebnis (kein Sinn, hier mehrere Zufalls-Entwürfe anzubieten).
-    const card = await botSay(`<div class="gen-card"><div class="gen-status"><span class="sparkle-loader">✨</span><br>Der Wizzard passt Szene ${i} an …<br><span style="font-size:14px">(dauert einen Moment)</span></div></div>`, {log:false});
-    try{
-      const res = await generateImage(s.prompt, "scene", s.seed);
-      s.img = res.url;
-      if(res.seed != null) s.seed = res.seed;
-      const html = `Szene ${i}: <b>${s.loc.label}</b> 🎉<div class="gen-card"><img src="${s.img}" alt="Szene ${i}"></div><button class="prompt-toggle" onclick="this.nextElementSibling.classList.toggle('hidden')">Prompt anzeigen & anpassen</button><textarea class="prompt-box hidden" onchange="state.sceneDraft&&(state.sceneDraft.prompt=this.value)">${escapeHtml(s.prompt)}</textarea>`;
-      card.querySelector(".bubble").innerHTML = html;
-      state.chatLog.push({w:"bot", h:html}); saveState(); scrollChat();
-      showChips([
-        {label:"❤️ Behalten", accent:true, action:acceptScene},
-        {label:"✏️ Etwas ändern", action:requestSceneTweak},
-        {label:"🎲 Nochmal zaubern", action:()=>{ userSay("🎲 Nochmal zaubern"); generateScene(true); }}
-      ]);
-    }catch(e){
-      const html = `Hoppla: <b>${escapeHtml(e.message)}</b><span class="note">Key in ⚙️ prüfen oder gleich nochmal versuchen.</span>`;
-      card.querySelector(".bubble").innerHTML = html;
-      state.chatLog.push({w:"bot", h:html}); saveState();
-      showChips([
-        {label:"🔁 Nochmal versuchen", accent:true, action:()=>generateScene()},
-        {label:"➡️ Ohne Bild weiter", action:acceptScene}
-      ]);
-    }
-  } else {
-    // Erstgenerierung oder "Nochmal zaubern": mehrere Entwürfe zur Auswahl anbieten
-    await generateSceneDrafts();
-  }
-}
-async function generateSceneDrafts(){
-  const s = state.sceneDraft;
-  const i = state.scenes.length + 1;
-  const card = await botSay(`<div class="gen-card"><div class="gen-status"><span class="sparkle-loader">✨</span><br>Der Wizzard wimmelt ${DRAFT_COUNT} Entwürfe für Szene ${i} zusammen …<br><span style="font-size:14px">(dauert einen Moment)</span></div></div>`, {log:false});
+  // Gezielte Änderung ("Etwas ändern"): Seed des aktuell gewählten Entwurfs wiederverwenden –
+  // hält Komposition stabil. "Nochmal zaubern": bewusst neuer, zufälliger Versuch.
+  const isTweak = !forceReroll && s.seed != null;
+  const card = await botSay(`<div class="gen-card"><div class="gen-status"><span class="sparkle-loader">✨</span><br>${isTweak ? "Der Wizzard passt Szene "+i+" an" : "Der Wizzard wimmelt Szene "+i+" zusammen"} …<br><span style="font-size:14px">(dauert einen Moment)</span></div></div>`, {log:false});
   try{
-    const drafts = await generateImageDrafts(s.prompt, "scene", DRAFT_COUNT);
-    s.pendingDrafts = drafts;
-    const html = `Hier sind ${drafts.length} Ideen für Szene ${i}: <b>${s.loc.label}</b> – klick auf deinen Favoriten! 🪄${draftGridHtml(drafts)}`;
+    const res = await generateImage(s.prompt, "scene", isTweak ? s.seed : undefined);
+    s.img = res.url;
+    if(res.seed != null) s.seed = res.seed;
+    s.drafts.push({url: res.url, seed: res.seed});
+    s.currentDraftIndex = s.drafts.length - 1;
+    const html = renderSceneResultHtml(s, i);
     card.querySelector(".bubble").innerHTML = html;
     state.chatLog.push({w:"bot", h:html}); saveState(); scrollChat();
-    const chips = [];
-    if(s.img) chips.push({label:"❤️ Vorherigen behalten", accent:true, action:acceptScene});
-    chips.push({label:"🔄 Andere Vorschläge", action:()=>{ userSay("🔄 Andere Vorschläge"); generateSceneDrafts(); }});
-    showChips(chips);
+    showChips([
+      {label:"❤️ Behalten", accent:true, action:acceptScene},
+      {label:"✏️ Etwas ändern", action:requestSceneTweak},
+      {label:"🎲 Nochmal zaubern", action:()=>{ userSay("🎲 Nochmal zaubern"); generateScene(true); }}
+    ]);
   }catch(e){
     const html = `Hoppla: <b>${escapeHtml(e.message)}</b><span class="note">Key in ⚙️ prüfen oder gleich nochmal versuchen.</span>`;
     card.querySelector(".bubble").innerHTML = html;
     state.chatLog.push({w:"bot", h:html}); saveState();
-    const chips = [{label:"🔁 Nochmal versuchen", accent:true, action:()=>{ clearChips(); generateSceneDrafts(); }}];
-    chips.push(s.img ? {label:"❤️ Vorherigen behalten", action:acceptScene} : {label:"➡️ Ohne Bild weiter", action:acceptScene});
-    showChips(chips);
+    showChips([
+      {label:"🔁 Nochmal versuchen", accent:true, action:()=>generateScene(forceReroll)},
+      {label:"➡️ Ohne Bild weiter", action:acceptScene}
+    ]);
   }
 }
 function acceptScene(){
@@ -1656,9 +1597,7 @@ function restoreChips(saved){
   const actions = {
     "🪄 Ja, zaubern!": confirmCharGen,
     "❤️ Behalten": state.phase && String(state.phase).startsWith("char") ? acceptChar : acceptScene,
-    "❤️ Vorherigen behalten": state.phase && String(state.phase).startsWith("char") ? acceptChar : acceptScene,
     "🎲 Nochmal zaubern": state.phase && String(state.phase).startsWith("char") ? generateCharSheetRetry : ()=>generateScene(true),
-    "🔄 Andere Vorschläge": state.phase && String(state.phase).startsWith("char") ? generateCharSheetRetry : ()=>generateScene(true),
     "✏️ Etwas ändern": state.phase && String(state.phase).startsWith("char") ? requestCharTweak : requestSceneTweak,
     "✅ Das sind alle": startScenes,
     "🎲 Überrasch mich!": addSurprises,
