@@ -167,8 +167,23 @@ input,textarea,select{font-family:inherit;font-size:16px}
 
 /* ---------- Chat ---------- */
 .chat-panel{display:flex;flex-direction:column;flex:1;min-height:0}
+.chat-workbench{display:flex;flex-direction:column;flex:1;min-height:0;gap:0}
 .chat-scroll{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column}
 .chat-area{padding:18px 16px 4px;max-width:var(--col);margin:0 auto;width:100%}
+/* Live-Vorschau: zeigt den AKTUELLEN Entwurf immer sichtbar, ohne im Chat scrollen zu müssen. */
+.live-panel{order:-1;background:#fff;border-radius:16px;box-shadow:var(--shadow-sm);padding:14px;margin:14px 16px 0}
+.live-panel:empty{display:none}
+.live-panel-title{font-family:'Fredoka',sans-serif;font-weight:600;font-size:.95rem;color:var(--muted);margin-bottom:8px}
+.live-panel-imgwrap{position:relative;border-radius:12px;overflow:hidden;background:var(--bg-deep)}
+.live-panel-imgwrap img{width:100%;display:block;border-radius:12px}
+.live-panel-busy{position:absolute;inset:0;background:oklch(97% 0.018 85 / .82);display:flex;align-items:center;justify-content:center;font-size:28px}
+.live-panel-hint{font-size:12px;color:var(--ink-soft);margin-top:10px}
+.live-empty{text-align:center;padding:20px 10px;color:var(--ink-soft);font-size:13px;line-height:1.5}
+@media (min-width:900px){
+  .chat-workbench{flex-direction:row;gap:22px;align-items:flex-start}
+  .chat-scroll{order:1}
+  .live-panel{order:2;width:320px;flex-shrink:0;position:sticky;top:14px;margin:14px 0 0}
+}
 .msg{display:flex;gap:10px;margin-bottom:14px;animation:fadeUp .35s ease both}
 .msg .avatar{width:34px;height:34px;flex-shrink:0;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px}
 .msg.user .avatar{background:#fff;box-shadow:var(--shadow-sm);border-radius:50%}
@@ -255,6 +270,20 @@ input,textarea,select{font-family:inherit;font-size:16px}
 .modal p{font-size:.92rem;color:var(--muted);margin-bottom:12px}
 .modal a{color:var(--accent);text-decoration:none}
 .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:16px}
+/* Buch-Vorschau: virtuelles Durchblättern des fertigen Buchs vor der Bestellung */
+.book-modal{max-width:560px}
+.book-stage{display:flex;align-items:center;gap:8px}
+.book-page{flex:1;min-width:0;aspect-ratio:4/3;background:var(--bg-deep);border-radius:14px;overflow:hidden;position:relative;box-shadow:var(--shadow-sm)}
+.book-page img{width:100%;height:100%;object-fit:cover;display:block;animation:pageIn .28s ease both}
+.book-page-cap{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(transparent,oklch(20% 0.02 50 / .75));color:#fff;font-weight:800;font-size:.85rem;padding:22px 14px 10px;text-align:center}
+.book-page-empty{width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--ink-soft);font-size:.85rem;text-align:center;padding:20px}
+@keyframes pageIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}
+.book-nav{flex-shrink:0;width:38px;height:38px;border-radius:50%;border:none;background:#fff;box-shadow:var(--shadow-sm);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--ink)}
+.book-nav:hover{background:var(--cream-2)}
+.book-nav:disabled{opacity:.3;cursor:default}
+.book-dots{display:flex;gap:6px;justify-content:center;margin-top:12px;flex-wrap:wrap}
+.book-dot{width:8px;height:8px;border-radius:50%;background:var(--cream-2);cursor:pointer;border:none;padding:0}
+.book-dot.active{background:var(--accent);transform:scale(1.3)}
 .toast{position:fixed;top:16px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 22px;border-radius:999px;font-size:.9rem;font-weight:700;z-index:99;animation:fadeUp .3s ease both;max-width:90vw}
 
 @media (max-width:820px){
@@ -479,16 +508,19 @@ input,textarea,select{font-family:inherit;font-size:16px}
 
       <!-- Chat -->
       <div id="panel-chat" class="hidden chat-panel">
-        <div class="chat-scroll" id="chat-scroll">
-          <div class="chat-area" id="chat-area"></div>
-          <div class="input-bar" id="input-bar">
-            <div class="input-inner">
-              <button class="mic-btn" id="mic-btn" title="Sprechen" onclick="toggleMic()">🎤</button>
-              <textarea id="chat-input" rows="1" placeholder="Schreib oder sprich einfach los …"></textarea>
-              <button class="send-btn" onclick="sendUserInput()" title="Senden">➤</button>
+        <div class="chat-workbench">
+          <div class="chat-scroll" id="chat-scroll">
+            <div class="chat-area" id="chat-area"></div>
+            <div class="input-bar" id="input-bar">
+              <div class="input-inner">
+                <button class="mic-btn" id="mic-btn" title="Sprechen" onclick="toggleMic()">🎤</button>
+                <textarea id="chat-input" rows="1" placeholder="Schreib oder sprich einfach los …"></textarea>
+                <button class="send-btn" onclick="sendUserInput()" title="Senden">➤</button>
+              </div>
+              <div class="voice-hint" id="voice-hint"></div>
             </div>
-            <div class="voice-hint" id="voice-hint"></div>
           </div>
+          <div class="live-panel" id="live-panel"></div>
         </div>
       </div>
 
@@ -500,6 +532,7 @@ input,textarea,select{font-family:inherit;font-size:16px}
         <div class="summary-box" id="summary-box"></div>
         <div class="panel-actions">
           <button class="btn btn-sage btn-small" onclick="backToChat()">↩ Weiter erzählen</button>
+          <button class="btn btn-sage btn-small" onclick="openBookPreview()">📖 Buch durchblättern</button>
           <button class="btn btn-primary" onclick="openCheckout()">🛒 Zur Bestellung</button>
         </div>
       </div>
@@ -532,6 +565,7 @@ input,textarea,select{font-family:inherit;font-size:16px}
     <p><b>PayPal Client-ID</b> – Sandbox-ID für Testzahlungen, Live-ID für echte Zahlungen (beides aus dem <a href="https://developer.paypal.com/dashboard/" target="_blank" rel="noopener">PayPal Developer Dashboard</a>).</p>
     <div class="field"><label>PayPal Client-ID</label><input type="text" id="paypal-cid" placeholder="leer = PayPal-Demo-Sandbox"></div>
     <div class="field"><label>Chat-Server-URL (nur falls abweichend)</label><input type="text" id="chat-proxy-url" placeholder="Standard: /api/claude-proxy"></div>
+    <div class="field"><label>Druckauftrags-Server-URL (nur falls abweichend)</label><input type="text" id="order-proxy-url" placeholder="Standard: /api/order-notify"></div>
     <div class="modal-actions">
       <button class="btn btn-small btn-ghost" onclick="closeSettings()">Schließen</button>
       <button class="btn btn-small btn-primary" onclick="saveSettings()">Speichern</button>
@@ -544,6 +578,22 @@ input,textarea,select{font-family:inherit;font-size:16px}
     <h3>🛒 Bestellung</h3>
     <div id="checkout-body"></div>
     <div class="modal-actions"><button class="btn btn-small btn-ghost" onclick="document.getElementById('modal-checkout').classList.add('hidden')">Schließen</button></div>
+  </div>
+</div>
+
+<div id="modal-book" class="modal-bg hidden" onclick="if(event.target===this)closeBookPreview()">
+  <div class="modal book-modal">
+    <h3>📖 Euer Wimmelbuch</h3>
+    <div class="book-stage">
+      <button class="book-nav book-nav-prev" onclick="bookTurn(-1)" title="Vorherige Seite" aria-label="Vorherige Seite">‹</button>
+      <div class="book-page" id="book-page"></div>
+      <button class="book-nav book-nav-next" onclick="bookTurn(1)" title="Nächste Seite" aria-label="Nächste Seite">›</button>
+    </div>
+    <div class="book-dots" id="book-dots"></div>
+    <div class="modal-actions">
+      <button class="btn btn-small btn-ghost" onclick="closeBookPreview()">Schließen</button>
+      <button class="btn btn-primary btn-small" onclick="closeBookPreview(); openCheckout();">🛒 Zur Bestellung</button>
+    </div>
   </div>
 </div>
 
@@ -765,6 +815,7 @@ function showPanel(p){
   $("char-strip").style.display = (p==="chat"||p==="summary") ? "flex" : "none";
   renderPanels();
   updateProgress();
+  if(p==="chat") renderLivePanel();
 }
 function renderPanels(){
   $("product-grid").innerHTML = PRODUCTS.map(p=>`
@@ -887,6 +938,7 @@ function rebuildChat(){
   state.chatLog.forEach(m=>addMsgDom(m.w, m.h));
   if(state.chips) restoreChips(state.chips);
   scrollChat();
+  renderLivePanel();
 }
 
 /* ---------------- Übersetzung & Prompts ---------------- */
@@ -950,12 +1002,18 @@ function proxyUrl(){
   if(o) return o;
   return isHttp() ? "/api/fal-proxy" : ""; // nach Vercel-Deployment automatisch aktiv, lokal (file://) aus
 }
-async function generateImage(prompt, kind, seed, editImageUrl, editStrength){
+function kontextInstruction(raw){
+  // Baut aus einer kurzen Änderungsbeschreibung die Editier-Anweisung für fal-ai/flux-kontext-lora.
+  // Der explizite "keep everything else"-Zusatz ist entscheidend dafür, dass wirklich nur das
+  // gewünschte Detail geändert wird und nicht das ganze Bild neu interpretiert wird.
+  return `wmlstil, ${raw}. Keep everything else in the image exactly the same: same pose, same character identity, same composition, same background, same art style.`;
+}
+async function generateImage(prompt, kind, seed, editImageUrl){
   // kind: "char" | "scene"; seed: optional, für konsistente Neu-Generierungen.
-  // editImageUrl (+ editStrength): wenn gesetzt, läuft die Anfrage über Bild-zu-Bild statt Text-zu-Bild –
-  // das vorhandene Bild wird als Ausgangspunkt genommen und nur leicht (je nach Strength) verändert.
-  // Das hält bei "Etwas ändern" Pose/Komposition VIEL zuverlässiger stabil als nur denselben Seed
-  // mit geändertem Prompt wiederzuverwenden (das kann trotzdem stark abweichen).
+  // editImageUrl: wenn gesetzt, läuft die Anfrage über fal-ai/flux-kontext-lora statt Text-zu-Bild –
+  // ein instruction-basiertes Editier-Modell (nicht generisches img2img), das genau für "diese eine
+  // Sache ändern, alles andere exakt gleich lassen" gebaut ist und dabei UNSER LoRA weiterverwendet.
+  // "prompt" ist in diesem Fall die kurze Editier-Anweisung, nicht die volle Bildbeschreibung.
   const proxy = proxyUrl();
   const key = falKey();
   if(!proxy && !key) return {url: placeholderSVG(kind), placeholder: true};
@@ -968,7 +1026,7 @@ async function generateImage(prompt, kind, seed, editImageUrl, editStrength){
       body: JSON.stringify({
         prompt, kind,
         ...(seed!=null ? {seed} : {}),
-        ...(editImageUrl ? {imageUrl: editImageUrl, strength: editStrength!=null ? editStrength : 0.3} : {})
+        ...(editImageUrl ? {imageUrl: editImageUrl} : {})
       })
     });
     let data;
@@ -979,7 +1037,18 @@ async function generateImage(prompt, kind, seed, editImageUrl, editStrength){
   }
 
   // Nur fürs lokale Testen: direkter Aufruf mit Key aus dem Browser (siehe Warnhinweis in ⚙️)
-  const body = {
+  const body = editImageUrl ? {
+    prompt,
+    image_url: editImageUrl,
+    loras: [{path: LORA_URL, scale: 1}],
+    num_inference_steps: 30,
+    guidance_scale: 2.5,
+    resolution_mode: "match_input",
+    num_images: 1,
+    enable_safety_checker: true,
+    output_format: "png",
+    ...(seed!=null ? {seed} : {})
+  } : {
     prompt,
     loras: [{path: LORA_URL, scale: 1}],
     image_size: kind==="char" ? {width:768, height:1024} : {width:1024, height:576},
@@ -988,10 +1057,9 @@ async function generateImage(prompt, kind, seed, editImageUrl, editStrength){
     num_images: 1,
     enable_safety_checker: true,
     output_format: "png",
-    ...(seed!=null ? {seed} : {}),
-    ...(editImageUrl ? {image_url: editImageUrl, strength: editStrength!=null ? editStrength : 0.3} : {})
+    ...(seed!=null ? {seed} : {})
   };
-  const endpoint = editImageUrl ? "https://fal.run/fal-ai/flux-lora/image-to-image" : "https://fal.run/fal-ai/flux-lora";
+  const endpoint = editImageUrl ? "https://fal.run/fal-ai/flux-kontext-lora" : "https://fal.run/fal-ai/flux-lora";
   const resp = await fetch(endpoint, {
     method: "POST",
     headers: {"Authorization": "Key " + key, "Content-Type": "application/json"},
@@ -1043,6 +1111,40 @@ function pickDraft(i){
   if(state.chatLog.length) state.chatLog[state.chatLog.length-1].h = html;
   saveState();
   scrollChat();
+  renderLivePanel();
+}
+
+/* ---- Live-Vorschau neben dem Chat ----
+   Zeigt den GERADE aktiven Entwurf (Charakter oder Szene) permanent an – ohne dass man im
+   Chatverlauf danach suchen/scrollen muss. Wird bei jeder Bild-Änderung neu aufgerufen. */
+function currentDraft(){
+  const p = state.phase || "";
+  if(p.startsWith("char")) return {kind:"char", d: state.charDraft};
+  if(p.startsWith("scene")) return {kind:"scene", d: state.sceneDraft};
+  if(p === "ai_wait" || p === "ai_thinking"){
+    if(state.aiUnit === "character") return {kind:"char", d: state.charDraft};
+    if(state.aiUnit === "scene") return {kind:"scene", d: state.sceneDraft};
+  }
+  return {kind:null, d:null};
+}
+function renderLivePanel(busy){
+  const panel = $("live-panel");
+  if(!panel) return;
+  const {kind, d} = currentDraft();
+  if(!d || !d.img){
+    panel.innerHTML = d
+      ? `<div class="live-empty">✨<br>Gleich erscheint hier das Bild, sobald der Wizzard fertig gezaubert hat.</div>`
+      : "";
+    return;
+  }
+  const title = kind === "char"
+    ? (d.name || "Charakter")
+    : ("Szene " + (state.scenes.length + 1) + (d.loc ? ": " + d.loc.label : ""));
+  panel.innerHTML = `
+    <div class="live-panel-title">${escapeHtml(title)}</div>
+    <div class="live-panel-imgwrap"><img src="${d.img}" alt="${escapeHtml(title)}">${busy?`<div class="live-panel-busy"><span class="sparkle-loader">✨</span></div>`:""}</div>
+    ${draftHistoryHtml(d.drafts, d.currentDraftIndex)}
+    <p class="live-panel-hint">Schreib unten in den Chat, was anders sein soll – das Bild hier aktualisiert sich sofort.</p>`;
 }
 function placeholderSVG(kind){
   const w = kind==="char" ? 300 : 480, h = kind==="char" ? 400 : 270;
@@ -1172,6 +1274,9 @@ async function handleCharacterTool(input){
     sceneFragment: input.scene_fragment_en || "",
     hair: "", clothing: "",
     prompt: input.sheet_prompt,
+    // NUR bei Änderungswunsch gefüllt: kurze Editier-Anweisung für den gezielten Kontext-Edit-Aufruf
+    // (statt die ganze Beschreibung neu zu senden – siehe generateCharSheet()).
+    tweakInstruction: input.edit_instruction || null,
     seed: prevSeed,
     drafts: prevDrafts,
     currentDraftIndex: prevIdx
@@ -1192,6 +1297,7 @@ async function handleSceneTool(input){
     story: input.summary_de || "",
     extras: [],
     prompt: input.prompt,
+    tweakInstruction: input.edit_instruction || null,
     seed: prevSeed,
     drafts: prevDrafts,
     currentDraftIndex: prevIdx
@@ -1353,7 +1459,8 @@ function chTweakFree(text){
   const c = state.charDraft;
   if(!c){ botSay("Hoppla, dazu fehlt mir gerade der Entwurf – lass uns nochmal von vorn starten."); return; }
   c.clothing = (c.clothing || "") + (c.clothing ? ", " : "") + text;
-  c.prompt = null;
+  c.prompt = null; // volle Beschreibung wird bei "Nochmal zaubern" neu gebaut, inkl. dieser Änderung
+  c.tweakInstruction = translate(text); // NUR die Änderung selbst, für den gezielten Kontext-Edit-Aufruf
   (async()=>{
     await botSay(`Alles klar, ich passe ${c.name} an. 🪄`);
     generateCharSheet();
@@ -1364,16 +1471,17 @@ async function generateCharSheet(forceReroll){
   c.prompt = c.prompt || charPrompt(c);
   c.drafts = c.drafts || [];
   state.phase = "char_generating"; saveState();
+  renderLivePanel(true);
   // Gezielte Änderung ("Etwas ändern"): Seed des aktuell gewählten Entwurfs wiederverwenden –
   // hält Pose/Komposition stabil. "Nochmal zaubern": bewusst neuer, zufälliger Versuch.
   const isTweak = !forceReroll && c.seed != null;
   const card = await botSay(`<div class="gen-card"><div class="gen-status"><span class="sparkle-loader">✨</span><br>Der Wizzard ${isTweak ? "passt "+c.name+" an" : "zeichnet "+c.name} …</div></div>`, {log:false});
   try{
-    // Gezielte Änderung: Bild-zu-Bild statt Text-zu-Bild – nimmt das AKTUELLE Bild als Ausgangspunkt
-    // und verändert es nur leicht (strength 0.3), statt komplett neu zu würfeln. Das hält Pose,
-    // Proportionen und Look viel zuverlässiger stabil als nur denselben Seed wiederzuverwenden.
+    // Gezielte Änderung: fal-ai/flux-kontext-lora statt Text-zu-Bild – ein instruction-basiertes
+    // Editier-Modell, das NUR die beschriebene Änderung umsetzt und alles andere (Pose, Gesicht,
+    // Komposition) beibehält. Bekommt die kurze Editier-Anweisung statt der vollen Beschreibung.
     const res = isTweak
-      ? await generateImage(c.prompt, "char", c.seed, c.img, 0.3)
+      ? await generateImage(kontextInstruction(c.tweakInstruction || c.prompt), "char", c.seed, c.img)
       : await generateImage(c.prompt, "char");
     c.img = res.url;
     if(res.seed != null) c.seed = res.seed;
@@ -1383,6 +1491,7 @@ async function generateCharSheet(forceReroll){
     card.querySelector(".bubble").innerHTML = html;
     state.chatLog.push({w:"bot", h:html});
     scrollChat();
+    renderLivePanel();
     showChips([
       {label:"❤️ Behalten", accent:true, action:acceptChar},
       {label:"✏️ Etwas ändern", action:requestCharTweak},
@@ -1393,6 +1502,7 @@ async function generateCharSheet(forceReroll){
     const html = `Hoppla, da hat der Zauberstab gestreikt: <b>${escapeHtml(e.message)}</b><span class="note">Prüfe deinen fal.ai-Key in ⚙️ oder versuch es gleich nochmal.</span>`;
     card.querySelector(".bubble").innerHTML = html;
     state.chatLog.push({w:"bot", h:html}); saveState();
+    renderLivePanel();
     showChips([
       {label:"🔁 Nochmal versuchen", accent:true, action:()=>{ clearChips(); generateCharSheet(forceReroll); }},
       {label:"➡️ Ohne Bild weiter", action:acceptChar}
@@ -1404,7 +1514,7 @@ function acceptChar(userText){
   userSay(userText || "❤️ Behalten");
   state.characters.push(state.charDraft);
   state.charDraft = null;
-  renderCharStrip(); saveState(); updateProgress();
+  renderCharStrip(); saveState(); updateProgress(); renderLivePanel();
   (async()=>{
     await botSay(`${state.characters[state.characters.length-1].name} ist jetzt Teil eurer Wimmelwelt! 🎉 Soll noch jemand mit dabei sein?`);
     state.phase = "char_more"; saveState();
@@ -1502,7 +1612,8 @@ function scTweakFree(text){
   const s = state.sceneDraft;
   if(!s){ botSay("Hoppla, dazu fehlt mir gerade der Entwurf – lass uns nochmal von vorn starten."); return; }
   s.story = (s.story || "") + (s.story ? ", " : "") + text;
-  s.prompt = null;
+  s.prompt = null; // volle Beschreibung wird bei "Nochmal zaubern" neu gebaut, inkl. dieser Änderung
+  s.tweakInstruction = translate(text); // NUR die Änderung selbst, für den gezielten Kontext-Edit-Aufruf
   (async()=>{
     await botSay(`Alles klar, ich passe die Szene an. 🪄`);
     generateScene();
@@ -1513,16 +1624,17 @@ async function generateScene(forceReroll){
   s.prompt = s.prompt || scenePrompt(s);
   s.drafts = s.drafts || [];
   state.phase = "scene_generating"; saveState();
+  renderLivePanel(true);
   const i = state.scenes.length + 1;
   // Gezielte Änderung ("Etwas ändern"): Seed des aktuell gewählten Entwurfs wiederverwenden –
   // hält Komposition stabil. "Nochmal zaubern": bewusst neuer, zufälliger Versuch.
   const isTweak = !forceReroll && s.seed != null;
   const card = await botSay(`<div class="gen-card"><div class="gen-status"><span class="sparkle-loader">✨</span><br>${isTweak ? "Der Wizzard passt Szene "+i+" an" : "Der Wizzard wimmelt Szene "+i+" zusammen"} …<br><span style="font-size:14px">(dauert einen Moment)</span></div></div>`, {log:false});
   try{
-    // Gezielte Änderung: Bild-zu-Bild statt Text-zu-Bild – nimmt die AKTUELLE Szene als Ausgangspunkt
-    // und verändert sie nur leicht (strength 0.3), statt komplett neu zu würfeln.
+    // Gezielte Änderung: fal-ai/flux-kontext-lora statt Text-zu-Bild – setzt NUR die beschriebene
+    // Änderung um und lässt Rest der Szene (Personen, Komposition, Hintergrund) unangetastet.
     const res = isTweak
-      ? await generateImage(s.prompt, "scene", s.seed, s.img, 0.3)
+      ? await generateImage(kontextInstruction(s.tweakInstruction || s.prompt), "scene", s.seed, s.img)
       : await generateImage(s.prompt, "scene");
     s.img = res.url;
     if(res.seed != null) s.seed = res.seed;
@@ -1531,6 +1643,7 @@ async function generateScene(forceReroll){
     const html = renderSceneResultHtml(s, i);
     card.querySelector(".bubble").innerHTML = html;
     state.chatLog.push({w:"bot", h:html}); saveState(); scrollChat();
+    renderLivePanel();
     showChips([
       {label:"❤️ Behalten", accent:true, action:acceptScene},
       {label:"✏️ Etwas ändern", action:requestSceneTweak},
@@ -1540,6 +1653,7 @@ async function generateScene(forceReroll){
     const html = `Hoppla: <b>${escapeHtml(e.message)}</b><span class="note">Key in ⚙️ prüfen oder gleich nochmal versuchen.</span>`;
     card.querySelector(".bubble").innerHTML = html;
     state.chatLog.push({w:"bot", h:html}); saveState();
+    renderLivePanel();
     showChips([
       {label:"🔁 Nochmal versuchen", accent:true, action:()=>generateScene(forceReroll)},
       {label:"➡️ Ohne Bild weiter", action:acceptScene}
@@ -1550,7 +1664,7 @@ function acceptScene(userText){
   userSay(userText || "❤️ Behalten");
   state.scenes.push(state.sceneDraft);
   state.sceneDraft = null;
-  saveState(); updateProgress(); renderSidebar();
+  saveState(); updateProgress(); renderSidebar(); renderLivePanel();
   const n = product().scenes, k = state.scenes.length;
   (async()=>{
     if(k < n){
@@ -1594,6 +1708,61 @@ async function regenFromSummary(i){
     toast("Szene " + (i+1) + " ist neu gezaubert! 🎉");
   }catch(e){ toast("Fehler: " + e.message); }
 }
+
+/* ---------------- Buch-Vorschau: virtuell durchblättern vor der Bestellung ---------------- */
+let bookPageIndex = 0;
+function bookPages(){
+  const pages = [];
+  if(state.characters.length){
+    pages.push({
+      title: "Eure Helden",
+      caption: state.characters.map(c=>c.name).filter(Boolean).join(", "),
+      imgs: state.characters.map(c=>c.img).filter(Boolean)
+    });
+  }
+  state.scenes.forEach((s,i)=>{
+    pages.push({
+      title: "Seite " + (i+1),
+      caption: (s.loc && s.loc.label) || "",
+      imgs: s.img ? [s.img] : []
+    });
+  });
+  return pages;
+}
+function openBookPreview(){
+  bookPageIndex = 0;
+  $("modal-book").classList.remove("hidden");
+  renderBookPage();
+}
+function closeBookPreview(){ $("modal-book").classList.add("hidden"); }
+function bookTurn(delta){
+  const pages = bookPages();
+  bookPageIndex = Math.max(0, Math.min(pages.length - 1, bookPageIndex + delta));
+  renderBookPage();
+}
+function bookGoTo(i){ bookPageIndex = i; renderBookPage(); }
+function renderBookPage(){
+  const pages = bookPages();
+  const stage = $("book-page");
+  const dots = $("book-dots");
+  if(!pages.length){
+    stage.innerHTML = `<div class="book-page-empty">Noch keine fertigen Seiten – zaubert erst ein paar Szenen, dann könnt ihr hier durchblättern.</div>`;
+    dots.innerHTML = "";
+    return;
+  }
+  bookPageIndex = Math.max(0, Math.min(pages.length - 1, bookPageIndex));
+  const p = pages[bookPageIndex];
+  const imgHtml = p.imgs.length
+    ? (p.imgs.length === 1
+        ? `<img src="${p.imgs[0]}" alt="${escapeHtml(p.title)}">`
+        : `<div style="display:grid;grid-template-columns:repeat(${Math.min(p.imgs.length,3)},1fr);gap:2px;width:100%;height:100%">${p.imgs.map(u=>`<img src="${u}" alt="" style="width:100%;height:100%;object-fit:cover">`).join("")}</div>`)
+    : `<div class="book-page-empty">Diese Seite wird noch gezaubert.</div>`;
+  stage.innerHTML = `${imgHtml}<div class="book-page-cap">${escapeHtml(p.title)}${p.caption?" · "+escapeHtml(p.caption):""}</div>`;
+  document.querySelector(".book-nav-prev").disabled = bookPageIndex === 0;
+  document.querySelector(".book-nav-next").disabled = bookPageIndex === pages.length - 1;
+  dots.innerHTML = pages.map((_,i)=>`<button class="book-dot${i===bookPageIndex?" active":""}" onclick="bookGoTo(${i})" aria-label="Seite ${i+1}"></button>`).join("");
+}
+
 function backToChat(){
   state.step = "chat"; saveState();
   showPanel("chat"); rebuildChat();
@@ -1638,7 +1807,7 @@ async function renderCheckout(){
         <div class="summary-row"><span>Bezahlt</span><b>${state.order.amount} € via PayPal${state.order.sandbox?" (Sandbox-Test)":""}</b></div>
         <div class="summary-row"><span>Bestell-Nr.</span><b style="font-size:13px">${escapeHtml(state.order.id||"–")}</b></div>
       </div>
-      <p>Im fertigen Produkt gehen deine Szenen jetzt automatisch in die Druckdaten-Aufbereitung und zur Druckerei – dieser Teil ist im Prototyp noch nicht angebunden.</p>`;
+      <p>${printStatusText(state.order.printStatus)}</p>`;
     return;
   }
   body.innerHTML = `
@@ -1668,12 +1837,15 @@ async function renderCheckout(){
         state.order = {
           id: det.id,
           payer: det.payer && det.payer.name ? det.payer.name.given_name : "",
+          payerEmail: det.payer && det.payer.email_address ? det.payer.email_address : "",
           amount: p.price, product: p.name,
           time: new Date().toISOString(),
-          sandbox: !paypalCid()
+          sandbox: !paypalCid(),
+          printStatus: "pending"
         };
         saveState(); renderCheckout(); renderSummary();
         toast("Zahlung erfolgreich! 🎉");
+        submitPrintOrder();
       }),
       onError: err=>{
         const el2 = document.getElementById("paypal-btns");
@@ -1684,6 +1856,48 @@ async function renderCheckout(){
   }catch(e){
     body.querySelector("#paypal-btns").innerHTML = `<p style="color:#C0392B;font-size:14px;font-weight:700">${escapeHtml(e.message)}</p>`;
   }
+}
+
+/* ---------------- Druckauftrag (halbautomatische Zwischenlösung) ----------------
+   WIRmachenDRUCK hat keine öffentliche Self-Service-API für Auftragsübermittlung (nur ein manuell
+   einzurichtendes Wiederverkäufer-Programm). Bis eine echte Anbindung steht, übernimmt diese Funktion
+   den Teil, der sich schon automatisieren lässt: Nach erfolgreicher Zahlung schickt sie die Bilder an
+   /api/order-notify.js, die daraus serverseitig zwei druckfertige PDFs (Umschlag.pdf + Inhalt.pdf im
+   WIRmachenDRUCK-Format) baut und per E-Mail an dich schickt. Das Hochladen im WIRmachenDRUCK-
+   Warenkorb bleibt vorerst der einzige manuelle Schritt. */
+function orderNotifyUrl(){
+  const o = (localStorage.getItem("ww_order_proxy_url") || "").trim();
+  if(o) return o;
+  return isHttp() ? "/api/order-notify" : "";
+}
+function printStatusText(status){
+  if(status === "sent") return "✅ Deine Bilder sind als druckfertige Dateien bei uns eingegangen – wir bereiten jetzt den Druck vor.";
+  if(status === "error") return "⚠️ Die automatische Druckdaten-Aufbereitung hat gerade nicht geklappt. Keine Sorge, deine Bezahlung ist trotzdem eingegangen und wir kümmern uns manuell darum.";
+  if(status === "skipped") return "Im fertigen Produkt gehen deine Szenen jetzt automatisch in die Druckdaten-Aufbereitung – dieser Server ist in deiner aktuellen Umgebung noch nicht verbunden.";
+  return "✨ Deine Bilder werden gerade für den Druck aufbereitet …";
+}
+async function submitPrintOrder(){
+  const url = orderNotifyUrl();
+  if(!url){ state.order.printStatus = "skipped"; saveState(); renderCheckout(); return; }
+  try{
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        order: state.order,
+        characters: state.characters.map(c=>({name:c.name, img:c.img})),
+        scenes: state.scenes.map(s=>({label:s.loc && s.loc.label, img:s.img}))
+      })
+    });
+    let data;
+    try{ data = await resp.json(); }catch(e){ data = {}; }
+    if(!resp.ok || data.error) throw new Error(data.error || ("Server-Fehler " + resp.status));
+    state.order.printStatus = "sent";
+  }catch(e){
+    state.order.printStatus = "error";
+    state.order.printError = e.message;
+  }
+  saveState(); renderCheckout(); renderSummary();
 }
 
 /* ---------------- Chips wiederherstellen (nach Resume) ---------------- */
@@ -1785,6 +1999,7 @@ function openSettings(){
   $("fal-key").value = falKey();
   $("paypal-cid").value = paypalCid();
   $("chat-proxy-url").value = chatProxyUrl();
+  $("order-proxy-url").value = orderNotifyUrl();
   $("modal-settings").classList.remove("hidden");
 }
 function closeSettings(){ $("modal-settings").classList.add("hidden"); }
@@ -1797,6 +2012,8 @@ function saveSettings(){
   if(cid) localStorage.setItem("ww_paypal_cid", cid); else localStorage.removeItem("ww_paypal_cid");
   const cp = $("chat-proxy-url").value.trim();
   if(cp) localStorage.setItem("ww_chat_proxy_url", cp); else localStorage.removeItem("ww_chat_proxy_url");
+  const op = $("order-proxy-url").value.trim();
+  if(op) localStorage.setItem("ww_order_proxy_url", op); else localStorage.removeItem("ww_order_proxy_url");
   closeSettings();
   toast((p||k) ? "Gespeichert – der Wizzard kann jetzt echt zaubern! 🪄" : "Gespeichert.");
 }

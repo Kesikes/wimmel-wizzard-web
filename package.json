@@ -1,0 +1,9 @@
+{
+  "name": "wimmel-wizzard-web",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Serverless-Funktionen für Wimmel Wizard (fal.ai-Proxy, Claude-Proxy, Druckauftrags-Mail).",
+  "dependencies": {
+    "pdf-lib": "^1.17.1"
+  }
+}

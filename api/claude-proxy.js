@@ -35,7 +35,7 @@ Wenn eine neue Person sich sehr ähnlich zu einer bereits erfassten Person anhö
 
 Sobald genug beisammen ist, fasse kurz und locker zusammen, was du notiert hast, und frage, ob es passt. Rufe das Werkzeug \`add_character\` ERST auf, nachdem der Nutzer erkennbar zugestimmt hat (z. B. "ja", "passt", "genau", "perfekt", "super"). Rufe es nie vorher auf, auch nicht, wenn du glaubst genug zu wissen.
 
-SONDERFALL Änderungswunsch nach bereits generiertem Bild: Wenn die Unterhaltung bereits ein Bild für diese Person hervorgebracht hat (erkennbar an vorherigen Nachrichten) und der Nutzer jetzt einen konkreten Änderungswunsch äußert (z. B. "mach die Jacke rot", "sie soll eine Brille tragen"), dann NICHT von vorne alle Fragen stellen. Übernimm den Wunsch direkt in die bestehende Beschreibung, baue sofort einen aktualisierten \`sheet_prompt\` (und bei Bedarf \`scene_fragment_en\`) und rufe \`add_character\` im selben Zug erneut auf – ohne Rückfrage, ohne erneute Zusammenfassung.
+SONDERFALL Änderungswunsch nach bereits generiertem Bild: Wenn die Unterhaltung bereits ein Bild für diese Person hervorgebracht hat (erkennbar an vorherigen Nachrichten) und der Nutzer jetzt einen konkreten Änderungswunsch äußert (z. B. "mach die Jacke rot", "sie soll eine Brille tragen"), dann NICHT von vorne alle Fragen stellen. Übernimm den Wunsch direkt in die bestehende Beschreibung, baue sofort einen aktualisierten \`sheet_prompt\` (und bei Bedarf \`scene_fragment_en\`) UND fülle zusätzlich \`edit_instruction\` mit einer KURZEN englischen Editier-Anweisung, die NUR die Änderung selbst beschreibt (nicht die ganze Person neu beschreiben), z. B. "Change the jacket color to red. Keep everything else in the image exactly the same: same pose, same face, same background, same art style." Rufe \`add_character\` im selben Zug erneut auf – ohne Rückfrage, ohne erneute Zusammenfassung.
 
 SONDERFALL reine Zustimmung nach bereits generiertem Bild: Wenn die Unterhaltung bereits ein Bild für diese Person hervorgebracht hat und der Nutzer jetzt lediglich zustimmt, OHNE einen weiteren Änderungswunsch zu äußern (z. B. "ja, passt so", "perfekt", "genau so lassen", "ja super, so passt es"), rufe stattdessen \`confirm_result\` auf – NICHT \`add_character\` erneut.
 
@@ -57,7 +57,7 @@ Dein Ziel für diese eine Szene:
 
 Sobald Ort und Geschichte klar genug sind, fasse kurz zusammen und frage, ob es passt. Rufe \`add_scene\` ERST auf, nachdem der Nutzer erkennbar zugestimmt hat.
 
-SONDERFALL Änderungswunsch nach bereits generiertem Bild: Wenn die Unterhaltung bereits ein Bild für diese Szene hervorgebracht hat und der Nutzer jetzt einen konkreten Änderungswunsch äußert (z. B. "mach es Winter statt Sommer", "noch ein Hund soll dabei sein"), dann NICHT von vorne alle Fragen stellen. Übernimm den Wunsch direkt, baue sofort einen aktualisierten \`prompt\` und rufe \`add_scene\` im selben Zug erneut auf – ohne Rückfrage, ohne erneute Zusammenfassung.
+SONDERFALL Änderungswunsch nach bereits generiertem Bild: Wenn die Unterhaltung bereits ein Bild für diese Szene hervorgebracht hat und der Nutzer jetzt einen konkreten Änderungswunsch äußert (z. B. "mach es Winter statt Sommer", "noch ein Hund soll dabei sein"), dann NICHT von vorne alle Fragen stellen. Übernimm den Wunsch direkt, baue sofort einen aktualisierten \`prompt\` UND fülle zusätzlich \`edit_instruction\` mit einer KURZEN englischen Editier-Anweisung, die NUR die Änderung selbst beschreibt (nicht die ganze Szene neu beschreiben), z. B. "Change the season to winter, add snow on the ground and rooftops. Keep everything else in the image exactly the same: same characters, same poses, same composition, same art style." Rufe \`add_scene\` im selben Zug erneut auf – ohne Rückfrage, ohne erneute Zusammenfassung.
 
 SONDERFALL reine Zustimmung nach bereits generiertem Bild: Wenn die Unterhaltung bereits ein Bild für diese Szene hervorgebracht hat und der Nutzer jetzt lediglich zustimmt, OHNE einen weiteren Änderungswunsch zu äußern (z. B. "ja, passt so", "perfekt", "genau so lassen", "ja super, so passt es"), rufe stattdessen \`confirm_result\` auf – NICHT \`add_scene\` erneut.
 
@@ -90,6 +90,11 @@ const ADD_CHARACTER_TOOL = {
         type: "string",
         description: "Vollständiger englischer Bildgenerierungs-Prompt für das Charakter-Sheet nach der Vorlage.",
       },
+      edit_instruction: {
+        type: "string",
+        description:
+          "NUR bei einem Änderungswunsch nach bereits generiertem Bild ausfüllen: kurze englische Editier-Anweisung, die NUR die gewünschte Änderung beschreibt plus 'keep everything else exactly the same'. Bei einer komplett neuen Person weglassen.",
+      },
     },
     required: ["name", "role_label", "scene_fragment_en", "sheet_prompt"],
   },
@@ -108,6 +113,11 @@ const ADD_SCENE_TOOL = {
       prompt: {
         type: "string",
         description: "Vollständiger englischer Bildgenerierungs-Prompt für die Szene nach der Vorlage, inkl. aller Personen.",
+      },
+      edit_instruction: {
+        type: "string",
+        description:
+          "NUR bei einem Änderungswunsch nach bereits generiertem Bild ausfüllen: kurze englische Editier-Anweisung, die NUR die gewünschte Änderung beschreibt plus 'keep everything else exactly the same'. Bei einer komplett neuen Szene weglassen.",
       },
     },
     required: ["location_label", "location_type", "summary_de", "prompt"],

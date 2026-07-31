@@ -22,14 +22,14 @@ module.exports = async (req, res) => {
   const prompt = String(body.prompt || "").trim();
   const kind = body.kind === "scene" ? "scene" : "char";
   // Seed: wird vom Client mitgegeben, um bei Neu-Generierungen ("Nochmal zaubern") reproduzierbar
-  // zu bleiben. Für gezielte Änderungen ("Etwas ändern") ist imageUrl/strength (s.u.) der eigentliche
-  // Konsistenz-Mechanismus – Seed allein reicht bei geändertem Prompt nicht zuverlässig.
+  // zu bleiben.
   const seed = Number.isFinite(body.seed) ? Math.trunc(body.seed) : undefined;
-  // imageUrl + strength: wenn gesetzt, läuft die Anfrage über Bild-zu-Bild (image-to-image) statt
-  // Text-zu-Bild. Das vorhandene Bild wird als Ausgangspunkt genommen; strength (0=unverändert,
-  // 1=komplett neu) steuert, wie stark sich das Ergebnis vom Original entfernen darf.
+  // imageUrl: wenn gesetzt, läuft die Anfrage über fal-ai/flux-kontext-lora statt Text-zu-Bild – ein
+  // instruction-basiertes Editier-Modell (nicht generisches img2img). "prompt" ist in diesem Fall die
+  // kurze Editier-Anweisung ("change the jacket to red, keep everything else the same"), nicht die
+  // volle Bildbeschreibung. Setzt gezielte Änderungen viel zuverlässiger um als Bild-zu-Bild mit
+  // niedriger Strength, weil es explizit dafür trainiert ist, den Rest des Bilds unangetastet zu lassen.
   const imageUrl = typeof body.imageUrl === "string" && /^https?:\/\//.test(body.imageUrl) ? body.imageUrl : undefined;
-  const strength = Number.isFinite(body.strength) ? Math.min(1, Math.max(0, body.strength)) : 0.3;
 
   if (!prompt) {
     res.status(400).json({ error: "Kein Prompt übergeben." });
@@ -45,22 +45,35 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const falBody = {
-    prompt,
-    loras: [{ path: LORA_URL, scale: 1 }],
-    num_inference_steps: kind === "char" ? 42 : 46,
-    guidance_scale: 5,
-    num_images: 1,
-    enable_safety_checker: true,
-    // PNG statt JPEG: verlustfrei, wichtig für die dünnen schwarzen Outlines im Stil (JPEG-Kompression macht sie weich/unscharf).
-    output_format: "png",
-    ...(seed !== undefined ? { seed } : {}),
-    ...(imageUrl
-      ? { image_url: imageUrl, strength }
-      : { image_size: kind === "char" ? { width: 768, height: 1024 } : { width: 1024, height: 576 } }),
-  };
+  const falBody = imageUrl
+    ? {
+        // fal-ai/flux-kontext-lora: instruction-basiertes Editieren. resolution_mode "match_input"
+        // hält das Ausgabeformat identisch zum Eingabebild (statt es auf eine feste Größe zu zwingen).
+        prompt,
+        image_url: imageUrl,
+        loras: [{ path: LORA_URL, scale: 1 }],
+        num_inference_steps: 30,
+        guidance_scale: 2.5,
+        resolution_mode: "match_input",
+        num_images: 1,
+        enable_safety_checker: true,
+        output_format: "png",
+        ...(seed !== undefined ? { seed } : {}),
+      }
+    : {
+        prompt,
+        loras: [{ path: LORA_URL, scale: 1 }],
+        num_inference_steps: kind === "char" ? 42 : 46,
+        guidance_scale: 5,
+        num_images: 1,
+        enable_safety_checker: true,
+        // PNG statt JPEG: verlustfrei, wichtig für die dünnen schwarzen Outlines im Stil (JPEG-Kompression macht sie weich/unscharf).
+        output_format: "png",
+        image_size: kind === "char" ? { width: 768, height: 1024 } : { width: 1024, height: 576 },
+        ...(seed !== undefined ? { seed } : {}),
+      };
   const falEndpoint = imageUrl
-    ? "https://fal.run/fal-ai/flux-lora/image-to-image"
+    ? "https://fal.run/fal-ai/flux-kontext-lora"
     : "https://fal.run/fal-ai/flux-lora";
 
   try {
