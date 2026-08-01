@@ -179,6 +179,19 @@ input,textarea,select{font-family:inherit;font-size:16px}
 .live-panel-busy{position:absolute;inset:0;background:oklch(97% 0.018 85 / .82);display:flex;align-items:center;justify-content:center;font-size:28px}
 .live-panel-hint{font-size:12px;color:var(--ink-soft);margin-top:10px}
 .live-empty{text-align:center;padding:20px 10px;color:var(--ink-soft);font-size:13px;line-height:1.5}
+/* Handy: solange ein Entwurfsbild da ist, wird der Chat-Bereich in zwei feste Hälften geteilt –
+   oben das Bild (immer sichtbar), unten der Chat (eigenständig scrollbar). Ohne aktives Bild bleibt
+   es beim normalen, inhaltsgroßen Kartenlayout oben im Chat. */
+@media (max-width:899px){
+  .chat-workbench.has-live{min-height:0}
+  .chat-workbench.has-live .live-panel{
+    order:-1;flex:1 1 0;min-height:0;margin:0;border-radius:0 0 18px 18px;
+    display:flex;flex-direction:column;overflow-y:auto;box-shadow:none;border-bottom:1px solid var(--line);
+  }
+  .chat-workbench.has-live .chat-scroll{flex:1 1 0;min-height:0}
+  .chat-workbench.has-live .live-panel-imgwrap{flex:1;min-height:0}
+  .chat-workbench.has-live .live-panel-imgwrap img{width:100%;height:100%;object-fit:contain;background:var(--bg-deep)}
+}
 @media (min-width:900px){
   .chat-workbench{flex-direction:row;gap:22px;align-items:flex-start}
   .chat-scroll{order:1}
@@ -508,7 +521,7 @@ input,textarea,select{font-family:inherit;font-size:16px}
 
       <!-- Chat -->
       <div id="panel-chat" class="hidden chat-panel">
-        <div class="chat-workbench">
+        <div class="chat-workbench" id="chat-workbench">
           <div class="chat-scroll" id="chat-scroll">
             <div class="chat-area" id="chat-area"></div>
             <div class="input-bar" id="input-bar">
@@ -1130,11 +1143,15 @@ function currentDraft(){
 function renderLivePanel(busy){
   const panel = $("live-panel");
   if(!panel) return;
+  const workbench = $("chat-workbench");
   const {kind, d} = currentDraft();
   if(!d || !d.img){
     panel.innerHTML = d
       ? `<div class="live-empty">✨<br>Gleich erscheint hier das Bild, sobald der Wizzard fertig gezaubert hat.</div>`
       : "";
+    // Erst sobald wirklich ein Bild da ist, wird auf dem Handy in die 50/50-Ansicht (Bild oben,
+    // Chat unten) gewechselt – vorher bleibt es beim normalen Chat-Layout.
+    if(workbench) workbench.classList.remove("has-live");
     return;
   }
   const title = kind === "char"
@@ -1145,6 +1162,7 @@ function renderLivePanel(busy){
     <div class="live-panel-imgwrap"><img src="${d.img}" alt="${escapeHtml(title)}">${busy?`<div class="live-panel-busy"><span class="sparkle-loader">✨</span></div>`:""}</div>
     ${draftHistoryHtml(d.drafts, d.currentDraftIndex)}
     <p class="live-panel-hint">Schreib unten in den Chat, was anders sein soll – das Bild hier aktualisiert sich sofort.</p>`;
+  if(workbench) workbench.classList.add("has-live");
 }
 function placeholderSVG(kind){
   const w = kind==="char" ? 300 : 480, h = kind==="char" ? 400 : 270;
