@@ -24,12 +24,18 @@ module.exports = async (req, res) => {
   // Seed: wird vom Client mitgegeben, um bei Neu-Generierungen ("Nochmal zaubern") reproduzierbar
   // zu bleiben.
   const seed = Number.isFinite(body.seed) ? Math.trunc(body.seed) : undefined;
-  // imageUrl: wenn gesetzt, läuft die Anfrage über fal-ai/flux-kontext-lora statt Text-zu-Bild – ein
-  // instruction-basiertes Editier-Modell (nicht generisches img2img). "prompt" ist in diesem Fall die
-  // kurze Editier-Anweisung ("change the jacket to red, keep everything else the same"), nicht die
-  // volle Bildbeschreibung. Setzt gezielte Änderungen viel zuverlässiger um als Bild-zu-Bild mit
-  // niedriger Strength, weil es explizit dafür trainiert ist, den Rest des Bilds unangetastet zu lassen.
+  // imageUrl: wenn gesetzt, läuft die Anfrage über fal-ai/nano-banana-2/edit statt Text-zu-Bild.
+  // Getestet wurde vorher fal-ai/flux-kontext-lora mit unserem Stil-LoRA – das lieferte live beim
+  // Nutzertest sehr unzuverlässige Ergebnisse (komplett andere Proportionen/Personen statt nur der
+  // gewünschten Detail-Änderung), vermutlich weil unser LoRA nie für dieses Editier-Modell trainiert
+  // wurde. Nano Banana 2 (Google, Gemini 3.1 Flash Image) braucht kein LoRA: Stilkonsistenz kommt
+  // stattdessen über mitgeschickte Referenzbilder (das aktuelle Bild + optional ein bereits
+  // akzeptiertes Bild aus dem selben Buch), Bildidentität/Komposition über das aktuelle Bild als
+  // Ausgangspunkt. "prompt" ist in diesem Fall die kurze Editier-Anweisung, nicht die volle
+  // Bildbeschreibung.
   const imageUrl = typeof body.imageUrl === "string" && /^https?:\/\//.test(body.imageUrl) ? body.imageUrl : undefined;
+  const styleRefUrl =
+    typeof body.styleRefUrl === "string" && /^https?:\/\//.test(body.styleRefUrl) ? body.styleRefUrl : undefined;
 
   if (!prompt) {
     res.status(400).json({ error: "Kein Prompt übergeben." });
@@ -40,24 +46,21 @@ module.exports = async (req, res) => {
     return;
   }
   // Einfache Missbrauchsbremse fürs MVP, ersetzt keine echte Nutzer-Authentifizierung/Rate-Limitierung.
-  if (!prompt.startsWith("wmlstil")) {
+  // Gilt nur für die Text-zu-Bild-Erstgenerierung (flux-lora braucht das Trigger-Wort); die
+  // Editier-Anweisungen an Nano Banana 2 enthalten es bewusst nicht.
+  if (!imageUrl && !prompt.startsWith("wmlstil")) {
     res.status(400).json({ error: "Prompt-Format ungültig." });
     return;
   }
 
   const falBody = imageUrl
     ? {
-        // fal-ai/flux-kontext-lora: instruction-basiertes Editieren. resolution_mode "match_input"
-        // hält das Ausgabeformat identisch zum Eingabebild (statt es auf eine feste Größe zu zwingen).
         prompt,
-        image_url: imageUrl,
-        loras: [{ path: LORA_URL, scale: 1 }],
-        num_inference_steps: 30,
-        guidance_scale: 2.5,
-        resolution_mode: "match_input",
-        num_images: 1,
-        enable_safety_checker: true,
+        image_urls: [imageUrl, ...(styleRefUrl ? [styleRefUrl] : [])],
+        aspect_ratio: kind === "char" ? "3:4" : "16:9",
+        resolution: "1K",
         output_format: "png",
+        num_images: 1,
         ...(seed !== undefined ? { seed } : {}),
       }
     : {
@@ -72,9 +75,7 @@ module.exports = async (req, res) => {
         image_size: kind === "char" ? { width: 768, height: 1024 } : { width: 1024, height: 576 },
         ...(seed !== undefined ? { seed } : {}),
       };
-  const falEndpoint = imageUrl
-    ? "https://fal.run/fal-ai/flux-kontext-lora"
-    : "https://fal.run/fal-ai/flux-lora";
+  const falEndpoint = imageUrl ? "https://fal.run/fal-ai/nano-banana-2/edit" : "https://fal.run/fal-ai/flux-lora";
 
   try {
     const resp = await fetch(falEndpoint, {

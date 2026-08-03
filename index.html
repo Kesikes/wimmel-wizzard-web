@@ -1016,16 +1016,27 @@ function proxyUrl(){
   return isHttp() ? "/api/fal-proxy" : ""; // nach Vercel-Deployment automatisch aktiv, lokal (file://) aus
 }
 function kontextInstruction(raw){
-  // Baut aus einer kurzen Änderungsbeschreibung die Editier-Anweisung für fal-ai/flux-kontext-lora.
-  // Der explizite "keep everything else"-Zusatz ist entscheidend dafür, dass wirklich nur das
-  // gewünschte Detail geändert wird und nicht das ganze Bild neu interpretiert wird.
-  return `wmlstil, ${raw}. Keep everything else in the image exactly the same: same pose, same character identity, same composition, same background, same art style.`;
+  // Baut aus einer kurzen Änderungsbeschreibung die Editier-Anweisung für fal-ai/nano-banana-2/edit.
+  // Kein LoRA mehr im Spiel (Nano Banana 2 kann keine trainierten Gewichte nutzen) – Stilkonsistenz
+  // kommt stattdessen über mitgeschickte Referenzbilder (siehe generateImage/styleRefUrl) UND über
+  // diese explizite Stilbeschreibung im Text. Der "keep everything else"-Zusatz ist entscheidend
+  // dafür, dass wirklich nur das gewünschte Detail geändert wird.
+  return `${raw}. Keep everything else in the image exactly the same: same pose, same character identity, same composition, same background. Match the exact hand-drawn illustration style of the reference image(s): thick black marker outlines, flat solid colors, round minimal faces with simple dot eyes, graphic-recording sketchnote style.`;
 }
-async function generateImage(prompt, kind, seed, editImageUrl){
+function pickStyleRefImage(excludeUrl){
+  // Sucht ein bereits akzeptiertes Bild aus demselben Buch als Stil-Anker für Nano Banana 2 –
+  // zusätzlich zum aktuell bearbeiteten Bild selbst. Ohne LoRA ist das die einzige Möglichkeit,
+  // dem Modell zu zeigen "genau DIESER Zeichenstil, nicht irgendein anderer".
+  const pool = [...state.characters.map(c=>c.img), ...state.scenes.map(s=>s.img)].filter(u => u && u !== excludeUrl);
+  return pool.length ? pool[0] : undefined;
+}
+async function generateImage(prompt, kind, seed, editImageUrl, styleRefUrl){
   // kind: "char" | "scene"; seed: optional, für konsistente Neu-Generierungen.
-  // editImageUrl: wenn gesetzt, läuft die Anfrage über fal-ai/flux-kontext-lora statt Text-zu-Bild –
-  // ein instruction-basiertes Editier-Modell (nicht generisches img2img), das genau für "diese eine
-  // Sache ändern, alles andere exakt gleich lassen" gebaut ist und dabei UNSER LoRA weiterverwendet.
+  // editImageUrl: wenn gesetzt, läuft die Anfrage über fal-ai/nano-banana-2/edit statt Text-zu-Bild.
+  // Vorher getestet: fal-ai/flux-kontext-lora mit unserem Stil-LoRA – live beim Nutzertest sehr
+  // unzuverlässig (komplett andere Proportionen/Personen statt der gewünschten Detail-Änderung).
+  // Nano Banana 2 (Google, Gemini 3.1 Flash Image) braucht kein LoRA: Stilkonsistenz kommt über
+  // mitgeschickte Referenzbilder (editImageUrl + optional styleRefUrl), nicht über trainierte Gewichte.
   // "prompt" ist in diesem Fall die kurze Editier-Anweisung, nicht die volle Bildbeschreibung.
   const proxy = proxyUrl();
   const key = falKey();
@@ -1039,7 +1050,8 @@ async function generateImage(prompt, kind, seed, editImageUrl){
       body: JSON.stringify({
         prompt, kind,
         ...(seed!=null ? {seed} : {}),
-        ...(editImageUrl ? {imageUrl: editImageUrl} : {})
+        ...(editImageUrl ? {imageUrl: editImageUrl} : {}),
+        ...(styleRefUrl ? {styleRefUrl} : {})
       })
     });
     let data;
@@ -1052,14 +1064,11 @@ async function generateImage(prompt, kind, seed, editImageUrl){
   // Nur fürs lokale Testen: direkter Aufruf mit Key aus dem Browser (siehe Warnhinweis in ⚙️)
   const body = editImageUrl ? {
     prompt,
-    image_url: editImageUrl,
-    loras: [{path: LORA_URL, scale: 1}],
-    num_inference_steps: 30,
-    guidance_scale: 2.5,
-    resolution_mode: "match_input",
-    num_images: 1,
-    enable_safety_checker: true,
+    image_urls: [editImageUrl, ...(styleRefUrl ? [styleRefUrl] : [])],
+    aspect_ratio: kind==="char" ? "3:4" : "16:9",
+    resolution: "1K",
     output_format: "png",
+    num_images: 1,
     ...(seed!=null ? {seed} : {})
   } : {
     prompt,
@@ -1072,7 +1081,7 @@ async function generateImage(prompt, kind, seed, editImageUrl){
     output_format: "png",
     ...(seed!=null ? {seed} : {})
   };
-  const endpoint = editImageUrl ? "https://fal.run/fal-ai/flux-kontext-lora" : "https://fal.run/fal-ai/flux-lora";
+  const endpoint = editImageUrl ? "https://fal.run/fal-ai/nano-banana-2/edit" : "https://fal.run/fal-ai/flux-lora";
   const resp = await fetch(endpoint, {
     method: "POST",
     headers: {"Authorization": "Key " + key, "Content-Type": "application/json"},
@@ -1495,11 +1504,11 @@ async function generateCharSheet(forceReroll){
   const isTweak = !forceReroll && c.seed != null;
   const card = await botSay(`<div class="gen-card"><div class="gen-status"><span class="sparkle-loader">✨</span><br>Der Wizzard ${isTweak ? "passt "+c.name+" an" : "zeichnet "+c.name} …</div></div>`, {log:false});
   try{
-    // Gezielte Änderung: fal-ai/flux-kontext-lora statt Text-zu-Bild – ein instruction-basiertes
-    // Editier-Modell, das NUR die beschriebene Änderung umsetzt und alles andere (Pose, Gesicht,
-    // Komposition) beibehält. Bekommt die kurze Editier-Anweisung statt der vollen Beschreibung.
+    // Gezielte Änderung: fal-ai/nano-banana-2/edit statt Text-zu-Bild – setzt NUR die beschriebene
+    // Änderung um. Bekommt zusätzlich ein bereits akzeptiertes Bild aus dem Buch als Stil-Anker mit
+    // (kein LoRA mehr im Spiel, siehe generateImage), damit der Zeichenstil erhalten bleibt.
     const res = isTweak
-      ? await generateImage(kontextInstruction(c.tweakInstruction || c.prompt), "char", c.seed, c.img)
+      ? await generateImage(kontextInstruction(c.tweakInstruction || c.prompt), "char", c.seed, c.img, pickStyleRefImage(c.img))
       : await generateImage(c.prompt, "char");
     c.img = res.url;
     if(res.seed != null) c.seed = res.seed;
@@ -1649,10 +1658,10 @@ async function generateScene(forceReroll){
   const isTweak = !forceReroll && s.seed != null;
   const card = await botSay(`<div class="gen-card"><div class="gen-status"><span class="sparkle-loader">✨</span><br>${isTweak ? "Der Wizzard passt Szene "+i+" an" : "Der Wizzard wimmelt Szene "+i+" zusammen"} …<br><span style="font-size:14px">(dauert einen Moment)</span></div></div>`, {log:false});
   try{
-    // Gezielte Änderung: fal-ai/flux-kontext-lora statt Text-zu-Bild – setzt NUR die beschriebene
-    // Änderung um und lässt Rest der Szene (Personen, Komposition, Hintergrund) unangetastet.
+    // Gezielte Änderung: fal-ai/nano-banana-2/edit statt Text-zu-Bild – setzt NUR die beschriebene
+    // Änderung um. Bekommt zusätzlich ein bereits akzeptiertes Bild aus dem Buch als Stil-Anker mit.
     const res = isTweak
-      ? await generateImage(kontextInstruction(s.tweakInstruction || s.prompt), "scene", s.seed, s.img)
+      ? await generateImage(kontextInstruction(s.tweakInstruction || s.prompt), "scene", s.seed, s.img, pickStyleRefImage(s.img))
       : await generateImage(s.prompt, "scene");
     s.img = res.url;
     if(res.seed != null) s.seed = res.seed;
