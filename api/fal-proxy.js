@@ -33,9 +33,12 @@ module.exports = async (req, res) => {
   // akzeptiertes Bild aus dem selben Buch), Bildidentität/Komposition über das aktuelle Bild als
   // Ausgangspunkt. "prompt" ist in diesem Fall die kurze Editier-Anweisung, nicht die volle
   // Bildbeschreibung.
-  const imageUrl = typeof body.imageUrl === "string" && /^https?:\/\//.test(body.imageUrl) ? body.imageUrl : undefined;
-  const styleRefUrl =
-    typeof body.styleRefUrl === "string" && /^https?:\/\//.test(body.styleRefUrl) ? body.styleRefUrl : undefined;
+  // Akzeptiert entweder eine normale https-URL (bereits generiertes Bild aus dem Buch) ODER eine
+  // data:image/…-Base64-URI (frisch hochgeladenes Foto aus der Foto-Upload-Option, client-seitig
+  // bereits verkleinert – siehe resizeImageToDataUri im Frontend).
+  const isImageRef = (v) => typeof v === "string" && (/^https?:\/\//.test(v) || /^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(v));
+  const imageUrl = isImageRef(body.imageUrl) ? body.imageUrl : undefined;
+  const styleRefUrl = isImageRef(body.styleRefUrl) ? body.styleRefUrl : undefined;
 
   if (!prompt) {
     res.status(400).json({ error: "Kein Prompt übergeben." });
@@ -43,6 +46,12 @@ module.exports = async (req, res) => {
   }
   if (prompt.length > 2000) {
     res.status(400).json({ error: "Prompt zu lang." });
+    return;
+  }
+  // Defensive Obergrenze: ein verkleinertes Foto (max. 1024px, JPEG q0.85) landet i.d.R. deutlich
+  // darunter; das verhindert nur missbräuchlich riesige Payloads.
+  if (imageUrl && imageUrl.startsWith("data:") && imageUrl.length > 4_000_000) {
+    res.status(400).json({ error: "Foto ist zu groß." });
     return;
   }
   // Einfache Missbrauchsbremse fürs MVP, ersetzt keine echte Nutzer-Authentifizierung/Rate-Limitierung.
