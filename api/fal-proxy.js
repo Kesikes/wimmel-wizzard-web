@@ -38,7 +38,15 @@ module.exports = async (req, res) => {
   // bereits verkleinert – siehe resizeImageToDataUri im Frontend).
   const isImageRef = (v) => typeof v === "string" && (/^https?:\/\//.test(v) || /^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(v));
   const imageUrl = isImageRef(body.imageUrl) ? body.imageUrl : undefined;
-  const styleRefUrl = isImageRef(body.styleRefUrl) ? body.styleRefUrl : undefined;
+  // P0.4 (Arbeitsauftrag v1.1, Abschnitt 8, auf Szenen-EDITS skaliert): statt nur EINES beliebigen
+  // "irgendein akzeptiertes Buchbild"-Stilankers akzeptieren wir jetzt ein ganzes Array typisierter
+  // Referenzbilder (z.B. die aktuellen Bilder ALLER Charaktere als CHARACTER_FRONT-Referenz, damit sie
+  // bei einer Szenen-Änderung wiedererkennbar bleiben). styleRefUrl (Singular) bleibt als Fallback für
+  // Altaufrufe/den Charakter-Edit-Pfad erhalten. Obergrenze 8: fal-ai/nano-banana-2/edit erlaubt bis zu
+  // 14 image_urls insgesamt (inkl. imageUrl selbst), 8 zusätzliche Referenzen sind großzügig genug.
+  const styleRefUrls = (Array.isArray(body.styleRefUrls) ? body.styleRefUrls : (body.styleRefUrl ? [body.styleRefUrl] : []))
+    .filter(isImageRef)
+    .slice(0, 8);
 
   if (!prompt) {
     res.status(400).json({ error: "Kein Prompt übergeben." });
@@ -65,7 +73,7 @@ module.exports = async (req, res) => {
   const falBody = imageUrl
     ? {
         prompt,
-        image_urls: [imageUrl, ...(styleRefUrl ? [styleRefUrl] : [])],
+        image_urls: [imageUrl, ...styleRefUrls],
         aspect_ratio: kind === "char" ? "3:4" : "16:9",
         resolution: "1K",
         output_format: "png",

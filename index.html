@@ -721,6 +721,87 @@ const SCENE_LOCATIONS = [
   {label:"🏫 Kita / Schule", en:"kindergarten building", type:"cutaway"}
 ];
 
+/* ---------------- Datenmodell: CharacterSpec / CharacterPack ----------------
+   Kanonisches, quellen-unabhängiges Datenformat für eine Person (P0-Refactoring gemäß
+   Arbeitsauftrag v1.1, Abschnitt 4/6). Sowohl der Beschreibungs-Weg als auch der Foto-Weg
+   (nach Vision-Merkmalsextraktion) erzeugen dieselbe Struktur. Reines JS/JSDoc statt
+   TypeScript, da der Prototyp keinen Build-Schritt hat – die Typedefs dienen nur der
+   Lesbarkeit/Editor-Hilfe, es gibt keine Laufzeitprüfung.
+
+   @typedef {"text"|"photo_extraction"|"photo_direct_experimental"|"legacy"} CharacterSourceType
+   @typedef {Object} CharacterSpec
+   @property {string} id
+   @property {string} name
+   @property {string} [role]          kurzes deutsches Label, z.B. "Mädchen", "Mama"
+   @property {CharacterSourceType} sourceType
+   @property {Object} identityCore    Haarform/-farbe, Körperbau, Hautfarbe, Brille, Merkmal – NICHT Kleidung
+   @property {Object} defaultOutfit   normales Outfit; szenenabhängige Abweichungen sind bewusst NICHT hier
+   @property {string[]} wimmelId      mind. 3 aus der Ferne erkennbare Merkmale (Abschnitt 7)
+   @property {"wmlstil"} styleProfileId
+   @property {string} [originalPhotoRef] nur Metadatum, NIE als aktiver Bearbeitungs-Ausgangspunkt genutzt
+   @property {string} createdAt
+   @property {string} updatedAt
+*/
+function makeCharacterSpec({id, name, role, roleLabel, sourceType}){
+  const now = new Date().toISOString();
+  return {
+    id: id || ("char_" + Math.random().toString(36).slice(2, 10)),
+    // role = englisches Prompt-Token (girl/boy/woman/man/...), roleLabel = deutsches Anzeige-Label.
+    name: name || "", role: role || "", roleLabel: roleLabel || "", sourceType: sourceType || "text",
+    identityCore: {ageGroup: "child", age: null, bodyShape: "", skinTone: "", hairShape: "", hairColor: "", glasses: null, facialHair: "", signatureMarker: ""},
+    defaultOutfit: {top: "", bottom: "", shoes: "", accessories: []},
+    wimmelId: [],
+    styleProfileId: "wmlstil",
+    originalPhotoRef: null,
+    createdAt: now, updatedAt: now
+  };
+}
+/* @typedef {"draft"|"generating"|"accepted"|"locked"|"superseded"|"legacy_partial"} CharacterPackStatus
+   @typedef {Object} CharacterReference
+   @property {string} assetId
+   @property {"front"|"three_quarter"|"side"|"walking"|"sitting"|"interaction"} role
+   @property {boolean} transparentBackground
+   @typedef {Object} CharacterPack
+   @property {string} characterId
+   @property {number} version
+   @property {CharacterPackStatus} status
+   @property {CharacterSpec} specSnapshot
+   @property {CharacterReference[]} references
+   @property {string} createdAt
+   @property {number} [supersedesVersion]
+*/
+function makeCharacterPack(characterId, specSnapshot, frontAssetId, opts){
+  opts = opts || {};
+  // "front"-only ist der reguläre P0-Zustand (Abschnitt 6: Multi-View braucht erst einen
+  // Machbarkeitstest), nicht provisorisch/mangelhaft – daher Status "legacy_partial" nur als
+  // ehrlicher Name für "noch keine Mehrfachansichten", nicht als Fehlerzustand.
+  return {
+    characterId, version: opts.version || 1, status: opts.status || "legacy_partial",
+    specSnapshot, palette: [],
+    references: frontAssetId ? [{assetId: frontAssetId, role: "front", transparentBackground: false}] : [],
+    createdAt: new Date().toISOString(),
+    supersedesVersion: opts.supersedesVersion
+  };
+}
+/* Referenzbild-Rollen für Bildgenerierungs-Requests (Abschnitt 9) – ersetzt das bisherige
+   unspezifische "irgendein akzeptiertes Buchbild" (pickStyleRefImage).
+   @typedef {"STYLE_REFERENCE"|"CHARACTER_FRONT"|"CHARACTER_THREE_QUARTER"|"CHARACTER_SIDE"
+            |"POSE_REFERENCE"|"SCENE_BACKGROUND"|"EDIT_SOURCE"|"COMPOSITION_REFERENCE"} ReferenceImageRole
+   @typedef {Object} TypedReferenceImage
+   @property {string} url
+   @property {ReferenceImageRole} role
+   @property {string} [characterId]
+   @property {number} [characterVersion]
+*/
+/* Expliziter Operationsmodus statt Ableitung aus Seed/Bild-Vorhandensein (Abschnitt 12) – der
+   Seed war laut Arbeitsauftrag "ein Architekturfehler": fal-ai/nano-banana-2/edit liefert laut
+   offiziellem Schema NIE einen Seed zurück, wodurch seed-basierte Ablaufsteuerung für darüber
+   erzeugte Assets grundsätzlich falsch entscheidet (siehe der zuletzt gefundene "Etwas ändern
+   greift nicht"-Bug).
+   @typedef {"INITIAL_GENERATION"|"EDIT_CURRENT"|"REROLL_CURRENT"|"REBUILD_FROM_CHARACTER_SPEC"} GenerationOperation
+*/
+const GEN_OP = { INITIAL: "INITIAL_GENERATION", EDIT: "EDIT_CURRENT", REROLL: "REROLL_CURRENT" };
+
 /* ---------------- State & Persistenz ---------------- */
 let currentUser = null;
 let state = null;
@@ -728,9 +809,14 @@ let authMode = "login";
 // Hält das verkleinerte Foto (data:-URI) zwischen Auswahl und Bestätigungsklick. Bewusst NICHT
 // in state/localStorage, da wir Fotos so kurz wie möglich im Speicher halten wollen.
 let pendingPhotoDataUri = null;
+// Hält vom Vision-Modell erkannte, aber noch unbestätigte Foto-Merkmale (Abschnitt 5). Ebenfalls
+// bewusst nicht in state, bis der Nutzer die Merkmale bestätigt hat.
+let pendingPhotoTraits = null;
+
+const STATE_SCHEMA_VERSION = 2;
 
 function freshState(){
-  return {step:"product", product:null, style:"A", characters:[], scenes:[],
+  return {schemaVersion: STATE_SCHEMA_VERSION, step:"product", product:null, style:"A", characters:[], scenes:[],
           phase:null, charDraft:null, sceneDraft:null, chatLog:[], chips:null, done:false,
           aiUnit:null, aiMessages:[]};
 }
@@ -739,6 +825,38 @@ function saveState(){ if(currentUser && state) localStorage.setItem(stateKey(), 
 function loadState(){
   const raw = localStorage.getItem(stateKey());
   state = raw ? JSON.parse(raw) : freshState();
+  migrateStateSchema(state);
+}
+function migrateStateSchema(s){
+  // Hebt einen im Alt-Schema (vor CharacterSpec/CharacterPack) gespeicherten Zustand auf das
+  // aktuelle Format, OHNE bestehende Bücher zu zerstören. Läuft bei jedem loadState() – ist der
+  // Zustand schon aktuell, passiert nichts (schneller No-Op-Check über schemaVersion).
+  if(!s || s.schemaVersion === STATE_SCHEMA_VERSION) return;
+  (s.characters || []).forEach(c => migrateLegacyCharacter(c));
+  (s.scenes || []).forEach(sc => migrateLegacySceneDependencies(sc, s.characters || []));
+  s.schemaVersion = STATE_SCHEMA_VERSION;
+}
+function migrateLegacyCharacter(c){
+  if(c.spec) return; // schon migriert
+  const sourceType = c.fromPhoto ? "photo_direct_experimental" : "legacy";
+  const spec = makeCharacterSpec({name: c.name, role: c.roleLabel, sourceType});
+  spec.identityCore.age = c.age != null ? c.age : null;
+  spec.identityCore.ageGroup = (c.age != null && c.age <= 12) ? (c.age <= 3 ? "toddler" : "child") : "adult";
+  spec.identityCore.hairColor = c.hair || "";
+  spec.defaultOutfit.top = c.clothing || "";
+  spec.identityCore.signatureMarker = c.feature || "";
+  if(c.fromPhoto && c.sourcePhoto) spec.originalPhotoRef = "legacy-photo-metadata-only";
+  c.spec = spec;
+  c.pack = makeCharacterPack(spec.id, spec, c.img || null, {status: "legacy_partial"});
+}
+function migrateLegacySceneDependencies(sc, characters){
+  if(sc.characterDependencies) return;
+  // Beste verfügbare Annahme: alle aktuell im Buch bekannten Personen waren zum
+  // Generierungszeitpunkt dieser Szene bereits vorhanden. Da das Alt-Schema keine Versionen
+  // kennt, ist die Abhängigkeit nicht sicher rekonstruierbar -> Status bewusst "stale", nicht
+  // "current".
+  sc.characterDependencies = characters.filter(c => c.spec).map(c => ({characterId: c.spec.id, characterVersion: c.pack ? c.pack.version : 1}));
+  sc.dependencyStatus = "stale";
 }
 
 /* ---------------- Views ---------------- */
@@ -829,8 +947,8 @@ function enterApp(){
   if(state.step === "chat"){
     showPanel("chat"); rebuildChat();
     if(state.chatLog.length===0) startChat();
-    else if(state.phase==="scene_generating" && state.sceneDraft && state.sceneDraft.prompt){ generateScene(); }
-    else if(state.phase==="char_generating" && state.charDraft && state.charDraft.prompt){ generateCharSheet(); }
+    else if(state.phase==="scene_generating" && state.sceneDraft && state.sceneDraft.prompt){ generateScene(state.sceneDraft.lastOperation); }
+    else if(state.phase==="char_generating" && state.charDraft && state.charDraft.prompt){ generateCharSheet(state.charDraft.lastOperation); }
   }
   else if(state.step === "summary"){ showPanel("summary"); renderSummary(); }
   else if(state.step === "style"){ showPanel("style"); }
@@ -977,11 +1095,14 @@ function translate(text){
   BREAKERS.forEach(([re,repl])=>{ t = t.replace(re, repl); });
   return t.replace(/\s+/g," ").replace(/\s,/g,",").replace(/,{2,}/g,",").trim().replace(/^,|,$/g,"").trim();
 }
-function ageRole(c){
-  if((c.role==="girl"||c.role==="boy") && c.age && c.age<=5)
-    return `toddler ${c.role}, age ${c.age}, chibi proportions, large round head, short small body`;
-  if((c.role==="girl"||c.role==="boy") && c.age) return `${c.role}, age ${c.age}`;
-  return c.role;
+function ageRole(spec){
+  // Liest jetzt aus CharacterSpec.identityCore statt aus flachen c.role/c.age-Feldern (P0-
+  // Refactoring: ein einziger Prompt-Baustein für Text- UND Foto-Weg, siehe charPrompt/charInScene).
+  const role = spec.role, age = spec.identityCore.age;
+  if((role==="girl"||role==="boy") && age && age<=5)
+    return `toddler ${role}, age ${age}, chibi proportions, large round head, short small body`;
+  if((role==="girl"||role==="boy") && age) return `${role}, age ${age}`;
+  return role;
 }
 function twoColorBoost(featEn){
   /* Briefing §7: Zwei-Farben-Merkmale explizit verstärken */
@@ -991,15 +1112,20 @@ function twoColorBoost(featEn){
   return featEn;
 }
 function charPrompt(c){
-  const parts = ["wmlstil", ageRole(c), translate(c.hair), translate(c.clothing)];
-  if(c.feature) parts.push(twoColorBoost(translate(c.feature)));
+  // Baut den Bildgenerierungs-Prompt AUSSCHLIESSLICH aus dem kanonischen CharacterSpec (c.spec) –
+  // egal ob die Person per Beschreibung, per KI-Chat oder (nach Vision-Merkmalsextraktion) per
+  // Foto erfasst wurde. Das ist der "gemeinsame Renderer" aus dem Arbeitsauftrag v1.1, Abschnitt 3.
+  const spec = c.spec;
+  const parts = ["wmlstil", ageRole(spec), translate(spec.identityCore.hairColor), translate(spec.defaultOutfit.top)];
+  if(spec.identityCore.signatureMarker) parts.push(twoColorBoost(translate(spec.identityCore.signatureMarker)));
   parts.push("round head, minimal face, dot eyes, single vertical line nose, no ears, no mouth, no visible neck, standing, flat color fill, thick black marker outline, graphic recording sketchnote style, white background, full body, front view");
   return parts.filter(Boolean).join(", ");
 }
 function charInScene(c){
-  const bits = [ageRole(c), translate(c.hair)];
-  if(c.feature) bits.push(twoColorBoost(translate(c.feature)));
-  const cl = translate(c.clothing).split(",")[0];
+  const spec = c.spec;
+  const bits = [ageRole(spec), translate(spec.identityCore.hairColor)];
+  if(spec.identityCore.signatureMarker) bits.push(twoColorBoost(translate(spec.identityCore.signatureMarker)));
+  const cl = translate(spec.defaultOutfit.top).split(",")[0];
   if(cl) bits.push(cl);
   return bits.filter(Boolean).join(", ");
 }
@@ -1061,6 +1187,18 @@ function pickStyleRefImage(excludeUrl){
   if(pool.length) return pool[0];
   return typeof WMLSTIL_CHAR_SAMPLE_IMG === "string" && WMLSTIL_CHAR_SAMPLE_IMG !== excludeUrl ? WMLSTIL_CHAR_SAMPLE_IMG : undefined;
 }
+// P0.4 (Arbeitsauftrag v1.1, Abschnitt 8, auf Szenen-EDITS skaliert – Erstgenerierung ist ausgenommen,
+// weil flux-lora grundsätzlich keine Referenzbilder annehmen kann): bei einer Szenen-Änderung wird jetzt
+// NICHT mehr nur EIN beliebiges "irgendein akzeptiertes Buchbild" als Stilanker mitgeschickt, sondern das
+// aktuelle Bild JEDES Charakters (typisiert als CHARACTER_FRONT-Referenz), damit sie bei der gezielten
+// Änderung eher wiedererkennbar bleiben. Da jede Szene laut scenePrompt() ohnehin immer alle Charaktere
+// zeigt, ist "alle Charakterbilder" hier die korrekte Menge (kein Sub-Set-Tracking pro Szene nötig/vorhanden).
+function pickSceneCharacterRefs(excludeUrl){
+  const refs = state.characters.map(c=>c.img).filter(u => u && u !== excludeUrl);
+  if(refs.length) return refs.slice(0, 8);
+  const fallback = pickStyleRefImage(excludeUrl);
+  return fallback ? [fallback] : [];
+}
 async function generateImage(prompt, kind, seed, editImageUrl, styleRefUrl){
   // kind: "char" | "scene"; seed: optional, für konsistente Neu-Generierungen.
   // editImageUrl: wenn gesetzt, läuft die Anfrage über fal-ai/nano-banana-2/edit statt Text-zu-Bild.
@@ -1069,6 +1207,10 @@ async function generateImage(prompt, kind, seed, editImageUrl, styleRefUrl){
   // Nano Banana 2 (Google, Gemini 3.1 Flash Image) braucht kein LoRA: Stilkonsistenz kommt über
   // mitgeschickte Referenzbilder (editImageUrl + optional styleRefUrl), nicht über trainierte Gewichte.
   // "prompt" ist in diesem Fall die kurze Editier-Anweisung, nicht die volle Bildbeschreibung.
+  // P0.4: styleRefUrl darf jetzt sowohl eine einzelne URL (Charakter-Edit, unverändert) als auch ein
+  // Array typisierter Referenzbilder sein (Szenen-Edit, siehe pickSceneCharacterRefs) – hier auf ein
+  // einheitliches Array normalisiert.
+  const styleRefUrls = Array.isArray(styleRefUrl) ? styleRefUrl.filter(Boolean) : (styleRefUrl ? [styleRefUrl] : []);
   const proxy = proxyUrl();
   const key = falKey();
   if(!proxy && !key) return {url: placeholderSVG(kind), placeholder: true};
@@ -1082,7 +1224,7 @@ async function generateImage(prompt, kind, seed, editImageUrl, styleRefUrl){
         prompt, kind,
         ...(seed!=null ? {seed} : {}),
         ...(editImageUrl ? {imageUrl: editImageUrl} : {}),
-        ...(styleRefUrl ? {styleRefUrl} : {})
+        ...(styleRefUrls.length ? {styleRefUrls} : {})
       })
     });
     let data;
@@ -1095,7 +1237,7 @@ async function generateImage(prompt, kind, seed, editImageUrl, styleRefUrl){
   // Nur fürs lokale Testen: direkter Aufruf mit Key aus dem Browser (siehe Warnhinweis in ⚙️)
   const body = editImageUrl ? {
     prompt,
-    image_urls: [editImageUrl, ...(styleRefUrl ? [styleRefUrl] : [])],
+    image_urls: [editImageUrl, ...styleRefUrls],
     aspect_ratio: kind==="char" ? "3:4" : "16:9",
     resolution: "1K",
     output_format: "png",
@@ -1247,8 +1389,12 @@ function buildAIContext(){
   if(state.aiUnit === "character"){
     return {existingCharacters: state.characters.map(c=>({name:c.name, role:c.roleLabel||c.role||"", age:c.age||null}))};
   }
+  // P0-Refactoring: Claude baut den Szenen-Prompt nicht mehr selbst (das übernimmt scenePrompt()
+  // clientseitig aus charInScene() je Person), braucht die bekannten Personen also nur noch zur
+  // natürlichsprachlichen Orientierung ("soll Mama auch dabei sein?"), nicht mehr deren
+  // Bild-Prompt-Fragment.
   return {
-    characters: state.characters.map(c=>({name:c.name, scene_fragment_en: c.sceneFragment || c.feature || ""})),
+    characters: state.characters.map(c=>({name:c.name, role: c.roleLabel||c.role||""})),
     sceneIndex: state.scenes.length + 1,
     sceneTarget: product().scenes
   };
@@ -1310,6 +1456,13 @@ async function aiCollectScene(){
   await runClaudeTurn();
 }
 
+function mapFreeRoleToEnglish(label){
+  // Gemeinsame Heuristik für frei getippte/von Claude gelieferte Rollen-Label, die nicht in
+  // ROLE_MAP stehen (z.B. "Tante", "unser Hund Bello") – vorher an zwei Stellen dupliziert
+  // (chRoleCustom, chRoleCustomForPhoto), jetzt eine einzige Quelle.
+  const t = (label || "").toLowerCase();
+  return /hund|kater|katze|hase/.test(t) ? translate(t) : (/tante|freundin|oma|uroma/.test(t) ? "woman" : "man");
+}
 async function handleCharacterTool(input){
   // Seed + Entwurfs-Historie vom vorherigen Entwurf übernehmen (falls schon generiert) –
   // sonst würde jeder Änderungswunsch den Seed verlieren (komplett anderes Bild) und die
@@ -1317,22 +1470,39 @@ async function handleCharacterTool(input){
   const prevSeed = state.charDraft && state.charDraft.seed;
   const prevDrafts = (state.charDraft && state.charDraft.drafts) || [];
   const prevIdx = state.charDraft ? state.charDraft.currentDraftIndex : undefined;
-  // fromPhoto/sourcePhoto übernehmen, falls dieser Entwurf aus der Foto-Upload-Option stammt –
-  // sonst würde ein Änderungswunsch übers KI-Tool den Foto-Ursprung verlieren.
+  // Bugfix (P0.5, beim Testen des neuen strukturierten Schemas gefunden): das bisher generierte Bild
+  // (c.img) wurde beim Neuaufbau des charDraft NICHT übernommen. generateCharSheet() entscheidet den
+  // Editier-Pfad (fal-ai/nano-banana-2/edit) über genau dieses Feld als editImageUrl – ohne es lief
+  // JEDER Änderungswunsch über den KI-Chat fälschlich als Text-zu-Bild-Neugenerierung (flux-lora)
+  // statt als gezielter Bild-Edit.
+  const prevImg = state.charDraft && state.charDraft.img;
+  // fromPhoto/sourcePhoto/sourceType übernehmen, falls dieser Entwurf aus der Foto-Upload-Option
+  // stammt – sonst würde ein Änderungswunsch übers KI-Tool den Foto-Ursprung verlieren.
   const prevFromPhoto = state.charDraft && state.charDraft.fromPhoto;
   const prevSourcePhoto = state.charDraft && state.charDraft.sourcePhoto;
+  const prevSourceType = state.charDraft && state.charDraft.spec && state.charDraft.spec.sourceType;
+  // P0-Refactoring: Claude liefert nur noch strukturierte Felder (siehe claude-proxy.js), KEINEN
+  // fertigen sheet_prompt mehr. Der Client baut daraus ein CharacterSpec und lässt anschließend
+  // denselben charPrompt()-Builder wie beim Beschreibungs-Weg den eigentlichen Bild-Prompt bauen –
+  // das ist die geforderte Vereinheitlichung aus Abschnitt 3 des Arbeitsauftrags.
+  const name = input.name || "Kind";
+  const roleLabel = input.role_label || "";
+  const roleEn = ROLE_MAP[roleLabel] || mapFreeRoleToEnglish(roleLabel);
+  const spec = makeCharacterSpec({name, role: roleEn, roleLabel, sourceType: prevSourceType || "text"});
+  spec.identityCore.age = input.age || null;
+  spec.identityCore.ageGroup = spec.identityCore.age != null ? (spec.identityCore.age <= 3 ? "toddler" : (spec.identityCore.age <= 12 ? "child" : "adult")) : "adult";
+  spec.identityCore.hairColor = input.hair_color_en || "";
+  spec.defaultOutfit.top = input.clothing_top_en || "";
+  spec.identityCore.signatureMarker = input.signature_marker_en || "";
   state.charDraft = {
-    name: input.name || "Kind",
-    roleLabel: input.role_label || "",
-    role: null,
-    age: input.age || null,
-    feature: input.scene_fragment_en || "",
-    sceneFragment: input.scene_fragment_en || "",
-    hair: "", clothing: "",
-    prompt: input.sheet_prompt,
+    name, roleLabel, role: roleEn, age: spec.identityCore.age,
+    hair: spec.identityCore.hairColor, clothing: spec.defaultOutfit.top, feature: spec.identityCore.signatureMarker,
+    spec,
+    prompt: null, // wird gleich über charPrompt(c) aus dem Spec gebaut (generateCharSheet)
     // NUR bei Änderungswunsch gefüllt: kurze Editier-Anweisung für den gezielten Kontext-Edit-Aufruf
     // (statt die ganze Beschreibung neu zu senden – siehe generateCharSheet()).
     tweakInstruction: input.edit_instruction || null,
+    img: prevImg,
     seed: prevSeed,
     drafts: prevDrafts,
     currentDraftIndex: prevIdx,
@@ -1340,7 +1510,7 @@ async function handleCharacterTool(input){
     sourcePhoto: prevSourcePhoto || null
   };
   saveState();
-  await generateCharSheet();
+  await generateCharSheet(input.edit_instruction ? GEN_OP.EDIT : GEN_OP.INITIAL);
 }
 
 async function handleSceneTool(input){
@@ -1350,18 +1520,30 @@ async function handleSceneTool(input){
   const prevSeed = state.sceneDraft && state.sceneDraft.seed;
   const prevDrafts = (state.sceneDraft && state.sceneDraft.drafts) || [];
   const prevIdx = state.sceneDraft ? state.sceneDraft.currentDraftIndex : undefined;
+  // Bugfix (P0.5, beim Testen des neuen strukturierten Schemas gefunden): siehe identischer Fix in
+  // handleCharacterTool – ohne Übernahme von s.img lief jeder Szenen-Änderungswunsch übers KI-Tool
+  // fälschlich als Text-zu-Bild-Neugenerierung statt als gezielter Bild-Edit.
+  const prevImg = state.sceneDraft && state.sceneDraft.img;
+  // P0-Refactoring: Claude liefert nur noch Ort/Geschichte/Extras als Felder, KEINEN fertigen
+  // Szenen-Prompt mehr. scenePrompt() baut daraus (und aus den aktuellen Charakter-Specs) den
+  // eigentlichen Bild-Prompt – exakt wie beim Beschreibungs-Weg ohne KI-Chat.
   state.sceneDraft = {
-    loc: {label: input.location_label || "Szene", type: input.location_type === "cutaway" ? "cutaway" : "landscape"},
-    story: input.summary_de || "",
-    extras: [],
-    prompt: input.prompt,
+    // Bugfix (P0.5, beim Testen des neuen strukturierten Schemas gefunden): claude-proxy.js liefert
+    // nur noch das deutsche location_label, kein fertiges englisches Ortswort mehr – "en" muss daher
+    // hier genau wie im geskripteten Weg (siehe scLocationCustom) per translate() erzeugt werden.
+    // Ohne diesen Fix landete ein wörtliches "undefined" im Bild-Prompt (scenePrompt() liest loc.en).
+    loc: {label: input.location_label || "Szene", en: translate(input.location_label || "Szene"), type: input.location_type === "cutaway" ? "cutaway" : "landscape"},
+    story: input.story_en || "",
+    extras: Array.isArray(input.extras_en) ? input.extras_en : [],
+    prompt: null, // wird über scenePrompt(s) gebaut (generateScene)
     tweakInstruction: input.edit_instruction || null,
+    img: prevImg,
     seed: prevSeed,
     drafts: prevDrafts,
     currentDraftIndex: prevIdx
   };
   saveState();
-  await generateScene();
+  await generateScene(input.edit_instruction ? GEN_OP.EDIT : GEN_OP.INITIAL);
 }
 
 /* ---------------- Chat-Dialog: Ablauf (geskripteter Fallback ohne Chat-Server) ---------------- */
@@ -1393,7 +1575,7 @@ function startCharDescribe(){
 }
 function startCharPhotoUpload(){
   (async()=>{
-    await botSay(`Lade ein Foto hoch \u2013 ich zeichne die Person daraus direkt im Wimmel-Wizard-Stil.<span class="note">Kurzer Hinweis: Das Foto wird nur zur Bilderzeugung \u00fcbertragen, nicht auf unserer Seite gespeichert.</span>`);
+    await botSay(`Lade ein Foto hoch \u2013 ich schaue es mir an und zeichne die Person danach im Wimmel-Wizard-Stil.<span class="note">Kurzer Hinweis: Das Foto wird nur zur Merkmalserkennung \u00fcbertragen, nicht auf unserer Seite gespeichert.</span>`);
     const html = `<div class="photo-upload-card">
       <label class="photo-upload-btn" for="char-photo-input">\ud83d\udcf7 Foto ausw\u00e4hlen</label>
       <input type="file" id="char-photo-input" accept="image/*" style="display:none" onchange="handlePhotoSelected(this)">
@@ -1439,28 +1621,130 @@ async function handlePhotoSelected(input){
     const dataUri = await resizeImageToDataUri(file, 1024, 0.85);
     pendingPhotoDataUri = dataUri;
     if(preview){
-      preview.innerHTML = `<img src="${dataUri}" alt="Vorschau" class="photo-upload-thumb"><button class="btn btn-primary btn-small" onclick="startCharFromPhoto()">\ud83e\ude84 Diese Person zaubern</button>`;
+      preview.innerHTML = `<img src="${dataUri}" alt="Vorschau" class="photo-upload-thumb"><button class="btn btn-primary btn-small" onclick="startCharTraitsExtraction()">\ud83e\ude84 Diese Person zaubern</button>`;
     }
     scrollChat();
   }catch(e){
     if(preview) preview.innerHTML = `<span class="note">Hoppla, das Foto konnte nicht gelesen werden: ${escapeHtml(e.message)}</span>`;
   }
 }
-function startCharFromPhoto(){
+// ---- Vision-Merkmalsextraktion (Arbeitsauftrag v1.1, Abschnitt 5) ----
+// Standardweg f\u00fcr Fotos: NICHT mehr direkt ins Bild editieren, sondern zuerst per Vision-Modell in
+// dieselben strukturierten Merkmale \u00fcbersetzen, die auch der Beschreibungs-Weg erfasst (Haare,
+// Kleidung, Merkmal, Altersgruppe). Erst nach Best\u00e4tigung wird \u00fcber denselben flux-lora-Renderer
+// wie ein Textcharakter gezeichnet \u2013 das Foto selbst ist danach nur noch Metadatum, kein aktiver
+// Bearbeitungs-Ausgangspunkt mehr.
+async function extractCharacterTraitsFromPhoto(dataUri){
+  const url = chatProxyUrl();
+  if(!url) throw new Error("Die Foto-Analyse braucht den KI-Chat-Server (siehe \u2699\ufe0f Einstellungen).");
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({mode: "extract_traits", imageDataUri: dataUri})
+  });
+  let data;
+  try{ data = await resp.json(); }catch(e){ throw new Error("Antwort vom Chat-Server war kein g\u00fcltiges JSON."); }
+  if(!resp.ok || data.error) throw new Error(data.error || ("Server-Fehler " + resp.status));
+  if(!data.traits) throw new Error("Es wurden keine Merkmale erkannt.");
+  return data.traits;
+}
+function applyPhotoTraitsToSpec(spec, traits){
+  spec.identityCore.ageGroup = traits.age_group || "child";
+  spec.identityCore.age = traits.age_estimate != null ? traits.age_estimate : null;
+  spec.identityCore.bodyShape = traits.body_shape_en || "";
+  spec.identityCore.skinTone = traits.skin_tone_en || "";
+  // Vision liefert Frisur+Farbe als eine kombinierte Beschreibung statt getrennter Felder \u2013 f\u00fcr den
+  // Foto-Weg bewusst so belassen (siehe CharacterSpec-Kommentar), genau wie beim freien Text-Feld
+  // im Beschreibungs-Weg.
+  spec.identityCore.hairColor = traits.hair_description_en || "";
+  if(traits.glasses_en) spec.identityCore.glasses = {shape: traits.glasses_en, color: ""};
+  spec.identityCore.signatureMarker = traits.signature_marker_en || "";
+  spec.defaultOutfit.top = [traits.headwear_en, traits.clothing_top_en].filter(Boolean).join(", ");
+}
+function startCharTraitsExtraction(){
   if(!pendingPhotoDataUri){
     botSay("Das Foto ist leider nicht mehr da \u2013 magst du es nochmal ausw\u00e4hlen?");
     return;
   }
   userSay("\ud83e\ude84 Diese Person zaubern");
+  const dataUri = pendingPhotoDataUri;
+  pendingPhotoDataUri = null;
   state.charDraft = {
-    name: "", roleLabel: "", role: null, age: null,
-    hair: "", clothing: "", feature: "",
-    fromPhoto: true, sourcePhoto: pendingPhotoDataUri,
+    name: "", roleLabel: "", role: null, age: null, hair: "", clothing: "", feature: "",
+    // sourcePhoto bleibt nur als Metadatum erhalten (z.B. f\u00fcr den optionalen Experimentalmodus) \u2013
+    // der regul\u00e4re Weg verwendet es NICHT mehr als aktiven Bearbeitungs-Ausgangspunkt.
+    fromPhoto: true, sourcePhoto: dataUri,
+    spec: makeCharacterSpec({sourceType: "photo_extraction"}),
     prompt: null, drafts: [], seed: null
   };
-  pendingPhotoDataUri = null;
+  state.phase = "char_photo_extracting"; saveState();
+  (async()=>{
+    const card = await botSay(`<div class="gen-card"><div class="gen-status"><span class="sparkle-loader">\u2728</span><br>Der Wizzard schaut sich das Foto an \u2026</div></div>`, {log:false});
+    try{
+      const traits = await extractCharacterTraitsFromPhoto(dataUri);
+      const c = state.charDraft;
+      applyPhotoTraitsToSpec(c.spec, traits);
+      c.hair = c.spec.identityCore.hairColor; c.clothing = c.spec.defaultOutfit.top; c.feature = c.spec.identityCore.signatureMarker;
+      const html = `Wir haben erkannt: ${escapeHtml(traits.summary_de || "")}. Passt das?`;
+      card.querySelector(".bubble").innerHTML = html;
+      state.chatLog.push({w:"bot", h:html}); saveState(); scrollChat();
+      state.phase = "char_photo_traits_confirm"; saveState();
+      showChips([
+        {label:"\u2705 Passt, zeichnen!", accent:true, action:confirmPhotoTraits},
+        {label:"\u270f\ufe0f Korrigieren", action:()=>{ userSay("\u270f\ufe0f Korrigieren"); botSay("Was stimmt nicht ganz? Beschreib's kurz, ich passe es an."); state.phase="char_photo_traits_correct"; saveState(); }},
+        {label:"\ud83d\udd2c Stattdessen Foto\u00e4hnlichkeit versuchen", action:tryPhotoDirectExperimental}
+      ]);
+    }catch(e){
+      const html = `Hoppla, das Foto konnte nicht ausgewertet werden: <b>${escapeHtml(e.message)}</b><span class="note">Du kannst es nochmal versuchen oder die Person stattdessen kurz beschreiben.</span>`;
+      card.querySelector(".bubble").innerHTML = html;
+      state.chatLog.push({w:"bot", h:html}); saveState();
+      showChips([
+        {label:"\ud83d\udd01 Nochmal versuchen", accent:true, action:()=>{ pendingPhotoDataUri = dataUri; clearChips(); startCharTraitsExtraction(); }},
+        {label:"\u270f\ufe0f Stattdessen beschreiben", action:()=>{ userSay("\u270f\ufe0f Stattdessen beschreiben"); startCharDescribe(); }}
+      ]);
+    }
+  })();
+}
+function chPhotoTraitsCorrect(text){
+  userSay(text);
+  const c = state.charDraft;
+  if(!c || !c.spec){ botSay("Hoppla, dazu fehlt mir gerade der Entwurf \u2013 lass uns nochmal von vorn starten."); return; }
+  // Einfache Korrektur analog zum freien Text-Tweak: Zusatz/Ersetzung wird an die Kleidungs-/
+  // Merkmalsbeschreibung angeh\u00e4ngt. F\u00fcr P0 bewusst schlicht (siehe Plan: "h\u00f6chstens ein bis zwei
+  // Korrekturen" sollen reichen) statt einer erneuten Vision-Runde.
+  c.spec.defaultOutfit.top = (c.spec.defaultOutfit.top || "") + (c.spec.defaultOutfit.top ? ", " : "") + translate(text);
+  c.clothing = c.spec.defaultOutfit.top;
+  (async()=>{
+    await botSay("Danke, hab ich angepasst. Passt es jetzt?");
+    state.phase = "char_photo_traits_confirm"; saveState();
+    showChips([
+      {label:"\u2705 Passt, zeichnen!", accent:true, action:confirmPhotoTraits},
+      {label:"\u270f\ufe0f Nochmal korrigieren", action:()=>{ userSay("\u270f\ufe0f Nochmal korrigieren"); botSay("Was soll noch anders sein?"); state.phase="char_photo_traits_correct"; saveState(); }},
+      {label:"\ud83d\udd2c Stattdessen Foto\u00e4hnlichkeit versuchen", action:tryPhotoDirectExperimental}
+    ]);
+  })();
+}
+function confirmPhotoTraits(){
+  userSay("\u2705 Passt, zeichnen!");
+  (async()=>{
+    await botSay("Wie hei\u00dft diese Person?");
+    state.phase = "char_photo_name"; saveState();
+  })();
+}
+// ---- Experimenteller Direktmodus (Arbeitsauftrag v1.1, Abschnitt 5) ----
+// Der bisherige direkte Foto-Stiltransfer \u00fcber fal-ai/nano-banana-2/edit bleibt als bewusst
+// gekennzeichnete Alternative erreichbar, falls die Vision-Extraktion+flux-lora-Zeichnung der
+// Person nicht \u00e4hnlich genug ist. Ergebnis l\u00e4uft durch denselben Behalten/\u00c4ndern/Nochmal-Ablauf.
+function tryPhotoDirectExperimental(){
+  userSay("\ud83d\udd2c Stattdessen Foto\u00e4hnlichkeit versuchen");
+  const c = state.charDraft;
+  c.spec.sourceType = "photo_direct_experimental";
+  c.prompt = null; // erzwingt Neuaufbau \u00fcber photoStyleInstruction() statt charPrompt() in generateCharSheet
   saveState();
-  generateCharSheet();
+  (async()=>{
+    await botSay(`Okay, ich versuch's mit mehr Foto\u00e4hnlichkeit \u2013 stilistisch kann das etwas mehr abweichen. \u2728`);
+    generateCharSheet(GEN_OP.INITIAL);
+  })();
 }
 function chNameForPhoto(text){
   userSay(text);
@@ -1468,6 +1752,7 @@ function chNameForPhoto(text){
   const name = cleaned.split(/\s+/)[0].replace(/[^A-Za-z\u00c4\u00d6\u00dc\u00e4\u00f6\u00fc\u00df\-]/g,"") || "Kind";
   const c = state.charDraft;
   c.name = cap(name);
+  c.spec.name = c.name;
   saveState();
   (async()=>{
     await botSay(`<b>${c.name}</b> \u2013 passt gut! Und wer ist ${c.name} bei euch?`);
@@ -1480,6 +1765,7 @@ function chRoleForPhoto(r){
   const c = state.charDraft;
   c.roleLabel = r;
   c.role = ROLE_MAP[r];
+  c.spec.roleLabel = r; c.spec.role = ROLE_MAP[r];
   saveState();
   finishPhotoCharSetup();
 }
@@ -1487,20 +1773,31 @@ function chRoleCustomForPhoto(text){
   userSay(text);
   const c = state.charDraft;
   c.roleLabel = text.trim();
-  const t = text.toLowerCase();
-  c.role = /hund|kater|katze|hase/.test(t) ? translate(t) : (/tante|freundin|oma|uroma/.test(t) ? "woman" : "man");
+  c.role = mapFreeRoleToEnglish(text);
+  if(c.spec){ c.spec.roleLabel = c.roleLabel; c.spec.role = c.role; }
   saveState();
   finishPhotoCharSetup();
 }
 function finishPhotoCharSetup(){
   const c = state.charDraft;
+  if(!c.img){
+    // Regul\u00e4rer Weg (Vision-Extraktion): es existiert noch kein Bild \u2013 jetzt zum ersten Mal \u00fcber
+    // denselben flux-lora-Renderer wie ein Textcharakter zeichnen.
+    (async()=>{
+      await botSay(`Alles klar, ich zeichne ${c.name} jetzt im Wimmel-Wizard-Stil! \ud83e\ude84`);
+      await generateCharSheet(GEN_OP.INITIAL);
+    })();
+    return;
+  }
+  // Experimenteller Foto-Direktmodus: das Bild existiert schon (entstand vor Name/Rolle), hier nur
+  // noch die \u00fcblichen Chips anbieten.
   (async()=>{
     await botSay(`Perfekt, ${c.name} ist startklar! \ud83c\udf89`);
     state.phase = "char_generating"; saveState();
     showChips([
       {label:"\u2764\ufe0f Behalten", accent:true, action:acceptChar},
       {label:"\u270f\ufe0f Etwas \u00e4ndern", action:requestCharTweak},
-      {label:"\ud83c\udfb2 Nochmal zaubern", action:()=>{ userSay("\ud83c\udfb2 Nochmal zaubern"); generateCharSheet(true); }}
+      {label:"\ud83c\udfb2 Nochmal zaubern", action:()=>{ userSay("\ud83c\udfb2 Nochmal zaubern"); generateCharSheet(GEN_OP.REROLL); }}
     ]);
   })();
 }
@@ -1539,6 +1836,7 @@ function handleInput(text){
   if(p==="char_name") return chName(text);
   if(p==="char_photo_name") return chNameForPhoto(text);
   if(p==="char_role_custom_photo") return chRoleCustomForPhoto(text);
+  if(p==="char_photo_traits_correct") return chPhotoTraitsCorrect(text);
   if(p==="char_role_custom") return chRoleCustom(text);
   if(p==="char_age") return chAge(text);
   if(p==="char_hair") return chHair(text);
@@ -1565,7 +1863,11 @@ function chName(text){
   userSay(text);
   const cleaned = text.trim().replace(/^(er|sie|es)?\s*(heißt|heisst)\s*/i,"").replace(/^(unser|unsere|mein|meine)\s+\S+\s+(heißt|heisst)?\s*/i,"");
   const name = cleaned.split(/\s+/)[0].replace(/[^A-Za-zÄÖÜäöüß\-]/g,"") || "Luca";
-  state.charDraft = {name: cap(name)};
+  const finalName = cap(name);
+  // P0-Refactoring: state.charDraft trägt jetzt IMMER ein kanonisches CharacterSpec (c.spec).
+  // c.name bleibt zusätzlich als schneller Anzeige-Spiegel bestehen (Chat-Texte, Charakterleiste),
+  // die eigentliche Bildgenerierung (charPrompt/charInScene) liest aber ausschließlich aus c.spec.
+  state.charDraft = {name: finalName, spec: makeCharacterSpec({name: finalName, sourceType: "text"})};
   (async()=>{
     await botSay(`<b>${state.charDraft.name}</b> – schöner Name! Und wer ist ${state.charDraft.name} bei euch?`);
     state.phase = "char_role"; saveState();
@@ -1574,24 +1876,30 @@ function chName(text){
 }
 function chRole(r){
   userSay(r);
-  state.charDraft.roleLabel = r;
-  state.charDraft.role = ROLE_MAP[r];
+  const c = state.charDraft;
+  c.roleLabel = r; c.role = ROLE_MAP[r];
+  c.spec.roleLabel = r; c.spec.role = ROLE_MAP[r];
   if(r==="Mädchen"||r==="Junge"){
-    botSay(`Und wie alt ist ${state.charDraft.name}?`);
+    botSay(`Und wie alt ist ${c.name}?`);
     state.phase = "char_age"; saveState();
   } else chAskHair();
 }
 function chRoleCustom(text){
   userSay(text);
-  state.charDraft.roleLabel = text.trim();
-  const t = text.toLowerCase();
-  state.charDraft.role = /hund|kater|katze|hase/.test(t) ? translate(t) : (/tante|freundin|oma|uroma/.test(t) ? "woman" : "man");
+  const c = state.charDraft;
+  const roleEn = mapFreeRoleToEnglish(text);
+  c.roleLabel = text.trim(); c.role = roleEn;
+  c.spec.roleLabel = text.trim(); c.spec.role = roleEn;
   chAskHair();
 }
 function chAge(text){
   userSay(text);
   const age = parseInt(text.replace(/\D/g,""), 10);
-  state.charDraft.age = isNaN(age) ? 4 : age;
+  const finalAge = isNaN(age) ? 4 : age;
+  const c = state.charDraft;
+  c.age = finalAge;
+  c.spec.identityCore.age = finalAge;
+  c.spec.identityCore.ageGroup = finalAge <= 3 ? "toddler" : (finalAge <= 12 ? "child" : (finalAge <= 17 ? "teen" : "adult"));
   chAskHair();
 }
 function chAskHair(){
@@ -1602,7 +1910,9 @@ function chAskHair(){
 }
 function chHair(text){
   userSay(text);
-  state.charDraft.hair = text.trim();
+  const c = state.charDraft;
+  c.hair = text.trim();
+  c.spec.identityCore.hairColor = text.trim();
   (async()=>{
     await botSay(`Und was hat ${state.charDraft.name} typischerweise an?<span class="note">✨ Zauber-Tipp: <b>Mütze/Hut + Schal + Jacke</b> funktionieren in unserem Stil besonders magisch – und machen die Figur auf jeder Seite leichter zu finden!</span>`);
     state.phase = "char_clothing"; saveState();
@@ -1610,7 +1920,9 @@ function chHair(text){
 }
 function chClothing(text){
   userSay(text);
-  state.charDraft.clothing = text.trim();
+  const c = state.charDraft;
+  c.clothing = text.trim();
+  c.spec.defaultOutfit.top = text.trim();
   (async()=>{
     await botSay(`Jetzt das Wichtigste fürs Suchspiel: Gibt es ein <b>unverwechselbares Merkmal</b>, an dem man ${state.charDraft.name} sofort erkennt?<span class="note">z.B. „ein grüner und ein roter Gummistiefel“ – so ein Merkmal bleibt in jeder Szene erhalten, sogar im Sommer am Strand. 😄</span>`);
     state.phase = "char_feature"; saveState();
@@ -1619,8 +1931,9 @@ function chClothing(text){
 }
 function chFeature(text){
   if(text) userSay(text); else { userSay("Kein besonderes Merkmal"); }
-  state.charDraft.feature = text.trim();
   const c = state.charDraft;
+  c.feature = text.trim();
+  c.spec.identityCore.signatureMarker = text.trim();
   (async()=>{
     await botSay(`Das hab ich mir notiert:<br>👤 <b>${c.name}</b> (${c.roleLabel}${c.age?`, ${c.age} Jahre`:""})<br>💇 ${escapeHtml(c.hair)}<br>👕 ${escapeHtml(c.clothing)}${c.feature?`<br>⭐ ${escapeHtml(c.feature)}`:""}`);
     await botSay(`Soll ich ${c.name} jetzt zum Leben erwecken? 🪄`);
@@ -1631,7 +1944,7 @@ function chFeature(text){
     ]);
   })();
 }
-function confirmCharGen(){ userSay("🪄 Ja, zaubern!"); generateCharSheet(); }
+function confirmCharGen(){ userSay("🪄 Ja, zaubern!"); generateCharSheet(GEN_OP.INITIAL); }
 
 function requestCharTweak(){
   userSay("✏️ Etwas ändern");
@@ -1647,32 +1960,42 @@ function chTweakFree(text){
   userSay(text);
   const c = state.charDraft;
   if(!c){ botSay("Hoppla, dazu fehlt mir gerade der Entwurf – lass uns nochmal von vorn starten."); return; }
-  c.clothing = (c.clothing || "") + (c.clothing ? ", " : "") + text;
+  // Änderung fließt in c.spec.defaultOutfit.top (die eigentliche, für charPrompt() relevante Quelle
+  // bei "Nochmal zaubern"), c.clothing bleibt nur als Anzeige-Spiegel synchron.
+  c.spec.defaultOutfit.top = (c.spec.defaultOutfit.top || "") + (c.spec.defaultOutfit.top ? ", " : "") + text;
+  c.clothing = c.spec.defaultOutfit.top;
   c.prompt = null; // volle Beschreibung wird bei "Nochmal zaubern" neu gebaut, inkl. dieser Änderung
   c.tweakInstruction = translate(text); // NUR die Änderung selbst, für den gezielten Kontext-Edit-Aufruf
   (async()=>{
     await botSay(`Alles klar, ich passe ${c.name || "die Person"} an. 🪄`);
-    generateCharSheet();
+    generateCharSheet(GEN_OP.EDIT);
   })();
 }
-async function generateCharSheet(forceReroll){
+async function generateCharSheet(operation){
+  operation = operation || GEN_OP.INITIAL;
   const c = state.charDraft;
-  // Foto-Option: statt Text-zu-Bild läuft die ERSTE Generierung auch direkt über
-  // fal-ai/nano-banana-2/edit (Foto -> Illustrationsstil), siehe generateImage/photoStyleInstruction.
-  const usePhoto = !!(c.fromPhoto && c.sourcePhoto);
-  c.prompt = c.prompt || (usePhoto ? photoStyleInstruction() : charPrompt(c));
+  c.lastOperation = operation; // für Resume nach Seitenreload während laufender Generierung
+  // P0-Refactoring (Arbeitsauftrag v1.1, Abschnitt 5): der direkte Foto-Stiltransfer über
+  // fal-ai/nano-banana-2/edit ist NICHT mehr die Standardpipeline für Fotos – das ist jetzt nur
+  // noch der explizit gewählte, als experimentell gekennzeichnete Modus
+  // (sourceType "photo_direct_experimental", siehe tryPhotoDirectExperimental()). Der reguläre
+  // Foto-Weg (sourceType "photo_extraction") läuft nach der Vision-Merkmalsextraktion durch
+  // GENAU DENSELBEN charPrompt()/flux-lora-Renderer wie ein Text-Charakter.
+  const usePhotoDirectEdit = !!(c.spec && c.spec.sourceType === "photo_direct_experimental" && c.sourcePhoto);
+  c.prompt = c.prompt || (usePhotoDirectEdit ? photoStyleInstruction() : charPrompt(c));
   c.drafts = c.drafts || [];
   state.phase = "char_generating"; saveState();
   renderLivePanel(true);
   // Gezielte Änderung ("Etwas ändern"): Seed des aktuell gewählten Entwurfs wiederverwenden –
   // hält Pose/Komposition stabil. "Nochmal zaubern": bewusst neuer, zufälliger Versuch.
   // WICHTIG: fal-ai/nano-banana-2/edit liefert laut offiziellem Schema NIE einen "seed" in der
-  // Antwort zurück (nur "images" + "description") – bei Foto-Charakteren (deren allererste
-  // Generierung schon über dieses Edit-Modell läuft) blieb c.seed dadurch für immer null, wodurch
-  // JEDE Änderung fälschlich als "frischer Versuch" statt als Tweak behandelt wurde und der
-  // Änderungswunsch stillschweigend verworfen wurde. Für den Foto-Weg prüfen wir daher stattdessen,
-  // ob überhaupt schon ein Bild existiert (c.img).
-  const isTweak = !forceReroll && (usePhoto ? c.img != null : c.seed != null);
+  // Antwort zurück (nur "images" + "description") – im experimentellen Foto-Direktmodus (dessen
+  // allererste Generierung schon über dieses Edit-Modell läuft) blieb c.seed dadurch für immer
+  // null, wodurch JEDE Änderung fälschlich als "frischer Versuch" statt als Tweak behandelt wurde.
+  // Dort prüfen wir daher stattdessen, ob überhaupt schon ein Bild existiert (c.img).
+  // P0.4 (Abschnitt 12): isTweak kommt jetzt ausschließlich aus dem explizit übergebenen operation-
+  // Parameter, nicht mehr aus Seed- oder Bild-Vorhandensein abgeleitet.
+  const isTweak = operation === GEN_OP.EDIT;
   const who = c.name || "die Person";
   const card = await botSay(`<div class="gen-card"><div class="gen-status"><span class="sparkle-loader">✨</span><br>Der Wizzard ${isTweak ? "passt "+who+" an" : "zeichnet "+who} …</div></div>`, {log:false});
   try{
@@ -1681,7 +2004,7 @@ async function generateCharSheet(forceReroll){
     // (kein LoRA mehr im Spiel, siehe generateImage), damit der Zeichenstil erhalten bleibt.
     const res = isTweak
       ? await generateImage(kontextInstruction(c.tweakInstruction || c.prompt), "char", c.seed, c.img, pickStyleRefImage(c.img))
-      : usePhoto
+      : usePhotoDirectEdit
         ? await generateImage(c.prompt, "char", undefined, c.sourcePhoto, pickStyleRefImage())
         : await generateImage(c.prompt, "char");
     c.img = res.url;
@@ -1693,14 +2016,15 @@ async function generateCharSheet(forceReroll){
     state.chatLog.push({w:"bot", h:html});
     scrollChat();
     renderLivePanel();
-    // Foto-Option, allererste Generierung: genau wie beim Beschreiben-Weg erstmal die Wahl zwischen
-    // Behalten/Etwas ändern/Nochmal zaubern lassen – NICHT sofort zur Namensfrage springen. Erst
-    // wenn "Behalten" geklickt wird (und noch kein Name da ist), fragen wir Name/Rolle nach
-    // (Hair/Clothing/Feature bewusst übersprungen – das Foto liefert die Optik schon).
+    // Experimenteller Foto-Direktmodus, allererste Generierung: genau wie beim Beschreiben-Weg
+    // erstmal die Wahl zwischen Behalten/Etwas ändern/Nochmal zaubern lassen – NICHT sofort zur
+    // Namensfrage springen. Erst wenn "Behalten" geklickt wird (und noch kein Name da ist), fragen
+    // wir Name/Rolle nach. Beim regulären Vision-Extraktions-Weg ist der Name an dieser Stelle
+    // immer schon gesetzt (wird davor erfragt), diese Sonderbehandlung greift dort also nie.
     showChips([
-      {label:"❤️ Behalten", accent:true, action: (usePhoto && !c.name) ? acceptCharFromPhoto : acceptChar},
+      {label:"❤️ Behalten", accent:true, action: (usePhotoDirectEdit && !c.name) ? acceptCharFromPhoto : acceptChar},
       {label:"✏️ Etwas ändern", action:requestCharTweak},
-      {label:"🎲 Nochmal zaubern", action:()=>{ userSay("🎲 Nochmal zaubern"); generateCharSheet(true); }}
+      {label:"🎲 Nochmal zaubern", action:()=>{ userSay("🎲 Nochmal zaubern"); generateCharSheet(GEN_OP.REROLL); }}
     ]);
     saveState();
   }catch(e){
@@ -1709,12 +2033,12 @@ async function generateCharSheet(forceReroll){
     state.chatLog.push({w:"bot", h:html}); saveState();
     renderLivePanel();
     showChips([
-      {label:"🔁 Nochmal versuchen", accent:true, action:()=>{ clearChips(); generateCharSheet(forceReroll); }},
+      {label:"🔁 Nochmal versuchen", accent:true, action:()=>{ clearChips(); generateCharSheet(operation); }},
       {label:"➡️ Ohne Bild weiter", action:acceptChar}
     ]);
   }
 }
-function generateCharSheetRetry(){ return generateCharSheet(true); }
+function generateCharSheetRetry(){ return generateCharSheet(GEN_OP.REROLL); }
 function acceptCharFromPhoto(){
   // Foto-Weg, noch unbenannt: "Behalten" heißt hier erst "Bild passt, jetzt Name/Rolle erfragen" –
   // der eigentliche acceptChar() (Übernahme in state.characters) läuft danach über
@@ -1790,7 +2114,7 @@ function scStory(text){
     showChips([
       {label:"🎲 Überrasch mich!", accent:true, action:addSurprises},
       {label:"✏️ Eigene Details", action:()=>{ userSay("✏️ Eigene Details"); botSay("Was soll noch in die Szene? (z.B. „ein Eiswagen und eine Entenfamilie“)"); saveState(); }},
-      {label:"➡️ So ist es perfekt", action:()=>generateScene()}
+      {label:"➡️ So ist es perfekt", action:()=>generateScene(GEN_OP.INITIAL)}
     ]);
   })();
 }
@@ -1800,13 +2124,13 @@ function addSurprises(){
   state.sceneDraft.extras = pick;
   (async()=>{
     await botSay(`Ich verstecke zusätzlich: 🐶 eine kleine Überraschung, 🍦 noch eine … und eine dritte verrate ich nicht – die müsst ihr selbst finden! 😉`);
-    generateScene();
+    generateScene(GEN_OP.INITIAL);
   })();
 }
 function scExtra(text){
   userSay(text);
   state.sceneDraft.extras = [translate(text)];
-  generateScene();
+  generateScene(GEN_OP.INITIAL);
 }
 function requestSceneTweak(){
   userSay("✏️ Etwas ändern");
@@ -1827,25 +2151,27 @@ function scTweakFree(text){
   s.tweakInstruction = translate(text); // NUR die Änderung selbst, für den gezielten Kontext-Edit-Aufruf
   (async()=>{
     await botSay(`Alles klar, ich passe die Szene an. 🪄`);
-    generateScene();
+    generateScene(GEN_OP.EDIT);
   })();
 }
-async function generateScene(forceReroll){
+async function generateScene(operation){
+  operation = operation || GEN_OP.INITIAL;
   const s = state.sceneDraft;
+  s.lastOperation = operation; // für Resume nach Seitenreload während laufender Generierung
   s.prompt = s.prompt || scenePrompt(s);
   s.drafts = s.drafts || [];
   state.phase = "scene_generating"; saveState();
   renderLivePanel(true);
   const i = state.scenes.length + 1;
-  // Gezielte Änderung ("Etwas ändern"): Seed des aktuell gewählten Entwurfs wiederverwenden –
-  // hält Komposition stabil. "Nochmal zaubern": bewusst neuer, zufälliger Versuch.
-  const isTweak = !forceReroll && s.seed != null;
+  // P0.4 (Abschnitt 12): isTweak kommt ausschließlich aus dem explizit übergebenen operation-
+  // Parameter, nicht mehr aus Seed-Vorhandensein abgeleitet.
+  const isTweak = operation === GEN_OP.EDIT;
   const card = await botSay(`<div class="gen-card"><div class="gen-status"><span class="sparkle-loader">✨</span><br>${isTweak ? "Der Wizzard passt Szene "+i+" an" : "Der Wizzard wimmelt Szene "+i+" zusammen"} …<br><span style="font-size:14px">(dauert einen Moment)</span></div></div>`, {log:false});
   try{
     // Gezielte Änderung: fal-ai/nano-banana-2/edit statt Text-zu-Bild – setzt NUR die beschriebene
     // Änderung um. Bekommt zusätzlich ein bereits akzeptiertes Bild aus dem Buch als Stil-Anker mit.
     const res = isTweak
-      ? await generateImage(kontextInstruction(s.tweakInstruction || s.prompt), "scene", s.seed, s.img, pickStyleRefImage(s.img))
+      ? await generateImage(kontextInstruction(s.tweakInstruction || s.prompt), "scene", s.seed, s.img, pickSceneCharacterRefs(s.img))
       : await generateImage(s.prompt, "scene");
     s.img = res.url;
     if(res.seed != null) s.seed = res.seed;
@@ -1858,7 +2184,7 @@ async function generateScene(forceReroll){
     showChips([
       {label:"❤️ Behalten", accent:true, action:acceptScene},
       {label:"✏️ Etwas ändern", action:requestSceneTweak},
-      {label:"🎲 Nochmal zaubern", action:()=>{ userSay("🎲 Nochmal zaubern"); generateScene(true); }}
+      {label:"🎲 Nochmal zaubern", action:()=>{ userSay("🎲 Nochmal zaubern"); generateScene(GEN_OP.REROLL); }}
     ]);
   }catch(e){
     const html = `Hoppla: <b>${escapeHtml(e.message)}</b><span class="note">Key in ⚙️ prüfen oder gleich nochmal versuchen.</span>`;
@@ -1866,7 +2192,7 @@ async function generateScene(forceReroll){
     state.chatLog.push({w:"bot", h:html}); saveState();
     renderLivePanel();
     showChips([
-      {label:"🔁 Nochmal versuchen", accent:true, action:()=>generateScene(forceReroll)},
+      {label:"🔁 Nochmal versuchen", accent:true, action:()=>generateScene(operation)},
       {label:"➡️ Ohne Bild weiter", action:acceptScene}
     ]);
   }
@@ -2118,11 +2444,11 @@ function restoreChips(saved){
     "❤️ Behalten": state.phase && String(state.phase).startsWith("char")
       ? ((state.charDraft && state.charDraft.fromPhoto && !state.charDraft.name) ? acceptCharFromPhoto : acceptChar)
       : acceptScene,
-    "🎲 Nochmal zaubern": state.phase && String(state.phase).startsWith("char") ? generateCharSheetRetry : ()=>generateScene(true),
+    "🎲 Nochmal zaubern": state.phase && String(state.phase).startsWith("char") ? generateCharSheetRetry : ()=>generateScene(GEN_OP.REROLL),
     "✏️ Etwas ändern": state.phase && String(state.phase).startsWith("char") ? requestCharTweak : requestSceneTweak,
     "✅ Das sind alle": startScenes,
     "🎲 Überrasch mich!": addSurprises,
-    "➡️ So ist es perfekt": ()=>generateScene(),
+    "➡️ So ist es perfekt": ()=>generateScene(GEN_OP.INITIAL),
     "🔄 Nochmal beim Wizard versuchen": ()=>runClaudeTurn(),
     "✏️ Beschreiben": startCharDescribe,
     "📷 Foto hochladen": startCharPhotoUpload
@@ -2144,7 +2470,7 @@ function genericChipFallback(label){
   if(label==="✏️ Etwas anderes"){ userSay(label); botSay("Erzähl – wer ist es?"); state.phase="char_role_custom"; saveState(); return; }
   if(label==="✏️ Nochmal ändern"){ userSay(label); botSay("Kein Problem – wie heißt die Person?"); state.phase="char_name"; saveState(); return; }
   if(label==="✏️ Eigene Details"){ userSay(label); botSay("Was soll noch in die Szene?"); state.phase="scene_extra"; saveState(); return; }
-  if(label==="🔁 Nochmal versuchen"){ return String(state.phase).startsWith("char") ? generateCharSheet() : generateScene(); }
+  if(label==="🔁 Nochmal versuchen"){ return String(state.phase).startsWith("char") ? generateCharSheet(state.charDraft && state.charDraft.lastOperation) : generateScene(state.sceneDraft && state.sceneDraft.lastOperation); }
   if(label==="➡️ Ohne Bild weiter"){ return String(state.phase).startsWith("char") ? acceptChar() : acceptScene(); }
   if(label==="↩ Zur Übersicht"){ state.step="summary"; saveState(); showPanel("summary"); renderSummary(); return; }
   userSay(label);
