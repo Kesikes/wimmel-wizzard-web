@@ -214,7 +214,7 @@ input,textarea,select{font-family:inherit;font-size:16px}
 @media (max-width:899px){
   .chat-workbench.has-live{min-height:0}
   .chat-workbench.has-live .live-panel{
-    order:-1;flex:0 0 38%;min-height:0;
+    order:-1;flex:0 0 50%;min-height:0;
     display:flex;flex-direction:column;overflow-y:auto;border-bottom:2px solid rgba(58,42,30,0.08);
   }
   .chat-workbench.has-live .chat-scroll{flex:1 1 0;min-height:0}
@@ -1533,6 +1533,40 @@ function chatProxyUrl(){
 }
 function useAI(){ return !!chatProxyUrl(); }
 
+// Bugfix: Wenn nach bereits generiertem Bild ein Änderungswunsch (Chip "Etwas ändern" ODER direkt
+// getippter Text) den KI-Chat (ai_wait) startet, war state.aiMessages bisher oft leer (z.B. weil
+// die Person/Szene über den geskripteten Weg ohne KI-Chat entstanden ist) UND buildAIContext()
+// kennt nur bereits AKZEPTIERTE Charaktere – der laufende Entwurf fehlte komplett. Der Wizard
+// wusste dadurch nichts über die gerade generierte Person/Szene und fragte fälschlich "von wem
+// sprechen wir gerade?". Diese Hilfsfunktionen "erinnern" Claude vor dem eigentlichen Änderungs-
+// wunsch per synthetischer Vorgeschichte daran, dass bereits ein Bild existiert (das serverseitige
+// System-Prompt erkennt genau daran den "Änderungswunsch nach bereits generiertem Bild"-Sonderfall).
+function primeAIMessagesForCharTweak(){
+  const c = state.charDraft;
+  if(!c) return;
+  const parts = [];
+  if(c.roleLabel||c.role) parts.push(c.roleLabel||c.role);
+  if(c.age) parts.push(c.age + " Jahre alt");
+  if(c.hair) parts.push("Haare: " + c.hair);
+  if(c.clothing) parts.push("Kleidung: " + c.clothing);
+  if(c.feature) parts.push("Merkmal: " + c.feature);
+  const summary = (c.name ? c.name + " – " : "") + (parts.join(", ") || "noch ohne weitere Details");
+  state.aiMessages = [
+    {role:"user", content: "Das ist " + summary + "."},
+    {role:"assistant", content: "Alles klar, ich hab mir " + (c.name || "die Person") + " notiert und dir gerade ein Bild dazu gezaubert. Passt das so, oder soll ich noch etwas ändern?"}
+  ];
+}
+function primeAIMessagesForSceneTweak(){
+  const s = state.sceneDraft;
+  if(!s) return;
+  const loc = (s.loc && s.loc.label) ? s.loc.label : "die Szene";
+  const summary = loc + (s.story ? (". " + s.story) : "");
+  state.aiMessages = [
+    {role:"user", content: "Die Szene: " + summary},
+    {role:"assistant", content: "Alles klar, ich hab mir die Szene notiert und dir gerade ein Bild dazu gezaubert. Passt das so, oder soll ich noch etwas ändern?"}
+  ];
+}
+
 function escapeReplyText(t){
   return escapeHtml(t).replace(/\n{2,}/g,"<br><br>").replace(/\n/g,"<br>");
 }
@@ -1991,12 +2025,12 @@ function handleInput(text){
     // Direkte Zustimmung ("ja, passt so") wirkt wie ein Klick auf "❤️ Behalten".
     if(looksLikeAcceptance(text)) return acceptChar(text);
     // Direkt getippter/diktierter Änderungswunsch, ohne erst "✏️ Etwas ändern" anklicken zu müssen
-    if(useAI()){ state.aiUnit = "character"; state.phase = "ai_wait"; saveState(); return runClaudeTurn(text); }
+    if(useAI()){ primeAIMessagesForCharTweak(); state.aiUnit = "character"; state.phase = "ai_wait"; saveState(); return runClaudeTurn(text); }
     return chTweakFree(text);
   }
   if(p==="scene_generating"){
     if(looksLikeAcceptance(text)) return acceptScene(text);
-    if(useAI()){ state.aiUnit = "scene"; state.phase = "ai_wait"; saveState(); return runClaudeTurn(text); }
+    if(useAI()){ primeAIMessagesForSceneTweak(); state.aiUnit = "scene"; state.phase = "ai_wait"; saveState(); return runClaudeTurn(text); }
     return scTweakFree(text);
   }
   if(p==="char_name") return chName(text);
@@ -2115,6 +2149,7 @@ function confirmCharGen(){ userSay("🪄 Ja, zaubern!"); generateCharSheet(GEN_O
 function requestCharTweak(){
   userSay("✏️ Etwas ändern");
   if(useAI()){
+    primeAIMessagesForCharTweak();
     botSay("Klar, sag mir einfach, was ich anders machen soll – ich pass's an.");
     state.aiUnit = "character"; state.phase = "ai_wait"; saveState();
   } else {
@@ -2302,6 +2337,7 @@ function scExtra(text){
 function requestSceneTweak(){
   userSay("✏️ Etwas ändern");
   if(useAI()){
+    primeAIMessagesForSceneTweak();
     botSay("Klar, sag mir einfach, was ich an der Szene anders machen soll.");
     state.aiUnit = "scene"; state.phase = "ai_wait"; saveState();
   } else {
