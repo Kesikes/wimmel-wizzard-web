@@ -137,7 +137,7 @@ input,textarea,select{font-family:inherit;font-size:16px}
 .brand.small .wlogo{width:26px;height:26px;border-radius:8px;font-size:.85rem}
 
 /* ---------- Auth ---------- */
-.auth-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--bg-deep)}
+.auth-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;padding-top:80px;background:var(--bg-deep)}
 .auth-card{background:#fff;border-radius:24px;box-shadow:var(--shadow-md);padding:36px 30px;width:100%;max-width:420px;text-align:center}
 .auth-card h2{font-size:1.6rem;margin:14px 0 4px}
 .auth-card .sub{color:var(--muted);font-size:.95rem;margin-bottom:22px}
@@ -150,24 +150,23 @@ input,textarea,select{font-family:inherit;font-size:16px}
 
 /* ---------- App shell ---------- */
 .app{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;background:var(--bg)}
-.app-top{position:sticky;top:0;z-index:20;background:linear-gradient(135deg,#FFC94A,#F5A623);border-bottom:1px solid rgba(58,42,30,0.08)}
+.app-top{position:fixed;top:0;left:0;right:0;z-index:50;background:linear-gradient(135deg,#FFC94A,#F5A623);border-bottom:1px solid rgba(58,42,30,0.08)}
 .app-top-inner{max-width:1080px;margin:0 auto;display:flex;align-items:center;gap:8px;padding:12px 20px;flex-wrap:wrap}
 .brand-link{display:flex;align-items:center;gap:9px;cursor:pointer;border-radius:10px;padding:4px 6px;margin:-4px -6px;transition:background .15s}
 .brand-link:hover{background:var(--bg-deep)}
 .brand-link span.wlogo{margin:0}
 .brand-txt{font-family:'Baloo 2',sans-serif;font-weight:800;font-size:1.1rem;color:var(--brand-blue);white-space:nowrap}
-.app-title{font-family:'Nunito',sans-serif;font-weight:700;font-size:.85rem;color:rgba(45,117,144,0.75);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}
+.app-title{font-family:'Nunito',sans-serif;font-weight:700;font-size:.85rem;color:rgba(45,117,144,0.75);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left}
 .topbar-btn{display:inline-flex;align-items:center;gap:7px;background:#fff;border-radius:999px;padding:9px 16px;font-weight:800;font-size:.88rem;color:var(--ink);box-shadow:var(--shadow-sm);flex-shrink:0;white-space:nowrap}
 .topbar-btn:hover{background:var(--bg-deep)}
-.topbar-btn .tb-ic{font-size:1rem}
 .spacer{flex-basis:100%;height:0}
 @media (min-width:640px){ .spacer{flex-basis:0;height:auto;flex:1} }
-@media (max-width:639px){ .topbar-btn .tb-label{display:none}; .topbar-btn{padding:9px 11px} .app-title{order:1;flex-basis:100%;text-align:left;font-size:.85rem} }
+@media (max-width:639px){ .topbar-btn{padding:9px 11px;font-size:.8rem} }
 .progress-wrap{max-width:1080px;margin:0 auto;display:flex;align-items:center;gap:10px;padding:0 20px 10px}
 .progress-bar{flex:1;height:8px;background:var(--line);border-radius:999px;overflow:hidden}
 .progress-fill{height:100%;width:0%;background:var(--accent);border-radius:999px;transition:width .5s ease}
 .progress-pct{font-size:.78rem;font-weight:800;color:var(--muted2)}
-.app-body{max-width:1080px;margin:0 auto;width:100%;display:flex;gap:28px;flex:1;min-height:0;align-items:flex-start}
+.app-body{max-width:1080px;margin:0 auto;width:100%;display:flex;gap:28px;flex:1;min-height:0;align-items:flex-start;padding-top:106px}
 .chat-col{flex:1;min-width:0;display:flex;flex-direction:column;min-height:0}
 .side-col{display:none}
 @media (min-width:1180px){
@@ -188,6 +187,7 @@ input,textarea,select{font-family:inherit;font-size:16px}
 .chat-workbench{display:flex;flex-direction:column;flex:1;min-height:0;gap:0}
 .chat-scroll{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column}
 .chat-area{padding:18px 16px 4px;max-width:var(--col);margin:0 auto;width:100%}
+@media (max-width:899px){ .chat-area{padding-bottom:96px} }
 /* Live-Vorschau: zeigt den AKTUELLEN Entwurf immer sichtbar, ohne im Chat scrollen zu müssen. */
 .live-panel{order:-1;background:var(--preview-bg);padding:14px;border-bottom:2px solid rgba(58,42,30,0.08)}
 .live-panel:empty{display:none}
@@ -266,6 +266,7 @@ input,textarea,select{font-family:inherit;font-size:16px}
 
 /* ---------- Input bar ---------- */
 .input-bar{position:sticky;bottom:0;background:oklch(97% 0.018 85 / .97);backdrop-filter:blur(6px);border-top:1px solid var(--line);padding:12px 16px calc(12px + env(safe-area-inset-bottom));z-index:5;margin-top:auto}
+@media (max-width:899px){ .input-bar{position:fixed;left:0;right:0;bottom:0;z-index:40;margin-top:0} }
 .input-inner{max-width:var(--col);margin:0 auto;display:flex;align-items:flex-end;gap:8px;background:#fff;border-radius:20px;padding:10px 10px 10px 16px;box-shadow:var(--shadow-sm)}
 .input-inner textarea{flex:1;resize:none;border:none;background:transparent;padding:6px 0;max-height:120px;outline:none;line-height:1.4}
 .mic-btn,.send-btn{width:38px;height:38px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:17px}
@@ -552,16 +553,33 @@ input,textarea,select{font-family:inherit;font-size:16px}
 
 <!-- ============ AUTH ============ -->
 <div id="view-auth" class="auth-wrap hidden">
-  <div class="auth-card">
-    <div class="wlogo wlogo-big"></div>
-    <h2 id="auth-title">Willkommen!</h2>
-    <p class="sub" id="auth-sub">Melde dich an – dein Buch wird automatisch gespeichert, du kannst jederzeit pausieren und weitermachen.</p>
-    <div class="field"><label>E-Mail</label><input type="email" id="auth-email" placeholder="du@beispiel.de" autocomplete="email"></div>
-    <div class="field"><label>Passwort</label><input type="password" id="auth-pass" placeholder="••••••••" autocomplete="current-password"></div>
-    <div class="auth-error" id="auth-error"></div>
-    <button class="btn btn-primary" style="width:100%" id="auth-submit" onclick="doAuth()">Anmelden</button>
-    <button class="btn btn-ghost" id="auth-switch" onclick="toggleAuthMode()">Neu hier? Konto anlegen</button>
-    <p class="auth-note">Prototyp-Hinweis: Konten werden nur lokal in deinem Browser gespeichert.</p>
+  <div class="sticky-cta" style="background:linear-gradient(135deg,#FFC94A,#F5A623);display:flex;align-items:center;gap:8px;padding:10px 18px;box-shadow:0 2px 10px rgba(58,42,30,0.12)">
+    <span class="wlogo"></span>
+    <span class="headline-font" style="font-weight:700;font-size:15px;color:#2D7590">WizzelWim</span>
+  </div>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:16px;width:100%;max-width:420px">
+    <p style="text-align:center;color:var(--muted);font-size:.92rem;line-height:1.55;padding:0 8px;margin:0">Damit Du jederzeit aufhören und weitermachen kannst mit Deinem Werk, musst Du Dich einloggen. Auch hier: Wir speichern Deine Daten nur, um Dich wieder zu Deinem Werk zu bringen.</p>
+    <div class="auth-card" style="width:100%">
+      <div class="wlogo wlogo-big"></div>
+      <h2 id="auth-title">Willkommen!</h2>
+      <p class="sub" id="auth-sub">Melde dich an – dein Buch wird automatisch gespeichert, du kannst jederzeit pausieren und weitermachen.</p>
+      <div id="auth-login-fields">
+        <div class="field"><label>E-Mail</label><input type="email" id="auth-email" placeholder="du@beispiel.de" autocomplete="email"></div>
+        <div class="field"><label>Passwort</label><input type="password" id="auth-pass" placeholder="••••••••" autocomplete="current-password"></div>
+        <div class="auth-error" id="auth-error"></div>
+        <button class="btn btn-primary" style="width:100%" id="auth-submit" onclick="doAuth()">Anmelden</button>
+        <button class="btn btn-ghost" id="auth-forgot-link" onclick="showForgotPassword()">Passwort vergessen?</button>
+        <button class="btn btn-ghost" id="auth-switch" onclick="toggleAuthMode()">Neu hier? Konto anlegen</button>
+      </div>
+      <div id="auth-forgot" class="hidden">
+        <div class="field"><label>E-Mail</label><input type="email" id="forgot-email" placeholder="du@beispiel.de" autocomplete="email"></div>
+        <div class="field"><label>Neues Passwort</label><input type="password" id="forgot-pass" placeholder="••••••••" autocomplete="new-password"></div>
+        <div class="auth-error" id="forgot-error"></div>
+        <button class="btn btn-primary" style="width:100%" onclick="doForgotPassword()">Passwort setzen</button>
+        <button class="btn btn-ghost" onclick="showLogin()">Zurück zum Login</button>
+      </div>
+      <p class="auth-note">Prototyp-Hinweis: Konten werden nur lokal in deinem Browser gespeichert.</p>
+    </div>
   </div>
 </div>
 
@@ -572,14 +590,12 @@ input,textarea,select{font-family:inherit;font-size:16px}
       <span class="brand-link" onclick="goHome()" title="Zur Startseite" role="button" tabindex="0" onkeydown="if(event.key==='Enter')goHome()">
         <span class="wlogo"></span><span class="brand-txt">WizzelWim</span>
       </span>
-      <span class="app-title" id="progress-step">WizzelWim</span>
       <span class="spacer"></span>
-      <button class="topbar-btn" onclick="goHome()" title="Zur Startseite"><span class="tb-ic">🏠</span><span class="tb-label">Startseite</span></button>
-      <button class="topbar-btn" onclick="confirmResetAll()" title="Ganz von vorn beginnen"><span class="tb-ic">↺</span><span class="tb-label">Neu starten</span></button>
-      <button class="icon-btn" title="Einstellungen" onclick="openSettings()">⚙️</button>
-      <button class="icon-btn" title="Abmelden" onclick="logout()">🚪</button>
+      <button class="topbar-btn" onclick="confirmResetAll()" title="Ganz von vorn beginnen">Von Vorne</button>
+      <button class="topbar-btn" onclick="goHome()" title="Zur Startseite">Home</button>
     </div>
     <div class="progress-wrap">
+      <span class="app-title" id="progress-step">WizzelWim</span>
       <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
       <span class="progress-pct" id="progress-pct"></span>
     </div>
@@ -999,6 +1015,7 @@ function renderLandingProducts(){
 function gotoAuth(){
   const sess = localStorage.getItem("ww_session");
   if(sess){ currentUser = sess; enterApp(); return; }
+  showLogin();
   showView("view-auth");
 }
 function toggleAuthMode(){
@@ -1006,7 +1023,40 @@ function toggleAuthMode(){
   $("auth-title").textContent = authMode==="login" ? "Willkommen zurück!" : "Schön, dass du da bist!";
   $("auth-submit").textContent = authMode==="login" ? "Anmelden" : "Konto anlegen";
   $("auth-switch").textContent = authMode==="login" ? "Neu hier? Konto anlegen" : "Schon ein Konto? Anmelden";
+  $("auth-forgot-link").classList.toggle("hidden", authMode!=="login");
   $("auth-error").textContent = "";
+}
+function showForgotPassword(){
+  $("auth-login-fields").classList.add("hidden");
+  $("auth-forgot").classList.remove("hidden");
+  $("auth-title").textContent = "Passwort vergessen";
+  $("auth-sub").textContent = "Kein Problem – vergib hier direkt ein neues Passwort.";
+  $("forgot-error").textContent = "";
+}
+function showLogin(){
+  $("auth-forgot").classList.add("hidden");
+  $("auth-login-fields").classList.remove("hidden");
+  authMode = "login";
+  $("auth-title").textContent = "Willkommen zurück!";
+  $("auth-sub").textContent = "Melde dich an – dein Buch wird automatisch gespeichert, du kannst jederzeit pausieren und weitermachen.";
+  $("auth-submit").textContent = "Anmelden";
+  $("auth-switch").textContent = "Neu hier? Konto anlegen";
+  $("auth-forgot-link").classList.remove("hidden");
+  $("auth-error").textContent = "";
+}
+function doForgotPassword(){
+  const email = $("forgot-email").value.trim().toLowerCase();
+  const pass = $("forgot-pass").value;
+  const err = $("forgot-error");
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ err.textContent = "Bitte gib eine gültige E-Mail an."; return; }
+  if(pass.length < 4){ err.textContent = "Passwort: mindestens 4 Zeichen."; return; }
+  const users = JSON.parse(localStorage.getItem("ww_users") || "{}");
+  if(!users[email]){ err.textContent = "Kein Konto mit dieser E-Mail gefunden."; return; }
+  users[email] = btoa(pass);
+  localStorage.setItem("ww_users", JSON.stringify(users));
+  showLogin();
+  $("auth-email").value = email;
+  toast("Passwort aktualisiert – Du kannst Dich jetzt anmelden.");
 }
 function doAuth(){
   const email = $("auth-email").value.trim().toLowerCase();
@@ -1665,7 +1715,7 @@ async function handleSceneTool(input){
 function startChat(){
   state.phase = "welcome"; saveState();
   (async()=>{
-    await botSay("Hi ich bin WizzelWim. Erzähl mir von euch. Mit wem wollen wir anfangen?");
+    await botSay("Hi ich bin WizzelWim. Lass uns gleich loslegen. Wir starten mit den Charakteren. Erzähl mir von euch. Mit wem wollen wir anfangen?");
     await botSay("Du gibst mir ein Bild oder beschreibst mir einfach – entweder durch die Spracheingabe oder durch Tippen – wen Du im Bild haben willst.", {delay:400});
     await botSay("Ich forme daraus einen ersten Vorschlag, den wir dann gemeinsam ausarbeiten, bis Du zufrieden bist.", {delay:400});
     offerCharCreationEntry(true);
@@ -1676,7 +1726,7 @@ function offerCharCreationEntry(isFirst){
   // Foto hochladen, aus dem der Wizzard direkt eine Illustration im wmlstil-Look zaubert.
   (async()=>{
     await botSay(isFirst
-      ? "<b>Erz\u00e4hl mir von deiner Familie: Wer geh\u00f6rt dazu?</b> Du hast die Wahl: entweder beschreibst du die Person kurz mit ein paar Worten \u2013 oder du l\u00e4dst ein Foto hoch, dann spielen wir die Person direkt nach, ganz in unserem Look. Was ist dir lieber?"
+      ? "Wie willst Du vorgehen?"
       : "Wer kommt als N\u00e4chstes? Beschreiben oder Foto hochladen \u2013 wie du magst.");
     state.phase = "char_intro_choice"; saveState();
     showChips([
