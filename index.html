@@ -1318,6 +1318,16 @@ function kontextInstruction(raw){
   // dafür, dass wirklich nur das gewünschte Detail geändert wird.
   return `${raw}. Keep everything else in the image exactly the same: same pose, same character identity, same composition, same background. Match the exact hand-drawn illustration style of the reference image(s): thick black marker outlines, flat solid colors, round minimal faces with simple dot eyes, graphic-recording sketchnote style.`;
 }
+// Charakterkonsistenz über mehrere Szenen: Erstgenerierung/Reroll einer Szene läuft jetzt über
+// fal-ai/nano-banana-2/edit statt reiner Text-zu-Bild-Generierung (flux-lora), MIT den bereits
+// akzeptierten Charakterbildern als visuellem Anker (siehe pickSceneCharacterRefs). Vorher kannte
+// das Modell die Personen nur aus der Textbeschreibung und musste sie in jeder Szene neu erfinden –
+// das führte zwischen Szenen zu sichtbarem Drift (Details, Proportionen, Farbnuancen). Der volle
+// scenePrompt() bleibt als Basis erhalten (Ort, Geschichte, Kompositionsregeln), ergänzt um die
+// ausdrückliche Anweisung, die mitgeschickten Referenzbilder 1:1 zu übernehmen.
+function sceneComposeInstruction(s){
+  return `${s.prompt} The attached reference image(s) show the exact established design of each character appearing in this scene – their face, proportions, hair, clothing and any identifying details. Draw every character from a reference image into this new scene looking EXACTLY like their reference (same identity, same design), simply placed into this new setting and composition among the many small background characters. Do not reimagine, redesign or restyle them. Match the flat-color, thick black marker outline, graphic-recording sketchnote illustration style shown in the references throughout the entire scene.`;
+}
 function photoStyleInstruction(){
   // Editier-Anweisung für die Foto-zu-Illustration-Option: das hochgeladene Foto wird über
   // fal-ai/nano-banana-2/edit (siehe generateImage) komplett in unseren Zeichenstil übertragen,
@@ -1340,12 +1350,13 @@ function pickStyleRefImage(excludeUrl){
   if(pool.length) return pool[0];
   return typeof WMLSTIL_CHAR_SAMPLE_IMG === "string" && WMLSTIL_CHAR_SAMPLE_IMG !== excludeUrl ? WMLSTIL_CHAR_SAMPLE_IMG : undefined;
 }
-// P0.4 (Arbeitsauftrag v1.1, Abschnitt 8, auf Szenen-EDITS skaliert – Erstgenerierung ist ausgenommen,
-// weil flux-lora grundsätzlich keine Referenzbilder annehmen kann): bei einer Szenen-Änderung wird jetzt
-// NICHT mehr nur EIN beliebiges "irgendein akzeptiertes Buchbild" als Stilanker mitgeschickt, sondern das
-// aktuelle Bild JEDES Charakters (typisiert als CHARACTER_FRONT-Referenz), damit sie bei der gezielten
-// Änderung eher wiedererkennbar bleiben. Da jede Szene laut scenePrompt() ohnehin immer alle Charaktere
-// zeigt, ist "alle Charakterbilder" hier die korrekte Menge (kein Sub-Set-Tracking pro Szene nötig/vorhanden).
+// P0.4 (Arbeitsauftrag v1.1, Abschnitt 8) + Konsistenz-Fix: bei JEDER Szenen-Generierung (Erst-
+// generierung, Reroll UND gezielte Änderung) wird nicht mehr nur EIN beliebiges "irgendein
+// akzeptiertes Buchbild" als Stilanker mitgeschickt, sondern das aktuelle Bild JEDES Charakters
+// (typisiert als CHARACTER_FRONT-Referenz), damit sie in jeder Szene wiedererkennbar bleiben. Da
+// jede Szene laut scenePrompt() ohnehin immer alle Charaktere zeigt, ist "alle Charakterbilder"
+// hier die korrekte Menge (kein Sub-Set-Tracking pro Szene nötig/vorhanden). Voraussetzung: der
+// fal-proxy muss das Feld "styleRefUrls" (Array) an fal.ai durchreichen (siehe fal-proxy/index.ts).
 function pickSceneCharacterRefs(excludeUrl){
   const refs = state.characters.map(c=>c.img).filter(u => u && u !== excludeUrl);
   if(refs.length) return refs.slice(0, 8);
@@ -2372,10 +2383,21 @@ async function generateScene(operation){
   const card = await botSay(`<div class="gen-card"><div class="gen-status"><span class="sparkle-loader">✨</span><br>${isTweak ? "Wir passen Szene "+i+" an" : "Wir wimmeln Szene "+i+" zusammen"} …<br><span style="font-size:14px">(dauert einen Moment)</span></div></div>`, {log:false});
   try{
     // Gezielte Änderung: fal-ai/nano-banana-2/edit statt Text-zu-Bild – setzt NUR die beschriebene
-    // Änderung um. Bekommt zusätzlich ein bereits akzeptiertes Bild aus dem Buch als Stil-Anker mit.
-    const res = isTweak
-      ? await generateImage(kontextInstruction(s.tweakInstruction || s.prompt), "scene", s.seed, s.img, pickSceneCharacterRefs(s.img))
-      : await generateImage(s.prompt, "scene");
+    // Änderung um. Bekommt zusätzlich das aktuelle Bild jedes Charakters als Stil-Anker mit.
+    // Erstgenerierung/Reroll: ebenfalls über nano-banana-2/edit, MIT den Charakterbildern als
+    // visuellem Anker (siehe sceneComposeInstruction) statt reiner Text-zu-Bild-Generierung ohne
+    // jeden Bezug zu den bereits gezeichneten Charakteren – das war die Hauptursache für sichtbaren
+    // Charakter-Drift zwischen Szenen. Gibt es (im Ausnahmefall) noch gar kein Charakterbild, fällt
+    // es zurück auf die alte reine Text-Generierung.
+    let res;
+    if(isTweak){
+      res = await generateImage(kontextInstruction(s.tweakInstruction || s.prompt), "scene", s.seed, s.img, pickSceneCharacterRefs(s.img));
+    } else {
+      const refs = pickSceneCharacterRefs();
+      res = refs.length
+        ? await generateImage(sceneComposeInstruction(s), "scene", undefined, refs[0], refs.slice(1))
+        : await generateImage(s.prompt, "scene");
+    }
     s.img = res.url;
     if(res.seed != null) s.seed = res.seed;
     s.drafts.push({url: res.url, seed: res.seed});
