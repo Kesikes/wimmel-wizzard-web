@@ -47,6 +47,14 @@ module.exports = async (req, res) => {
   const styleRefUrls = (Array.isArray(body.styleRefUrls) ? body.styleRefUrls : (body.styleRefUrl ? [body.styleRefUrl] : []))
     .filter(isImageRef)
     .slice(0, 8);
+  // EXPERIMENTAL (P0.5: Multi-View-Machbarkeitstest, siehe Planungsdokument Abschnitt 6): erlaubt
+  // testweise eine Generierung OHNE unser LoRA und OHNE Referenzbild, direkt über die reine
+  // Nano-Banana-2-Text-zu-Bild-Variante (fal-ai/nano-banana-2, kein "/edit"). Diente dazu zu prüfen,
+  // ob ein Modell ohne die auf Frontalbilder trainierte LoRA-Verzerrung Seiten-/Dreiviertelansichten
+  // zuverlässiger umsetzt. Kein Teil des regulären Produktpfads (der Client setzt body.model nie),
+  // nur für gezielte manuelle Testaufrufe. Ergebnis siehe Projektnotizen: brachte ebenfalls keine
+  // verlässliche Konsistenz zum Referenzcharakter, da hier gar kein Referenzbild mitgegeben wird.
+  const useRawNanoBanana = body.model === "nano_banana_raw" && !imageUrl;
 
   if (!prompt) {
     res.status(400).json({ error: "Kein Prompt übergeben." });
