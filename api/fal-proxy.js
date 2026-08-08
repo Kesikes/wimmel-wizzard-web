@@ -55,6 +55,13 @@ module.exports = async (req, res) => {
   // nur für gezielte manuelle Testaufrufe. Ergebnis siehe Projektnotizen: brachte ebenfalls keine
   // verlässliche Konsistenz zum Referenzcharakter, da hier gar kein Referenzbild mitgegeben wird.
   const useRawNanoBanana = body.model === "nano_banana_raw" && !imageUrl;
+  // EXPERIMENTAL (P0.5, Fortsetzung): erlaubt testweise, ein ANDERES LoRA als das Produktiv-LoRA zu
+  // verwenden (z.B. das testweise auf prozeduralen Seiten-/3-4-Ansicht-Bildern trainierte LoRA aus
+  // fal-ai/flux-lora-fast-training), OHNE LORA_URL fest zu überschreiben. Nur eine fal.media-URL wird
+  // akzeptiert; kein Teil des regulären Produktpfads (Client setzt body.testLoraUrl nie).
+  const testLoraUrl = typeof body.testLoraUrl === "string" && /^https:\/\/[a-z0-9.-]*fal\.media\//.test(body.testLoraUrl)
+    ? body.testLoraUrl
+    : undefined;
 
   if (!prompt) {
     res.status(400).json({ error: "Kein Prompt übergeben." });
@@ -90,7 +97,7 @@ module.exports = async (req, res) => {
       }
     : {
         prompt,
-        loras: [{ path: LORA_URL, scale: 1 }],
+        loras: [{ path: testLoraUrl || LORA_URL, scale: 1 }],
         num_inference_steps: kind === "char" ? 42 : 46,
         guidance_scale: 5,
         num_images: 1,
