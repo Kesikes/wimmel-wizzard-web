@@ -1509,7 +1509,7 @@ function pickSceneCharacterRefs(excludeUrl){
   const fallback = pickStyleRefImage(excludeUrl);
   return fallback ? [fallback] : [];
 }
-async function generateImage(prompt, kind, seed, editImageUrl, styleRefUrl){
+async function generateImage(prompt, kind, seed, editImageUrl, styleRefUrl, extra){
   // kind: "char" | "scene"; seed: optional, für konsistente Neu-Generierungen.
   // editImageUrl: wenn gesetzt, läuft die Anfrage über fal-ai/nano-banana-2/edit statt Text-zu-Bild.
   // Vorher getestet: fal-ai/flux-kontext-lora mit unserem Stil-LoRA – live beim Nutzertest sehr
@@ -1534,7 +1534,10 @@ async function generateImage(prompt, kind, seed, editImageUrl, styleRefUrl){
         prompt, kind,
         ...(seed!=null ? {seed} : {}),
         ...(editImageUrl ? {imageUrl: editImageUrl} : {}),
-        ...(styleRefUrls.length ? {styleRefUrls} : {})
+        ...(styleRefUrls.length ? {styleRefUrls} : {}),
+        // "extra": optionale zusätzliche Proxy-Felder für gezielte manuelle/Test-Aufrufe (z.B.
+        // testLoraUrl, siehe dev-tools/scenario-runner.js) – im normalen Produktpfad immer undefined.
+        ...(extra && typeof extra === "object" ? extra : {})
       })
     });
     let data;
