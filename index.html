@@ -840,16 +840,158 @@ const SURPRISES = [
 ];
 
 const SCENE_LOCATIONS = [
-  {label:"🏠 Zuhause", en:"family home", type:"cutaway"},
-  {label:"🏖️ Strand", en:"beach", type:"landscape"},
-  {label:"🌳 Park / Spielplatz", en:"park with playground", type:"landscape"},
-  {label:"🚜 Bauernhof", en:"farm", type:"landscape"},
-  {label:"🦁 Zoo", en:"zoo", type:"landscape"},
-  {label:"🏊 Schwimmbad", en:"outdoor swimming pool", type:"landscape"},
-  {label:"🏙️ Stadt", en:"busy town street market", type:"landscape"},
-  {label:"⛰️ Berge", en:"mountain meadow", type:"landscape"},
-  {label:"🏫 Kita / Schule", en:"kindergarten building", type:"cutaway"}
+  {id:"home", label:"🏠 Zuhause", en:"family home", type:"cutaway"},
+  {id:"beach", label:"🏖️ Strand", en:"beach", type:"landscape"},
+  {id:"park", label:"🌳 Park / Spielplatz", en:"park with playground", type:"landscape"},
+  {id:"farm", label:"🚜 Bauernhof", en:"farm", type:"landscape"},
+  {id:"zoo", label:"🦁 Zoo", en:"zoo", type:"landscape"},
+  {id:"pool", label:"🏊 Schwimmbad", en:"outdoor swimming pool", type:"landscape"},
+  {id:"city", label:"🏙️ Stadt", en:"busy town street market", type:"landscape"},
+  {id:"mountains", label:"⛰️ Berge", en:"mountain meadow", type:"landscape"},
+  {id:"school", label:"🏫 Kita / Schule", en:"kindergarten building", type:"cutaway"}
 ];
+
+/* ---------------- Gag-Bibliothek ----------------
+   Kuratierte Sammlung kleiner, in sich abgeschlossener Wimmelbild-Situationen ("Running-Gags"/
+   Vignetten), auf Nutzerwunsch entstanden ("wie bekommen wir smart die vielen kleinen Situationen
+   aus den Nutzern heraus, ohne sie zu langweilen?"). Statt die KI frei erfinden zu lassen (Risiko:
+   generische/unpassende Halluzinationen), schöpft die Szenen-Story-Auswahl aus diesem festen,
+   redaktionell kuratierten Pool klassischer Wimmelbuch-Motive (kleine Missgeschicke, Verfolgungsjagden,
+   Tiere die menschliche Situationen durcheinanderbringen, liebevolles Chaos) – angelehnt an die
+   Bildsprache klassischer Wimmelbücher (Ali Mitgutsch u.a.: wortlose kleine Geschichten, wiederkehrende
+   augenzwinkernde Details). Jeder Eintrag hat "de" (Anzeigetext im Chip) und "en" (fertiger, bereits
+   übersetzter Prompt-Baustein – bewusst NICHT durch translate() geschickt, da das nur ein einfaches
+   Wörterbuch ist und bei ganzen Sätzen keine sinnvolle Übersetzung liefert). "generic" ist der Fallback
+   für frei eingegebene ("✏️ Woanders …") Orte ohne eigene Liste.
+*/
+const GAG_LIBRARY = {
+  home: [
+    {de:"Papa steckt beim Möbelaufbau fest und braucht Hilfe von allen", en:"dad stuck while assembling furniture, everyone pitching in to help"},
+    {de:"Die Katze hat sich in der Wäscheleine verheddert", en:"a cat tangled up in the laundry line"},
+    {de:"Ein Kuchen brennt fast an, weil alle beim Fernsehen zugesehen haben", en:"a cake almost burning while everyone was watching TV"},
+    {de:"Die Kinder bauen eine riesige Höhle aus Sofakissen", en:"kids building a huge fort out of sofa cushions"},
+    {de:"Jemand sucht verzweifelt die zweite Socke", en:"someone desperately searching for a missing sock"},
+    {de:"Ein Wasserrohrbruch verwandelt die Küche in einen kleinen See", en:"a burst pipe turning the kitchen into a small lake"},
+    {de:"Oma erzählt eine Geschichte und alle hören gebannt zu", en:"grandma telling a story while everyone listens spellbound"},
+    {de:"Der Hund hat die Hausschuhe im ganzen Haus verteilt", en:"a dog scattering house slippers all over the house"},
+    {de:"Beim Frühstück fällt die Milch um und alle lachen", en:"spilled milk at breakfast with everyone laughing"},
+    {de:"Im Kinderzimmer tobt eine Kissenschlacht", en:"a pillow fight raging in the kids' room"}
+  ],
+  beach: [
+    {de:"Eine Sandburg wird von der Flut weggespült, alle rennen sie zu retten", en:"a sandcastle being washed away by the tide, everyone rushing to save it"},
+    {de:"Eine Möwe klaut jemandem die Pommes", en:"a seagull stealing someone's bag of fries"},
+    {de:"Ein Drachen verheddert sich in einem Sonnenschirm", en:"a kite tangled up in a beach umbrella"},
+    {de:"Jemand wird beim Eincremen von einer Windböe überrascht", en:"a gust of wind surprising someone mid-sunscreen"},
+    {de:"Ein Krebs kneift jemanden in den Zeh", en:"a crab pinching someone's toe, everyone startled"},
+    {de:"Ein aufblasbares Einhorn treibt langsam aufs Meer hinaus", en:"an inflatable unicorn drifting slowly out to sea"},
+    {de:"Kinder buddeln einen Tunnel und treffen sich in der Mitte", en:"kids digging a tunnel and meeting in the middle"},
+    {de:"Ein Hund buddelt ein riesiges Loch und wird ganz sandig", en:"a dog digging a huge sandy hole, covered in sand"},
+    {de:"Beim Beachvolleyball fliegt der Ball ins Wasser", en:"a beach volleyball flying into the water"},
+    {de:"Jemand döst ein und wird fast von der Flut erwischt", en:"someone dozing off almost getting caught by the tide"}
+  ],
+  park: [
+    {de:"Ein Hund klaut jemandem die Wurst vom Grill", en:"a dog stealing a sausage from someone's barbecue"},
+    {de:"Ein Drachen bleibt in einem Baum hängen", en:"a kite stuck in a tree"},
+    {de:"Ein Eis fällt einem Kind aus der Hand, direkt vor die Nase eines Hundes", en:"an ice cream falling from a kid's hand right in front of a dog"},
+    {de:"Ein Luftballon entwischt einem Kind und fliegt in den Himmel", en:"a balloon escaping a child's hand and floating into the sky"},
+    {de:"Zwei Eichhörnchen streiten sich um eine Nuss", en:"two squirrels fighting over a nut"},
+    {de:"Jemand rutscht viel zu schnell die Rutsche runter und fliegt am Ende ab", en:"someone sliding down the slide way too fast and flying off the end"},
+    {de:"Eine Wippe kippt, weil eine Seite viel schwerer ist", en:"a seesaw tipping because one side is much heavier"},
+    {de:"Enten überfallen ein Picknick", en:"ducks raiding a picnic blanket"},
+    {de:"Ein Kind versteckt sich beim Fangenspielen hinter einer viel zu kleinen Laterne", en:"a child hiding behind a way too small lamppost during a game of tag"},
+    {de:"Jemand fährt mit dem Roller gegen eine Parkbank", en:"someone crashing a scooter into a park bench"}
+  ],
+  farm: [
+    {de:"Ein Schwein ist ausgebüxt und rennt über den Hof", en:"a pig that escaped its pen running across the farmyard"},
+    {de:"Ein Traktor bleibt im Schlamm stecken", en:"a tractor stuck in the mud"},
+    {de:"Hühner picken jemandem an den Schnürsenkeln", en:"chickens pecking at someone's shoelaces"},
+    {de:"Eine Kuh leckt einem Kind über die Wange", en:"a cow licking a kid's cheek"},
+    {de:"Ein Eimer Milch kippt mitten im Kuhstall um", en:"a bucket of milk tipping over in the barn"},
+    {de:"Ein Ferkel hat sich in einen viel zu großen Gummistiefel verkrochen", en:"a piglet hiding inside a way too big rubber boot"},
+    {de:"Eine Gans jagt den Bauern über den Hof", en:"a goose chasing the farmer across the yard"},
+    {de:"Kinder verstecken sich im Heuhaufen", en:"kids hiding in a haystack"},
+    {de:"Ein Hahn kräht viel zu früh und weckt alle auf", en:"a rooster crowing way too early and waking everyone up"},
+    {de:"Eine Ziege frisst die Wäsche von der Leine", en:"a goat eating laundry off the clothesline"}
+  ],
+  zoo: [
+    {de:"Ein Affe klaut jemandem die Mütze", en:"a monkey stealing someone's hat"},
+    {de:"Ein Pinguin rutscht auf dem Bauch über den Weg", en:"a penguin sliding on its belly across the path"},
+    {de:"Ein Elefant spritzt mit dem Rüssel Wasser auf die Besucher", en:"an elephant spraying water on visitors with its trunk"},
+    {de:"Ein Kind macht Grimassen vor dem Gorilla-Gehege", en:"a kid making funny faces at the gorilla enclosure"},
+    {de:"Ein Papagei ruft plötzlich etwas Lustiges", en:"a parrot suddenly shouting something funny"},
+    {de:"Ein Zebra und ein Kind schauen sich lange in die Augen", en:"a zebra and a child staring at each other for a long time"},
+    {de:"Eine Giraffe streckt beim Fotografieren den Kopf mitten ins Bild", en:"a giraffe poking its head right into a photo being taken"},
+    {de:"Ein Erdmännchen steht Wache und beobachtet alle Besucher", en:"a meerkat standing guard watching all the visitors"},
+    {de:"Ein Eisbär planscht laut ins Wasser und bespritzt alle", en:"a polar bear splashing loudly into the water, soaking everyone nearby"},
+    {de:"Ein Kind füttert versehentlich die Enten statt die Ziegen", en:"a kid accidentally feeding the ducks instead of the goats"}
+  ],
+  pool: [
+    {de:"Ein Kind macht einen riesigen Bauchklatscher", en:"a kid doing a huge belly flop"},
+    {de:"Die Rutsche spritzt jemanden komplett nass", en:"the water slide splashing someone completely soaked"},
+    {de:"Ein Wasserball fliegt mitten in eine Familie", en:"a beach ball flying right into a family"},
+    {de:"Jemand verliert beim Tauchen die Schwimmbrille", en:"someone losing their swim goggles while diving"},
+    {de:"Ein Hund springt versehentlich mit ins Becken", en:"a dog accidentally jumping into the pool"},
+    {de:"Zwei Kinder liefern sich eine Wasserschlacht", en:"two kids having a splashing water fight"},
+    {de:"Jemand rutscht am Beckenrand aus und plumpst rein", en:"someone slipping at the poolside and tumbling in"},
+    {de:"Ein aufblasbares Krokodil treibt führerlos durchs Becken", en:"an inflatable crocodile drifting aimlessly across the pool"},
+    {de:"Beim Sprung vom Beckenrand geht fast die Badehose verloren", en:"someone almost losing their swim trunks jumping off the poolside"},
+    {de:"Ein Eis wird schnell gegessen, bevor es in der Sonne schmilzt", en:"an ice cream being eaten quickly before it melts in the sun"}
+  ],
+  city: [
+    {de:"Ein Marktstand-Verkäufer jongliert mit Äpfeln", en:"a market vendor juggling apples"},
+    {de:"Ein Straßenmusiker sammelt ein kleines Publikum", en:"a street musician gathering a small crowd"},
+    {de:"Jemand rennt dem Bus hinterher und schafft es gerade noch", en:"someone chasing after the bus and just catching it"},
+    {de:"Ein Hund zieht sein Herrchen quer über die Straße", en:"a dog pulling its owner across the street"},
+    {de:"Ein Kind bleibt vor einem Spielzeug-Schaufenster wie angewurzelt stehen", en:"a child frozen in place staring at a toy shop window"},
+    {de:"Tauben picken Krümel vor einem Café", en:"pigeons pecking crumbs outside a cafe"},
+    {de:"Ein Fahrradkurier balanciert einen riesigen Stapel Pakete", en:"a bike courier balancing a huge stack of packages"},
+    {de:"Ein Eiswagen hat eine lange Schlange", en:"an ice cream van with a long queue"},
+    {de:"Eine Tüte Orangen fällt jemandem hin und kullert über den Gehweg", en:"a bag of oranges spilling and rolling across the sidewalk"},
+    {de:"Ein Straßenkünstler steht so still, dass ihn alle für eine Statue halten", en:"a street performer standing so still everyone thinks he's a statue"}
+  ],
+  mountains: [
+    {de:"Eine Kuh mit Glocke steht mitten auf dem Wanderweg", en:"a cow with a bell standing in the middle of the hiking trail"},
+    {de:"Ein Murmeltier pfeift und alle drehen sich erschrocken um", en:"a marmot whistling loudly, startling everyone"},
+    {de:"Jemand rutscht auf einer Wiese den Hang hinunter", en:"someone sliding down a grassy slope"},
+    {de:"Eine Familie macht ein Picknick mit Blick ins Tal", en:"a family having a picnic overlooking the valley"},
+    {de:"Ein Adler zieht hoch oben seine Kreise", en:"an eagle circling high above"},
+    {de:"Kinder bauen einen Steinmann am Wegesrand", en:"kids building a small stone cairn by the trail"},
+    {de:"Ein Wanderer hat sich verlaufen und studiert die Karte", en:"a hiker totally lost, studying a map"},
+    {de:"Ein Schmetterling landet auf jemandes Nase", en:"a butterfly landing on someone's nose"},
+    {de:"Ein Hund apportiert einen viel zu großen Stock", en:"a dog fetching a way too big stick"},
+    {de:"Am Gipfel jubeln alle und schwenken die Arme", en:"everyone cheering and waving their arms at the summit"}
+  ],
+  school: [
+    {de:"Beim Basteln landet mehr Kleber auf den Fingern als auf dem Papier", en:"more glue ending up on fingers than on the paper during crafts"},
+    {de:"Ein Kind hat die Hausaufgaben zu Hause vergessen", en:"a kid realizing they forgot their homework at home"},
+    {de:"In der Pause bricht spontan ein Fangenspiel aus", en:"a spontaneous game of tag breaking out at recess"},
+    {de:"Beim Vorlesen schläft ein Kind fast ein", en:"a kid almost falling asleep during story time"},
+    {de:"Ein Turnbeutel geht auf und alles kullert heraus", en:"a gym bag bursting open, everything spilling out"},
+    {de:"Zwei Kinder tauschen heimlich ihre Pausenbrote", en:"two kids secretly swapping their lunch sandwiches"},
+    {de:"Beim Malen kippt ein Wasserglas über das Bild", en:"a glass of water tipping over onto a painting"},
+    {de:"Ein Kind versteckt sich beim Verstecken viel zu offensichtlich", en:"a kid hiding way too obviously during a game of hide and seek"},
+    {de:"In der Bauecke türmt sich ein riesiger Klötzchenturm", en:"a huge tower of building blocks rising in the play corner"},
+    {de:"Ein Luftballon platzt und alle erschrecken kurz", en:"a balloon popping and startling everyone for a moment"}
+  ],
+  generic: [
+    {de:"Jemand verliert beim Rennen einen Schuh", en:"someone losing a shoe while running"},
+    {de:"Ein Hund schnappt sich etwas und rennt fröhlich davon", en:"a dog grabbing something and running off happily"},
+    {de:"Zwei Kinder liefern sich ein spontanes Wettrennen", en:"two kids having a spontaneous race"},
+    {de:"Jemand balanciert vorsichtig etwas, das gleich herunterfallen könnte", en:"someone carefully balancing something that's about to topple over"},
+    {de:"Eine kleine Gruppe staunt über etwas ganz Neues", en:"a small group staring in wonder at something new"},
+    {de:"Ein Regenschirm dreht sich im Wind fast um", en:"an umbrella nearly flipping inside out in the wind"},
+    {de:"Jemand hat sich verkleidet und sorgt für Aufsehen", en:"someone in a costume causing a stir"},
+    {de:"Zwei Freunde teilen sich ein Eis, bevor es schmilzt", en:"two friends sharing an ice cream before it melts"},
+    {de:"Ein Vogel landet frech mitten in der Szene", en:"a bird cheekily landing right in the middle of the scene"},
+    {de:"Jemand winkt fröhlich allen anderen zu", en:"someone waving happily at everyone else"}
+  ]
+};
+function pickGagChips(loc, count, excludeSet){
+  const pool = (loc && GAG_LIBRARY[loc.id]) || GAG_LIBRARY.generic;
+  const fresh = pool.filter(g=>!excludeSet.has(g.de));
+  const src = fresh.length >= count ? fresh : pool; // wenn schon (fast) alle verbraucht: Pool einfach nochmal anbieten
+  return [...src].sort(()=>Math.random()-.5).slice(0, count);
+}
 
 /* ---------------- Datenmodell: CharacterSpec / CharacterPack ----------------
    Kanonisches, quellen-unabhängiges Datenformat für eine Person (P0-Refactoring gemäß
@@ -1296,7 +1438,11 @@ function scenePrompt(s){
   } else {
     parts.push("many small characters");
   }
-  if(s.story) parts.push(translate(s.story));
+  // s.storyEn: bereits fertig-englischer Prompt-Baustein aus der Gag-Bibliothek (scStoryPick) –
+  // hat Vorrang vor der einfachen Wörterbuch-translate()-Pipeline, die für frei getippten/diktierten
+  // Text (scStory) weiterhin als bester verfügbarer Weg dient.
+  if(s.storyEn) parts.push(s.storyEn);
+  else if(s.story) parts.push(translate(s.story));
   if(s.extras && s.extras.length) parts.push(s.extras.join(", "));
   parts.push("plain sky background, no text, no signage, flat color fill, thick black marker outline, graphic recording sketchnote style, high detail, wide composition");
   return parts.filter(Boolean).join(", ");
@@ -1623,6 +1769,11 @@ async function runClaudeTurn(userText){
   try{
     const data = await callClaude(state.aiUnit, state.aiMessages, buildAIContext());
     thinking.remove();
+    // Guard gegen überholte Antworten: wenn der Nutzer inzwischen (z.B. per Gag-Idee-Chip, siehe
+    // showQuickSceneIdeaChips) die Phase gewechselt hat, während diese Anfrage noch unterwegs war,
+    // verwerfen wir die jetzt eintreffende Antwort still – sonst würde sie den bereits vom Nutzer
+    // gewählten Entwurf überschreiben.
+    if(state.phase !== "ai_wait") return;
     if(data.reply){
       const html = escapeReplyText(data.reply);
       await botSay(html);
@@ -1663,7 +1814,30 @@ async function aiCollectScene(){
   const i = state.scenes.length + 1, n = product().scenes;
   state.aiMessages = [{role:"user", content:`[Hinweis: Beginne locker mit der Erfassung von Szene ${i} von ${n}. Frage, wo diese Szene spielt und was dort passiert ist.]`}];
   saveState();
+  // Standardweg (KI-Chat ist per Default immer aktiv, siehe chatProxyUrl()-Fallback): parallel zur
+  // offenen KI-Frage schon ein paar startklare Gag-Ideen aus der kuratierten Bibliothek anbieten,
+  // damit niemand vor einer leeren Chateingabe sitzt. Klick auf eine Idee überspringt den KI-Chat für
+  // diese Szene komplett; wer lieber frei erzählt/diktiert, tippt einfach weiter wie gewohnt.
+  showQuickSceneIdeaChips();
   await runClaudeTurn();
+}
+function pickMixedGagChips(count, excludeSet){
+  const all = SCENE_LOCATIONS.flatMap(loc => GAG_LIBRARY[loc.id].map(g=>({de:g.de, en:g.en, loc})));
+  const fresh = all.filter(g=>!excludeSet.has(g.de));
+  const src = fresh.length >= count ? fresh : all;
+  return [...src].sort(()=>Math.random()-.5).slice(0, count);
+}
+function showQuickSceneIdeaChips(){
+  const picks = pickMixedGagChips(3, usedGagTexts());
+  showChips(picks.map(g=>({label:`${g.loc.label.split(" ")[0]} ${g.de}`, action:()=>pickQuickSceneIdea(g)})).concat([
+    {label:"🎲 Andere Ideen", action:()=>{ userSay("🎲 Andere Ideen"); showQuickSceneIdeaChips(); }}
+  ]), {log:false}); // log:false: diese Chips laufen parallel zum KI-Chat, dessen eigene Chips/Antwort die Chat-Historie führt
+}
+function pickQuickSceneIdea(g){
+  userSay(`${g.loc.label.split(" ")[0]} ${g.de}`);
+  state.aiUnit = "scene"; // falls die KI-Antwort noch aussteht: Guard in runClaudeTurn() greift über state.phase
+  state.sceneDraft = {loc: g.loc, story: g.de, storyEn: g.en, extras: []};
+  afterStorySet();
 }
 
 function mapFreeRoleToEnglish(label){
@@ -2313,13 +2487,25 @@ function scLocationCustom(text){
 }
 function askStory(){
   (async()=>{
-    await botSay(`${state.sceneDraft.loc.label} – da wimmelt es bestimmt! 🤩 <b>Erzähl einfach drauflos:</b> Was ist dort passiert? Wer hat was gemacht? Je mehr Details, desto mehr gibt es später zu entdecken.<span class="note">🎤 Perfekter Moment zum Diktieren – erzähl es wie einer Freundin.</span>`);
+    await botSay(`${state.sceneDraft.loc.label} – da wimmelt es bestimmt! 🤩 <b>Erzähl einfach drauflos:</b> Was ist dort passiert? Wer hat was gemacht? Je mehr Details, desto mehr gibt es später zu entdecken. Oder lass dich von einer Idee inspirieren:<span class="note">🎤 Perfekter Moment zum Diktieren – erzähl es wie einer Freundin.</span>`);
     state.phase = "scene_story"; saveState();
+    showStoryGagChips();
   })();
 }
-function scStory(text){
-  userSay(text);
-  state.sceneDraft.story = text.trim();
+function usedGagTexts(){
+  return new Set(state.scenes.map(s=>s.story).filter(Boolean));
+}
+function showStoryGagChips(){
+  // log:false: die Labels enthalten zufällig gewählten Gag-Text und können nach einem Reload nicht
+  // über die feste Label->Aktion-Tabelle in restoreChips() rekonstruiert werden (dort landen sie sonst
+  // als toter Klick, der nur noch userSay(label) auslöst). Ohne Logging bleibt nach einem Reload
+  // mitten in der Auswahl einfach kein Chip sichtbar – man kann aber jederzeit normal weiterschreiben.
+  const picks = pickGagChips(state.sceneDraft.loc, 3, usedGagTexts());
+  showChips(picks.map(g=>({label:"💡 " + g.de, action:()=>scStoryPick(g)})).concat([
+    {label:"🎲 Andere Ideen", action:()=>{ userSay("🎲 Andere Ideen"); showStoryGagChips(); }}
+  ]), {log:false});
+}
+function afterStorySet(){
   state.sceneDraft.extras = [];
   (async()=>{
     await botSay(`Herrlich! 😄 Soll ich noch ein paar <b>Überraschungen</b> dazwischenwimmeln – kleine Extras, die es zu entdecken gibt?`);
@@ -2330,6 +2516,20 @@ function scStory(text){
       {label:"➡️ So ist es perfekt", action:()=>generateScene(GEN_OP.INITIAL)}
     ]);
   })();
+}
+function scStory(text){
+  userSay(text);
+  state.sceneDraft.story = text.trim();
+  state.sceneDraft.storyEn = null; // frei getippt/diktiert: normale translate()-Pipeline in scenePrompt()
+  afterStorySet();
+}
+function scStoryPick(gag){
+  // Aus der kuratierten Gag-Bibliothek gewählt: "en" ist bereits ein fertiger, geprüfter Prompt-
+  // Baustein und wird NICHT durch translate() geschickt (siehe Kommentar bei GAG_LIBRARY).
+  userSay(gag.de);
+  state.sceneDraft.story = gag.de;
+  state.sceneDraft.storyEn = gag.en;
+  afterStorySet();
 }
 function addSurprises(){
   userSay("🎲 Überrasch mich!");
@@ -2361,6 +2561,10 @@ function scTweakFree(text){
   const s = state.sceneDraft;
   if(!s){ botSay("Hoppla, dazu fehlt mir gerade der Entwurf – lass uns nochmal von vorn starten."); return; }
   s.story = (s.story || "") + (s.story ? ", " : "") + text;
+  // Falls story aus der Gag-Bibliothek stammt (storyEn gesetzt, siehe scStoryPick), muss die Änderung
+  // dort ebenfalls nachgezogen werden – sonst würde ein künftiger Voll-Rebuild (z.B. Reroll) den
+  // Tweak wieder verlieren, weil scenePrompt() storyEn Vorrang vor translate(s.story) gibt.
+  if(s.storyEn) s.storyEn = s.storyEn + ", " + translate(text);
   s.prompt = null; // volle Beschreibung wird bei "Nochmal zaubern" neu gebaut, inkl. dieser Änderung
   s.tweakInstruction = translate(text); // NUR die Änderung selbst, für den gezielten Kontext-Edit-Aufruf
   (async()=>{
