@@ -79,6 +79,18 @@
   }
 
   function bootstrap(){
+    // state ist erst nach erfolgreichem Login gesetzt (siehe `let state = null;` + loadState() in
+    // index.html) – ohne vorherigen Login-Flow bricht jeder Szenario-Aufruf mit "Cannot read
+    // properties of null" ab. Für den Test-Runner reicht ein fester Dummy-Account, kein echter
+    // Login nötig.
+    if(!state){
+      gotoAuth();
+      if(typeof authMode !== "undefined" && authMode !== "register") toggleAuthMode();
+      document.getElementById("auth-email").value = "wwtest@example.com";
+      document.getElementById("auth-pass").value = "wwtest123";
+      doAuth();
+    }
+    if(!state) throw new Error("bootstrap(): Login fehlgeschlagen, state ist weiterhin null.");
     state.product = state.product || "mini";
     if(!Array.isArray(state.characters)) state.characters = [];
     if(!Array.isArray(state.scenes)) state.scenes = [];
