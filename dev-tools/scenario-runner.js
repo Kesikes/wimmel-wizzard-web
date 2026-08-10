@@ -174,6 +174,29 @@
           {label:"Multi-View: 3/4-Ansicht", prompt:threeQPrompt, imageUrl:threeQ.url}
         ];
       }
+    },
+    {
+      // Vortest fuer die Finalisierung des Seitenansicht-Trainings: statt wie beim ersten Multi-View-
+      // Experiment rein prozedural erzeugte Platzhalterbilder zu drehen, nehmen wir hier ECHTE
+      // Charakterbilder aus dem echten wmlstil-Trainingsset (vom Nutzer bereitgestellt,
+      // wimmel_wizzard_lora_v4_training_data.zip) als Referenz und lassen nano-banana-2/edit sie in
+      // Seiten-/3-4-Ansicht neu zeichnen. Ziel: pruefen, ob dieser Weg den ECHTEN, reichen Stil
+      // (weiche Schattierung, rote Wangen, Details) erhaelt, bevor wir daraus ein ganzes neues
+      // Trainingsset fuer ein finales LoRA bauen.
+      id: "view_angle_real_style_test",
+      label: "Seitenansicht-Test mit echtem Referenzbild (vor Trainingsset-Bau)",
+      async run(T){
+        const refBoyUrl = "https://raw.githubusercontent.com/Kesikes/wimmel-wizzard-web/main/training-assets/view_test_refs/ref_boy_hoodie.jpg";
+        const refGirlUrl = "https://raw.githubusercontent.com/Kesikes/wimmel-wizzard-web/main/training-assets/view_test_refs/ref_girl_braids.jpg";
+        const sideInstr = "Redraw this exact character in FULL SIDE PROFILE VIEW facing left, as if seen from the side. Keep the exact same hair style and color, headwear, clothing and all identifying details as the reference. The head is a round silhouette with no ears, no mouth and no visible neck. Only ONE dot eye is visible (on the side facing the viewer), and NO nose line is drawn at all – a pure profile silhouette. Match the exact illustration style of the reference image: thick black marker outline, flat colors with soft cel-shading exactly as shown, rosy cheek if visible from this angle. Full body, standing, plain white background.";
+        const threeQInstr = "Redraw this exact character in THREE QUARTER VIEW, face turned to the right. Keep the exact same hair style and color, headwear, clothing and all identifying details as the reference. The head is a round shape with no ears, no mouth and no visible neck. Draw ONE straight vertical nose line, offset toward the right edge of the face (not centered). The right eye is hidden by the curve of the face; only the LEFT eye is visible as a dot. Match the exact illustration style of the reference image: thick black marker outline, flat colors with soft cel-shading exactly as shown, rosy cheeks. Full body, standing, plain white background.";
+        const boySide = await generateImage(sideInstr, "char", undefined, refBoyUrl, undefined, {});
+        const girlThreeQ = await generateImage(threeQInstr, "char", undefined, refGirlUrl, undefined, {});
+        return [
+          {label:"Echtstil-Test: Junge Seitenansicht", prompt:sideInstr, imageUrl:boySide.url},
+          {label:"Echtstil-Test: Mädchen 3/4-Ansicht", prompt:threeQInstr, imageUrl:girlThreeQ.url}
+        ];
+      }
     }
   ];
 
