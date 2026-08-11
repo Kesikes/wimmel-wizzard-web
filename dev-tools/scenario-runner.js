@@ -189,12 +189,22 @@
         const refBoyUrl = "https://raw.githubusercontent.com/Kesikes/wimmel-wizzard-web/main/training-assets/view_test_refs/ref_boy_hoodie.jpg";
         const refGirlUrl = "https://raw.githubusercontent.com/Kesikes/wimmel-wizzard-web/main/training-assets/view_test_refs/ref_girl_braids.jpg";
         const sideInstr = "Redraw this exact character in FULL SIDE PROFILE VIEW facing left, as if seen from the side. Keep the exact same hair style and color, headwear, clothing and all identifying details as the reference. The head is a round silhouette with no ears, no mouth and no visible neck. Only ONE dot eye is visible (on the side facing the viewer), and NO nose line is drawn at all – a pure profile silhouette. Match the exact illustration style of the reference image: thick black marker outline, flat colors with soft cel-shading exactly as shown, rosy cheek if visible from this angle. Full body, standing, plain white background.";
-        const threeQInstr = "Redraw this exact character in THREE QUARTER VIEW, face turned to the right. Keep the exact same hair style and color, headwear, clothing and all identifying details as the reference. The head is a round shape with no ears, no mouth and no visible neck. Draw ONE straight vertical nose line, offset toward the right edge of the face (not centered). The right eye is hidden by the curve of the face; only the LEFT eye is visible as a dot. Match the exact illustration style of the reference image: thick black marker outline, flat colors with soft cel-shading exactly as shown, rosy cheeks. Full body, standing, plain white background.";
+        // Nutzer-Feedback zum ersten Testlauf (v1): Nase in der 3/4-Ansicht war ein Dreieck/Keil statt
+        // eines Strichs – jetzt explizit "the same thin single vertical line style as a front-facing
+        // nose, never a triangle or wedge shape" ergänzt. Außerdem muss die Drehung nicht mehr so
+        // extrem sein, dass ein Auge komplett verschwindet – beide Augen dürfen sichtbar bleiben
+        // (nur leicht enger zusammen und die Nase leicht versetzt), der Vollprofil-Fall mit nur einem
+        // Auge bleibt als Variante erlaubt, ist aber kein Muss mehr.
+        const threeQInstr = "Redraw this exact character in THREE QUARTER VIEW, head turned slightly to the right. Keep the exact same hair style and color, headwear, clothing and all identifying details as the reference. The head is a round shape with no ears, no mouth and no visible neck. Draw the nose as ONE simple thin straight vertical line – the exact same line style as a front-facing nose, NEVER a triangle, wedge or filled shape – offset slightly toward the right side of the face (not centered). Both eyes may remain visible as small dots, just slightly closer together than in a front view; it is fine if one eye is a little smaller or closer to the edge, but do not force it to fully disappear. Match the exact illustration style of the reference image: thick black marker outline, flat colors with soft cel-shading exactly as shown, rosy cheeks. Full body, standing, plain white background.";
+        // Neue Blickrichtung auf Nutzerwunsch: reine Rückansicht (nur Hinterkopf, kein Gesicht).
+        const backInstr = "Redraw this exact character seen entirely from BEHIND (back view): only the back of the head is visible, no face at all – no eyes, no nose, no mouth, nothing facial. Show the back of the hair (or headwear) in the exact same color and style as the reference, and the back of the clothing (coat/shirt/jacket) exactly as in the reference, including its exact colors and details. Match the exact illustration style of the reference image: thick black marker outline, flat colors with soft cel-shading exactly as shown. Full body, standing, viewed directly from behind, plain white background.";
         const boySide = await generateImage(sideInstr, "char", undefined, refBoyUrl, undefined, {});
         const girlThreeQ = await generateImage(threeQInstr, "char", undefined, refGirlUrl, undefined, {});
+        const boyBack = await generateImage(backInstr, "char", undefined, refBoyUrl, undefined, {});
         return [
           {label:"Echtstil-Test: Junge Seitenansicht", prompt:sideInstr, imageUrl:boySide.url},
-          {label:"Echtstil-Test: Mädchen 3/4-Ansicht", prompt:threeQInstr, imageUrl:girlThreeQ.url}
+          {label:"Echtstil-Test: Mädchen 3/4-Ansicht (v2, Strichnase)", prompt:threeQInstr, imageUrl:girlThreeQ.url},
+          {label:"Echtstil-Test: Junge Rückansicht (Hinterkopf)", prompt:backInstr, imageUrl:boyBack.url}
         ];
       }
     }
