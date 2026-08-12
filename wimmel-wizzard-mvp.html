@@ -1468,7 +1468,14 @@ async function generateCharacterSheet(c){
   const results = {};
   try{ results.side = (await generateImage(charSheetViewPrompt(c, "side"), "char")).url; }catch(e){ results.sideError = e.message; }
   try{ results.back = (await generateImage(charSheetViewPrompt(c, "back"), "char")).url; }catch(e){ results.backError = e.message; }
-  try{ results.threeQ = (await generateImage(threeQuarterEditInstruction(), "char", undefined, c.img, pickStyleRefImage(c.img))).url; }catch(e){ results.threeQError = e.message; }
+  // Bugfix (beim Live-Test gefunden): mit einem zusätzlichen pickStyleRefImage()-Anker als zweitem
+  // Referenzbild hat nano-banana-2/edit gelegentlich die IDENTITÄT von diesem zweiten Bild
+  // übernommen statt nur den Stil – bei vielen existierenden Charakteren im Buch kam dabei eine
+  // komplett andere Person heraus statt der 3/4-Ansicht von c selbst. Die Trainings-Generierung
+  // (dev-tools/scenario-runner.js, threeQInstr) hat genau deshalb bewusst KEIN zweites Referenzbild
+  // mitgeschickt, nur die eine Quelle – hier jetzt genauso: c.img ist als einziges Referenzbild
+  // sowohl Identitäts- als auch Stil-Anker.
+  try{ results.threeQ = (await generateImage(threeQuarterEditInstruction(), "char", undefined, c.img)).url; }catch(e){ results.threeQError = e.message; }
   c.sheet = results;
   saveState();
   const cell = (label, url, err) => `<div class="sheet-cell"><div class="sheet-label">${label}</div>${url ? `<img src="${url}" alt="${label}">` : `<div class="sheet-error">${err ? "nicht geglückt" : "–"}</div>`}</div>`;
