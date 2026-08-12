@@ -259,6 +259,20 @@ input,textarea,select{font-family:inherit;font-size:16px}
 .sparkle-loader{display:inline-block;font-size:1.9rem;animation:wiggle 2.2s ease-in-out infinite;transform-origin:75% 85%}
 .prompt-toggle{font-size:.8rem;color:var(--muted2);text-decoration:underline;background:none;margin-top:8px}
 .prompt-box{width:100%;margin-top:8px;padding:10px;border:2px solid var(--line);border-radius:10px;font-size:.78rem;font-family:monospace;min-height:90px;background:#fff}
+.char-sheet{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.sheet-cell{background:#fff;border-radius:12px;padding:6px;text-align:center}
+.sheet-cell img{width:100%;border-radius:8px;display:block}
+.sheet-label{font-family:'Baloo 2',sans-serif;font-weight:700;font-size:.78rem;color:var(--muted);margin-bottom:4px}
+.sheet-error{font-size:.78rem;color:var(--muted2);padding:16px 4px}
+.situation-board{background:#fff;border:3px solid var(--accent);border-radius:16px;padding:0;margin-top:10px;position:relative;overflow:hidden}
+.situation-board-title{background:var(--accent);color:#fff;font-family:'Baloo 2',sans-serif;font-weight:700;font-size:.85rem;padding:8px 14px;display:inline-block;border-bottom-right-radius:12px}
+.situation-board-canvas{position:relative;width:100%;height:420px;touch-action:none}
+.situation-bubble{position:absolute;transform:translate(-50%,-50%);border:2.5px solid var(--brand-blue);border-radius:50%;background:rgba(45,117,144,0.08);color:var(--ink);display:flex;align-items:center;justify-content:center;text-align:center;font-size:.72rem;font-weight:700;padding:6px;cursor:grab;user-select:none;line-height:1.15}
+.situation-bubble:active{cursor:grabbing}
+.situation-bubble.dragging{z-index:50;box-shadow:0 6px 18px rgb(0 0 0 / .18)}
+.situation-bubble .sb-remove{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;font-size:.7rem;line-height:20px;text-align:center;font-weight:800}
+.situation-board-controls{padding:10px 14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:.8rem;color:var(--muted)}
+.situation-board-hint{padding:0 14px 10px;font-size:.78rem;color:var(--muted2)}
 .photo-upload-card{background:oklch(95% 0.015 85);border-radius:16px;padding:14px;margin-top:8px;text-align:center}
 .photo-upload-btn{display:inline-block;background:var(--accent);color:#fff;font-weight:800;font-size:.9rem;padding:11px 20px;border-radius:999px;cursor:pointer;transition:filter .15s}
 .photo-upload-btn:hover{filter:brightness(.92)}
@@ -1256,6 +1270,7 @@ function enterApp(){
     if(state.chatLog.length===0) startChat();
     else if(state.phase==="scene_generating" && state.sceneDraft && state.sceneDraft.prompt){ generateScene(state.sceneDraft.lastOperation); }
     else if(state.phase==="char_generating" && state.charDraft && state.charDraft.prompt){ generateCharSheet(state.charDraft.lastOperation); }
+    else if(state.phase==="scene_board" && state.sceneDraft && state.sceneDraft.situations){ renderSituationBoard(); }
   }
   else if(state.step === "summary"){ showPanel("summary"); renderSummary(); }
   // "style" ist als eigener Schritt entfallen (Wizzelwim-Storyline: es gibt nur einen Zeichenstil,
@@ -1424,6 +1439,44 @@ function charInScene(c){
   if(cl) bits.push(cl);
   return bits.filter(Boolean).join(", ");
 }
+// ---- Charakter-Sheet (Front + Seite + Rücken + 3/4): Nutzer-Feedback "war eigentlich schon
+// vereinbart" – nach jeder Charakterannahme automatisch weitere Ansichten erzeugen, damit man die
+// Person auch von der Seite/hinten/schräg im Buch wiedererkennt. Seite und Rücken laufen seit
+// LoRA v5 zuverlässig direkt über den flux-lora-Trigger (kein Referenzbild nötig, siehe fal-proxy.js-
+// Kommentar). 3/4 bleibt bei reiner Text-Generierung schwächer und läuft daher weiterhin über
+// nano-banana-2/edit mit dem gerade akzeptierten Frontbild als Referenz (siehe dev-tools/
+// scenario-runner.js, Szenario "view_angle_real_style_test", nach mehreren Feedback-Runden final).
+function charSheetViewPrompt(c, view){
+  const spec = c.spec;
+  const parts = ["wmlstil", ageRole(spec), translate(spec.identityCore.hairColor), translate(spec.defaultOutfit.top)];
+  if(spec.identityCore.signatureMarker) parts.push(twoColorBoost(translate(spec.identityCore.signatureMarker)));
+  if(view === "side"){
+    parts.push("full side profile view facing left, as if seen from the side, round head silhouette with no ears, no mouth and no visible neck, exactly one eye drawn as a clearly visible black dot on the side of the face facing the viewer, absolutely no nose shape of any kind – not a line, not a triangle, not a bump, not a dot – a completely smooth profile silhouette from forehead to chin, standing, full body, flat color fill, thick black marker outline, graphic recording sketchnote style, white background");
+  } else if(view === "back"){
+    parts.push("seen entirely from behind (back view), only the back of the head, hair/headwear and clothing visible, no face at all, no eyes, no nose, no mouth, nothing facial, standing, full body, viewed directly from behind, flat color fill, thick black marker outline, graphic recording sketchnote style, white background");
+  }
+  return parts.filter(Boolean).join(", ");
+}
+function threeQuarterEditInstruction(){
+  // Wortgleich mit dem in dev-tools/scenario-runner.js nach 4 Feedback-Runden final abgestimmten
+  // Text (Augenabstand normal statt zusammengequetscht, ganzer Oberkörper dreht mit, Nase als
+  // gerader Strich ohne Haken) – hier bewusst identisch wiederverwendet statt neu formuliert.
+  return "Redraw this exact character in THREE QUARTER VIEW: the whole body is turned slightly to the right – head, shoulders AND upper body all rotate together as one unit, not just the head on an otherwise front-facing body. Keep the exact same hair style and color, headwear, clothing and all identifying details as the reference. The head is a round shape with no ears, no mouth and no visible neck. The entire facial feature group – both eyes AND the nose together, as one unit – is shifted slightly to the right of the vertical center of the face. Both eyes stay fully visible as small dots, keeping their normal spacing exactly as wide apart as in the reference image (do NOT squeeze them closer together), just shifted as a pair to the right side of the face; the nose is positioned right below the midpoint between the two eyes and moves right together with them. Draw the nose as ONE perfectly straight vertical line segment, like the keyboard character \"|\" – completely straight from top to bottom, with NO curve, NO hook, NO bend, NO foot or serif at the bottom end, NOT shaped like a check mark, a hook, a \"J\", or an upside-down \"L\". Match the exact illustration style of the reference image: thick black marker outline, flat colors, graphic recording sketchnote style. Full body, standing, plain white background.";
+}
+async function generateCharacterSheet(c){
+  const card = await botSay(`<div class="gen-card"><div class="gen-status"><span class="sparkle-loader">✨</span><br>Wir zeichnen das Charakter-Sheet für ${c.name} (Seite, Rücken, 3/4) …</div></div>`, {log:false});
+  const results = {};
+  try{ results.side = (await generateImage(charSheetViewPrompt(c, "side"), "char")).url; }catch(e){ results.sideError = e.message; }
+  try{ results.back = (await generateImage(charSheetViewPrompt(c, "back"), "char")).url; }catch(e){ results.backError = e.message; }
+  try{ results.threeQ = (await generateImage(threeQuarterEditInstruction(), "char", undefined, c.img, pickStyleRefImage(c.img))).url; }catch(e){ results.threeQError = e.message; }
+  c.sheet = results;
+  saveState();
+  const cell = (label, url, err) => `<div class="sheet-cell"><div class="sheet-label">${label}</div>${url ? `<img src="${url}" alt="${label}">` : `<div class="sheet-error">${err ? "nicht geglückt" : "–"}</div>`}</div>`;
+  const html = `<div class="char-sheet"><div class="sheet-cell"><div class="sheet-label">Front</div><img src="${c.img}" alt="Front"></div>${cell("Seite", results.side, results.sideError)}${cell("3/4", results.threeQ, results.threeQError)}${cell("Rücken", results.back, results.backError)}</div>`;
+  card.querySelector(".bubble").innerHTML = `<b>${c.name}</b> – das komplette Charakter-Sheet: ${html}`;
+  state.chatLog.push({w:"bot", h: card.querySelector(".bubble").innerHTML}); saveState();
+  scrollChat();
+}
 function scenePrompt(s){
   const loc = s.loc;
   const parts = ["wmlstil"];
@@ -1441,10 +1494,13 @@ function scenePrompt(s){
     parts.push(`in the foreground, actively taking part in the action described below (not standing still, not posed neutrally): ${heroes.join(" and ")}`);
   }
   parts.push("a densely packed wimmelbild scene with 40 to 60 small background characters spread across the entire image, each one doing their own tiny activity or little visual joke, true busy seek-and-find picture-book density, every single character in the image – foreground heroes and all background characters alike – drawn in exactly the same flat, minimal style: round heads, dot eyes, single vertical nose line, no shading, no gradients, no realistic detail");
-  // s.storyEn: bereits fertig-englischer Prompt-Baustein aus der Gag-Bibliothek (scStoryPick) –
-  // hat Vorrang vor der einfachen Wörterbuch-translate()-Pipeline, die für frei getippten/diktierten
-  // Text (scStory) weiterhin als bester verfügbarer Weg dient.
-  if(s.storyEn) parts.push(s.storyEn);
+  // Nutzer-Feedback (Situationen-Board): s.situations ist jetzt der bevorzugte Weg – eine Liste
+  // einzelner Situationen MIT Positions-/Größen-Hinweis aus dem Kreise-Board (siehe
+  // situationPlacementText/renderSituationBoard). s.storyEn/s.story bleiben als Fallback für den
+  // geskripteten Chat-Weg ohne KI-Server (siehe scStory/scStoryPick) erhalten, der kein Board kennt.
+  if(Array.isArray(s.situations) && s.situations.length){
+    parts.push(s.situations.map(situationPlacementText).join(" "));
+  } else if(s.storyEn) parts.push(s.storyEn);
   else if(s.story) parts.push(translate(s.story));
   if(s.extras && s.extras.length) parts.push(s.extras.join(", "));
   parts.push("plain sky background, no text, no signage, flat color fill, thick black marker outline, graphic recording sketchnote style applied consistently across the whole image, high detail, wide composition");
@@ -1488,7 +1544,13 @@ function sceneComposeInstruction(s){
   // fix, Pose/Haltung/Handlung ausdrücklich freigegeben und sogar eingefordert. Zusätzlich wird jetzt
   // explizit gefordert, dass auch alle Hintergrundfiguren im selben Stil gezeichnet werden – vorher
   // bezog sich die Stilanweisung nur implizit auf "die Referenzen", nicht auf die ganze Szene.
-  return `${s.prompt} The attached reference image(s) show the exact established design of each character appearing in this scene – their face, proportions, hair color, clothing and any identifying details. Draw every character from a reference image into this new scene keeping their identity and design EXACTLY the same as their reference (same face, same proportions, same hair, same clothing colors). Their POSE must change to match the action described above: give them dynamic, natural body positions and gestures that actively show them taking part in what is happening in the scene – do not simply copy their reference pose or stand them still and neutral. Every other character in the scene, including all small background characters, must be drawn in the exact same flat-color, thick black marker outline, graphic-recording sketchnote illustration style as the references, applied consistently across the entire image, not just around the referenced characters.`;
+  // Nutzer-Feedback (nach Sichtung des generierten Wimmelbilds): erfundene Hintergrundfiguren
+  // teilweise "komplett in einem anderen Stil" – die bisherige Stilanweisung war zu allgemein
+  // ("same style as references"). Jetzt zusätzlich mit konkreten Negativ-Beispielen, nach demselben
+  // Muster, das beim Nase-Feintuning der Charakter-Ansichten funktioniert hat (siehe dev-tools/
+  // scenario-runner.js): explizit benennen, was NICHT passieren darf, statt es nur implizit
+  // auszuschließen.
+  return `${s.prompt} The attached reference image(s) show the exact established design of each character appearing in this scene – their face, proportions, hair color, clothing and any identifying details. Draw every character from a reference image into this new scene keeping their identity and design EXACTLY the same as their reference (same face, same proportions, same hair, same clothing colors). Their POSE must change to match the action described above: give them dynamic, natural body positions and gestures that actively show them taking part in what is happening in the scene – do not simply copy their reference pose or stand them still and neutral. Every other character in the scene, including all small background characters, must be drawn in the exact same flat-color, thick black marker outline, graphic-recording sketchnote illustration style as the references, applied consistently across the entire image, not just around the referenced characters. Do not draw any character – hero or background – in a different illustration style, a more detailed or more realistic style, a different line weight, or with shading, gradients, texture or soft airbrushed coloring: every single character in the whole image must look like it was drawn by the same illustrator in the exact same reduced flat style as the reference images, with round minimal faces, dot eyes and a single line nose, with no exceptions anywhere in the picture.`;
 }
 function photoStyleInstruction(){
   // Editier-Anweisung für die Foto-zu-Illustration-Option: das hochgeladene Foto wird über
@@ -1853,10 +1915,12 @@ function showQuickSceneIdeaChips(){
   ]), {log:false}); // log:false: diese Chips laufen parallel zum KI-Chat, dessen eigene Chips/Antwort die Chat-Historie führt
 }
 function pickQuickSceneIdea(g){
-  userSay(`${g.loc.label.split(" ")[0]} ${g.de}`);
+  // Nutzer-Feedback (Situationen-Board, mindestens 15 Situationen pro Szene): ein einzelner
+  // Gag-Chip darf die Szene NICHT mehr direkt fertigstellen (das würde die Mindestanzahl und das
+  // Board komplett umgehen). Er fließt stattdessen wie eine getippte Nachricht in das laufende
+  // KI-Gespräch ein, das ganz normal weiter Situationen sammelt, bis add_scene aufgerufen wird.
   state.aiUnit = "scene"; // falls die KI-Antwort noch aussteht: Guard in runClaudeTurn() greift über state.phase
-  state.sceneDraft = {loc: g.loc, story: g.de, storyEn: g.en, extras: []};
-  afterStorySet();
+  runClaudeTurn(`${g.loc.label}: ${g.de}`);
 }
 
 function mapFreeRoleToEnglish(label){
@@ -1916,6 +1980,146 @@ async function handleCharacterTool(input){
   await generateCharSheet(input.edit_instruction ? GEN_OP.EDIT : GEN_OP.INITIAL);
 }
 
+/* ---------------- Situationen-Board ----------------
+   Nutzer-Feedback + Grafik "Wimmelbild Konzept.pdf": bevor aus den gesammelten Situationen ein
+   fertiges Bild wird, ordnet der Kunde sie erst als Kreise strukturell an (Position = grober
+   Platzierungs-Hinweis, Größe = wie auffällig die Situation im fertigen Bild werden soll). Das
+   entspricht P1 aus dem Konzeptpapier. Position/Größe fließen über situationPlacementText() als
+   Klartext-Hinweis in scenePrompt() ein – nano-banana-2/edit bekommt also z.B. "in der oberen linken
+   Ecke der Szene: ..." statt einer reinen unsortierten Aufzählung.
+*/
+function guessLocId(label){
+  const t = (label || "").toLowerCase();
+  const map = {home:["zuhause","haus","wohnung"], beach:["strand","meer","see"], park:["park","spielplatz"], farm:["bauernhof","farm"], zoo:["zoo","tierpark"], pool:["schwimmbad","pool","freibad","bad"], city:["stadt","markt","innenstadt"], mountains:["berg"], school:["kita","schule","kindergarten"]};
+  for(const [id, kws] of Object.entries(map)){ if(kws.some(k=>t.includes(k))) return id; }
+  return null;
+}
+function topUpSituations(list, locLabel){
+  // Sicherheitsnetz: "mindestens 15 Situationen" ist ein Kernversprechen an den Kunden (siehe
+  // Onboarding-Text in startScenes()) und soll nicht allein davon abhängen, dass sich die KI exakt
+  // an die Systemanweisung hält – reicht die Liste nicht, wird aus der kuratierten Gag-Bibliothek
+  // aufgefüllt, passend zum erkannten Ort (Fallback: generic).
+  if(list.length >= 15) return list;
+  const locId = guessLocId(locLabel);
+  const pool = (locId && GAG_LIBRARY[locId]) ? GAG_LIBRARY[locId] : GAG_LIBRARY.generic;
+  const used = new Set(list.map(s=>s.text));
+  for(const g of pool){
+    if(list.length >= 15) break;
+    if(!used.has(g.en)){ list.push({text: g.en, de: g.de}); used.add(g.en); }
+  }
+  return list;
+}
+function defaultBubbleLayout(n){
+  // Locker gestreute Grid-Anordnung mit Zufalls-Jitter, angelehnt an die überlappenden Kreise aus
+  // der Nutzer-Grafik – kein exaktes Raster, damit es organisch statt tabellarisch wirkt.
+  const cols = Math.max(3, Math.round(Math.sqrt(n * 16 / 9)));
+  const rows = Math.ceil(n / cols);
+  const cellW = 100 / cols, cellH = 100 / rows;
+  const positions = [];
+  for(let i = 0; i < n; i++){
+    const col = i % cols, row = Math.floor(i / cols);
+    const jitterX = (Math.random() - 0.5) * cellW * 0.6;
+    const jitterY = (Math.random() - 0.5) * cellH * 0.6;
+    const x = Math.min(95, Math.max(5, cellW * col + cellW / 2 + jitterX));
+    const y = Math.min(93, Math.max(7, cellH * row + cellH / 2 + jitterY));
+    positions.push({x, y});
+  }
+  return positions;
+}
+function sizePx(size){ return size === "S" ? 74 : size === "L" ? 132 : 100; }
+function regionLabel(x, y){
+  const h = x < 33 ? "left" : x < 67 ? "center" : "right";
+  const v = y < 33 ? "top" : y < 67 ? "middle" : "bottom";
+  if(h === "center" && v === "middle") return "dead center";
+  return `${v} ${h}`;
+}
+function situationPlacementText(s){
+  const region = regionLabel(s.x != null ? s.x : 50, s.y != null ? s.y : 50);
+  const prominence = s.size === "L"
+    ? ", drawn noticeably larger and more prominent than the surrounding characters, easy to spot first"
+    : s.size === "S"
+      ? ", drawn small and tucked into the background as a subtle little detail"
+      : "";
+  return `In the ${region} area of the scene: ${s.text}${prominence}.`;
+}
+function renderSituationBoardHtml(situations){
+  const bubbles = situations.map((s, i) => {
+    const d = sizePx(s.size);
+    return `<div class="situation-bubble" data-idx="${i}" style="left:${s.x}%;top:${s.y}%;width:${d}px;height:${d}px;font-size:${d < 90 ? ".64rem" : ".72rem"}">${escapeHtml(s.de || s.text)}<span class="sb-remove" onclick="removeSituationBubble(event,${i})" title="entfernen">✕</span></div>`;
+  }).join("");
+  const locLabel = (state.sceneDraft && state.sceneDraft.loc && state.sceneDraft.loc.label) || "";
+  return `<div class="situation-board" id="situation-board-active">
+    <span class="situation-board-title">Szene: ${escapeHtml(locLabel)}</span>
+    <div class="situation-board-canvas">${bubbles}</div>
+    <div class="situation-board-hint">Ziehe die Kreise dahin, wo die Situation im Bild passieren soll. Ein Tipp (ohne Ziehen) auf einen Kreis ändert seine Größe – größer heißt auffälliger im fertigen Bild. ✕ entfernt eine Situation.</div>
+    <div class="situation-board-controls"><button class="chip accent" onclick="confirmSituationBoard()">🪄 Los, mach ein Bild draus!</button><span>${situations.length} Situationen</span></div>
+  </div>`;
+}
+function wireSituationBoard(){
+  const boardEl = document.getElementById("situation-board-active");
+  if(!boardEl) return;
+  const canvas = boardEl.querySelector(".situation-board-canvas");
+  canvas.querySelectorAll(".situation-bubble").forEach(el=>{
+    el.addEventListener("pointerdown", (ev)=>{
+      if(ev.target.classList.contains("sb-remove")) return;
+      ev.preventDefault();
+      el.classList.add("dragging");
+      try{ el.setPointerCapture(ev.pointerId); }catch(e){}
+      const rect = canvas.getBoundingClientRect();
+      let moved = false;
+      const move = (mev)=>{
+        moved = true;
+        let x = ((mev.clientX - rect.left) / rect.width) * 100;
+        let y = ((mev.clientY - rect.top) / rect.height) * 100;
+        x = Math.min(98, Math.max(2, x));
+        y = Math.min(97, Math.max(3, y));
+        el.style.left = x + "%"; el.style.top = y + "%";
+        const idx = parseInt(el.dataset.idx, 10);
+        if(state.sceneDraft && state.sceneDraft.situations[idx]){
+          state.sceneDraft.situations[idx].x = x;
+          state.sceneDraft.situations[idx].y = y;
+        }
+      };
+      const up = ()=>{
+        el.classList.remove("dragging");
+        canvas.removeEventListener("pointermove", move);
+        canvas.removeEventListener("pointerup", up);
+        if(!moved) cycleBubbleSize(el);
+        saveState();
+      };
+      canvas.addEventListener("pointermove", move);
+      canvas.addEventListener("pointerup", up);
+    });
+  });
+}
+function cycleBubbleSize(el){
+  const idx = parseInt(el.dataset.idx, 10);
+  const s = state.sceneDraft && state.sceneDraft.situations[idx];
+  if(!s) return;
+  s.size = s.size === "S" ? "M" : s.size === "M" ? "L" : "S";
+  const d = sizePx(s.size);
+  el.style.width = d + "px"; el.style.height = d + "px";
+  el.style.fontSize = (d < 90 ? ".64rem" : ".72rem");
+  saveState();
+}
+function removeSituationBubble(ev, idx){
+  ev.stopPropagation();
+  if(!state.sceneDraft || !state.sceneDraft.situations || state.sceneDraft.situations.length <= 1) return;
+  state.sceneDraft.situations.splice(idx, 1);
+  saveState();
+  const boardEl = document.getElementById("situation-board-active");
+  if(boardEl){ boardEl.outerHTML = renderSituationBoardHtml(state.sceneDraft.situations); wireSituationBoard(); }
+}
+function confirmSituationBoard(){
+  userSay("🪄 Los, mach ein Bild draus!");
+  clearChips();
+  generateScene(GEN_OP.INITIAL);
+}
+async function renderSituationBoard(){
+  state.phase = "scene_board"; saveState();
+  await botSay(renderSituationBoardHtml(state.sceneDraft.situations), {log:false});
+  wireSituationBoard();
+}
 async function handleSceneTool(input){
   // Seed + Entwurfs-Historie vom vorherigen Entwurf übernehmen (falls schon generiert) –
   // sonst würde jeder Änderungswunsch den Seed verlieren (komplett anderes Bild) und die
@@ -1927,26 +2131,46 @@ async function handleSceneTool(input){
   // handleCharacterTool – ohne Übernahme von s.img lief jeder Szenen-Änderungswunsch übers KI-Tool
   // fälschlich als Text-zu-Bild-Neugenerierung statt als gezielter Bild-Edit.
   const prevImg = state.sceneDraft && state.sceneDraft.img;
-  // P0-Refactoring: Claude liefert nur noch Ort/Geschichte/Extras als Felder, KEINEN fertigen
-  // Szenen-Prompt mehr. scenePrompt() baut daraus (und aus den aktuellen Charakter-Specs) den
-  // eigentlichen Bild-Prompt – exakt wie beim Beschreibungs-Weg ohne KI-Chat.
+  const prevSituations = state.sceneDraft && state.sceneDraft.situations;
+  // Bugfix (P0.5, beim Testen des neuen strukturierten Schemas gefunden): claude-proxy.js liefert
+  // nur noch das deutsche location_label, kein fertiges englisches Ortswort mehr – "en" muss daher
+  // hier genau wie im geskripteten Weg (siehe scLocationCustom) per translate() erzeugt werden.
+  // Ohne diesen Fix landete ein wörtliches "undefined" im Bild-Prompt (scenePrompt() liest loc.en).
+  const loc = {label: input.location_label || "Szene", en: translate(input.location_label || "Szene"), type: input.location_type === "cutaway" ? "cutaway" : "landscape"};
+
+  if(input.edit_instruction){
+    // Änderungswunsch an einer bereits generierten Szene: kein neues Board, direkt als gezielten
+    // Bild-Edit anwenden. Die zuletzt bestätigte Situationen-Liste (inkl. Board-Positionen) bleibt
+    // erhalten, damit ein "Nochmal zaubern" später wieder darauf zugreifen könnte.
+    state.sceneDraft = {
+      loc, story: input.summary_de || "", extras: [], situations: prevSituations,
+      prompt: null, tweakInstruction: input.edit_instruction,
+      img: prevImg, seed: prevSeed, drafts: prevDrafts, currentDraftIndex: prevIdx
+    };
+    saveState();
+    await generateScene(GEN_OP.EDIT);
+    return;
+  }
+
+  // Erstgenerierung: Claude liefert jetzt eine strukturierte Liste einzelner Situationen (siehe
+  // SCENE_SYSTEM/ADD_SCENE_TOOL in claude-proxy.js, mindestens 15 vorgegeben) statt einer einzelnen
+  // Fließtext-Geschichte. topUpSituations() ist das Sicherheitsnetz, falls trotzdem weniger ankommen.
+  // Statt sofort zu generieren geht es erst ins Situationen-Board (renderSituationBoard) – Position/
+  // Größe der Kreise fließen dort als Platzierungs-Hinweis in den Bild-Prompt ein.
+  let situations = (Array.isArray(input.situations_en) ? input.situations_en : [])
+    .filter(Boolean).map(text => ({text}));
+  if(!situations.length && input.story_en) situations = [{text: input.story_en}]; // Rückfall, falls doch das alte Feld kommt
+  situations = topUpSituations(situations, input.location_label);
+  const positions = defaultBubbleLayout(situations.length);
+  situations = situations.map((s, i) => ({...s, x: positions[i].x, y: positions[i].y, size: "M"}));
+
   state.sceneDraft = {
-    // Bugfix (P0.5, beim Testen des neuen strukturierten Schemas gefunden): claude-proxy.js liefert
-    // nur noch das deutsche location_label, kein fertiges englisches Ortswort mehr – "en" muss daher
-    // hier genau wie im geskripteten Weg (siehe scLocationCustom) per translate() erzeugt werden.
-    // Ohne diesen Fix landete ein wörtliches "undefined" im Bild-Prompt (scenePrompt() liest loc.en).
-    loc: {label: input.location_label || "Szene", en: translate(input.location_label || "Szene"), type: input.location_type === "cutaway" ? "cutaway" : "landscape"},
-    story: input.story_en || "",
-    extras: Array.isArray(input.extras_en) ? input.extras_en : [],
-    prompt: null, // wird über scenePrompt(s) gebaut (generateScene)
-    tweakInstruction: input.edit_instruction || null,
-    img: prevImg,
-    seed: prevSeed,
-    drafts: prevDrafts,
-    currentDraftIndex: prevIdx
+    loc, story: input.summary_de || "", extras: [], situations,
+    prompt: null, tweakInstruction: null,
+    img: null, seed: undefined, drafts: [], currentDraftIndex: undefined
   };
   saveState();
-  await generateScene(input.edit_instruction ? GEN_OP.EDIT : GEN_OP.INITIAL);
+  await renderSituationBoard();
 }
 
 /* ---------------- Chat-Dialog: Ablauf (geskripteter Fallback ohne Chat-Server) ---------------- */
@@ -2457,10 +2681,15 @@ function acceptCharFromPhoto(){
 function acceptChar(userText){
   userSay(userText || "❤️ Behalten");
   state.characters.push(state.charDraft);
+  const newChar = state.characters[state.characters.length - 1];
   state.charDraft = null;
   renderCharStrip(); saveState(); updateProgress(); renderLivePanel();
   (async()=>{
-    await botSay(`${state.characters[state.characters.length-1].name} ist jetzt Teil eurer Wimmelwelt! 🎉 Soll noch jemand mit dabei sein?`);
+    await botSay(`${newChar.name} ist jetzt Teil eurer Wimmelwelt! 🎉`);
+    // Nutzer-Feedback: nach jeder Charaktererstellung automatisch ein Sheet mit Seite/Rücken/3-4
+    // erzeugen (siehe generateCharacterSheet) – nicht nur auf Wunsch.
+    await generateCharacterSheet(newChar);
+    await botSay(`Soll noch jemand mit dabei sein?`);
     state.phase = "char_more"; saveState();
     showChips([
       {label:"➕ Noch eine Person", action:()=>{ userSay("➕ Noch eine Person"); offerCharCreationEntry(false); }},
@@ -2475,7 +2704,10 @@ function startScenes(){
   const n = product().scenes;
   (async()=>{
     await botSay(`Was für eine Truppe: <b>${state.characters.map(c=>c.name).join(", ")}</b>! 💚`);
-    await botSay(`Jetzt wird's spannend: Was habt ihr erlebt? Ein Urlaub, ein Fest, ein ganz normaler Samstag – wir spielen alles nach. Daraus werden ${n===1?"euer großes Wimmelbild":`die ${n} Szenen für euer Buch`}.`);
+    // Onboarding-Erklärung (Nutzer-Feedback: Kunde soll erst verstehen, wie ein Wimmelbild bei uns
+    // aufgebaut ist, bevor die eigentliche Erfassung losgeht) – läuft nur EINMAL vor der ersten Szene,
+    // nicht vor jeder weiteren, da es sich um eine allgemeine Konzept-Erklärung handelt.
+    await botSay(`Ein Wimmelbild ist für uns eine Szene. Damit es schön wimmelt, besteht eine Szene immer aus vielen verschiedenen Situationen. Beschreibe mir erst einmal das Setting der Szene – also wo befinden wir uns? Dann besprechen wir die einzelnen Situationen. Damit es schön wimmelt, braucht ein Bild mindestens 15 verschiedene Situationen. Keine Sorge, du musst sie nicht alle ausdenken. Ich ergänze bei Bedarf gerne um ein paar Überraschungen. Zuletzt setzen wir die Situationen erst einmal strukturell zusammen. Dann mache ich daraus ein großes Bild.`);
     if(useAI()) aiCollectScene(); else nextScene();
   })();
 }
