@@ -257,8 +257,6 @@ input,textarea,select{font-family:inherit;font-size:16px}
 .draft-badge{position:absolute;top:2px;left:2px;background:rgba(0,0,0,.55);color:#fff;font-weight:800;font-size:.65rem;padding:1px 5px;border-radius:999px}
 .gen-status{font-family:'Baloo 2',sans-serif;font-weight:500;font-size:1.05rem;color:var(--muted);padding:22px 8px}
 .sparkle-loader{display:inline-block;font-size:1.9rem;animation:wiggle 2.2s ease-in-out infinite;transform-origin:75% 85%}
-.prompt-toggle{font-size:.8rem;color:var(--muted2);text-decoration:underline;background:none;margin-top:8px}
-.prompt-box{width:100%;margin-top:8px;padding:10px;border:2px solid var(--line);border-radius:10px;font-size:.78rem;font-family:monospace;min-height:90px;background:#fff}
 .char-sheet{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
 .sheet-cell{background:#fff;border-radius:12px;padding:6px;text-align:center}
 .sheet-cell img{width:100%;border-radius:8px;display:block}
@@ -1678,17 +1676,18 @@ function draftHistoryHtml(drafts, currentIndex){
     `<div class="draft-thumb${i===currentIndex?" selected":""}" onclick="pickDraft(${i})" title="Entwurf ${i+1} auswählen"><img src="${d.url}" alt="Entwurf ${i+1}"><span class="draft-badge">${i+1}</span></div>`
   ).join("")}</div>`;
 }
-function renderCharResultHtml(c, placeholder){
-  const who = c.name ? `<b>${c.name}</b>` : "diese Person";
-  return `${placeholder?"":"Fertig!"} Hier ist ${who}! 🎉<div class="gen-card"><img src="${c.img}" alt="${c.name||""}">${draftHistoryHtml(c.drafts, c.currentDraftIndex)}</div><button class="prompt-toggle" onclick="this.nextElementSibling.classList.toggle('hidden')">Prompt anzeigen</button><textarea class="prompt-box hidden" readonly>${escapeHtml(c.prompt||"")}</textarea>`;
-}
-function renderSceneResultHtml(s, idx){
-  return `Szene ${idx}: <b>${s.loc.label}</b> 🎉<div class="gen-card"><img src="${s.img}" alt="Szene ${idx}">${draftHistoryHtml(s.drafts, s.currentDraftIndex)}</div><button class="prompt-toggle" onclick="this.nextElementSibling.classList.toggle('hidden')">Prompt anzeigen & anpassen</button><textarea class="prompt-box hidden" onchange="state.sceneDraft&&(state.sceneDraft.prompt=this.value)">${escapeHtml(s.prompt)}</textarea>`;
-}
+// Design-Vorlage (Chat.dc.html): Ergebnisbilder samt Entwurfs-Historie und "Prompt anzeigen"-Debug-
+// Ansicht lebten früher als vollständige Karte direkt in der Chat-Bubble (renderCharResultHtml/
+// renderSceneResultHtml). Beides ist jetzt Teil der Live-Vorschau (renderLivePanel) – die englische
+// Roh-Prompt-Ansicht wurde dabei bewusst NICHT mit umgezogen, sondern ganz entfernt: sie in den
+// Kunden-Chat einzublenden widerspricht der Storyline ("KI"/"generiert" tauchen im Kundenerlebnis
+// nirgends auf, siehe Wimmel-Wizzard_Storyline_Wizzelwim-und-die-Wimmels.md, Abschnitt 5).
 function pickDraft(i){
-  // Klick auf einen früheren Entwurf in der Historie-Leiste: macht ihn zum aktuellen Bild,
-  // OHNE neu zu generieren. Die Chips (Behalten/Etwas ändern/Nochmal zaubern) bleiben unverändert
-  // gültig, da sie immer auf state.charDraft/state.sceneDraft zugreifen.
+  // Klick auf einen früheren Entwurf in der Historie-Leiste (Teil der Live-Vorschau, siehe
+  // renderLivePanel): macht ihn zum aktuellen Bild, OHNE neu zu generieren. Die Chips (Behalten/
+  // Etwas ändern/Nochmal zaubern) bleiben unverändert gültig, da sie immer auf state.charDraft/
+  // state.sceneDraft zugreifen. Die Chat-Bubble selbst zeigt kein Bild mehr (siehe generateCharSheet/
+  // generateScene) und muss hier daher nicht mehr angefasst werden – nur die Live-Vorschau aktualisiert sich.
   const isChar = state.phase && String(state.phase).startsWith("char");
   const draft = isChar ? state.charDraft : state.sceneDraft;
   if(!draft || !draft.drafts || !draft.drafts[i]) return;
@@ -1696,15 +1695,7 @@ function pickDraft(i){
   draft.img = chosen.url;
   draft.seed = chosen.seed;
   draft.currentDraftIndex = i;
-  const html = isChar
-    ? renderCharResultHtml(draft, false)
-    : renderSceneResultHtml(draft, state.scenes.length + 1);
-  const bubbles = chatEl().querySelectorAll(".msg.bot .bubble");
-  const lastBubble = bubbles[bubbles.length-1];
-  if(lastBubble) lastBubble.innerHTML = html;
-  if(state.chatLog.length) state.chatLog[state.chatLog.length-1].h = html;
   saveState();
-  scrollChat();
   renderLivePanel();
 }
 
@@ -2120,7 +2111,12 @@ function removeSituationBubble(ev, idx){
 function confirmSituationBoard(){
   userSay("🪄 Los, mach ein Bild draus!");
   clearChips();
-  generateScene(GEN_OP.INITIAL);
+  (async()=>{
+    // Storyline "Wizzelwim & die Wimmels", Abschnitt 3: feste Variante direkt vor der Bildgenerierung.
+    await botSay("Alle Rollen sind verteilt, die Kostüme sitzen.", {log:false});
+    await botSay("Und jetzt: wimmeln! ✨", {log:false, delay:500});
+    generateScene(GEN_OP.INITIAL);
+  })();
 }
 async function renderSituationBoard(){
   state.phase = "scene_board"; saveState();
@@ -2182,11 +2178,14 @@ async function handleSceneTool(input){
 
 /* ---------------- Chat-Dialog: Ablauf (geskripteter Fallback ohne Chat-Server) ---------------- */
 function startChat(){
+  // Begrüßung nach der finalen Storyline ("Wizzelwim & die Wimmels", Abschnitt 3): kurze Bubbles,
+  // jede Zeile eine eigene Bubble, danach nahtloser Übergang in die erste Briefing-Frage.
   state.phase = "welcome"; saveState();
   (async()=>{
-    await botSay("Hi ich bin WizzelWim. Lass uns gleich loslegen. Wir starten mit den Charakteren. Erzähl mir von euch. Mit wem wollen wir anfangen?");
-    await botSay("Du gibst mir ein Bild oder beschreibst mir einfach – entweder durch die Spracheingabe oder durch Tippen – wen Du im Bild haben willst.", {delay:400});
-    await botSay("Ich forme daraus einen ersten Vorschlag, den wir dann gemeinsam ausarbeiten, bis Du zufrieden bist.", {delay:400});
+    await botSay("Hi, ich bin Wizzelwim. 👋");
+    await botSay("Und das da hinten sind alle anderen: die Wimmels. Wir sind… viele.", {delay:400});
+    await botSay("Wir lieben es, uns zu verkleiden und Erinnerungen nachzuspielen. Eure zum Beispiel.", {delay:400});
+    await botSay("Erzähl mir von deiner Familie: Wer gehört dazu?", {delay:400});
     offerCharCreationEntry(true);
   })();
 }
@@ -2271,7 +2270,7 @@ async function handlePhotoSelected(input){
 // Bearbeitungs-Ausgangspunkt mehr.
 async function extractCharacterTraitsFromPhoto(dataUri){
   const url = chatProxyUrl();
-  if(!url) throw new Error("Die Foto-Analyse braucht den KI-Chat-Server (siehe \u2699\ufe0f Einstellungen).");
+  if(!url) throw new Error("Die Foto-Analyse braucht eine aktive Verbindung zu Wizzelwim (siehe \u2699\ufe0f Einstellungen).");
   const resp = await fetch(url, {
     method: "POST",
     headers: {"Content-Type": "application/json"},
@@ -2571,7 +2570,7 @@ function chFeature(text){
   c.spec.identityCore.signatureMarker = text.trim();
   (async()=>{
     await botSay(`Das hab ich mir notiert:<br>👤 <b>${c.name}</b> (${c.roleLabel}${c.age?`, ${c.age} Jahre`:""})<br>💇 ${escapeHtml(c.hair)}<br>👕 ${escapeHtml(c.clothing)}${c.feature?`<br>⭐ ${escapeHtml(c.feature)}`:""}`);
-    await botSay(`Soll ich ${c.name} jetzt zum Leben erwecken? 🪄`);
+    await botSay(`Sollen die Wimmels jetzt in die Rolle von ${c.name} schlüpfen? 🎭`);
     state.phase = "char_confirm"; saveState();
     showChips([
       {label:"🪄 Ja, zaubern!", accent:true, action:confirmCharGen},
@@ -2588,7 +2587,7 @@ function requestCharTweak(){
     botSay("Klar, sag mir einfach, was ich anders machen soll – ich pass's an.");
     state.aiUnit = "character"; state.phase = "ai_wait"; saveState();
   } else {
-    botSay("Kein Problem – was soll anders sein? Beschreib's kurz, ich versuch's einzubauen.<span class='note'>Tipp: Ganz gezielte Änderungswünsche klappen am besten mit aktiviertem KI-Chat.</span>");
+    botSay("Kein Problem – was soll anders sein? Beschreib's kurz, ich versuch's einzubauen.<span class='note'>Tipp: Je genauer du beschreibst, was sich ändern soll, desto besser trifft es Wizzelwim.</span>");
     state.phase = "char_tweak_free"; saveState();
   }
 }
@@ -2647,7 +2646,11 @@ async function generateCharSheet(operation){
     if(res.seed != null) c.seed = res.seed;
     c.drafts.push({url: res.url, seed: res.seed});
     c.currentDraftIndex = c.drafts.length - 1;
-    const html = renderCharResultHtml(c, res.placeholder);
+    // Design-Vorlage (Chat.dc.html) + Storyline "Bildübergabe": das Bild selbst lebt oben in der
+    // Live-Vorschau (renderLivePanel, inkl. Entwurfs-Historie), die Chat-Bubble bleibt bewusst kurz
+    // und textlich statt das Bild ein zweites Mal einzubetten – genau das Problem, das die
+    // Live-Vorschau ursprünglich lösen sollte ("Bild scrollte im Chatverlauf einfach weg").
+    const html = res.placeholder ? "Hier ist ein Platzhalter, bis ein fal.ai-Key hinterlegt ist." : "Fertig! Schaut mal, ob ihr euch findet. 🔍";
     card.querySelector(".bubble").innerHTML = html;
     state.chatLog.push({w:"bot", h:html});
     scrollChat();
@@ -2692,11 +2695,13 @@ function acceptChar(userText){
   state.charDraft = null;
   renderCharStrip(); saveState(); updateProgress(); renderLivePanel();
   (async()=>{
-    await botSay(`${newChar.name} ist jetzt Teil eurer Wimmelwelt! 🎉`);
+    // Storyline "Wizzelwim & die Wimmels", Abschnitt 3: feste Variante für den Moment nach einer
+    // fertig erfassten Person.
+    await botSay(`Sehr gut! Die Rolle ist vergeben. 🎭`);
     // Nutzer-Feedback: nach jeder Charaktererstellung automatisch ein Sheet mit Seite/Rücken/3-4
     // erzeugen (siehe generateCharacterSheet) – nicht nur auf Wunsch.
     await generateCharacterSheet(newChar);
-    await botSay(`Soll noch jemand mit dabei sein?`);
+    await botSay(`Wer kommt als Nächstes?`);
     state.phase = "char_more"; saveState();
     showChips([
       {label:"➕ Noch eine Person", action:()=>{ userSay("➕ Noch eine Person"); offerCharCreationEntry(false); }},
@@ -2810,7 +2815,7 @@ function requestSceneTweak(){
     botSay("Klar, sag mir einfach, was ich an der Szene anders machen soll.");
     state.aiUnit = "scene"; state.phase = "ai_wait"; saveState();
   } else {
-    botSay("Kein Problem – was soll anders sein? Beschreib's kurz, ich versuch's einzubauen.<span class='note'>Tipp: Ganz gezielte Änderungswünsche klappen am besten mit aktiviertem KI-Chat.</span>");
+    botSay("Kein Problem – was soll anders sein? Beschreib's kurz, ich versuch's einzubauen.<span class='note'>Tipp: Je genauer du beschreibst, was sich ändern soll, desto besser trifft es Wizzelwim.</span>");
     state.phase = "scene_tweak_free"; saveState();
   }
 }
@@ -2864,7 +2869,9 @@ async function generateScene(operation){
     if(res.seed != null) s.seed = res.seed;
     s.drafts.push({url: res.url, seed: res.seed});
     s.currentDraftIndex = s.drafts.length - 1;
-    const html = renderSceneResultHtml(s, i);
+    // Siehe generateCharSheet(): Bild + Entwurfs-Historie leben in der Live-Vorschau, die Bubble
+    // bleibt textlich (Storyline "Bildübergabe": "Fertig! Schaut mal, ob ihr euch findet. 🔍").
+    const html = "Fertig! Schaut mal, ob ihr euch findet. 🔍";
     card.querySelector(".bubble").innerHTML = html;
     state.chatLog.push({w:"bot", h:html}); saveState(); scrollChat();
     renderLivePanel();
