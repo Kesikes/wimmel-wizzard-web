@@ -3,8 +3,14 @@
 // schickt nur den fertigen Prompt her und bekommt die Bild-URL zurück.
 // Der Key liegt als Umgebungsvariable FAL_KEY im Vercel-Projekt (siehe DEPLOY-ANLEITUNG.md).
 
+// LoRA v5 (wmlstil_v5_final_training.zip, 110 Bild/Caption-Paare: 80 Original + 30 neue Seiten-/
+// 3-4-/Rückansicht-Beispiele mit echten Referenzbildern erzeugt, siehe dev-tools/scenario-runner.js
+// Szenario "view_angle_real_style_test"). Getestet via testLoraUrl gegen die alte Produktiv-LoRA:
+// Frontal-, Seiten- und Rückansicht funktionieren jetzt zuverlässig direkt aus dem Trigger-Wort
+// ohne Referenzbild; 3/4-Ansicht bleibt schwächer und sollte weiterhin über den Referenzbild+Edit-
+// Weg laufen. Alte LoRA-URL (v4) zur Referenz: https://v3b.fal.media/files/b/0aa36425/nJRUo6q_ooBzcjEy5KaWZ_pytorch_lora_weights.safetensors
 const LORA_URL =
-  "https://v3b.fal.media/files/b/0aa36425/nJRUo6q_ooBzcjEy5KaWZ_pytorch_lora_weights.safetensors";
+  "https://v3b.fal.media/files/b/0aa5f3be/JhuEcl1_gByql8TcQ1Tqh_pytorch_lora_weights.safetensors";
 
 module.exports = async (req, res) => {
   if (req.method !== "POST") {
