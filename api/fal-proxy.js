@@ -73,7 +73,14 @@ module.exports = async (req, res) => {
     res.status(400).json({ error: "Kein Prompt übergeben." });
     return;
   }
-  if (prompt.length > 2000) {
+  // War vorher 2000: beim ausgiebigen Kundentest (5 Charaktere + 1 Szene mit 15 Wimmel-Situationen,
+  // 5 nutzereigene + 10 aus der Gag-Bibliothek) hat scenePrompt() bei so vielen Situationen locker
+  // über 2000 Zeichen erzeugt (im Test: 2481) und wurde von diesem MVP-Missbrauchsschutz fälschlich
+  // als "zu lang" abgelehnt (400-Fehler, sichtbar als extrem schnelle/leere "Generierung" statt eines
+  // echten Fehlers). Das ist keine fal.ai-Grenze, sondern nur unsere eigene defensive Obergrenze –
+  // auf 6000 angehoben, damit dichte 15+-Situationen-Szenen (das gewünschte "Wimmeln") nicht mehr
+  // künstlich blockiert werden.
+  if (prompt.length > 6000) {
     res.status(400).json({ error: "Prompt zu lang." });
     return;
   }
