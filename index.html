@@ -266,11 +266,33 @@ input,textarea,select{font-family:inherit;font-size:16px}
 .situation-board{background:#fff;border:3px solid var(--accent);border-radius:16px;padding:0;margin-top:10px;position:relative;overflow:hidden}
 .situation-board-title{background:var(--accent);color:#fff;font-family:'Baloo 2',sans-serif;font-weight:700;font-size:.85rem;padding:8px 14px;display:inline-block;border-bottom-right-radius:12px}
 .situation-board-canvas{position:relative;width:100%;height:420px;touch-action:none}
-.situation-bubble{position:absolute;transform:translate(-50%,-50%);border:2.5px solid var(--brand-blue);border-radius:50%;background:rgba(45,117,144,0.08);color:var(--ink);display:flex;align-items:center;justify-content:center;text-align:center;font-size:.72rem;font-weight:700;padding:6px;cursor:grab;user-select:none;line-height:1.15}
+.situation-bubble{position:absolute;transform:translate(-50%,-50%);border:2.5px solid var(--brand-blue);border-radius:50%;background:rgba(45,117,144,0.08);background-size:cover;background-position:center;overflow:hidden;color:var(--ink);display:flex;align-items:center;justify-content:center;text-align:center;font-size:.72rem;font-weight:700;padding:6px;cursor:grab;user-select:none;line-height:1.15}
 .situation-bubble:active{cursor:grabbing}
 .situation-bubble.dragging{z-index:50;box-shadow:0 6px 18px rgb(0 0 0 / .18)}
-.situation-bubble .sb-remove{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;font-size:.7rem;line-height:20px;text-align:center;font-weight:800}
+.situation-bubble.selected{outline:3px solid var(--accent);outline-offset:2px}
+.situation-bubble .sb-remove{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;font-size:.7rem;line-height:20px;text-align:center;font-weight:800;z-index:2}
+.situation-bubble .sb-size{position:absolute;bottom:-6px;left:-6px;width:20px;height:20px;border-radius:50%;background:var(--brand-blue);color:#fff;font-size:.62rem;line-height:20px;text-align:center;font-weight:800;z-index:2}
 .situation-board-controls{padding:10px 14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:.8rem;color:var(--muted)}
+/* ---------- Vorschau-Tab: Kopfzeile, Standard-Karte, Speichern/Teilen, Charakter-Streifen ---------- */
+.preview-main{display:flex;flex-direction:column}
+.preview-subheader{flex-shrink:0;display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid rgba(58,42,30,0.1)}
+.preview-subheader .dot-row{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:rgba(58,42,30,0.6)}
+.preview-subheader .live-dot-green{width:8px;height:8px;border-radius:50%;background:var(--green-ink);animation:pulse-op 1s infinite}
+.preview-subheader .dims{font-size:12px;color:rgba(58,42,30,0.45);font-family:monospace}
+.preview-default-card{aspect-ratio:16/9;border-radius:12px;border:2px solid rgba(58,42,30,0.12);box-shadow:0 20px 25px -5px rgba(45,117,144,0.25);background:linear-gradient(135deg,#6FC4DE,#3E93B0,#2D7590);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center;padding:16px}
+.preview-default-card .pdc-icon{font-size:26px;opacity:.9}
+.preview-default-card .pdc-label{font-family:'Nunito',sans-serif;font-size:13px;color:#fff;font-weight:800}
+.preview-default-card .pdc-sub{font-size:11px;color:#fff;opacity:.75}
+.preview-thumb-strip{flex-shrink:0;display:flex;gap:8px;overflow-x:auto;padding:10px 0 2px;margin-top:auto}
+.preview-thumb{flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer}
+.preview-thumb .dot{width:44px;height:44px;border-radius:50%;background:var(--green-soft);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:15px;overflow:hidden;border:2px solid transparent}
+.preview-thumb.active .dot{border-color:var(--brand-blue)}
+.preview-thumb .dot img{width:100%;height:100%;object-fit:cover;object-position:top}
+.preview-thumb span{font-size:10px;color:rgba(58,42,30,0.6);max-width:52px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.preview-action-row{flex-shrink:0;display:grid;grid-template-columns:1fr 1fr;gap:8px;padding-top:10px;margin-top:6px;border-top:1px solid rgba(58,42,30,0.1)}
+.preview-action-btn{display:flex;align-items:center;justify-content:center;gap:6px;padding:10px 16px;border-radius:12px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:800;cursor:pointer}
+.preview-action-btn.outline{border:1px solid rgba(58,42,30,0.15);color:var(--ink)}
+.preview-action-btn.filled{background:var(--accent);color:#fff}
 .situation-board-hint{padding:0 14px 10px;font-size:.78rem;color:var(--muted2)}
 .photo-upload-card{background:oklch(95% 0.015 85);border-radius:16px;padding:14px;margin-top:8px;text-align:center}
 .photo-upload-btn{display:inline-block;background:var(--accent);color:#fff;font-weight:800;font-size:.9rem;padding:11px 20px;border-radius:999px;cursor:pointer;transition:filter .15s}
@@ -282,12 +304,14 @@ input,textarea,select{font-family:inherit;font-size:16px}
 @media (max-width:899px){ .input-bar{position:fixed;left:0;right:0;bottom:0;z-index:40;margin-top:0} }
 .input-inner{max-width:var(--col);margin:0 auto;display:flex;align-items:flex-end;gap:8px;background:#fff;border-radius:20px;padding:10px 10px 10px 16px;box-shadow:var(--shadow-sm)}
 .input-inner textarea{flex:1;resize:none;border:none;background:transparent;padding:6px 0;max-height:120px;outline:none;line-height:1.4}
-.mic-btn,.send-btn{width:38px;height:38px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:17px}
+.mic-btn,.send-btn,.attach-btn{width:38px;height:38px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:17px}
 .send-btn{background:#3A2A1E;color:#fff}
 .send-btn:hover{filter:brightness(1.2)}
 .mic-btn{background:var(--accent);color:#fff}
 .mic-btn:hover{filter:brightness(.95)}
 .mic-btn.recording{background:#E74C3C;color:#fff;animation:pulse 1.1s infinite}
+.attach-btn{background:transparent;color:var(--ink);opacity:.4;transition:opacity .15s}
+.attach-btn.active{opacity:1}
 .voice-hint{text-align:center;font-size:.75rem;color:var(--muted2);max-width:560px;margin:6px auto 0}
 
 /* ---------- Panels ---------- */
@@ -316,8 +340,7 @@ input,textarea,select{font-family:inherit;font-size:16px}
 
 /* ---------- Charakter-Leiste ---------- */
 .char-strip{display:flex;gap:10px;overflow-x:auto;padding:10px 16px 4px;max-width:var(--col);margin:0 auto;width:100%}
-.char-pill{flex-shrink:0;display:flex;align-items:center;gap:8px;background:#fff;border-radius:999px;padding:5px 14px 5px 6px;font-size:.85rem;font-weight:800;box-shadow:var(--shadow-sm);cursor:pointer;transition:box-shadow .15s}
-.char-pill.active{box-shadow:0 0 0 2px var(--brand-blue)}
+.char-pill{flex-shrink:0;display:flex;align-items:center;gap:8px;background:#fff;border-radius:999px;padding:5px 14px 5px 6px;font-size:.85rem;font-weight:800;box-shadow:var(--shadow-sm)}
 .char-pill .dot{width:28px;height:28px;border-radius:50%;background:var(--green-soft);display:flex;align-items:center;justify-content:center;font-size:13px;overflow:hidden}
 .char-pill img{width:100%;height:100%;object-fit:cover;object-position:top}
 
@@ -639,6 +662,7 @@ input,textarea,select{font-family:inherit;font-size:16px}
             <div class="chat-area" id="chat-area"></div>
             <div class="input-bar" id="input-bar">
               <div class="input-inner">
+                <button class="attach-btn" id="attach-btn" title="Foto anhängen" onclick="attachButtonClick()"><svg width="15" height="15" viewBox="0 0 16 16"><path d="M11.5 2.5a2.5 2.5 0 0 1 3.5 3.5l-7 7a3.5 3.5 0 0 1-5-5l6-6" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
                 <button class="mic-btn" id="mic-btn" title="Sprechen" onclick="toggleMic()"><svg width="13" height="13" viewBox="0 0 12 12"><rect x="4" y="1" width="4" height="7" rx="2" fill="currentColor"/><path d="M2 6.5c0 2.2 1.8 4 4 4s4-1.8 4-4M6 10.5v1.3" stroke="currentColor" stroke-width="1.1" fill="none" stroke-linecap="round"/></svg></button>
                 <textarea id="chat-input" rows="1" placeholder="Schreib oder sprich einfach los …"></textarea>
                 <button class="send-btn" onclick="sendUserInput()" title="Senden"><svg width="14" height="14" viewBox="0 0 16 16"><path d="M2 8h11M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
@@ -1302,7 +1326,9 @@ function enterApp(){
 function showPanel(p){
   ["panel-product","panel-chat","panel-summary"].forEach(x=>$(x).classList.add("hidden"));
   $("panel-" + p).classList.remove("hidden");
-  $("char-strip").style.display = (p==="chat"||p==="summary") ? "flex" : "none";
+  // Der Charakter-Streifen lebt im Wizard jetzt unten im Vorschau-Tab (siehe renderPreviewThumbStrip)
+  // – oben nur noch auf der Zusammenfassungsseite sichtbar.
+  $("char-strip").style.display = (p==="summary") ? "flex" : "none";
   const liveInd = $("live-indicator");
   if(liveInd) liveInd.style.display = (p==="chat") ? "inline-flex" : "none";
   renderPanels();
@@ -1319,10 +1345,11 @@ function showPanel(p){
    bewusst auf "char_generating"/"scene_generating" stehen (siehe Resume-Logik in enterApp()) –
    ein reiner Phase-Check hätte das Banner also fälschlich hängen lassen, obwohl Behalten/Ändern/
    Nochmal-zaubern-Chips längst warten. uiGenerating (gesetzt in renderLivePanel) ist das exakte
-   Zeitfenster "gerade läuft wirklich ein generateImage()-Aufruf" und daher das richtige Signal;
-   nur beim Situationen-Board (kein Bild-Request, reine Drag-Interaktion) bleibt der Phase-Check nötig. */
+   Zeitfenster "gerade läuft wirklich ein generateImage()-Aufruf" und daher das richtige Signal.
+   Im Situationen-Board bleibt die Eingabe bewusst AKTIV (nicht "busy") – Nutzer sollen jederzeit
+   eine ausgewählte Situation per Chat-Text nachbessern können (siehe applySituationTweak). */
 function isBusyPhase(){
-  return uiGenerating || state.phase === "scene_board";
+  return uiGenerating;
 }
 function applyTabUI(){
   const wb = $("chat-workbench");
@@ -1339,7 +1366,15 @@ function applyTabUI(){
   if(banner) banner.classList.toggle("hidden", !busy);
   const genBadge = $("tab-gen-badge");
   if(genBadge) genBadge.classList.toggle("hidden", !uiGenerating);
+  // Anhang-Button (Foto) ist laut Vorgabe nur während "Beschreibe mir die Person …" (ask_describe)
+  // wirklich funktional aktiv – sonst gedimmt, damit klar ist, wofür er gerade da ist.
+  const attachBtn = $("attach-btn");
+  if(attachBtn) attachBtn.classList.toggle("active", state.phase === "ask_describe");
   if(tab === "preview") requestAnimationFrame(()=>{ const p = $("live-panel"); if(p) p.scrollTop = 0; });
+}
+function attachButtonClick(){
+  if(state && state.phase === "ask_describe"){ startCharPhotoUpload(); return; }
+  toast("Foto-Upload passt gerade zur Personenbeschreibung – gleich geht's weiter! 📷");
 }
 function selectChatTab(){ state.activeTab = "chat"; saveState(); applyTabUI(); }
 function selectPreviewTab(){ state.activeTab = "preview"; saveState(); applyTabUI(); }
@@ -1385,12 +1420,16 @@ function updateProgress(){
   $("progress-fill").style.width = pct + "%";
 }
 
-/* ---------------- Charakter-Leiste ---------------- */
+/* ---------------- Charakter-Leiste (nur noch auf der Zusammenfassungsseite) ----------------
+   Im Chat/Vorschau-Wizard lebt der Charakter-Streifen jetzt UNTEN im Vorschau-Tab, direkt über
+   Speichern/Teilen (siehe renderPreviewThumbStrip in renderLivePanelInner) – #char-strip bleibt
+   nur noch für die Zusammenfassungsseite (panel-summary) aktiv, siehe showPanel(). */
 function renderCharStrip(){
-  // Tippen auf eine Person zeigt/versteckt ihr Charakter-Sheet in der Vorschau (persistent über alle
-  // späteren Schritte hinweg, siehe focusCharacterSheet/README "Character thumbnails").
-  $("char-strip").innerHTML = state.characters.map((c,i)=>`
-    <span class="char-pill${state.previewFocus===i?" active":""}" onclick="focusCharacterSheet(${i})"><span class="dot">${c.img?`<img src="${c.img}" alt="">`:"👤"}</span>${escapeHtml(c.name)}</span>`).join("");
+  const strip = $("char-strip");
+  if(strip){
+    strip.innerHTML = state.characters.map(c=>`
+      <span class="char-pill"><span class="dot">${c.img?`<img src="${c.img}" alt="">`:"👤"}</span>${escapeHtml(c.name)}</span>`).join("");
+  }
   renderSidebar();
 }
 function renderSidebar(){
@@ -1631,7 +1670,7 @@ function kontextInstruction(raw){
 // das führte zwischen Szenen zu sichtbarem Drift (Details, Proportionen, Farbnuancen). Der volle
 // scenePrompt() bleibt als Basis erhalten (Ort, Geschichte, Kompositionsregeln), ergänzt um die
 // ausdrückliche Anweisung, die mitgeschickten Referenzbilder 1:1 zu übernehmen.
-function sceneComposeInstruction(s){
+function sceneComposeInstruction(s, charRefCount){
   // Bugfix (Nutzer-Feedback: Helden "stehen einfach nur mittig rum"): "simply placed... do not
   // reimagine, redesign or restyle them" wurde offenbar auch auf die POSE angewendet, nicht nur auf
   // Identität/Design – das Modell hat die Helden dadurch einfach unverändert (stehend, neutral) in
@@ -1645,7 +1684,15 @@ function sceneComposeInstruction(s){
   // Muster, das beim Nase-Feintuning der Charakter-Ansichten funktioniert hat (siehe dev-tools/
   // scenario-runner.js): explizit benennen, was NICHT passieren darf, statt es nur implizit
   // auszuschließen.
-  return `${s.prompt} The attached reference image(s) show the exact established design of each character appearing in this scene – their face, proportions, hair color, clothing and any identifying details. Draw every character from a reference image into this new scene keeping their identity and design EXACTLY the same as their reference (same face, same proportions, same hair, same clothing colors). Their POSE must change to match the action described above: give them dynamic, natural body positions and gestures that actively show them taking part in what is happening in the scene – do not simply copy their reference pose or stand them still and neutral. Every other character in the scene, including all small background characters, must be drawn in the exact same flat-color, thick black marker outline, graphic-recording sketchnote illustration style as the references, applied consistently across the entire image, not just around the referenced characters. Do not draw any character – hero or background – in a different illustration style, a more detailed or more realistic style, a different line weight, or with shading, gradients, texture or soft airbrushed coloring: every single character in the whole image must look like it was drawn by the same illustrator in the exact same reduced flat style as the reference images, with round minimal faces, dot eyes and a single line nose, with no exceptions anywhere in the picture.`;
+  // Seit dem Situationen-Board mit echten Einzelbildern pro Situation (pickSceneSituationRefs)
+  // sind nicht mehr ALLE Referenzbilder Charaktere – die ersten charRefCount sind Charaktere, der
+  // Rest sind kleine Einzel-Vignetten je Situation. Das muss dem Modell explizit gesagt werden,
+  // sonst versucht es fälschlich, auch die Situations-Vignetten als "Person" zu interpretieren.
+  const n = charRefCount || 0;
+  const refExplainer = n > 0
+    ? `The first ${n} attached reference image(s) show the exact established design of each character appearing in this scene – their face, proportions, hair color, clothing and any identifying details. Draw every character from these reference images into this new scene keeping their identity and design EXACTLY the same as their reference (same face, same proportions, same hair, same clothing colors). Their POSE must change to match the action described above: give them dynamic, natural body positions and gestures that actively show them taking part in what is happening in the scene – do not simply copy their reference pose or stand them still and neutral. Any FURTHER attached reference images (beyond the first ${n}) are small individual vignette illustrations, each showing ONE specific situation that must appear somewhere in this scene (see the placement instructions above for exactly where). Redraw the people, animals and objects shown in each of these vignette images into the correct area of the final scene, in the same flat illustration style as the rest of the image – do NOT copy them in as separate inset pictures, frames or panels, they must blend seamlessly into the single continuous scene.`
+    : `Any attached reference images are small individual vignette illustrations, each showing ONE specific situation that must appear somewhere in this scene (see the placement instructions above for exactly where). Redraw the people, animals and objects shown in each of these vignette images into the correct area of the final scene, in the same flat illustration style as the rest of the image – do NOT copy them in as separate inset pictures, frames or panels, they must blend seamlessly into the single continuous scene.`;
+  return `${s.prompt} ${refExplainer} Every character in the scene, including all small background characters, must be drawn in the exact same flat-color, thick black marker outline, graphic-recording sketchnote illustration style, applied consistently across the entire image. Do not draw any character – hero or background – in a different illustration style, a more detailed or more realistic style, a different line weight, or with shading, gradients, texture or soft airbrushed coloring: every single character in the whole image must look like it was drawn by the same illustrator in the exact same reduced flat style, with round minimal faces, dot eyes and a single line nose, with no exceptions anywhere in the picture.`;
 }
 function photoStyleInstruction(){
   // Editier-Anweisung für die Foto-zu-Illustration-Option: das hochgeladene Foto wird über
@@ -1681,6 +1728,21 @@ function pickSceneCharacterRefs(excludeUrl){
   if(refs.length) return refs.slice(0, 8);
   const fallback = pickStyleRefImage(excludeUrl);
   return fallback ? [fallback] : [];
+}
+// Echte Einzelbilder pro Situation (siehe generateAllSituationImages) fließen bei der
+// Erstgenerierung der Szene als zusätzliche visuelle Referenzen mit ein, nicht nur als Platzierungs-
+// Text (situationPlacementText/scenePrompt). fal-ai/nano-banana-2/edit erlaubt max. 14 image_urls
+// insgesamt (siehe fal-proxy.js) – der verbleibende Rest nach den Charakter-Referenzen geht an die
+// Situationen, bevorzugt die als "L" markierten (prominentesten) zuerst.
+function pickSceneSituationRefs(s, limit){
+  if(!s || !Array.isArray(s.situations)) return [];
+  const order = {L:0, M:1, S:2};
+  return s.situations
+    .filter(x => x.img)
+    .slice()
+    .sort((a,b) => (order[a.size] ?? 1) - (order[b.size] ?? 1))
+    .slice(0, Math.max(0, limit))
+    .map(x => x.img);
 }
 async function generateImage(prompt, kind, seed, editImageUrl, styleRefUrl, extra){
   // kind: "char" | "scene"; seed: optional, für konsistente Neu-Generierungen.
@@ -1811,56 +1873,91 @@ function renderLivePanel(busy){
   if(busy && state) saveState();
   applyTabUI();
 }
+// Standard-Karte, wenn (noch) kein Entwurf existiert – entspricht isDefaultPreview/previewIcon/
+// previewLabel/previewSub aus der Design-Vorlage "Image Studio Chat", statt (wie zuvor) einer
+// leeren Fläche.
+function previewDefaultCardHtml(kind){
+  let icon = "🖼️", label = "Vorschau erscheint hier", sub = "";
+  if(kind === "char"){
+    icon = "🧑‍🎨";
+    const name = state.charDraft && state.charDraft.name;
+    label = name ? `${escapeHtml(name)} entsteht hier` : "Deine Person erscheint hier";
+    sub = "Character Sheet mit mehreren Ansichten";
+  } else if(kind === "scene"){
+    icon = "🏡";
+    const locLabel = state.sceneDraft && state.sceneDraft.loc && state.sceneDraft.loc.label;
+    label = locLabel ? escapeHtml(locLabel) : "Eure Szene entsteht hier";
+    const n = (state.sceneDraft && state.sceneDraft.situations && state.sceneDraft.situations.length) || 0;
+    sub = n + " Situation(en) gesammelt";
+  }
+  return `<div class="preview-default-card"><span class="pdc-icon">${icon}</span><span class="pdc-label">${label}</span><span class="pdc-sub">${sub}</span></div>`;
+}
+// Charakter-Streifen unten im Vorschau-Tab (über Speichern/Teilen) – ersetzt den früheren Streifen
+// oberhalb der Tabs, siehe renderCharStrip(). Tippen fokussiert das Charakter-Sheet dieser Person.
+function renderPreviewThumbStrip(){
+  return `<div class="preview-thumb-strip">${state.characters.map((c,i)=>`
+    <div class="preview-thumb${state.previewFocus===i?" active":""}" onclick="focusCharacterSheet(${i})">
+      <div class="dot">${c.img?`<img src="${c.img}" alt="">`:"👤"}</div>
+      <span>${escapeHtml(c.name)}</span>
+    </div>`).join("")}</div>`;
+}
+function previewSaveClick(){ toast("Speichern kommt bald! 📥"); }
+function previewShareClick(){ toast("Teilen kommt bald! 🔗"); }
 function renderLivePanelInner(busy){
   const panel = $("live-panel");
   if(!panel) return;
   const workbench = $("chat-workbench");
-  // 1) Charakter-Sheet-Fokus (Tippen auf einen Avatar in der Charakter-Leiste) hat Vorrang vor
-  // allem anderen – bleibt auch über spätere Schritte hinweg sichtbar (siehe focusCharacterSheet()).
+  let mainHtml, hasLive = false, needsBoardWire = false;
+  // 1) Charakter-Sheet-Fokus (Tippen auf einen Avatar im Vorschau-Streifen) hat Vorrang vor allem
+  // anderen – bleibt auch über spätere Schritte hinweg sichtbar (siehe focusCharacterSheet()).
   if(state && state.previewFocus != null && state.characters[state.previewFocus]){
-    panel.innerHTML = renderCharacterSheetPanel(state.characters[state.previewFocus]);
-    if(workbench) workbench.classList.add("has-live");
-    return;
-  }
-  // 2) Situationen-Board: eigener Vorschau-Inhalt statt (wie zuvor) einer Chat-Bubble – das
+    mainHtml = renderCharacterSheetPanel(state.characters[state.previewFocus]);
+    hasLive = true;
+  // 2) Situationen werden einzeln gezeichnet (echtes Einzelbild pro Situation, siehe
+  // generateAllSituationImages) – eigener Fortschritts-Zustand, bevor das Anordnen-Board kommt.
+  } else if(state && state.phase === "situations_generating" && state.sceneDraft && state.sceneDraft.situations){
+    mainHtml = renderSituationsProgressPanel(state.sceneDraft);
+    hasLive = true;
+  // 3) Situationen-Board: eigener Vorschau-Inhalt statt (wie zuvor) einer Chat-Bubble – das
   // "Anordnen" gehört laut Design-Vorlage in die Vorschau, der Chat bekommt nur einen kurzen Hinweis.
-  if(state && state.phase === "scene_board" && state.sceneDraft && state.sceneDraft.situations){
-    panel.innerHTML = `<div class="live-panel-label"><span>Situationen anordnen</span><span>${state.sceneDraft.situations.length} St.</span></div>` + renderSituationBoardHtml(state.sceneDraft.situations);
-    wireSituationBoard();
-    if(workbench) workbench.classList.add("has-live");
-    return;
+  } else if(state && state.phase === "scene_board" && state.sceneDraft && state.sceneDraft.situations){
+    mainHtml = `<div class="live-panel-label"><span>Situationen anordnen</span><span>${state.sceneDraft.situations.length} St.</span></div>` + renderSituationBoardHtml(state.sceneDraft.situations);
+    hasLive = true; needsBoardWire = true;
+  } else {
+    const {kind, d} = currentDraft();
+    if(!d){
+      mainHtml = previewDefaultCardHtml(kind);
+    } else if(!d.img){
+      // Vor der allerersten Zeichnung: Wizzelwim wartet schon (entspricht isPreviewLoading der
+      // Design-Vorlage). Solange noch nicht wirklich generiert wird, zeigen wir die ruhige
+      // Standard-Karte statt der pulsierenden Lade-Animation.
+      const targetLabel = kind === "char" ? (d.name || "die Person") : "die Szene";
+      const progressLabel = kind === "char" ? ("Person " + (state.characters.length + 1)) : ("Szene " + (state.scenes.length + 1));
+      const labelRow = `<div class="live-panel-label"><span>Was entsteht gerade</span><span>${escapeHtml(progressLabel)}</span></div>`;
+      mainHtml = busy
+        ? `${labelRow}<div class="live-loading"><img src="${IMG_WIZARD_MASCOT}" alt="Wizzelwim"><div style="font-size:12.5px;font-weight:700">Wizzelwim zaubert ${escapeHtml(targetLabel)} …</div><div class="bar"><i></i></div></div>`
+        : previewDefaultCardHtml(kind);
+    } else {
+      const title = kind === "char"
+        ? (d.name || "Charakter")
+        : ("Szene " + (state.scenes.length + 1) + (d.loc ? ": " + d.loc.label : ""));
+      const progressLabel = kind === "char" ? ("Person " + (state.characters.length + 1)) : ("Szene " + (state.scenes.length + 1));
+      const labelRow = `<div class="live-panel-label"><span>Was entsteht gerade</span><span>${escapeHtml(progressLabel)}</span></div>`;
+      mainHtml = `
+        ${labelRow}
+        <div class="live-panel-title">${escapeHtml(title)}</div>
+        <div class="live-panel-imgwrap"><img src="${d.img}" alt="${escapeHtml(title)}">${busy?`<div class="live-panel-busy"><span class="sparkle-loader">✨</span></div>`:`<img class="live-panel-magnifier" src="${IMG_WIZARD_MAGNIFIER}" alt="">`}</div>
+        ${draftHistoryHtml(d.drafts, d.currentDraftIndex)}
+        <p class="live-panel-hint">Schreib unten in den Chat, was anders sein soll – das Bild hier aktualisiert sich sofort.</p>`;
+      hasLive = true;
+    }
   }
-  const {kind, d} = currentDraft();
-  if(!d){
-    panel.innerHTML = "";
-    if(workbench) workbench.classList.remove("has-live");
-    return;
-  }
-  const targetLabel = kind === "char" ? (d.name || "die Person") : "die Szene";
-  const progressLabel = kind === "char" ? ("Person " + (state.characters.length + 1)) : ("Szene " + (state.scenes.length + 1));
-  const labelRow = `<div class="live-panel-label"><span>Was entsteht gerade</span><span>${escapeHtml(progressLabel)}</span></div>`;
-  if(!d.img){
-    // Vor der allerersten Zeichnung: Wizzelwim wartet schon (entspricht isPreviewLoading/-Empty der
-    // Design-Vorlage). Solange noch nicht wirklich generiert wird, zeigen wir den ruhigen Maskottchen-
-    // Zustand statt der pulsierenden Lade-Animation.
-    panel.innerHTML = busy
-      ? `${labelRow}<div class="live-loading"><img src="${IMG_WIZARD_MASCOT}" alt="Wizzelwim"><div style="font-size:12.5px;font-weight:700">Wizzelwim zaubert ${escapeHtml(targetLabel)} …</div><div class="bar"><i></i></div></div>`
-      : `${labelRow}<div class="live-empty"><img src="${IMG_WIZARD_MASCOT}" alt="Wizzelwim"><div>Hier entsteht gleich ${escapeHtml(targetLabel)}</div></div>`;
-    // Erst sobald wirklich ein Bild da ist, wird auf dem Handy in die 50/50-Ansicht (Bild oben,
-    // Chat unten) gewechselt – vorher bleibt es beim normalen Chat-Layout.
-    if(workbench) workbench.classList.remove("has-live");
-    return;
-  }
-  const title = kind === "char"
-    ? (d.name || "Charakter")
-    : ("Szene " + (state.scenes.length + 1) + (d.loc ? ": " + d.loc.label : ""));
-  panel.innerHTML = `
-    ${labelRow}
-    <div class="live-panel-title">${escapeHtml(title)}</div>
-    <div class="live-panel-imgwrap"><img src="${d.img}" alt="${escapeHtml(title)}">${busy?`<div class="live-panel-busy"><span class="sparkle-loader">✨</span></div>`:`<img class="live-panel-magnifier" src="${IMG_WIZARD_MAGNIFIER}" alt="">`}</div>
-    ${draftHistoryHtml(d.drafts, d.currentDraftIndex)}
-    <p class="live-panel-hint">Schreib unten in den Chat, was anders sein soll – das Bild hier aktualisiert sich sofort.</p>`;
-  if(workbench) workbench.classList.add("has-live");
+  const subheader = `<div class="preview-subheader"><div class="dot-row"><span class="live-dot-green"></span><span>Live-Vorschau</span></div><div class="dims">2048×1440</div></div>`;
+  const thumbs = (state && state.characters && state.characters.length) ? renderPreviewThumbStrip() : "";
+  const actionRow = `<div class="preview-action-row"><div class="preview-action-btn outline" onclick="previewSaveClick()">⬇️ Speichern</div><div class="preview-action-btn filled" onclick="previewShareClick()">🔗 Teilen</div></div>`;
+  panel.innerHTML = subheader + `<div class="preview-main">${mainHtml}</div>` + thumbs + actionRow;
+  if(workbench) workbench.classList.toggle("has-live", hasLive);
+  if(needsBoardWire) wireSituationBoard();
 }
 function placeholderSVG(kind){
   const w = kind==="char" ? 300 : 480, h = kind==="char" ? 400 : 270;
@@ -2001,18 +2098,29 @@ async function aiCollectCharacter(){
   await runClaudeTurn();
 }
 
-async function aiCollectScene(){
-  state.aiUnit = "scene";
-  state.phase = "ai_wait";
+function askSceneLocationAI(includeIntro){
+  // Fixe Übergangsfrage laut Vorgabe (Ort + Zeit in einer Nachricht). Bei der ersten Szene mit
+  // Intro-Satz, bei weiteren Szenen ohne (der Intro-Satz "Wir wollen nun die Szenen beginnen"
+  // passt nur beim allerersten Mal).
+  (async()=>{
+    await botSay(includeIntro
+      ? "Wir wollen nun die Szenen beginnen. Beschreibe mir erst einmal kurz: wo befinden wir uns? Im Urlaub, zu Hause, auf dem Spielplatz? Und welche Zeit haben wir? Sommer, Weihnachten oder Nachts?"
+      : "Wo befinden wir uns? Im Urlaub, zu Hause, auf dem Spielplatz? Und welche Zeit haben wir? Sommer, Weihnachten oder Nachts?");
+    state.phase = "scene_ai_place"; saveState();
+  })();
+}
+function scAiPlace(text){
+  userSay(text);
+  state.aiUnit = "scene"; state.phase = "ai_wait";
   const i = state.scenes.length + 1, n = product().scenes;
-  state.aiMessages = [{role:"user", content:`[Hinweis: Beginne locker mit der Erfassung von Szene ${i} von ${n}. Frage, wo diese Szene spielt und was dort passiert ist.]`}];
+  state.aiMessages = [{role:"user", content:`[Hinweis: Der Nutzer hat gerade Ort und Zeit für Szene ${i} von ${n} beschrieben: "${text}". Gehe jetzt direkt zu Schritt 2 über (Situationen sammeln), wie im Systemprompt beschrieben - frage NICHT nochmal nach Ort oder Zeit.]`}];
   saveState();
   // Standardweg (KI-Chat ist per Default immer aktiv, siehe chatProxyUrl()-Fallback): parallel zur
-  // offenen KI-Frage schon ein paar startklare Gag-Ideen aus der kuratierten Bibliothek anbieten,
+  // offenen KI-Antwort schon ein paar startklare Gag-Ideen aus der kuratierten Bibliothek anbieten,
   // damit niemand vor einer leeren Chateingabe sitzt. Klick auf eine Idee überspringt den KI-Chat für
   // diese Szene komplett; wer lieber frei erzählt/diktiert, tippt einfach weiter wie gewohnt.
   showQuickSceneIdeaChips();
-  await runClaudeTurn();
+  runClaudeTurn();
 }
 function pickMixedGagChips(count, excludeSet){
   const all = SCENE_LOCATIONS.flatMap(loc => GAG_LIBRARY[loc.id].map(g=>({de:g.de, en:g.en, loc})));
@@ -2154,16 +2262,65 @@ function situationPlacementText(s){
       : "";
   return `In the ${region} area of the scene: ${s.text}${prominence}.`;
 }
+// Echtes Einzelbild pro Situation (Nutzer-Vorgabe): jede Situation bekommt ihre eigene kleine
+// Vignette in wmlstil, statt nur als Text-Kreis zu existieren. Ohne Referenzbild über flux-lora
+// (Trigger "wmlstil") – dieselbe Pipeline wie die Erstgenerierung eines Charakter-Portraits.
+function situationImagePrompt(s, sceneDraft){
+  const loc = sceneDraft && sceneDraft.loc;
+  const locPart = loc && loc.en ? `, set at ${loc.en}` : "";
+  return `wmlstil, a single small self-contained illustrated vignette on a plain white background showing: ${s.text}${locPart}, flat color fill, thick black marker outline, graphic recording sketchnote style, no border, no frame, no text, no captions`;
+}
+// Erzeugt (oder überarbeitet per tweakInstruction) das Bild EINER einzelnen Situation. Tweaks laufen
+// über denselben Kontext-Edit-Weg wie Charakter-/Szenen-Änderungswünsche, mit einem Stil-Anker
+// (pickStyleRefImage), damit die kleine Vignette im selben Zeichenstil bleibt.
+async function generateSituationImage(sceneDraft, idx, opts){
+  opts = opts || {};
+  const s = sceneDraft.situations[idx];
+  if(!s) return;
+  s.drafts = s.drafts || [];
+  try{
+    const res = opts.tweakInstruction
+      ? await generateImage(kontextInstruction(opts.tweakInstruction), "scene", s.seed, s.img, pickStyleRefImage(s.img))
+      : await generateImage(situationImagePrompt(s, sceneDraft), "scene");
+    s.img = res.url;
+    if(res.seed != null) s.seed = res.seed;
+    s.drafts.push({url: res.url, seed: res.seed});
+    s.currentDraftIndex = s.drafts.length - 1;
+    s.imgError = null;
+  }catch(e){
+    s.imgError = e.message;
+  }
+  saveState();
+}
+function renderSituationsProgressPanel(sceneDraft){
+  const total = sceneDraft.situations.length;
+  const done = sceneDraft.situations.filter(s=>s.img || s.imgError).length;
+  const current = Math.min(done + 1, total);
+  return `<div class="live-panel-label"><span>Situationen zeichnen</span><span>${done}/${total}</span></div>
+    <div class="live-loading"><img src="${IMG_WIZARD_MASCOT}" alt="Wizzelwim"><div style="font-size:12.5px;font-weight:700">Wizzelwim zeichnet Situation ${current} von ${total} …</div><div class="bar"><i></i></div></div>`;
+}
+// Läuft die Liste sequenziell durch (statt parallel), damit der Fortschritt in der Vorschau sauber
+// mitzählt und fal.ai nicht mit 15 gleichzeitigen Requests überlastet wird.
+async function generateAllSituationImages(sceneDraft){
+  state.phase = "situations_generating"; state.previewFocus = null; saveState();
+  for(let i = 0; i < sceneDraft.situations.length; i++){
+    renderLivePanel(true);
+    await generateSituationImage(sceneDraft, i);
+  }
+  renderLivePanel(true);
+}
 function renderSituationBoardHtml(situations){
+  const focus = state.sceneDraft && state.sceneDraft.situationFocus;
   const bubbles = situations.map((s, i) => {
     const d = sizePx(s.size);
-    return `<div class="situation-bubble" data-idx="${i}" style="left:${s.x}%;top:${s.y}%;width:${d}px;height:${d}px;font-size:${d < 90 ? ".64rem" : ".72rem"}">${escapeHtml(s.de || s.text)}<span class="sb-remove" onclick="removeSituationBubble(event,${i})" title="entfernen">✕</span></div>`;
+    const bg = s.img ? `background-image:url('${s.img}');` : "";
+    return `<div class="situation-bubble${focus===i?" selected":""}" data-idx="${i}" style="left:${s.x}%;top:${s.y}%;width:${d}px;height:${d}px;font-size:${d < 90 ? ".64rem" : ".72rem"};${bg}" title="${escapeHtml(s.de || s.text)}">${s.img ? "" : escapeHtml(s.de || s.text)}<span class="sb-size" onclick="event.stopPropagation();cycleBubbleSize(this.parentElement)" title="Größe ändern">${s.size||"M"}</span><span class="sb-remove" onclick="removeSituationBubble(event,${i})" title="entfernen">✕</span></div>`;
   }).join("");
   const locLabel = (state.sceneDraft && state.sceneDraft.loc && state.sceneDraft.loc.label) || "";
   return `<div class="situation-board" id="situation-board-active">
     <span class="situation-board-title">Szene: ${escapeHtml(locLabel)}</span>
     <div class="situation-board-canvas">${bubbles}</div>
-    <div class="situation-board-hint">Ziehe die Kreise dahin, wo die Situation im Bild passieren soll. Ein Tipp (ohne Ziehen) auf einen Kreis ändert seine Größe – größer heißt auffälliger im fertigen Bild. ✕ entfernt eine Situation.</div>
+    <div class="situation-board-hint">Ziehe die Kreise dahin, wo die Situation im Bild passieren soll. Tippe (ohne Ziehen) auf einen Kreis, um ihn auszuwählen, und schreib dann in den Chat, was daran anders sein soll. Der kleine Kreis mit S/M/L ändert die Größe – größer heißt auffälliger im fertigen Bild. ✕ entfernt eine Situation.</div>
     <div class="situation-board-controls"><button class="chip accent" onclick="confirmSituationBoard()">🪄 Los, mach ein Bild draus!</button><span>${situations.length} Situationen</span></div>
   </div>`;
 }
@@ -2173,7 +2330,7 @@ function wireSituationBoard(){
   const canvas = boardEl.querySelector(".situation-board-canvas");
   canvas.querySelectorAll(".situation-bubble").forEach(el=>{
     el.addEventListener("pointerdown", (ev)=>{
-      if(ev.target.classList.contains("sb-remove")) return;
+      if(ev.target.classList.contains("sb-remove") || ev.target.classList.contains("sb-size")) return;
       ev.preventDefault();
       el.classList.add("dragging");
       try{ el.setPointerCapture(ev.pointerId); }catch(e){}
@@ -2196,13 +2353,22 @@ function wireSituationBoard(){
         el.classList.remove("dragging");
         canvas.removeEventListener("pointermove", move);
         canvas.removeEventListener("pointerup", up);
-        if(!moved) cycleBubbleSize(el);
+        if(!moved) selectSituationForEdit(parseInt(el.dataset.idx, 10));
         saveState();
       };
       canvas.addEventListener("pointermove", move);
       canvas.addEventListener("pointerup", up);
     });
   });
+}
+// Tippen (ohne Ziehen) wählt eine Situation aus – ein direkt danach in den Chat getippter Text wird
+// dann (siehe handleInput/applySituationTweak) als gezielter Änderungswunsch NUR für diese eine
+// Situation behandelt ("mache den Himmel wolkiger…"). Erneutes Tippen hebt die Auswahl wieder auf.
+function selectSituationForEdit(idx){
+  if(!state.sceneDraft) return;
+  state.sceneDraft.situationFocus = (state.sceneDraft.situationFocus === idx) ? null : idx;
+  saveState();
+  renderLivePanel();
 }
 function cycleBubbleSize(el){
   const idx = parseInt(el.dataset.idx, 10);
@@ -2212,36 +2378,54 @@ function cycleBubbleSize(el){
   const d = sizePx(s.size);
   el.style.width = d + "px"; el.style.height = d + "px";
   el.style.fontSize = (d < 90 ? ".64rem" : ".72rem");
+  const badge = el.querySelector(".sb-size");
+  if(badge) badge.textContent = s.size;
   saveState();
 }
 function removeSituationBubble(ev, idx){
   ev.stopPropagation();
   if(!state.sceneDraft || !state.sceneDraft.situations || state.sceneDraft.situations.length <= 1) return;
   state.sceneDraft.situations.splice(idx, 1);
+  if(state.sceneDraft.situationFocus === idx) state.sceneDraft.situationFocus = null;
   saveState();
   const boardEl = document.getElementById("situation-board-active");
   if(boardEl){ boardEl.outerHTML = renderSituationBoardHtml(state.sceneDraft.situations); wireSituationBoard(); }
 }
+// Nutzer-Vorgabe (wörtlich übernommen): Text direkt vor dem Anordnen-Schritt.
 function confirmSituationBoard(){
   userSay("🪄 Los, mach ein Bild draus!");
   clearChips();
   (async()=>{
-    // Storyline "Wizzelwim & die Wimmels", Abschnitt 3: feste Variante direkt vor der Bildgenerierung.
     await botSay("Alle Rollen sind verteilt, die Kostüme sitzen.", {log:false});
     await botSay("Und jetzt: wimmeln! ✨", {log:false, delay:500});
     generateScene(GEN_OP.INITIAL);
+  })();
+}
+// Gezielter Änderungswunsch an EINER Situation, während sie im Board ausgewählt ist (siehe
+// selectSituationForEdit/handleInput). Regeneriert nur das Bild dieser einen Situation.
+function applySituationTweak(text){
+  const sd = state.sceneDraft;
+  const idx = sd ? sd.situationFocus : null;
+  const s = sd && idx != null ? sd.situations[idx] : null;
+  if(!s){ botSay("Hoppla, dazu fehlt mir gerade die Situation.", {log:false}); return; }
+  userSay(text);
+  (async()=>{
+    await botSay(`Alles klar, ich passe „${escapeHtml(s.de || s.text)}“ an. 🪄`, {log:false});
+    renderLivePanel(true);
+    await generateSituationImage(sd, idx, {tweakInstruction: translate(text)});
+    renderLivePanel();
+    await botSay("Fertig! Schau in der Vorschau. 🔍", {log:false});
   })();
 }
 async function renderSituationBoard(){
   // Design-Vorlage "Image Studio Chat": das Anordnen der Situationen gehört in die Vorschau (per
   // Drag, Landschaftsformat), nicht in eine Chat-Bubble – Chat bekommt nur einen kurzen Hinweis
   // + den Chip-Ersatz "🪄 Los, mach ein Bild draus!" lebt direkt im Board selbst (siehe
-  // renderSituationBoardHtml). state.previewFocus wird geleert, damit nicht versehentlich noch ein
-  // Charakter-Sheet vor dem Board hängen bleibt.
-  state.phase = "scene_board"; state.previewFocus = null; saveState();
+  // renderSituationBoardHtml).
+  state.phase = "scene_board"; saveState();
   switchToPreviewAuto();
   renderLivePanel();
-  await botSay("Ordnet die Situationen in der Vorschau an – tippt dann auf „🪄 Los, mach ein Bild draus!“.", {log:false});
+  await botSay("Bevor wir diese ganzen Situationen nun in ein großes Bild gießen, lass sie uns erst einmal grob anordnen … gehe dazu bitte in die Vorschau und drehe Dein Handy ins Querformat.", {log:false});
 }
 async function handleSceneTool(input){
   // Seed + Entwurfs-Historie vom vorherigen Entwurf übernehmen (falls schon generiert) –
@@ -2288,11 +2472,15 @@ async function handleSceneTool(input){
   situations = situations.map((s, i) => ({...s, x: positions[i].x, y: positions[i].y, size: "M"}));
 
   state.sceneDraft = {
-    loc, story: input.summary_de || "", extras: [], situations,
+    loc, story: input.summary_de || "", extras: [], situations, situationFocus: null,
     prompt: null, tweakInstruction: null,
     img: null, seed: undefined, drafts: [], currentDraftIndex: undefined
   };
   saveState();
+  // Nutzer-Vorgabe: jede Situation bekommt ein echtes Einzelbild (nicht nur einen Text-Kreis),
+  // bevor es ins Anordnen geht.
+  await botSay("Ich zeichne jetzt jede Situation einzeln – schaut in der Vorschau vorbei, dort baut sich gerade alles auf. 🎨", {log:false});
+  await generateAllSituationImages(state.sceneDraft);
   await renderSituationBoard();
 }
 
@@ -2302,28 +2490,58 @@ function startChat(){
   // jede Zeile eine eigene Bubble, danach nahtloser Übergang in die erste Briefing-Frage.
   state.phase = "welcome"; saveState();
   (async()=>{
-    await botSay("Hi, ich bin Wizzelwim. 👋");
-    await botSay("Und das da hinten sind alle anderen: die Wimmels. Wir sind… viele.", {delay:400});
-    await botSay("Wir lieben es, uns zu verkleiden und Erinnerungen nachzuspielen. Eure zum Beispiel.", {delay:400});
-    await botSay("Erzähl mir von deiner Familie: Wer gehört dazu?", {delay:400});
-    offerCharCreationEntry(true);
+    await botSay("Hi, ich bin der WizzelWim. Ich mache aus Deinen Beschreibungen Dein individuelles Wimmelbild.");
+    await botSay("Ich erkläre Dir kurz, wie es funktioniert.", {delay:400});
+    await botSay("Zunächst beschreibst Du mir die Personen, die Du gerne in Deinem Wimmelbild wiederfinden willst. Wenn Du ein Buch machst, dann findest Du diese in jedem Bild wieder.", {delay:400});
+    await botSay("Für jede Person bekommst Du ein „Character Sheet“, auf dem Du die Figur aus verschiedenen Seiten anschauen kannst. Du kannst natürlich jederzeit Änderungen an ihnen vornehmen.", {delay:400});
+    await botSay("Wenn wir alle Personen haben, machen wir uns an die Szenen, also das Wimmelbild selbst. Jede Szene besteht aus verschiedenen Situationen – den kleinen Details, die es zu entdecken gilt. Damit es schön wimmelt, brauchen wir mindestens 15 solcher Situationen pro Szene. Aber keine Sorge, Du musst sie Dir nicht alle ausdenken – wir ergänzen gerne durch die ein oder andere Überraschung.", {delay:400});
+    await botSay("Erst wenn alles für Dich passt, gehen wir in den letzten Schritt, die Bestellung.", {delay:400});
+    await botSay("Aber lass uns jetzt erst mal anfangen, ich führe Dich entsprechend durch.", {delay:400});
+    await botSay("Mit wem wollen wir starten?", {delay:400});
+    state.phase = "ask_who"; saveState();
   })();
 }
 function offerCharCreationEntry(isFirst){
-  // Zwei gleichwertige, sympathisch angebotene Wege: Person beschreiben (bewährt) oder ein
-  // Foto hochladen, aus dem der Wizzard direkt eine Illustration im wmlstil-Look zaubert.
-  // previewFocus leeren: ein evtl. noch angepinntes Charakter-Sheet der letzten Person soll nicht
-  // die Vorschau der NÄCHSTEN Person verdecken, sobald deren Generierung startet.
+  // Neuer Ablauf laut Vorgabe: kein Wahl-Chip mehr ("Beschreiben" vs. "Foto") - wir fragen
+  // direkt nach dem Namen (ask_who), danach nach Beschreibung ODER Foto in einem Schritt
+  // (ask_describe). previewFocus leeren: ein evtl. noch angepinntes Charakter-Sheet der
+  // letzten Person soll nicht die Vorschau der NÄCHSTEN Person verdecken.
   state.previewFocus = null; saveState();
   (async()=>{
-    await botSay(isFirst
-      ? "Wie willst Du vorgehen?"
-      : "Wer kommt als N\u00e4chstes? Beschreiben oder Foto hochladen \u2013 wie du magst.");
-    state.phase = "char_intro_choice"; saveState();
-    showChips([
-      {label:"\u270f\ufe0f Beschreiben", action:()=>{ userSay("\u270f\ufe0f Beschreiben"); startCharDescribe(); }},
-      {label:"\ud83d\udcf7 Foto hochladen", action:()=>{ userSay("\ud83d\udcf7 Foto hochladen"); startCharPhotoUpload(); }}
-    ]);
+    if(!isFirst) await botSay("Wer kommt als Nächstes?");
+    state.phase = "ask_who"; saveState();
+  })();
+}
+function chWho(text){
+  userSay(text);
+  // Groben Namen aus der freien Eingabe herausschälen (z.B. "sie heißt Mia" -> "Mia").
+  const cleaned = text.trim()
+    .replace(/^(er|sie|es)?\s*(heißt|heisst)\s*/i,"")
+    .replace(/^(unser|unsere|mein|meine)\s+\S+\s+(heißt|heisst)?\s*/i,"");
+  const rawName = (cleaned.split(/\s+/)[0] || "").replace(/[^A-Za-zÄÖÜäöüß\-]/g,"") || cleaned || "Kind";
+  const finalName = cap(rawName);
+  state.currentPersonName = finalName;
+  state.charDraft = {name: finalName, spec: makeCharacterSpec({name: finalName, sourceType: "text"})};
+  saveState();
+  (async()=>{
+    await botSay(`Super! Du kannst mir ${escapeHtml(finalName)} einfach beschreiben oder Du lädst ein Foto über die Anhang-Funktion links unten hoch. Nutze auch gerne die Spracheingabe.`);
+    state.phase = "ask_describe"; saveState();
+    applyTabUI();
+  })();
+}
+function scDescribeCharacter(text){
+  userSay(text);
+  if(useAI()){
+    state.aiUnit = "character"; state.phase = "ai_wait";
+    state.aiMessages = [{role:"user", content:`[Hinweis: Der Name der Person steht schon fest: "${state.currentPersonName}". Der Nutzer beschreibt sie gerade so - sammle die übrigen Merkmale (wer sie ist, ggf. Alter, Haare, Kleidung, Erkennungsmerkmal) im natürlichen Gespräch, ohne nochmal nach dem Namen zu fragen: ${text}]`}];
+    saveState();
+    applyTabUI();
+    return runClaudeTurn();
+  }
+  (async()=>{
+    await botSay(`Und wer ist ${escapeHtml(state.currentPersonName)} bei euch?`);
+    state.phase = "char_role"; saveState();
+    showChips(Object.keys(ROLE_MAP).map(r=>({label:r, action:()=>chRole(r)})).concat([{label:"✏️ Etwas anderes", action:()=>{ userSay("Etwas anderes"); botSay("Erzähl – wer ist es? (z.B. „Tante“, „bester Freund“, „unser Hund Bello“ 🐶)"); state.phase="char_role_custom"; saveState(); }}]));
   })();
 }
 function startCharDescribe(){
@@ -2427,11 +2645,11 @@ function startCharTraitsExtraction(){
   const dataUri = pendingPhotoDataUri;
   pendingPhotoDataUri = null;
   state.charDraft = {
-    name: "", roleLabel: "", role: null, age: null, hair: "", clothing: "", feature: "",
+    name: state.currentPersonName || "", roleLabel: "", role: null, age: null, hair: "", clothing: "", feature: "",
     // sourcePhoto bleibt nur als Metadatum erhalten (z.B. f\u00fcr den optionalen Experimentalmodus) \u2013
     // der regul\u00e4re Weg verwendet es NICHT mehr als aktiven Bearbeitungs-Ausgangspunkt.
     fromPhoto: true, sourcePhoto: dataUri,
-    spec: makeCharacterSpec({sourceType: "photo_extraction"}),
+    spec: makeCharacterSpec({name: state.currentPersonName || "", sourceType: "photo_extraction"}),
     prompt: null, drafts: [], seed: null
   };
   state.phase = "char_photo_extracting"; saveState();
@@ -2483,6 +2701,18 @@ function chPhotoTraitsCorrect(text){
 }
 function confirmPhotoTraits(){
   userSay("\u2705 Passt, zeichnen!");
+  const c = state.charDraft;
+  if(state.currentPersonName){
+    // Name ist schon aus ask_who bekannt (neuer Ablauf) - nicht nochmal fragen, direkt zur Rolle.
+    c.name = state.currentPersonName; c.spec.name = state.currentPersonName;
+    saveState();
+    (async()=>{
+      await botSay(`Und wer ist ${escapeHtml(state.currentPersonName)} bei euch?`);
+      state.phase = "char_role_photo"; saveState();
+      showChips(Object.keys(ROLE_MAP).map(r=>({label:r, action:()=>chRoleForPhoto(r)})).concat([{label:"\u270f\ufe0f Etwas anderes", action:()=>{ userSay("Etwas anderes"); botSay("Erz\u00e4hl \u2013 wer ist es?"); state.phase="char_role_custom_photo"; saveState(); }}]));
+    })();
+    return;
+  }
   (async()=>{
     await botSay("Wie hei\u00dft diese Person?");
     state.phase = "char_photo_name"; saveState();
@@ -2575,6 +2805,9 @@ function looksLikeAcceptance(text){
 function handleInput(text){
   const p = state.phase;
   if(!p) return;
+  // Nutzer-Vorgabe: im Anordnen-Board angetippte Situationen lassen sich jederzeit per Chat-Text
+  // gezielt nachbessern ("mache den Himmel wolkiger…"), ohne die ganze Szene neu anzustoßen.
+  if(p==="scene_board" && state.sceneDraft && state.sceneDraft.situationFocus != null) return applySituationTweak(text);
   if(p==="ai_wait") return runClaudeTurn(text);
   if(p==="char_tweak_free") return chTweakFree(text);
   if(p==="scene_tweak_free") return scTweakFree(text);
@@ -2590,6 +2823,9 @@ function handleInput(text){
     if(useAI()){ primeAIMessagesForSceneTweak(); state.aiUnit = "scene"; state.phase = "ai_wait"; saveState(); return runClaudeTurn(text); }
     return scTweakFree(text);
   }
+  if(p==="ask_who") return chWho(text);
+  if(p==="ask_describe") return scDescribeCharacter(text);
+  if(p==="scene_ai_place") return scAiPlace(text);
   if(p==="char_name") return chName(text);
   if(p==="char_photo_name") return chNameForPhoto(text);
   if(p==="char_role_custom_photo") return chRoleCustomForPhoto(text);
@@ -2610,6 +2846,12 @@ function handleInput(text){
       {label:"🪄 Ja, zaubern!", accent:true, action:generateCharSheet},
       {label:"✏️ Nochmal ändern", action:()=>{ userSay("Nochmal ändern"); botSay("Kein Problem – wie heißt die Person?"); state.phase="char_name"; saveState(); }}
     ]);
+    return;
+  }
+  if(p==="scene_board"){
+    // Text ohne ausgewählte Situation: kurzer Hinweis statt der generischen Fallback-Nachricht.
+    userSay(text);
+    botSay("Tipp erst in der Vorschau auf die Situation, die du meinst, dann schreib mir hier, was daran anders sein soll. 🎯", {log:false});
     return;
   }
   botSay("Wähle am besten oben eine der Optionen aus. 😊", {log:false});
@@ -2840,11 +3082,7 @@ function startScenes(){
   const n = product().scenes;
   (async()=>{
     await botSay(`Was für eine Truppe: <b>${state.characters.map(c=>c.name).join(", ")}</b>! 💚`);
-    // Onboarding-Erklärung (Nutzer-Feedback: Kunde soll erst verstehen, wie ein Wimmelbild bei uns
-    // aufgebaut ist, bevor die eigentliche Erfassung losgeht) – läuft nur EINMAL vor der ersten Szene,
-    // nicht vor jeder weiteren, da es sich um eine allgemeine Konzept-Erklärung handelt.
-    await botSay(`Ein Wimmelbild ist für uns eine Szene. Damit es schön wimmelt, besteht eine Szene immer aus vielen verschiedenen Situationen. Beschreibe mir erst einmal das Setting der Szene – also wo befinden wir uns? Dann besprechen wir die einzelnen Situationen. Damit es schön wimmelt, braucht ein Bild mindestens 15 verschiedene Situationen. Keine Sorge, du musst sie nicht alle ausdenken. Ich ergänze bei Bedarf gerne um ein paar Überraschungen. Zuletzt setzen wir die Situationen erst einmal strukturell zusammen. Dann mache ich daraus ein großes Bild.`);
-    if(useAI()) aiCollectScene(); else nextScene();
+    if(useAI()) askSceneLocationAI(true); else nextScene();
   })();
 }
 function nextScene(){
@@ -2984,9 +3222,11 @@ async function generateScene(operation){
     if(isTweak){
       res = await generateImage(kontextInstruction(s.tweakInstruction || s.prompt), "scene", s.seed, s.img, pickSceneCharacterRefs(s.img));
     } else {
-      const refs = pickSceneCharacterRefs();
-      res = refs.length
-        ? await generateImage(sceneComposeInstruction(s), "scene", undefined, refs[0], refs.slice(1))
+      const charRefs = pickSceneCharacterRefs().slice(0, 8);
+      const situationRefs = pickSceneSituationRefs(s, Math.max(0, 13 - charRefs.length));
+      const allRefs = [...charRefs, ...situationRefs];
+      res = allRefs.length
+        ? await generateImage(sceneComposeInstruction(s, charRefs.length), "scene", undefined, allRefs[0], allRefs.slice(1))
         : await generateImage(s.prompt, "scene");
     }
     s.img = res.url;
@@ -3025,7 +3265,7 @@ function acceptScene(userText){
     if(k < n){
       if(k === Math.ceil(n/2)) await botSay(`Halbzeit! 🥳 Schon <b>${k} von ${n}</b> Szenen im Kasten. Du kannst übrigens jederzeit pausieren – alles ist gespeichert.`);
       else await botSay(`<b>${k} von ${n}</b> Szenen fertig! Weiter geht's. 💪`);
-      if(useAI()) aiCollectScene(); else nextScene();
+      if(useAI()) askSceneLocationAI(false); else nextScene();
     } else finishScenes();
   })();
 }
