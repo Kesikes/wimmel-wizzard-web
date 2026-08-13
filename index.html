@@ -170,11 +170,11 @@ input,textarea,select{font-family:inherit;font-size:16px}
 .progress-bar{flex:1;height:8px;background:rgba(255,255,255,0.35);border-radius:999px;overflow:hidden}
 .progress-fill{height:100%;width:0%;background:#fff;border-radius:999px;transition:width .5s ease}
 .progress-pct{font-size:.78rem;font-weight:800;color:#fff}
-.app-body{max-width:1080px;margin:0 auto;width:100%;display:flex;gap:28px;flex:1;min-height:0;align-items:flex-start;padding-top:86px}
+.app-body{max-width:1080px;margin:0 auto;width:100%;display:flex;gap:28px;flex:1;min-height:0;align-items:flex-start;padding-top:99px}
 .chat-col{flex:1;min-width:0;display:flex;flex-direction:column;min-height:0}
 .side-col{display:none}
 @media (min-width:1180px){
-  .side-col{display:flex;flex-direction:column;gap:16px;width:280px;flex-shrink:0;position:sticky;top:96px;max-height:calc(100vh - 100px);overflow-y:auto;padding-bottom:20px}
+  .side-col{display:flex;flex-direction:column;gap:16px;width:280px;flex-shrink:0;position:sticky;top:109px;max-height:calc(100vh - 119px);overflow-y:auto;padding-bottom:20px}
   .side-card{background:#fff;border-radius:16px;padding:16px;box-shadow:var(--shadow-sm)}
   .side-card h4{font-family:'Nunito',sans-serif;font-weight:800;font-size:11px;margin-bottom:10px;color:rgba(58,42,30,0.5);letter-spacing:.3px;text-transform:uppercase}
   .side-chars{display:flex;flex-direction:column;gap:8px}
@@ -190,7 +190,7 @@ input,textarea,select{font-family:inherit;font-size:16px}
    Ersetzt das frühere Split-Panel (Chat+Bild gleichzeitig sichtbar): auf ALLEN Bildschirmgrößen
    ist jeweils genau EIN Tab aktiv, Wechsel per Klick oder automatisch bei Generierung/Ergebnis
    (siehe applyTabUI/switchToPreviewAuto/switchToChatAuto in der App-Logik). */
-.chat-tabbar{display:flex;height:46px;flex-shrink:0;background:#FFFBF3;border-bottom:1px solid rgba(58,42,30,0.1);position:sticky;top:86px;z-index:20}
+.chat-tabbar{display:flex;height:46px;flex-shrink:0;background:#FFFBF3;border-bottom:1px solid rgba(58,42,30,0.1);position:sticky;top:99px;z-index:20}
 .chat-tab{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;border-bottom:3px solid transparent;color:rgba(58,42,30,0.45);font-family:'Nunito',sans-serif;font-size:14px;font-weight:800;transition:color .15s,border-color .15s;position:relative}
 .chat-tab .tab-ico{font-size:15px}
 .chat-tab.active{border-bottom-color:var(--accent);color:var(--brand-blue)}
