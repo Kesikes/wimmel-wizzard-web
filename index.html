@@ -1314,10 +1314,15 @@ function showPanel(p){
    Design-Vorlage "Image Studio Chat" (README.md): statt Chat und Bild dauerhaft nebeneinander/
    übereinander zu zeigen (früheres Split-Panel), gibt es jetzt genau zwei Tabs. isBusyPhase()
    entscheidet, ob im Chat-Tab noch getippt werden kann oder stattdessen ein Hinweis-Banner zur
-   Vorschau nudged (Bild wird gezeichnet / Situationen werden gerade angeordnet). */
+   Vorschau nudged (Bild wird gezeichnet / Situationen werden gerade angeordnet).
+   WICHTIG (beim Live-Test gefunden): state.phase bleibt nach einer erfolgreichen Generierung
+   bewusst auf "char_generating"/"scene_generating" stehen (siehe Resume-Logik in enterApp()) –
+   ein reiner Phase-Check hätte das Banner also fälschlich hängen lassen, obwohl Behalten/Ändern/
+   Nochmal-zaubern-Chips längst warten. uiGenerating (gesetzt in renderLivePanel) ist das exakte
+   Zeitfenster "gerade läuft wirklich ein generateImage()-Aufruf" und daher das richtige Signal;
+   nur beim Situationen-Board (kein Bild-Request, reine Drag-Interaktion) bleibt der Phase-Check nötig. */
 function isBusyPhase(){
-  return state.phase === "char_generating" || state.phase === "char_sheet_generating"
-    || state.phase === "scene_generating" || state.phase === "scene_board";
+  return uiGenerating || state.phase === "scene_board";
 }
 function applyTabUI(){
   const wb = $("chat-workbench");
