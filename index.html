@@ -150,27 +150,31 @@ input,textarea,select{font-family:inherit;font-size:16px}
 
 /* ---------- App shell ---------- */
 .app{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;background:var(--bg)}
-.app-top{position:fixed;top:0;left:0;right:0;z-index:50;background:linear-gradient(135deg,#FFC94A,#F5A623);border-bottom:1px solid rgba(58,42,30,0.08)}
-.app-top-inner{max-width:1080px;margin:0 auto;display:flex;align-items:center;gap:8px;padding:12px 20px;flex-wrap:wrap}
-.brand-link{display:flex;align-items:center;gap:9px;cursor:pointer;border-radius:10px;padding:4px 6px;margin:-4px -6px;transition:background .15s}
-.brand-link:hover{background:var(--bg-deep)}
-.brand-link span.wlogo{margin:0}
-.brand-txt{font-family:'Baloo 2',sans-serif;font-weight:800;font-size:1.1rem;color:var(--brand-blue);white-space:nowrap}
-.app-title{font-family:'Nunito',sans-serif;font-weight:700;font-size:.85rem;color:rgba(45,117,144,0.75);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left}
-.topbar-btn{display:inline-flex;align-items:center;gap:7px;background:#fff;border-radius:999px;padding:9px 16px;font-weight:800;font-size:.88rem;color:var(--ink);box-shadow:var(--shadow-sm);flex-shrink:0;white-space:nowrap}
-.topbar-btn:hover{background:var(--bg-deep)}
-.spacer{flex-basis:100%;height:0}
-@media (min-width:640px){ .spacer{flex-basis:0;height:auto;flex:1} }
-@media (max-width:639px){ .topbar-btn{padding:9px 11px;font-size:.8rem} }
-.progress-wrap{max-width:1080px;margin:0 auto;display:flex;align-items:center;gap:10px;padding:0 20px 10px}
-.progress-bar{flex:1;height:8px;background:var(--line);border-radius:999px;overflow:hidden}
-.progress-fill{height:100%;width:0%;background:var(--accent);border-radius:999px;transition:width .5s ease}
-.progress-pct{font-size:.78rem;font-weight:800;color:var(--muted2)}
-.app-body{max-width:1080px;margin:0 auto;width:100%;display:flex;gap:28px;flex:1;min-height:0;align-items:flex-start;padding-top:106px}
+.app-top{position:fixed;top:0;left:0;right:0;z-index:50}
+/* Gelber Streifen: exakt wie auf der Landingpage (.sticky-cta) - selbe Gradient-Farben, selbes
+   Logo/Text-Maß, selbe Innenabstände, damit die Kopfzeile in App und Landingpage gleich hoch ist. */
+.app-top-inner{background:linear-gradient(135deg,#FFC94A,#F5A623);border-bottom:1px solid rgba(58,42,30,0.08);display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 18px}
+.brand-link{display:flex;align-items:center;gap:8px;cursor:pointer;border-radius:10px;padding:4px 6px;margin:-4px -6px;transition:background .15s}
+.brand-link:hover{background:rgba(255,255,255,0.25)}
+.brand-link .wlogo{width:28px;height:28px;border-radius:9px;margin:0}
+.brand-txt{font-family:'Nunito',sans-serif;font-weight:700;font-size:15px;color:var(--brand-blue);white-space:nowrap}
+.topbar-btns{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.topbar-btn{display:inline-flex;align-items:center;gap:6px;background:var(--accent);color:#fff;border-radius:12px;padding:10px 18px;font-family:'Nunito',sans-serif;font-weight:800;font-size:13.5px;white-space:nowrap}
+.topbar-btn:hover{filter:brightness(1.08)}
+@media (max-width:639px){ .topbar-btn{padding:9px 13px;font-size:12.5px} }
+/* Blauer Streifen darunter (analog dem Vorschau-/Hero-Blau der Landingpage): zeigt Fortschritt
+   und aktuelle Szene/Etappe - bewusst schmal, nicht die volle Hero-Höhe der Landingpage. */
+.progress-strip{width:100%;background:linear-gradient(135deg,#6FC4DE,#2D7590)}
+.progress-wrap{max-width:1080px;margin:0 auto;display:flex;align-items:center;gap:10px;padding:9px 20px}
+.app-title{font-family:'Nunito',sans-serif;font-weight:700;font-size:.85rem;color:#fff;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left}
+.progress-bar{flex:1;height:8px;background:rgba(255,255,255,0.35);border-radius:999px;overflow:hidden}
+.progress-fill{height:100%;width:0%;background:#fff;border-radius:999px;transition:width .5s ease}
+.progress-pct{font-size:.78rem;font-weight:800;color:#fff}
+.app-body{max-width:1080px;margin:0 auto;width:100%;display:flex;gap:28px;flex:1;min-height:0;align-items:flex-start;padding-top:86px}
 .chat-col{flex:1;min-width:0;display:flex;flex-direction:column;min-height:0}
 .side-col{display:none}
 @media (min-width:1180px){
-  .side-col{display:flex;flex-direction:column;gap:16px;width:280px;flex-shrink:0;position:sticky;top:96px;max-height:calc(100vh - 116px);overflow-y:auto;padding-bottom:20px}
+  .side-col{display:flex;flex-direction:column;gap:16px;width:280px;flex-shrink:0;position:sticky;top:96px;max-height:calc(100vh - 100px);overflow-y:auto;padding-bottom:20px}
   .side-card{background:#fff;border-radius:16px;padding:16px;box-shadow:var(--shadow-sm)}
   .side-card h4{font-family:'Nunito',sans-serif;font-weight:800;font-size:11px;margin-bottom:10px;color:rgba(58,42,30,0.5);letter-spacing:.3px;text-transform:uppercase}
   .side-chars{display:flex;flex-direction:column;gap:8px}
@@ -186,7 +190,7 @@ input,textarea,select{font-family:inherit;font-size:16px}
    Ersetzt das frühere Split-Panel (Chat+Bild gleichzeitig sichtbar): auf ALLEN Bildschirmgrößen
    ist jeweils genau EIN Tab aktiv, Wechsel per Klick oder automatisch bei Generierung/Ergebnis
    (siehe applyTabUI/switchToPreviewAuto/switchToChatAuto in der App-Logik). */
-.chat-tabbar{display:flex;height:46px;flex-shrink:0;background:#FFFBF3;border-bottom:1px solid rgba(58,42,30,0.1)}
+.chat-tabbar{display:flex;height:46px;flex-shrink:0;background:#FFFBF3;border-bottom:1px solid rgba(58,42,30,0.1);position:sticky;top:86px;z-index:20}
 .chat-tab{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;border-bottom:3px solid transparent;color:rgba(58,42,30,0.45);font-family:'Nunito',sans-serif;font-size:14px;font-weight:800;transition:color .15s,border-color .15s;position:relative}
 .chat-tab .tab-ico{font-size:15px}
 .chat-tab.active{border-bottom-color:var(--accent);color:var(--brand-blue)}
@@ -289,7 +293,12 @@ input,textarea,select{font-family:inherit;font-size:16px}
 .preview-thumb.active .dot{border-color:var(--brand-blue)}
 .preview-thumb .dot img{width:100%;height:100%;object-fit:cover;object-position:top}
 .preview-thumb span{font-size:10px;color:rgba(58,42,30,0.6);max-width:52px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.preview-action-row{flex-shrink:0;display:grid;grid-template-columns:1fr 1fr;gap:8px;padding-top:10px;margin-top:6px;border-top:1px solid rgba(58,42,30,0.1)}
+.preview-gallery{display:flex;flex-direction:column;gap:14px}
+.preview-gallery-item img{width:100%;display:block;border-radius:12px;border:2px solid rgba(58,42,30,0.12);box-shadow:0 12px 20px -8px rgba(45,117,144,0.25)}
+.preview-gallery-cap{display:flex;align-items:center;justify-content:space-between;margin-top:6px;font-family:'Nunito',sans-serif}
+.preview-gallery-cap span:first-child{font-size:12.5px;font-weight:800;color:var(--ink)}
+.preview-gallery-tag{font-size:10.5px;font-weight:700;color:var(--brand-blue);background:rgba(45,117,144,0.1);padding:2px 8px;border-radius:999px}
+.preview-action-row{flex-shrink:0;display:grid;grid-template-columns:1fr;gap:8px;padding-top:10px;margin-top:6px;border-top:1px solid rgba(58,42,30,0.1)}
 .preview-action-btn{display:flex;align-items:center;justify-content:center;gap:6px;padding:10px 16px;border-radius:12px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:800;cursor:pointer}
 .preview-action-btn.outline{border:1px solid rgba(58,42,30,0.15);color:var(--ink)}
 .preview-action-btn.filled{background:var(--accent);color:#fff}
@@ -626,17 +635,18 @@ input,textarea,select{font-family:inherit;font-size:16px}
     <div class="app-top-inner">
       <span class="brand-link" onclick="goHome()" title="Zur Startseite" role="button" tabindex="0" onkeydown="if(event.key==='Enter')goHome()">
         <span class="wlogo"></span><span class="brand-txt">WizzelWim</span>
+        <span class="live-indicator" id="live-indicator"><span class="live-dot"></span>Live</span>
       </span>
-      <span class="live-indicator" id="live-indicator"><span class="live-dot"></span>Live</span>
-      <span class="spacer"></span>
-      <button class="topbar-btn" onclick="confirmResetAll()" title="Ganz von vorn beginnen">Von Vorne</button>
-      <button class="topbar-btn" onclick="goHome()" title="Zur Startseite">Home</button>
+      <span class="topbar-btns">
+        <button class="topbar-btn" onclick="confirmResetAll()" title="Ganz von vorn beginnen">Von Vorne</button>
+        <button class="topbar-btn" onclick="goHome()" title="Zur Startseite">Home</button>
+      </span>
     </div>
-    <div class="progress-wrap">
+    <div class="progress-strip"><div class="progress-wrap">
       <span class="app-title" id="progress-step">WizzelWim</span>
       <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
       <span class="progress-pct" id="progress-pct"></span>
-    </div>
+    </div></div>
   </div>
 
   <div class="app-body">
@@ -1892,6 +1902,21 @@ function previewDefaultCardHtml(kind){
   }
   return `<div class="preview-default-card"><span class="pdc-icon">${icon}</span><span class="pdc-label">${label}</span><span class="pdc-sub">${sub}</span></div>`;
 }
+// Standard-Ansicht der Vorschau, sobald gerade nichts aktiv bearbeitet/generiert wird: statt einer
+// einzelnen Platzhalter-Karte zeigen wir alle bisher fertigen Bilder (Charaktere + Szenen)
+// untereinander, wie ein wachsendes Buch-Vorschau. Ist noch gar nichts fertig, bleibt die alte
+// Platzhalter-Karte (previewDefaultCardHtml) als Einstieg bestehen.
+function renderPreviewGalleryHtml(){
+  const items = [];
+  (state.characters || []).forEach(c=>{ if(c.img) items.push({label: c.name, img: c.img, tag:"Charakter"}); });
+  (state.scenes || []).forEach((s,i)=>{ if(s.img) items.push({label:`Szene ${i+1}${s.loc?": "+s.loc.label:""}`, img: s.img, tag:"Szene"}); });
+  if(items.length === 0) return previewDefaultCardHtml(null);
+  return `<div class="preview-gallery">${items.map(it=>`
+    <div class="preview-gallery-item">
+      <img src="${it.img}" alt="${escapeHtml(it.label)}">
+      <div class="preview-gallery-cap"><span>${escapeHtml(it.label)}</span><span class="preview-gallery-tag">${it.tag}</span></div>
+    </div>`).join("")}</div>`;
+}
 // Charakter-Streifen unten im Vorschau-Tab (über Speichern/Teilen) – ersetzt den früheren Streifen
 // oberhalb der Tabs, siehe renderCharStrip(). Tippen fokussiert das Charakter-Sheet dieser Person.
 function renderPreviewThumbStrip(){
@@ -1902,7 +1927,6 @@ function renderPreviewThumbStrip(){
     </div>`).join("")}</div>`;
 }
 function previewSaveClick(){ toast("Speichern kommt bald! 📥"); }
-function previewShareClick(){ toast("Teilen kommt bald! 🔗"); }
 function renderLivePanelInner(busy){
   const panel = $("live-panel");
   if(!panel) return;
@@ -1926,7 +1950,9 @@ function renderLivePanelInner(busy){
   } else {
     const {kind, d} = currentDraft();
     if(!d){
-      mainHtml = previewDefaultCardHtml(kind);
+      // Kein Kind aktiv im Aufbau (kind===null) => echte Ruhe-Phase (Begrüßung, Namensfrage,
+      // zwischen zwei Szenen, Zusammenfassung, …): dann die gesammelte Galerie statt Platzhalter.
+      mainHtml = kind ? previewDefaultCardHtml(kind) : renderPreviewGalleryHtml();
     } else if(!d.img){
       // Vor der allerersten Zeichnung: Wizzelwim wartet schon (entspricht isPreviewLoading der
       // Design-Vorlage). Solange noch nicht wirklich generiert wird, zeigen wir die ruhige
@@ -1954,7 +1980,7 @@ function renderLivePanelInner(busy){
   }
   const subheader = `<div class="preview-subheader"><div class="dot-row"><span class="live-dot-green"></span><span>Live-Vorschau</span></div><div class="dims">2048×1440</div></div>`;
   const thumbs = (state && state.characters && state.characters.length) ? renderPreviewThumbStrip() : "";
-  const actionRow = `<div class="preview-action-row"><div class="preview-action-btn outline" onclick="previewSaveClick()">⬇️ Speichern</div><div class="preview-action-btn filled" onclick="previewShareClick()">🔗 Teilen</div></div>`;
+  const actionRow = `<div class="preview-action-row"><div class="preview-action-btn filled" onclick="previewSaveClick()">⬇️ Speichern</div></div>`;
   panel.innerHTML = subheader + `<div class="preview-main">${mainHtml}</div>` + thumbs + actionRow;
   if(workbench) workbench.classList.toggle("has-live", hasLive);
   if(needsBoardWire) wireSituationBoard();
