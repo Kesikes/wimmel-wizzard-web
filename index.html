@@ -182,15 +182,30 @@ input,textarea,select{font-family:inherit;font-size:16px}
   .side-empty{font-size:.8rem;color:var(--muted2)}
 }
 
+/* ---------- Chat / Vorschau Tab-Bar (Design-Vorlage "Image Studio Chat") ----------
+   Ersetzt das frühere Split-Panel (Chat+Bild gleichzeitig sichtbar): auf ALLEN Bildschirmgrößen
+   ist jeweils genau EIN Tab aktiv, Wechsel per Klick oder automatisch bei Generierung/Ergebnis
+   (siehe applyTabUI/switchToPreviewAuto/switchToChatAuto in der App-Logik). */
+.chat-tabbar{display:flex;height:46px;flex-shrink:0;background:#FFFBF3;border-bottom:1px solid rgba(58,42,30,0.1)}
+.chat-tab{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;border-bottom:3px solid transparent;color:rgba(58,42,30,0.45);font-family:'Nunito',sans-serif;font-size:14px;font-weight:800;transition:color .15s,border-color .15s;position:relative}
+.chat-tab .tab-ico{font-size:15px}
+.chat-tab.active{border-bottom-color:var(--accent);color:var(--brand-blue)}
+.chat-tab .tab-gen-badge{font-size:11px;margin-left:1px}
+@keyframes pulse-op{0%,100%{opacity:1}50%{opacity:.35}}
+.live-indicator{display:none;align-items:center;gap:5px;font-size:12px;font-weight:800;color:var(--brand-blue)}
+.live-indicator .live-dot{width:7px;height:7px;border-radius:50%;background:var(--brand-blue);animation:pulse-op 1.4s infinite}
+
 /* ---------- Chat ---------- */
 .chat-panel{display:flex;flex-direction:column;flex:1;min-height:0}
 .chat-workbench{display:flex;flex-direction:column;flex:1;min-height:0;gap:0}
-.chat-scroll{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column}
+.chat-scroll{display:none;flex-direction:column;flex:1;min-height:0;overflow-y:auto}
+.chat-workbench.tab-chat .chat-scroll{display:flex}
 .chat-area{padding:18px 16px 4px;max-width:var(--col);margin:0 auto;width:100%}
 @media (max-width:899px){ .chat-area{padding-bottom:96px} }
-/* Live-Vorschau: zeigt den AKTUELLEN Entwurf immer sichtbar, ohne im Chat scrollen zu müssen. */
-.live-panel{order:-1;background:var(--preview-bg);padding:14px;border-bottom:2px solid rgba(58,42,30,0.08)}
-.live-panel:empty{display:none}
+/* Live-Vorschau: eigener Tab statt Split-Panel – zeigt je nach Schritt den aktuellen Entwurf,
+   ein Charakter-Sheet oder das Situationen-Board (siehe renderLivePanel()). */
+.live-panel{display:none;flex-direction:column;flex:1;min-height:0;overflow-y:auto;background:var(--preview-bg);padding:14px}
+.chat-workbench.tab-preview .live-panel{display:flex}
 .live-panel-label{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
 .live-panel-label span:first-child{font:800 10px 'Nunito',sans-serif;color:#41603A;letter-spacing:.3px;text-transform:uppercase}
 .live-panel-label span:last-child{font-size:9.5px;color:rgba(65,96,58,.65);font-weight:700}
@@ -208,24 +223,10 @@ input,textarea,select{font-family:inherit;font-size:16px}
 .live-loading img{width:60px;height:auto;animation:wandPulse 1.1s ease-in-out infinite}
 .live-loading .bar{width:70%;max-width:160px;height:5px;border-radius:999px;background:rgba(193,80,46,.15);overflow:hidden;position:relative}
 .live-loading .bar i{position:absolute;top:0;left:0;width:40%;height:100%;border-radius:999px;background:var(--accent);animation:barSlide 1.1s ease-in-out infinite}
-/* Handy: solange ein Entwurfsbild da ist, wird der Chat-Bereich in zwei feste Hälften geteilt –
-   oben das Bild (immer sichtbar), unten der Chat (eigenständig scrollbar). Ohne aktives Bild bleibt
-   es beim normalen, inhaltsgroßen Kartenlayout oben im Chat. */
-@media (max-width:899px){
-  .chat-workbench.has-live{min-height:0}
-  .chat-workbench.has-live .live-panel{
-    order:-1;flex:0 0 50%;min-height:0;
-    display:flex;flex-direction:column;overflow-y:auto;border-bottom:2px solid rgba(58,42,30,0.08);
-  }
-  .chat-workbench.has-live .chat-scroll{flex:1 1 0;min-height:0}
-  .chat-workbench.has-live .live-panel-imgwrap{flex:1;min-height:0}
-  .chat-workbench.has-live .live-panel-imgwrap img:not(.live-panel-magnifier){width:100%;height:100%;object-fit:contain;background:var(--bg-deep)}
-}
-@media (min-width:900px){
-  .chat-workbench{flex-direction:row;gap:0;align-items:stretch}
-  .chat-scroll{order:1;flex:1;min-width:0}
-  .live-panel{order:2;flex:0 0 44%;flex-shrink:0;position:sticky;top:0;align-self:flex-start;border-bottom:none;border-left:2px solid rgba(58,42,30,0.08)}
-}
+.live-panel-imgwrap img:not(.live-panel-magnifier){width:100%;height:auto;object-fit:contain;background:var(--bg-deep)}
+/* ---------- Vorschau-Hinweisbanner (ersetzt die Eingabeleiste im Chat-Tab, solange nichts zu
+   tippen ist: Bild wird gerade gezeichnet, Situationen-Board wird angeordnet, o.ä.) ---------- */
+.preview-hint-banner{text-align:center;color:var(--brand-blue);background:#DCF1F6 !important;cursor:pointer;font-weight:800}
 .msg{display:flex;gap:10px;margin-bottom:14px;animation:fadeUp .35s ease both}
 .msg .avatar{width:34px;height:34px;flex-shrink:0;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px}
 .msg.user .avatar{background:#fff;box-shadow:var(--shadow-sm);border-radius:50%}
@@ -315,7 +316,8 @@ input,textarea,select{font-family:inherit;font-size:16px}
 
 /* ---------- Charakter-Leiste ---------- */
 .char-strip{display:flex;gap:10px;overflow-x:auto;padding:10px 16px 4px;max-width:var(--col);margin:0 auto;width:100%}
-.char-pill{flex-shrink:0;display:flex;align-items:center;gap:8px;background:#fff;border-radius:999px;padding:5px 14px 5px 6px;font-size:.85rem;font-weight:800;box-shadow:var(--shadow-sm)}
+.char-pill{flex-shrink:0;display:flex;align-items:center;gap:8px;background:#fff;border-radius:999px;padding:5px 14px 5px 6px;font-size:.85rem;font-weight:800;box-shadow:var(--shadow-sm);cursor:pointer;transition:box-shadow .15s}
+.char-pill.active{box-shadow:0 0 0 2px var(--brand-blue)}
 .char-pill .dot{width:28px;height:28px;border-radius:50%;background:var(--green-soft);display:flex;align-items:center;justify-content:center;font-size:13px;overflow:hidden}
 .char-pill img{width:100%;height:100%;object-fit:cover;object-position:top}
 
@@ -602,6 +604,7 @@ input,textarea,select{font-family:inherit;font-size:16px}
       <span class="brand-link" onclick="goHome()" title="Zur Startseite" role="button" tabindex="0" onkeydown="if(event.key==='Enter')goHome()">
         <span class="wlogo"></span><span class="brand-txt">WizzelWim</span>
       </span>
+      <span class="live-indicator" id="live-indicator"><span class="live-dot"></span>Live</span>
       <span class="spacer"></span>
       <button class="topbar-btn" onclick="confirmResetAll()" title="Ganz von vorn beginnen">Von Vorne</button>
       <button class="topbar-btn" onclick="goHome()" title="Zur Startseite">Home</button>
@@ -627,6 +630,10 @@ input,textarea,select{font-family:inherit;font-size:16px}
 
       <!-- Chat -->
       <div id="panel-chat" class="hidden chat-panel">
+        <div class="chat-tabbar" id="chat-tabbar">
+          <div class="chat-tab" id="tab-btn-chat" onclick="selectChatTab()"><span class="tab-ico">💬</span><span>Chat</span></div>
+          <div class="chat-tab" id="tab-btn-preview" onclick="selectPreviewTab()"><span class="tab-ico">🖼️</span><span>Vorschau</span><span class="tab-gen-badge hidden" id="tab-gen-badge">🔄</span></div>
+        </div>
         <div class="chat-workbench" id="chat-workbench">
           <div class="chat-scroll" id="chat-scroll">
             <div class="chat-area" id="chat-area"></div>
@@ -638,6 +645,7 @@ input,textarea,select{font-family:inherit;font-size:16px}
               </div>
               <div class="voice-hint" id="voice-hint"></div>
             </div>
+            <div class="input-bar preview-hint-banner hidden" id="preview-hint-banner" onclick="selectPreviewTab()">🖼️ Weiter in der Vorschau →</div>
           </div>
           <div class="live-panel" id="live-panel"></div>
         </div>
@@ -1096,13 +1104,20 @@ let pendingPhotoDataUri = null;
 // Hält vom Vision-Modell erkannte, aber noch unbestätigte Foto-Merkmale (Abschnitt 5). Ebenfalls
 // bewusst nicht in state, bis der Nutzer die Merkmale bestätigt hat.
 let pendingPhotoTraits = null;
+// Ob der Vorschau-Tab gerade ein "🔄"-Badge zeigt (Bild wird live gezeichnet) – bewusst NICHT in
+// state/localStorage, reiner UI-Zustand für applyTabUI(), siehe renderLivePanel().
+let uiGenerating = false;
 
 const STATE_SCHEMA_VERSION = 2;
 
 function freshState(){
   return {schemaVersion: STATE_SCHEMA_VERSION, step:"product", product:null, style:"A", characters:[], scenes:[],
           phase:null, charDraft:null, sceneDraft:null, chatLog:[], chips:null, done:false,
-          aiUnit:null, aiMessages:[]};
+          aiUnit:null, aiMessages:[],
+          // Chat/Vorschau Tab-Bar (Design-Vorlage "Image Studio Chat"): activeTab steuert, welcher der
+          // beiden Tabs sichtbar ist; previewFocus überschreibt die Vorschau optional mit dem
+          // Charakter-Sheet einer angetippten Person aus der Charakter-Leiste (siehe focusCharacterSheet()).
+          activeTab:"chat", previewFocus:null};
 }
 function stateKey(){ return "ww_state_" + currentUser; }
 function saveState(){ if(currentUser && state) localStorage.setItem(stateKey(), JSON.stringify(state)); }
@@ -1110,6 +1125,10 @@ function loadState(){
   const raw = localStorage.getItem(stateKey());
   state = raw ? JSON.parse(raw) : freshState();
   migrateStateSchema(state);
+  // Ältere gespeicherte Sessions kennen activeTab/previewFocus noch nicht (Feld kam nach v2 dazu,
+  // kein eigener Schema-Bump nötig) – hier defaulten statt eines vollen Migrationsschritts.
+  if(state.activeTab === undefined) state.activeTab = "chat";
+  if(state.previewFocus === undefined) state.previewFocus = null;
 }
 function migrateStateSchema(s){
   // Hebt einen im Alt-Schema (vor CharacterSpec/CharacterPack) gespeicherten Zustand auf das
@@ -1269,6 +1288,8 @@ function enterApp(){
     else if(state.phase==="scene_generating" && state.sceneDraft && state.sceneDraft.prompt){ generateScene(state.sceneDraft.lastOperation); }
     else if(state.phase==="char_generating" && state.charDraft && state.charDraft.prompt){ generateCharSheet(state.charDraft.lastOperation); }
     else if(state.phase==="scene_board" && state.sceneDraft && state.sceneDraft.situations){ renderSituationBoard(); }
+    else if(state.phase==="char_sheet_generating" && state.previewFocus!=null && state.characters[state.previewFocus]){ generateCharacterSheet(state.characters[state.previewFocus]); }
+    else applyTabUI();
   }
   else if(state.step === "summary"){ showPanel("summary"); renderSummary(); }
   // "style" ist als eigener Schritt entfallen (Wizzelwim-Storyline: es gibt nur einen Zeichenstil,
@@ -1282,10 +1303,45 @@ function showPanel(p){
   ["panel-product","panel-chat","panel-summary"].forEach(x=>$(x).classList.add("hidden"));
   $("panel-" + p).classList.remove("hidden");
   $("char-strip").style.display = (p==="chat"||p==="summary") ? "flex" : "none";
+  const liveInd = $("live-indicator");
+  if(liveInd) liveInd.style.display = (p==="chat") ? "inline-flex" : "none";
   renderPanels();
   updateProgress();
   if(p==="chat") renderLivePanel();
 }
+
+/* ---------------- Chat / Vorschau Tab-Bar ----------------
+   Design-Vorlage "Image Studio Chat" (README.md): statt Chat und Bild dauerhaft nebeneinander/
+   übereinander zu zeigen (früheres Split-Panel), gibt es jetzt genau zwei Tabs. isBusyPhase()
+   entscheidet, ob im Chat-Tab noch getippt werden kann oder stattdessen ein Hinweis-Banner zur
+   Vorschau nudged (Bild wird gezeichnet / Situationen werden gerade angeordnet). */
+function isBusyPhase(){
+  return state.phase === "char_generating" || state.phase === "char_sheet_generating"
+    || state.phase === "scene_generating" || state.phase === "scene_board";
+}
+function applyTabUI(){
+  const wb = $("chat-workbench");
+  if(!wb || !state) return;
+  const tab = state.activeTab || "chat";
+  wb.classList.toggle("tab-chat", tab === "chat");
+  wb.classList.toggle("tab-preview", tab === "preview");
+  const btnChat = $("tab-btn-chat"), btnPreview = $("tab-btn-preview");
+  if(btnChat) btnChat.classList.toggle("active", tab === "chat");
+  if(btnPreview) btnPreview.classList.toggle("active", tab === "preview");
+  const busy = isBusyPhase();
+  const bar = $("input-bar"), banner = $("preview-hint-banner");
+  if(bar) bar.classList.toggle("hidden", busy);
+  if(banner) banner.classList.toggle("hidden", !busy);
+  const genBadge = $("tab-gen-badge");
+  if(genBadge) genBadge.classList.toggle("hidden", !uiGenerating);
+  if(tab === "preview") requestAnimationFrame(()=>{ const p = $("live-panel"); if(p) p.scrollTop = 0; });
+}
+function selectChatTab(){ state.activeTab = "chat"; saveState(); applyTabUI(); }
+function selectPreviewTab(){ state.activeTab = "preview"; saveState(); applyTabUI(); }
+// Automatischer Wechsel: wird an den Stellen aufgerufen, an denen etwas zu sehen (Preview) bzw.
+// wieder etwas zu entscheiden/tippen ist (Chat) – siehe README "Auto tab-switch".
+function switchToPreviewAuto(){ state.activeTab = "preview"; saveState(); applyTabUI(); }
+function switchToChatAuto(){ state.activeTab = "chat"; saveState(); applyTabUI(); }
 function renderPanels(){
   $("product-grid").innerHTML = PRODUCTS.map(p=>`
     <div class="sel-card ${state.product===p.id?"selected":""} ${p.bestseller?"":""}" onclick="pickProduct('${p.id}')">
@@ -1326,8 +1382,10 @@ function updateProgress(){
 
 /* ---------------- Charakter-Leiste ---------------- */
 function renderCharStrip(){
-  $("char-strip").innerHTML = state.characters.map(c=>`
-    <span class="char-pill"><span class="dot">${c.img?`<img src="${c.img}" alt="">`:"👤"}</span>${c.name}</span>`).join("");
+  // Tippen auf eine Person zeigt/versteckt ihr Charakter-Sheet in der Vorschau (persistent über alle
+  // späteren Schritte hinweg, siehe focusCharacterSheet/README "Character thumbnails").
+  $("char-strip").innerHTML = state.characters.map((c,i)=>`
+    <span class="char-pill${state.previewFocus===i?" active":""}" onclick="focusCharacterSheet(${i})"><span class="dot">${c.img?`<img src="${c.img}" alt="">`:"👤"}</span>${escapeHtml(c.name)}</span>`).join("");
   renderSidebar();
 }
 function renderSidebar(){
@@ -1372,6 +1430,9 @@ function userSay(text){
   state.chatLog.push({w:"user", h:escapeHtml(text)}); saveState();
 }
 function showChips(list, {log=true}={}){
+  // Chips sind immer die Aufforderung "du bist dran" – dafür ist der Chat-Tab da (siehe README
+  // "Auto tab-switch"). Deckt automatisch alle Fälle ab, in denen eine Generierung fertig ist.
+  if(state && state.activeTab !== "chat") switchToChatAuto();
   clearChips();
   const wrap = document.createElement("div");
   wrap.className = "chips"; wrap.id = "active-chips";
@@ -1461,8 +1522,35 @@ function threeQuarterEditInstruction(){
   // gerader Strich ohne Haken) – hier bewusst identisch wiederverwendet statt neu formuliert.
   return "Redraw this exact character in THREE QUARTER VIEW: the whole body is turned slightly to the right – head, shoulders AND upper body all rotate together as one unit, not just the head on an otherwise front-facing body. Keep the exact same hair style and color, headwear, clothing and all identifying details as the reference. The head is a round shape with no ears, no mouth and no visible neck. The entire facial feature group – both eyes AND the nose together, as one unit – is shifted slightly to the right of the vertical center of the face. Both eyes stay fully visible as small dots, keeping their normal spacing exactly as wide apart as in the reference image (do NOT squeeze them closer together), just shifted as a pair to the right side of the face; the nose is positioned right below the midpoint between the two eyes and moves right together with them. Draw the nose as ONE perfectly straight vertical line segment, like the keyboard character \"|\" – completely straight from top to bottom, with NO curve, NO hook, NO bend, NO foot or serif at the bottom end, NOT shaped like a check mark, a hook, a \"J\", or an upside-down \"L\". Match the exact illustration style of the reference image: thick black marker outline, flat colors, graphic recording sketchnote style. Full body, standing, plain white background.";
 }
+// Rendert das Charakter-Sheet (Front/Seite/3-4/Rücken) für die Live-Vorschau statt für eine
+// Chat-Bubble (siehe renderLivePanel/renderLivePanelInner, previewFocus). Auch aufrufbar, solange
+// c.sheet noch nicht fertig ist – zeigt dann einen Lade-Zustand statt einzelner Fehlerkarten.
+function renderCharacterSheetPanel(c){
+  const labelRow = `<div class="live-panel-label"><span>Charakter-Sheet</span><span>${escapeHtml(c.name || "")}</span></div>`;
+  if(!c.sheet){
+    return `${labelRow}<div class="live-loading"><img src="${IMG_WIZARD_MASCOT}" alt="Wizzelwim"><div style="font-size:12.5px;font-weight:700">Wizzelwim zeichnet die weiteren Ansichten …</div><div class="bar"><i></i></div></div>`;
+  }
+  const cell = (label, url, err) => `<div class="sheet-cell"><div class="sheet-label">${label}</div>${url ? `<img src="${url}" alt="${label}">` : `<div class="sheet-error">${err ? "nicht geglückt" : "–"}</div>`}</div>`;
+  return `${labelRow}
+    <div class="char-sheet"><div class="sheet-cell"><div class="sheet-label">Front</div><img src="${c.img}" alt="Front"></div>${cell("Seite", c.sheet.side, c.sheet.sideError)}${cell("3/4", c.sheet.threeQ, c.sheet.threeQError)}${cell("Rücken", c.sheet.back, c.sheet.backError)}</div>
+    <p class="live-panel-hint">Tipp erneut auf ${escapeHtml(c.name || "die Person")} in der Leiste oben, um zur aktuellen Ansicht zurückzukehren.</p>`;
+}
+// Tippen auf einen Avatar in der Charakter-Leiste (char-strip): zeigt/versteckt das Charakter-Sheet
+// dieser Person in der Vorschau – bleibt laut Design-Vorlage über alle späteren Schritte hinweg
+// verfügbar, nicht nur während der Charaktererstellung.
+function focusCharacterSheet(idx){
+  state.previewFocus = (state.previewFocus === idx) ? null : idx;
+  saveState();
+  renderCharStrip();
+  switchToPreviewAuto();
+  renderLivePanel();
+}
 async function generateCharacterSheet(c){
-  const card = await botSay(`<div class="gen-card"><div class="gen-status"><span class="sparkle-loader">✨</span><br>Wir zeichnen das Charakter-Sheet für ${c.name} (Seite, Rücken, 3/4) …</div></div>`, {log:false});
+  const idx = state.characters.indexOf(c);
+  state.previewFocus = idx >= 0 ? idx : null;
+  state.phase = "char_sheet_generating"; saveState();
+  renderLivePanel(true);
+  await botSay(`Wir zeichnen das Charakter-Sheet für ${c.name} (Seite, Rücken, 3/4) …`, {log:false, delay:400});
   const results = {};
   try{ results.side = (await generateImage(charSheetViewPrompt(c, "side"), "char")).url; }catch(e){ results.sideError = e.message; }
   try{ results.back = (await generateImage(charSheetViewPrompt(c, "back"), "char")).url; }catch(e){ results.backError = e.message; }
@@ -1476,11 +1564,8 @@ async function generateCharacterSheet(c){
   try{ results.threeQ = (await generateImage(threeQuarterEditInstruction(), "char", undefined, c.img)).url; }catch(e){ results.threeQError = e.message; }
   c.sheet = results;
   saveState();
-  const cell = (label, url, err) => `<div class="sheet-cell"><div class="sheet-label">${label}</div>${url ? `<img src="${url}" alt="${label}">` : `<div class="sheet-error">${err ? "nicht geglückt" : "–"}</div>`}</div>`;
-  const html = `<div class="char-sheet"><div class="sheet-cell"><div class="sheet-label">Front</div><img src="${c.img}" alt="Front"></div>${cell("Seite", results.side, results.sideError)}${cell("3/4", results.threeQ, results.threeQError)}${cell("Rücken", results.back, results.backError)}</div>`;
-  card.querySelector(".bubble").innerHTML = `<b>${c.name}</b> – das komplette Charakter-Sheet: ${html}`;
-  state.chatLog.push({w:"bot", h: card.querySelector(".bubble").innerHTML}); saveState();
-  scrollChat();
+  renderLivePanel();
+  await botSay(`Fertig! Schaut mal in der Vorschau vorbei. 🔍`, {log:true});
 }
 function scenePrompt(s){
   const loc = s.loc;
@@ -1713,9 +1798,33 @@ function currentDraft(){
   return {kind:null, d:null};
 }
 function renderLivePanel(busy){
+  uiGenerating = !!busy;
+  // Solange aktiv etwas gezeichnet wird, macht die Vorschau am meisten Sinn – automatischer
+  // Tab-Wechsel (siehe README "Auto tab-switch"). Zurück zum Chat passiert separat über showChips().
+  if(busy && state) state.activeTab = "preview";
+  renderLivePanelInner(busy);
+  if(busy && state) saveState();
+  applyTabUI();
+}
+function renderLivePanelInner(busy){
   const panel = $("live-panel");
   if(!panel) return;
   const workbench = $("chat-workbench");
+  // 1) Charakter-Sheet-Fokus (Tippen auf einen Avatar in der Charakter-Leiste) hat Vorrang vor
+  // allem anderen – bleibt auch über spätere Schritte hinweg sichtbar (siehe focusCharacterSheet()).
+  if(state && state.previewFocus != null && state.characters[state.previewFocus]){
+    panel.innerHTML = renderCharacterSheetPanel(state.characters[state.previewFocus]);
+    if(workbench) workbench.classList.add("has-live");
+    return;
+  }
+  // 2) Situationen-Board: eigener Vorschau-Inhalt statt (wie zuvor) einer Chat-Bubble – das
+  // "Anordnen" gehört laut Design-Vorlage in die Vorschau, der Chat bekommt nur einen kurzen Hinweis.
+  if(state && state.phase === "scene_board" && state.sceneDraft && state.sceneDraft.situations){
+    panel.innerHTML = `<div class="live-panel-label"><span>Situationen anordnen</span><span>${state.sceneDraft.situations.length} St.</span></div>` + renderSituationBoardHtml(state.sceneDraft.situations);
+    wireSituationBoard();
+    if(workbench) workbench.classList.add("has-live");
+    return;
+  }
   const {kind, d} = currentDraft();
   if(!d){
     panel.innerHTML = "";
@@ -2119,9 +2228,15 @@ function confirmSituationBoard(){
   })();
 }
 async function renderSituationBoard(){
-  state.phase = "scene_board"; saveState();
-  await botSay(renderSituationBoardHtml(state.sceneDraft.situations), {log:false});
-  wireSituationBoard();
+  // Design-Vorlage "Image Studio Chat": das Anordnen der Situationen gehört in die Vorschau (per
+  // Drag, Landschaftsformat), nicht in eine Chat-Bubble – Chat bekommt nur einen kurzen Hinweis
+  // + den Chip-Ersatz "🪄 Los, mach ein Bild draus!" lebt direkt im Board selbst (siehe
+  // renderSituationBoardHtml). state.previewFocus wird geleert, damit nicht versehentlich noch ein
+  // Charakter-Sheet vor dem Board hängen bleibt.
+  state.phase = "scene_board"; state.previewFocus = null; saveState();
+  switchToPreviewAuto();
+  renderLivePanel();
+  await botSay("Ordnet die Situationen in der Vorschau an – tippt dann auf „🪄 Los, mach ein Bild draus!“.", {log:false});
 }
 async function handleSceneTool(input){
   // Seed + Entwurfs-Historie vom vorherigen Entwurf übernehmen (falls schon generiert) –
@@ -2192,6 +2307,9 @@ function startChat(){
 function offerCharCreationEntry(isFirst){
   // Zwei gleichwertige, sympathisch angebotene Wege: Person beschreiben (bewährt) oder ein
   // Foto hochladen, aus dem der Wizzard direkt eine Illustration im wmlstil-Look zaubert.
+  // previewFocus leeren: ein evtl. noch angepinntes Charakter-Sheet der letzten Person soll nicht
+  // die Vorschau der NÄCHSTEN Person verdecken, sobald deren Generierung startet.
+  state.previewFocus = null; saveState();
   (async()=>{
     await botSay(isFirst
       ? "Wie willst Du vorgehen?"
@@ -2619,7 +2737,7 @@ async function generateCharSheet(operation){
   const usePhotoDirectEdit = !!(c.spec && c.spec.sourceType === "photo_direct_experimental" && c.sourcePhoto);
   c.prompt = c.prompt || (usePhotoDirectEdit ? photoStyleInstruction() : charPrompt(c));
   c.drafts = c.drafts || [];
-  state.phase = "char_generating"; saveState();
+  state.phase = "char_generating"; state.previewFocus = null; saveState();
   renderLivePanel(true);
   // Gezielte Änderung ("Etwas ändern"): Seed des aktuell gewählten Entwurfs wiederverwenden –
   // hält Pose/Komposition stabil. "Nochmal zaubern": bewusst neuer, zufälliger Versuch.
@@ -2713,6 +2831,7 @@ function acceptChar(userText){
 /* ---- Szenen ---- */
 function startScenes(){
   userSay("✅ Das sind alle");
+  state.previewFocus = null; saveState(); // kein Charakter-Sheet soll die kommende Szenen-Vorschau verdecken
   const n = product().scenes;
   (async()=>{
     await botSay(`Was für eine Truppe: <b>${state.characters.map(c=>c.name).join(", ")}</b>! 💚`);
@@ -2841,7 +2960,7 @@ async function generateScene(operation){
   s.lastOperation = operation; // für Resume nach Seitenreload während laufender Generierung
   s.prompt = s.prompt || scenePrompt(s);
   s.drafts = s.drafts || [];
-  state.phase = "scene_generating"; saveState();
+  state.phase = "scene_generating"; state.previewFocus = null; saveState();
   renderLivePanel(true);
   const i = state.scenes.length + 1;
   // P0.4 (Abschnitt 12): isTweak kommt ausschließlich aus dem explizit übergebenen operation-
