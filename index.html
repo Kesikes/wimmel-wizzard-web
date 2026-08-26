@@ -829,12 +829,18 @@ const PRODUCTS = [
   {id:"premium",  name:"Premium Wimmelbuch",   meta:"DIN A4 · 24–28 Seiten · 12 Szenen", price:99, scenes:12, emoji:"📦"}
 ];
 
-/* Nur für die Landingpage-Vorschau (Marketing-Preise), unabhängig vom echten Checkout-Sortiment oben */
-const LANDING_PRODUCTS = [
-  {name:"Wimmelbild DIN A3 im Rahmen", meta:"1 große Szene · gerahmt", price:30, emoji:"🖼️"},
-  {name:"Wimmelbuch DIN A5",           meta:"Soft-Cover", price:40, bestseller:true, emoji:"📖"},
-  {name:"Wimmelbuch DIN A4 (Premium)", meta:"Pappseiten", price:70, emoji:"📦"}
-];
+/* Landingpage-Vorschau: früher eine eigene, handgepflegte Preisliste mit abweichenden Namen/Preisen
+   gegenüber dem echten Checkout-Sortiment (PRODUCTS) - laut Briefing v2 Abschnitt 2/6 "wirkt sonst
+   unseriös" und vor Nutzertests zu beheben. Jetzt EINE Quelle der Wahrheit: die Landingpage zeigt
+   drei repräsentative Einträge direkt aus PRODUCTS (Einstieg, Bestseller, Premium), kann also nie
+   wieder von den echten Preisen abweichen. */
+function landingProductPicks(){
+  return [
+    PRODUCTS.find(p=>p.id==="posterA3"),
+    PRODUCTS.find(p=>p.bestseller),
+    PRODUCTS.find(p=>p.id==="premium")
+  ].filter(Boolean);
+}
 
 const STYLES = [
   {id:"A", name:"Sketchnote", desc:"Runde Köpfe, dicke Outlines, fröhliche flache Farben", locked:false},
@@ -1210,7 +1216,7 @@ function toast(msg){
 
 /* ---------------- Landing ---------------- */
 function renderLandingProducts(){
-  $("landing-products").innerHTML = LANDING_PRODUCTS.map(p=>`
+  $("landing-products").innerHTML = landingProductPicks().map(p=>`
     <div class="prod-card ${p.bestseller?"best":""}" onclick="gotoAuth()">
       ${p.bestseller?'<span class="ptag">⭐ Beliebteste Wahl</span>':""}
       <div class="prod-emoji">${p.emoji||"📖"}</div>
@@ -1906,6 +1912,9 @@ function previewDefaultCardHtml(kind){
 // einzelnen Platzhalter-Karte zeigen wir alle bisher fertigen Bilder (Charaktere + Szenen)
 // untereinander, wie ein wachsendes Buch-Vorschau. Ist noch gar nichts fertig, bleibt die alte
 // Platzhalter-Karte (previewDefaultCardHtml) als Einstieg bestehen.
+function hasFinishedImages(){
+  return (state.characters || []).some(c=>c.img) || (state.scenes || []).some(s=>s.img);
+}
 function renderPreviewGalleryHtml(){
   const items = [];
   (state.characters || []).forEach(c=>{ if(c.img) items.push({label: c.name, img: c.img, tag:"Charakter"}); });
@@ -1927,11 +1936,12 @@ function renderPreviewThumbStrip(){
     </div>`).join("")}</div>`;
 }
 function previewSaveClick(){ toast("Speichern kommt bald! 📥"); }
+function previewMoreClick(){ selectChatTab(); }
 function renderLivePanelInner(busy){
   const panel = $("live-panel");
   if(!panel) return;
   const workbench = $("chat-workbench");
-  let mainHtml, hasLive = false, needsBoardWire = false;
+  let mainHtml, hasLive = false, needsBoardWire = false, showGalleryCta = false;
   // 1) Charakter-Sheet-Fokus (Tippen auf einen Avatar im Vorschau-Streifen) hat Vorrang vor allem
   // anderen – bleibt auch über spätere Schritte hinweg sichtbar (siehe focusCharacterSheet()).
   if(state && state.previewFocus != null && state.characters[state.previewFocus]){
@@ -1952,7 +1962,12 @@ function renderLivePanelInner(busy){
     if(!d){
       // Kein Kind aktiv im Aufbau (kind===null) => echte Ruhe-Phase (Begrüßung, Namensfrage,
       // zwischen zwei Szenen, Zusammenfassung, …): dann die gesammelte Galerie statt Platzhalter.
-      mainHtml = kind ? previewDefaultCardHtml(kind) : renderPreviewGalleryHtml();
+      if(kind){
+        mainHtml = previewDefaultCardHtml(kind);
+      } else {
+        showGalleryCta = hasFinishedImages();
+        mainHtml = renderPreviewGalleryHtml();
+      }
     } else if(!d.img){
       // Vor der allerersten Zeichnung: Wizzelwim wartet schon (entspricht isPreviewLoading der
       // Design-Vorlage). Solange noch nicht wirklich generiert wird, zeigen wir die ruhige
@@ -1980,7 +1995,17 @@ function renderLivePanelInner(busy){
   }
   const subheader = `<div class="preview-subheader"><div class="dot-row"><span class="live-dot-green"></span><span>Live-Vorschau</span></div><div class="dims">2048×1440</div></div>`;
   const thumbs = (state && state.characters && state.characters.length) ? renderPreviewThumbStrip() : "";
-  const actionRow = `<div class="preview-action-row"><div class="preview-action-btn filled" onclick="previewSaveClick()">⬇️ Speichern</div></div>`;
+  // Briefing v2 Abschnitt 3.3: die Vorschau soll direkte CTAs bieten, sobald es etwas Fertiges zu
+  // zeigen gibt - "So bestellen" (nutzt den bestehenden Checkout-Modal) oder "Noch mehr
+  // personalisieren" (zurück zum Chat, wo WizzelWim mit dem nächsten Baustein weitermacht).
+  const actionRow = showGalleryCta
+    ? `<div class="preview-action-row">
+        <div class="preview-action-btn filled" onclick="openCheckout()">🛒 So bestellen</div>
+        <div class="preview-action-btn outline" onclick="openBookPreview()">📖 Als Doppelseiten durchblättern</div>
+        <div class="preview-action-btn outline" onclick="previewMoreClick()">✨ Noch mehr personalisieren</div>
+        <div class="preview-action-btn outline" onclick="previewSaveClick()">⬇️ Speichern</div>
+      </div>`
+    : `<div class="preview-action-row"><div class="preview-action-btn filled" onclick="previewSaveClick()">⬇️ Speichern</div></div>`;
   panel.innerHTML = subheader + `<div class="preview-main">${mainHtml}</div>` + thumbs + actionRow;
   if(workbench) workbench.classList.toggle("has-live", hasLive);
   if(needsBoardWire) wireSituationBoard();
