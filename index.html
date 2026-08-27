@@ -327,6 +327,12 @@ input,textarea,select{font-family:inherit;font-size:16px}
 .variant-pick-item img{width:100%;aspect-ratio:3/4;object-fit:cover;display:block}
 .variant-pick-item:hover{border-color:var(--accent)}
 .variant-pick-label{position:absolute;bottom:0;left:0;right:0;background:rgba(58,42,30,0.55);color:#fff;font-size:10.5px;font-weight:800;text-align:center;padding:3px}
+.scene-tile-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+.scene-tile{background:#fff;border:1.5px solid rgba(58,42,30,0.12);border-radius:14px;padding:14px 6px;display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;transition:all .15s}
+.scene-tile:hover{border-color:var(--accent);transform:translateY(-1px)}
+.scene-tile .st-icon{font-size:24px}
+.scene-tile .st-label{font-family:'Nunito',sans-serif;font-weight:700;font-size:12px;color:var(--ink);text-align:center;line-height:1.2}
+.scene-tile-custom{background:var(--cream-2)}
 
 /* ---------- Input bar ---------- */
 .input-bar{position:sticky;bottom:0;background:oklch(97% 0.018 85 / .97);backdrop-filter:blur(6px);border-top:1px solid var(--line);padding:12px 16px calc(12px + env(safe-area-inset-bottom));z-index:5;margin-top:auto}
@@ -2215,6 +2221,46 @@ function askSceneLocationAI(includeIntro){
     state.phase = "scene_ai_place"; saveState();
   })();
 }
+/* ---------------- Story-Baustein: Themenkacheln statt Freitext-Zwang (Briefing v2, Abschnitt 3.2)
+   Standardweg ist die Themenkachel-Auswahl (SCENE_LOCATIONS, ≤3 Min.), Freitext bleibt als dritte,
+   nicht erzwungene Option bestehen. Der Erzähl-Modus (Audioaufnahme) ist bewusst NICHT Teil dieser
+   Auswahl (siehe Briefing Abschnitt 6, Punkt 5 "Später"). Beide Kacheln-Klicks landen am Ende in
+   scAiPlace() bzw. der bestehenden AI-Situationen-Pipeline - hier wird nur der Eingabeweg zur
+   Ortsbeschreibung ersetzt, nicht das dahinterliegende Situationen-Sammeln. */
+function offerSceneInputChoice(isFirstScene){
+  (async()=>{
+    await botSay(isFirstScene
+      ? "Wir wollen nun die Szenen beginnen. Wie möchtest du eure erste Szene festlegen?"
+      : "Wie möchtest du die nächste Szene festlegen?");
+    state.phase = "scene_input_choice"; saveState();
+    const html = `<div class="appearance-choice-row">
+      <div class="appearance-choice-card" onclick="userSay('🖼️ Thema wählen'); clearChips(); showSceneTopicGrid();"><span class="aic-icon">🖼️</span><span class="aic-label">Thema wählen</span><span class="aic-sub">fertige Anlässe, ≤3 Min.</span></div>
+      <div class="appearance-choice-card" onclick="userSay('✏️ Frei beschreiben'); clearChips(); askSceneLocationAI(false);"><span class="aic-icon">✏️</span><span class="aic-label">Frei beschreiben</span><span class="aic-sub">eigene Worte oder Diktat</span></div>
+    </div>`;
+    await botSay(html);
+  })();
+}
+function showSceneTopicGrid(){
+  (async()=>{
+    const tiles = SCENE_LOCATIONS.map(l=>{
+      const emoji = l.label.split(" ")[0];
+      const text = l.label.slice(emoji.length).trim();
+      return `<div class="scene-tile" onclick="pickSceneTopic('${l.id}')"><span class="st-icon">${emoji}</span><span class="st-label">${escapeHtml(text)}</span></div>`;
+    }).join("");
+    const html = `<div class="scene-tile-grid">${tiles}<div class="scene-tile scene-tile-custom" onclick="pickSceneTopicCustom()"><span class="st-icon">✏️</span><span class="st-label">Eigene Idee</span></div></div>`;
+    state.phase = "scene_topic_grid"; saveState();
+    await botSay(html);
+  })();
+}
+function pickSceneTopic(id){
+  const l = SCENE_LOCATIONS.find(x=>x.id===id);
+  if(!l) return;
+  if(useAI()) scAiPlace(l.label); else scLocation(l);
+}
+function pickSceneTopicCustom(){
+  userSay("✏️ Eigene Idee");
+  askSceneLocationAI(false);
+}
 function scAiPlace(text){
   userSay(text);
   state.aiUnit = "scene"; state.phase = "ai_wait";
@@ -2957,6 +3003,10 @@ function handleInput(text){
   if(p==="ask_who") return chWho(text);
   if(p==="ask_describe") return scDescribeCharacter(text);
   if(p==="scene_ai_place") return scAiPlace(text);
+  // Getippt statt eine Kachel/Karte angeklickt: implizit als "Frei beschreiben" werten und direkt
+  // in die bestehende KI-Situationen-Pipeline einspeisen (kein toter Klick, keine Sackgasse).
+  if(p==="scene_input_choice") return scAiPlace(text);
+  if(p==="scene_topic_grid") return scAiPlace(text);
   if(p==="char_name") return chName(text);
   if(p==="char_photo_name") return chNameForPhoto(text);
   if(p==="char_role_custom_photo") return chRoleCustomForPhoto(text);
@@ -3375,7 +3425,7 @@ function startScenes(){
   const n = product().scenes;
   (async()=>{
     await botSay(`Was für eine Truppe: <b>${state.characters.map(c=>c.name).join(", ")}</b>! 💚`);
-    if(useAI()) askSceneLocationAI(true); else nextScene();
+    if(useAI()) offerSceneInputChoice(true); else nextScene();
   })();
 }
 function nextScene(){
@@ -3558,7 +3608,7 @@ function acceptScene(userText){
     if(k < n){
       if(k === Math.ceil(n/2)) await botSay(`Halbzeit! 🥳 Schon <b>${k} von ${n}</b> Szenen im Kasten. Du kannst übrigens jederzeit pausieren – alles ist gespeichert.`);
       else await botSay(`<b>${k} von ${n}</b> Szenen fertig! Weiter geht's. 💪`);
-      if(useAI()) askSceneLocationAI(false); else nextScene();
+      if(useAI()) offerSceneInputChoice(false); else nextScene();
     } else finishScenes();
   })();
 }
