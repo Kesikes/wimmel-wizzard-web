@@ -372,6 +372,14 @@ input,textarea,select{font-family:inherit;font-size:16px}
 .sel-card .price{font-family:'Baloo 2',sans-serif;font-weight:700;font-size:1.3rem;color:var(--accent);margin-top:6px}
 .style-preview{width:100%;height:84px;object-fit:cover;border-radius:10px;margin-bottom:10px;display:block}
 .panel-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.baustein-grid{grid-template-columns:repeat(3,1fr)}
+@media (max-width:640px){ .baustein-grid{grid-template-columns:1fr} }
+.baustein-card h3{margin-top:8px}
+.baustein-card.status-done .tag{background:#4CAF7D}
+.baustein-card.status-progress .tag{background:#F5A623}
+.baustein-card.status-locked .tag{background:#a89b8c}
+.baustein-card.status-open .tag{background:var(--accent)}
+.baustein-card.status-skipped .tag{background:#a89b8c}
 
 /* ---------- Charakter-Leiste ---------- */
 .char-strip{display:flex;gap:10px;overflow-x:auto;padding:10px 16px 4px;max-width:var(--col);margin:0 auto;width:100%}
@@ -685,6 +693,14 @@ input,textarea,select{font-family:inherit;font-size:16px}
         <p class="lead">Du kannst dich später jederzeit umentscheiden – deine Geschichten bleiben erhalten.</p>
         <div class="select-grid" id="product-grid"></div>
         <div class="panel-actions"><button class="btn btn-primary" onclick="confirmProduct()">Weiter ✨</button></div>
+      </div>
+
+      <!-- Baustein-Dashboard -->
+      <div id="panel-dashboard" class="panel hidden">
+        <h2>Euer Wimmelbuch</h2>
+        <p class="lead">Jeder Baustein ist einzeln speicherbar – bearbeitet sie in eurem Tempo, jederzeit unterbrechbar.</p>
+        <div class="select-grid baustein-grid" id="baustein-grid"></div>
+        <div class="panel-actions" id="baustein-cta"></div>
       </div>
 
       <!-- Chat -->
@@ -1215,7 +1231,15 @@ function freshState(){
           // Chat/Vorschau Tab-Bar (Design-Vorlage "Image Studio Chat"): activeTab steuert, welcher der
           // beiden Tabs sichtbar ist; previewFocus überschreibt die Vorschau optional mit dem
           // Charakter-Sheet einer angetippten Person aus der Charakter-Leiste (siehe focusCharacterSheet()).
-          activeTab:"chat", previewFocus:null};
+          activeTab:"chat", previewFocus:null,
+          // Baustein-Dashboard (Briefing v2, Abschnitt 4): explizite Fertig-Marker statt Ableitung aus
+          // state.phase, da state.phase nach "✅ Das sind alle" bewusst nicht mehr verändert wird (siehe
+          // startScenes()) - stillOnCharacters() bleibt unverändert nur für den Fortschrittsbalken im
+          // Chat-Header zuständig. charactersConfirmed markiert den Charakter-Baustein als fertig,
+          // storyStarted, ob die Szenen-Erfassung schon mindestens einmal begonnen wurde (damit ein
+          // erneuter Klick auf die Geschichte-Kachel nicht wieder bei Szene 1 anfängt), dedication/
+          // dedicationSkipped den optionalen Feinschliff-Baustein.
+          charactersConfirmed:false, storyStarted:false, dedication:null, dedicationSkipped:false};
 }
 function stateKey(){ return "ww_state_" + currentUser; }
 function saveState(){ if(currentUser && state) localStorage.setItem(stateKey(), JSON.stringify(state)); }
@@ -1227,6 +1251,10 @@ function loadState(){
   // kein eigener Schema-Bump nötig) – hier defaulten statt eines vollen Migrationsschritts.
   if(state.activeTab === undefined) state.activeTab = "chat";
   if(state.previewFocus === undefined) state.previewFocus = null;
+  if(state.charactersConfirmed === undefined) state.charactersConfirmed = false;
+  if(state.storyStarted === undefined) state.storyStarted = false;
+  if(state.dedication === undefined) state.dedication = null;
+  if(state.dedicationSkipped === undefined) state.dedicationSkipped = false;
 }
 function migrateStateSchema(s){
   // Hebt einen im Alt-Schema (vor CharacterSpec/CharacterPack) gespeicherten Zustand auf das
@@ -1380,27 +1408,33 @@ function enterApp(){
   loadState();
   showView("view-app");
   renderCharStrip();
-  if(state.step === "chat"){
-    showPanel("chat"); rebuildChat();
-    if(state.chatLog.length===0) startChat();
-    else if(state.phase==="scene_generating" && state.sceneDraft && state.sceneDraft.prompt){ generateScene(state.sceneDraft.lastOperation); }
-    else if(state.phase==="char_generating" && state.charDraft && state.charDraft.prompt){ generateCharSheet(state.charDraft.lastOperation); }
-    else if(state.phase==="scene_board" && state.sceneDraft && state.sceneDraft.situations){ renderSituationBoard(); }
-    else if(state.phase==="char_sheet_generating" && state.previewFocus!=null && state.characters[state.previewFocus]){ generateCharacterSheet(state.characters[state.previewFocus]); }
-    else if(state.phase==="char_variants_generating" && state.charDraft && state.charDraft.prompt && !(state.charDraft.variantChoices && state.charDraft.variantChoices.length)){ generateCharVariants(); }
-    else if(state.phase==="char_traits_pick" && state.charDraft && state.charDraft.traitPicks){ resumeCharTraitsCard(); applyTabUI(); }
-    else applyTabUI();
-  }
+  if(state.step === "chat"){ showPanel("chat"); resumeChatUI(); }
+  else if(state.step === "dashboard"){ showPanel("dashboard"); renderDashboard(); }
   else if(state.step === "summary"){ showPanel("summary"); renderSummary(); }
   // "style" ist als eigener Schritt entfallen (Wizzelwim-Storyline: es gibt nur einen Zeichenstil,
   // keine Auswahl) – Alt-Sessions mit gespeichertem step:"style" landen jetzt direkt im Chat.
-  else if(state.step === "style"){ state.step = "chat"; saveState(); showPanel("chat"); rebuildChat(); if(state.chatLog.length===0) startChat(); }
+  else if(state.step === "style"){ state.step = "chat"; saveState(); showPanel("chat"); resumeChatUI(); }
   else showPanel("product");
   if(state.chatLog.length > 0 && state.step === "chat") toast("Willkommen zurück – wir machen genau da weiter! ✨");
   updateProgress();
 }
+/* Zentrale Resume-Logik für den Chat-Baustein-Bereich (Briefing v2, Abschnitt 4): wird sowohl beim
+   App-Start/Reload (enterApp) als auch beim Betreten eines Bausteins über das Dashboard
+   (enterCharBaustein/enterStoryBaustein) verwendet, damit an genau der Stelle weitergemacht wird,
+   an der eine laufende Generierung/Karte unterbrochen wurde - vorher an zwei Stellen dupliziert. */
+function resumeChatUI(){
+  rebuildChat();
+  if(state.chatLog.length===0) startChat();
+  else if(state.phase==="scene_generating" && state.sceneDraft && state.sceneDraft.prompt){ generateScene(state.sceneDraft.lastOperation); }
+  else if(state.phase==="char_generating" && state.charDraft && state.charDraft.prompt){ generateCharSheet(state.charDraft.lastOperation); }
+  else if(state.phase==="scene_board" && state.sceneDraft && state.sceneDraft.situations){ renderSituationBoard(); }
+  else if(state.phase==="char_sheet_generating" && state.previewFocus!=null && state.characters[state.previewFocus]){ generateCharacterSheet(state.characters[state.previewFocus]); }
+  else if(state.phase==="char_variants_generating" && state.charDraft && state.charDraft.prompt && !(state.charDraft.variantChoices && state.charDraft.variantChoices.length)){ generateCharVariants(); }
+  else if(state.phase==="char_traits_pick" && state.charDraft && state.charDraft.traitPicks){ resumeCharTraitsCard(); applyTabUI(); }
+  else applyTabUI();
+}
 function showPanel(p){
-  ["panel-product","panel-chat","panel-summary"].forEach(x=>$(x).classList.add("hidden"));
+  ["panel-product","panel-dashboard","panel-chat","panel-summary"].forEach(x=>$(x).classList.add("hidden"));
   $("panel-" + p).classList.remove("hidden");
   // Der Charakter-Streifen lebt im Wizard jetzt unten im Vorschau-Tab (siehe renderPreviewThumbStrip)
   // – oben nur noch auf der Zusammenfassungsseite sichtbar.
@@ -1469,8 +1503,7 @@ function renderPanels(){
 function pickProduct(id){ state.product = id; saveState(); renderPanels(); }
 function confirmProduct(){
   if(!state.product){ state.product = "standard"; }
-  state.step = "chat"; saveState(); showPanel("chat");
-  if(state.chatLog.length === 0) startChat(); else rebuildChat();
+  state.step = "dashboard"; saveState(); showPanel("dashboard"); renderDashboard();
 }
 function product(){ return PRODUCTS.find(p=>p.id===state.product) || PRODUCTS[3]; }
 
@@ -1484,10 +1517,11 @@ function updateProgress(){
   const total = 2 + 1 + product().scenes;
   let done = 0, label = "Schritt 1 · Produkt";
   if(state.step!=="product") done = 1;
-  if(state.step==="chat"||state.step==="summary") done = 2;
+  if(state.step==="dashboard"||state.step==="chat"||state.step==="summary") done = 2;
   if(state.characters.length>0 && state.phase && !stillOnCharacters()) done = 3;
   done += state.scenes.filter(s=>s.img).length;
-  if(state.step==="chat"){
+  if(state.step==="dashboard") label = "Baustein-Übersicht";
+  else if(state.step==="chat"){
     if(stillOnCharacters()) label = "Eure Familie";
     else label = `Szene ${Math.min(state.scenes.length+1, product().scenes)} von ${product().scenes}`;
   } else if(state.step==="summary") label = "Zusammenfassung";
@@ -1495,6 +1529,96 @@ function updateProgress(){
   $("progress-step").textContent = label;
   $("progress-pct").textContent = pct + " %";
   $("progress-fill").style.width = pct + "%";
+}
+
+/* ---------------- Baustein-Dashboard (Briefing v2, Abschnitt 4) ----------------
+   Neue Navigationsebene zwischen Produktauswahl und dem bestehenden Chat/Vorschau-Bereich: statt
+   direkt nach der Produktwahl in einen durchgehenden Chat-Thread zu fallen, landet man hier auf
+   einer Kachel-Übersicht mit Fortschritt pro Baustein. Jede Kachel führt in genau den bestehenden
+   Chat/Vorschau-Mini-Flow für diesen Baustein (unverändert, siehe Task #35/#36) und kehrt nach
+   Abschluss automatisch hierher zurück (siehe startScenes()/finishScenes()) - das Dashboard selbst
+   ist die "Zurück zur Übersicht"-Klammer, der Chat bleibt wie vom Nutzer entschieden ("Chat-Tab
+   bleibt als Rahmen") der eigentliche Arbeitsbereich innerhalb eines Bausteins. */
+function charBausteinStatus(){
+  if(state.charactersConfirmed) return "done";
+  if(state.phase) return "progress";
+  return "open";
+}
+function storyBausteinStatus(){
+  if(charBausteinStatus() !== "done") return "locked";
+  if(state.scenes.length >= product().scenes) return "done";
+  if(state.storyStarted) return "progress";
+  return "open";
+}
+function dedicationStatus(){
+  if(storyBausteinStatus() !== "done") return "locked";
+  if(state.dedication) return "done";
+  if(state.dedicationSkipped) return "skipped";
+  return "open";
+}
+function bausteinStatusLabel(s){
+  return {open:"Noch offen", progress:"In Arbeit", done:"✅ Fertig", locked:"🔒 Noch nicht dran", skipped:"Übersprungen"}[s] || "";
+}
+function renderDashboard(){
+  const cs = charBausteinStatus(), ss = storyBausteinStatus(), ds = dedicationStatus();
+  const n = product().scenes;
+  const charMeta = state.characters.length ? `${state.characters.length} erfasst` : "Wer soll vorkommen?";
+  const sceneMeta = ss==="locked" ? "Erst Charaktere fertigstellen" : `${state.scenes.length} von ${n} Szenen`;
+  const dedMeta = ds==="locked" ? "Erst Geschichte fertigstellen" : (ds==="done" ? `„${escapeHtml(state.dedication)}“` : "Optional – eine persönliche Zeile");
+  $("baustein-grid").innerHTML = `
+    <div class="sel-card baustein-card status-${cs}" onclick="enterCharBaustein()">
+      <span class="tag">${bausteinStatusLabel(cs)}</span>
+      <h3>👨‍👩‍👧 Charaktere</h3>
+      <div class="meta">${charMeta}</div>
+    </div>
+    <div class="sel-card baustein-card status-${ss} ${ss==="locked"?"locked":""}" ${ss!=="locked" ? 'onclick="enterStoryBaustein()"' : ""}>
+      <span class="tag">${bausteinStatusLabel(ss)}</span>
+      <h3>📖 Geschichte</h3>
+      <div class="meta">${sceneMeta}</div>
+    </div>
+    <div class="sel-card baustein-card status-${ds} ${ds==="locked"?"locked":""}" ${ds!=="locked" ? 'onclick="enterDedicationBaustein()"' : ""}>
+      <span class="tag">${bausteinStatusLabel(ds)}</span>
+      <h3>💌 Feinschliff</h3>
+      <div class="meta">${dedMeta}</div>
+    </div>`;
+  $("baustein-cta").innerHTML = (cs==="done" && ss==="done")
+    ? `<button class="btn btn-primary" onclick="state.step='summary'; saveState(); showPanel('summary'); renderSummary();">🎉 Fertig – weiter zur Bestellung</button>`
+    : `<p class="lead" style="margin:0">Schließt zuerst „Charaktere“ und „Geschichte“ ab, dann geht's zur Bestellung.</p>`;
+  updateProgress();
+}
+function enterCharBaustein(){
+  state.step = "chat"; saveState(); showPanel("chat"); resumeChatUI();
+}
+function enterStoryBaustein(){
+  if(storyBausteinStatus() === "locked") return;
+  state.step = "chat"; saveState(); showPanel("chat");
+  if(state.storyStarted){ resumeChatUI(); }
+  else { rebuildChat(); if(useAI()) offerSceneInputChoice(true); else nextScene(); }
+}
+function enterDedicationBaustein(){
+  if(dedicationStatus() === "locked") return;
+  state.step = "chat"; saveState(); showPanel("chat"); rebuildChat();
+  offerDedicationPrompt(state.dedication != null || state.dedicationSkipped);
+}
+function offerDedicationPrompt(again){
+  (async()=>{
+    await botSay(again
+      ? `Eure aktuelle Widmung: „${escapeHtml(state.dedication || "(übersprungen)")}“ – möchtest du sie ändern?`
+      : `Zum Schluss noch das Persönlichste: Möchtet ihr eine kurze <b>Widmung</b> für die erste Seite? Ein Satz reicht.<span class="note">🎤 Du kannst sie auch einfach einsprechen.</span>`);
+    state.phase = "dedication_input"; saveState();
+    showChips([{label:"⏭️ Überspringen", action:()=>{ userSay("⏭️ Überspringen"); state.dedication=null; state.dedicationSkipped=true; saveState(); backToDashboardAfterDedication(); }}]);
+  })();
+}
+function scDedication(text){
+  userSay(text);
+  state.dedication = text.trim(); state.dedicationSkipped = false; saveState();
+  backToDashboardAfterDedication();
+}
+function backToDashboardAfterDedication(){
+  (async()=>{
+    await botSay(state.dedication ? "Wunderschön, gespeichert! 💌" : "Alles klar, kein Problem – ihr könnt sie euch jederzeit anders überlegen.");
+    state.step = "dashboard"; saveState(); showPanel("dashboard"); renderDashboard();
+  })();
 }
 
 /* ---------------- Charakter-Leiste (nur noch auf der Zusammenfassungsseite) ----------------
@@ -2228,6 +2352,7 @@ function askSceneLocationAI(includeIntro){
    scAiPlace() bzw. der bestehenden AI-Situationen-Pipeline - hier wird nur der Eingabeweg zur
    Ortsbeschreibung ersetzt, nicht das dahinterliegende Situationen-Sammeln. */
 function offerSceneInputChoice(isFirstScene){
+  state.storyStarted = true; saveState();
   (async()=>{
     await botSay(isFirstScene
       ? "Wir wollen nun die Szenen beginnen. Wie möchtest du eure erste Szene festlegen?"
@@ -3020,6 +3145,7 @@ function handleInput(text){
   if(p==="scene_location") return scLocationCustom(text);
   if(p==="scene_story") return scStory(text);
   if(p==="scene_extra") return scExtra(text);
+  if(p==="dedication_input") return scDedication(text);
   if(p==="char_role") return chRoleCustom(text);
   if(p==="char_confirm"){
     userSay(text);
@@ -3421,14 +3547,18 @@ function acceptChar(userText){
 /* ---- Szenen ---- */
 function startScenes(){
   userSay("✅ Das sind alle");
-  state.previewFocus = null; saveState(); // kein Charakter-Sheet soll die kommende Szenen-Vorschau verdecken
-  const n = product().scenes;
+  state.previewFocus = null; // kein Charakter-Sheet soll die kommende Szenen-Vorschau verdecken
+  state.charactersConfirmed = true; saveState();
   (async()=>{
-    await botSay(`Was für eine Truppe: <b>${state.characters.map(c=>c.name).join(", ")}</b>! 💚`);
-    if(useAI()) offerSceneInputChoice(true); else nextScene();
+    await botSay(`Was für eine Truppe: <b>${state.characters.map(c=>c.name).join(", ")}</b>! 💚 Der Charaktere-Baustein ist fertig.`);
+    // Baustein-Dashboard (Briefing v2, Abschnitt 4): statt automatisch in die Szenen-Erfassung
+    // weiterzurauschen, kehrt der Nutzer nach jedem fertigen Baustein erst zur Übersicht zurück
+    // und entscheidet selbst, wann's mit "Geschichte" weitergeht.
+    state.step = "dashboard"; saveState(); showPanel("dashboard"); renderDashboard();
   })();
 }
 function nextScene(){
+  state.storyStarted = true;
   const n = product().scenes;
   const i = state.scenes.length + 1;
   if(state.scenes.length >= n) return finishScenes();
@@ -3614,9 +3744,14 @@ function acceptScene(userText){
 }
 function finishScenes(){
   (async()=>{
-    await botSay(`🎊 <b>Alle ${product().scenes} Szenen sind fertig!</b> Schaut mal, ob ihr euch findet. 🔍 Ich zeig dir jetzt euer ganzes Wimmelwerk in der Übersicht.`);
-    state.phase = "done"; state.step = "summary"; state.done = true; saveState();
-    setTimeout(()=>{ showPanel("summary"); renderSummary(); }, 900);
+    await botSay(`🎊 <b>Alle ${product().scenes} Szenen sind fertig!</b> Der Geschichte-Baustein ist komplett – schaut mal, ob ihr euch findet. 🔍`);
+    // state.phase/state.done bewusst wie zuvor gesetzt (siehe backToChat(): nutzt state.done für die
+    // "Neue Person"/"Szene ersetzen"-Kurzwege auf der Zusammenfassungsseite) - nur das automatische
+    // Ziel ändert sich: erst zurück zur Baustein-Übersicht (Feinschliff ist jetzt dran), nicht mehr
+    // direkt in die Bestellübersicht.
+    state.phase = "done"; state.done = true;
+    state.step = "dashboard"; saveState();
+    showPanel("dashboard"); renderDashboard();
   })();
 }
 
