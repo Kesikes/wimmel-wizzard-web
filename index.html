@@ -307,6 +307,26 @@ input,textarea,select{font-family:inherit;font-size:16px}
 .photo-upload-btn{display:inline-block;background:var(--accent);color:#fff;font-weight:800;font-size:.9rem;padding:11px 20px;border-radius:999px;cursor:pointer;transition:filter .15s}
 .photo-upload-btn:hover{filter:brightness(.92)}
 .photo-upload-thumb{max-width:160px;border-radius:12px;display:block;margin:10px auto 12px}
+/* ---------- Charakter-Baustein Weg B: Merkmale-Chip-Karte (Briefing v2, Abschnitt 3.1) ---------- */
+.trait-card{background:oklch(95% 0.015 85);border-radius:16px;padding:14px;margin-top:8px;display:flex;flex-direction:column;gap:12px}
+.trait-group-label{font-family:'Nunito',sans-serif;font-size:11.5px;font-weight:800;color:var(--muted2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.3px}
+.trait-chip-row{display:flex;flex-wrap:wrap;gap:6px}
+.trait-chip{background:#fff;border:1.5px solid rgba(58,42,30,0.15);border-radius:999px;padding:7px 13px;font-family:'Nunito',sans-serif;font-size:12.5px;font-weight:700;color:var(--ink);cursor:pointer;transition:all .15s}
+.trait-chip.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.trait-extra-input{width:100%;box-sizing:border-box;border:1.5px solid rgba(58,42,30,0.15);border-radius:12px;padding:9px 12px;font-family:'Nunito',sans-serif;font-size:13px;background:#fff}
+.trait-submit-btn{background:var(--accent);color:#fff;border-radius:12px;padding:12px;font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;cursor:pointer;text-align:center}
+.trait-submit-btn:disabled{opacity:.4;cursor:not-allowed}
+.appearance-choice-row{display:flex;gap:10px;margin-top:8px}
+.appearance-choice-card{flex:1;background:#fff;border:1.5px solid rgba(58,42,30,0.12);border-radius:14px;padding:16px 10px;text-align:center;cursor:pointer;transition:all .15s}
+.appearance-choice-card:hover{border-color:var(--accent)}
+.appearance-choice-card .aic-icon{font-size:26px;display:block;margin-bottom:6px}
+.appearance-choice-card .aic-label{font-family:'Nunito',sans-serif;font-weight:800;font-size:13px;color:var(--ink);display:block}
+.appearance-choice-card .aic-sub{font-size:11px;color:var(--muted2);margin-top:2px;display:block}
+.variant-pick-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+.variant-pick-item{position:relative;border-radius:12px;overflow:hidden;border:2.5px solid transparent;cursor:pointer}
+.variant-pick-item img{width:100%;aspect-ratio:3/4;object-fit:cover;display:block}
+.variant-pick-item:hover{border-color:var(--accent)}
+.variant-pick-label{position:absolute;bottom:0;left:0;right:0;background:rgba(58,42,30,0.55);color:#fff;font-size:10.5px;font-weight:800;text-align:center;padding:3px}
 
 /* ---------- Input bar ---------- */
 .input-bar{position:sticky;bottom:0;background:oklch(97% 0.018 85 / .97);backdrop-filter:blur(6px);border-top:1px solid var(--line);padding:12px 16px calc(12px + env(safe-area-inset-bottom));z-index:5;margin-top:auto}
@@ -849,6 +869,37 @@ const STYLES = [
 ];
 
 const ROLE_MAP = {"Mädchen":"girl","Junge":"boy","Mama":"woman","Papa":"man","Oma":"grandmother","Opa":"grandfather"};
+const AGE_CHIPS = ["1","2","3","4","5","6","7","8","9","10","11","12","13+"];
+
+/* Briefing v2, Abschnitt 3.1 "Weg B – Merkmale wählen": Chip-/Kachel-Taxonomie statt Freitext.
+   "Kleid" bewusst NICHT dabei (siehe BREAKERS oben - "kleid"/"dress" wird stilbedingt immer zu
+   "colorful tunic and leggings" umgeschrieben, ein Kleid-Chip würde also nie als Kleid ankommen).
+   Jeder Chip trägt sein englisches Prompt-Fragment direkt mit (statt sich auf die grammatikalisch
+   unzuverlässige translate()-Wortliste zu verlassen, siehe charTraitsToSpec()). */
+const HAIR_COLOR_CHIPS = [
+  {label:"Blond", en:"blonde"}, {label:"Hellbraun", en:"light brown"}, {label:"Dunkelbraun", en:"dark brown"},
+  {label:"Schwarz", en:"black"}, {label:"Rot", en:"red"}, {label:"Grau-Weiß", en:"gray and white"}, {label:"Bunt", en:"colorful"}
+];
+const HAIRSTYLE_CHIPS = [
+  {label:"Kurz", en:"short"}, {label:"Mittellang", en:"medium-length"}, {label:"Lang", en:"long"},
+  {label:"Lockig", en:"curly"}, {label:"Glatt", en:"straight"}, {label:"Zöpfe", en:"braided pigtails"}, {label:"Glatze", en:"shaved head, no hair"}
+];
+const CLOTH_COLOR_CHIPS = [
+  {label:"Rot", en:"red"}, {label:"Blau", en:"blue"}, {label:"Grün", en:"green"}, {label:"Gelb", en:"yellow"},
+  {label:"Rosa", en:"pink"}, {label:"Lila", en:"purple"}, {label:"Orange", en:"orange"}, {label:"Bunt gemustert", en:"colorful patterned"}
+];
+const CLOTH_TYPE_CHIPS = [
+  {label:"Pullover & Hose", en:"sweater and pants"}, {label:"T-Shirt & Shorts", en:"t-shirt and shorts"},
+  {label:"Latzhose", en:"overalls"}, {label:"Jacke", en:"jacket"}, {label:"Overall", en:"romper"}
+];
+const ACCESSORY_CHIPS = [
+  {label:"Brille", emoji:"👓", en:"round glasses"},
+  {label:"Mütze", emoji:"🧢", en:"a beanie"},
+  {label:"Schleife", emoji:"🎀", en:"a hair bow"},
+  {label:"Schal", emoji:"🧣", en:"a scarf"},
+  {label:"Rucksack", emoji:"🎒", en:"a backpack"},
+  {label:"Kuscheltier", emoji:"🧸", en:"a plush toy"}
+];
 
 /* Wörter, die den Stil brechen → sichere Alternativen (Briefing Abschnitt 7) */
 const BREAKERS = [
@@ -867,6 +918,7 @@ const DICT = [
   ["ringelpulli","striped sweater"],["ringel","striped"],["gestreifte","striped"],["gestreift","striped"],["gepunktete","dotted"],["gepunktet","dotted"],["karierte","plaid"],["kariert","plaid"],
   ["bommelmütze","pom-pom beanie"],["wollmütze","wool beanie"],["mütze","beanie"],["hut","hat"],["kappe","cap"],["stirnband","headband"],
   ["brille","round glasses"],["schal","scarf"],["halstuch","neckerchief"],["latzhose","overalls"],["jeanshose","pants"],["jeans","pants"],
+  ["schleife","hair bow"],["rucksack","backpack"],["overall","romper"],
   ["strumpfhose","tights"],["leggings","leggings"],["jogginghose","jogging pants"],["hose","pants"],["shorts","shorts"],["rock","skirt"],
   ["regenjacke","rain jacket"],["winterjacke","winter jacket"],["jacke","jacket"],["mantel","coat"],["weste","vest"],["strickjacke","cardigan"],
   ["kapuzenpulli","hoodie"],["pullover","sweater"],["pulli","sweater"],["t-shirt","t-shirt"],["shirt","shirt"],["hemd","shirt"],
@@ -1329,6 +1381,8 @@ function enterApp(){
     else if(state.phase==="char_generating" && state.charDraft && state.charDraft.prompt){ generateCharSheet(state.charDraft.lastOperation); }
     else if(state.phase==="scene_board" && state.sceneDraft && state.sceneDraft.situations){ renderSituationBoard(); }
     else if(state.phase==="char_sheet_generating" && state.previewFocus!=null && state.characters[state.previewFocus]){ generateCharacterSheet(state.characters[state.previewFocus]); }
+    else if(state.phase==="char_variants_generating" && state.charDraft && state.charDraft.prompt && !(state.charDraft.variantChoices && state.charDraft.variantChoices.length)){ generateCharVariants(); }
+    else if(state.phase==="char_traits_pick" && state.charDraft && state.charDraft.traitPicks){ resumeCharTraitsCard(); applyTabUI(); }
     else applyTabUI();
   }
   else if(state.step === "summary"){ showPanel("summary"); renderSummary(); }
@@ -1382,14 +1436,15 @@ function applyTabUI(){
   if(banner) banner.classList.toggle("hidden", !busy);
   const genBadge = $("tab-gen-badge");
   if(genBadge) genBadge.classList.toggle("hidden", !uiGenerating);
-  // Anhang-Button (Foto) ist laut Vorgabe nur während "Beschreibe mir die Person …" (ask_describe)
-  // wirklich funktional aktiv – sonst gedimmt, damit klar ist, wofür er gerade da ist.
+  // Anhang-Button (Foto): aktiv, sobald ein Foto-Upload gerade sinnvoll ist - bei der Foto/Chip-
+  // Wahl (neuer Ablauf, Briefing v2) direkt als Abkürzung zu "📷 Foto hochladen", oder (alte
+  // Sessions) noch bei "ask_describe" - sonst gedimmt.
   const attachBtn = $("attach-btn");
-  if(attachBtn) attachBtn.classList.toggle("active", state.phase === "ask_describe");
+  if(attachBtn) attachBtn.classList.toggle("active", state.phase === "ask_describe" || state.phase === "char_appearance_choice");
   if(tab === "preview") requestAnimationFrame(()=>{ const p = $("live-panel"); if(p) p.scrollTop = 0; });
 }
 function attachButtonClick(){
-  if(state && state.phase === "ask_describe"){ startCharPhotoUpload(); return; }
+  if(state && (state.phase === "ask_describe" || state.phase === "char_appearance_choice")){ clearChips(); startCharPhotoUpload(); return; }
   toast("Foto-Upload passt gerade zur Personenbeschreibung – gleich geht's weiter! 📷");
 }
 function selectChatTab(){ state.activeTab = "chat"; saveState(); applyTabUI(); }
@@ -2574,10 +2629,18 @@ function chWho(text){
   state.currentPersonName = finalName;
   state.charDraft = {name: finalName, spec: makeCharacterSpec({name: finalName, sourceType: "text"})};
   saveState();
+  askCharRole();
+}
+/* Briefing v2, Abschnitt 3.1: Rolle wird direkt nach dem Namen erfragt (Chips, kein Freitext) -
+   ersetzt die frühere "ask_describe"-Freitextfrage. Die dortige KI-Konversation (scDescribeCharacter/
+   useAI()) ist ab hier nicht mehr verdrahtet; Code bleibt im Projekt, wird aber vom neuen Ablauf
+   nicht mehr aufgerufen (siehe Rückfrage-Antwort "Komplett ersetzt"). */
+function askCharRole(){
+  const c = state.charDraft;
   (async()=>{
-    await botSay(`Super! Du kannst mir ${escapeHtml(finalName)} einfach beschreiben oder Du lädst ein Foto über die Anhang-Funktion links unten hoch. Nutze auch gerne die Spracheingabe.`);
-    state.phase = "ask_describe"; saveState();
-    applyTabUI();
+    await botSay(`Und wer ist ${escapeHtml(c.name)} bei euch?`);
+    state.phase = "char_role"; saveState();
+    showChips(Object.keys(ROLE_MAP).map(r=>({label:r, action:()=>chRole(r)})).concat([{label:"✏️ Etwas anderes", action:()=>{ userSay("Etwas anderes"); botSay("Erzähl – wer ist es? (z.B. „Tante“, „bester Freund“, „unser Hund Bello“ 🐶)"); state.phase="char_role_custom"; saveState(); }}]));
   })();
 }
 function scDescribeCharacter(text){
@@ -2589,11 +2652,7 @@ function scDescribeCharacter(text){
     applyTabUI();
     return runClaudeTurn();
   }
-  (async()=>{
-    await botSay(`Und wer ist ${escapeHtml(state.currentPersonName)} bei euch?`);
-    state.phase = "char_role"; saveState();
-    showChips(Object.keys(ROLE_MAP).map(r=>({label:r, action:()=>chRole(r)})).concat([{label:"✏️ Etwas anderes", action:()=>{ userSay("Etwas anderes"); botSay("Erzähl – wer ist es? (z.B. „Tante“, „bester Freund“, „unser Hund Bello“ 🐶)"); state.phase="char_role_custom"; saveState(); }}]));
-  })();
+  askCharRole();
 }
 function startCharDescribe(){
   if(useAI()) return aiCollectCharacter();
@@ -2675,8 +2734,14 @@ async function extractCharacterTraitsFromPhoto(dataUri){
   return data.traits;
 }
 function applyPhotoTraitsToSpec(spec, traits){
-  spec.identityCore.ageGroup = traits.age_group || "child";
-  spec.identityCore.age = traits.age_estimate != null ? traits.age_estimate : null;
+  // Neuer Ablauf: Alter/Rolle wurden schon VOR dem Foto direkt erfragt (siehe chAge) - diese
+  // bewusste Angabe der Nutzerin ist zuverlässiger als eine Foto-Schätzung und darf hier NICHT
+  // überschrieben werden. Die Vision-Schätzung dient nur noch als Fallback, falls (z.B. bei alten
+  // Sessions) noch kein Alter feststeht.
+  if(spec.identityCore.age == null){
+    spec.identityCore.ageGroup = traits.age_group || "child";
+    spec.identityCore.age = traits.age_estimate != null ? traits.age_estimate : null;
+  }
   spec.identityCore.bodyShape = traits.body_shape_en || "";
   spec.identityCore.skinTone = traits.skin_tone_en || "";
   // Vision liefert Frisur+Farbe als eine kombinierte Beschreibung statt getrennter Felder \u2013 f\u00fcr den
@@ -2695,14 +2760,23 @@ function startCharTraitsExtraction(){
   userSay("\ud83e\ude84 Diese Person zaubern");
   const dataUri = pendingPhotoDataUri;
   pendingPhotoDataUri = null;
+  // Neuer Ablauf: Rolle+Alter wurden schon VOR der Foto/Chip-Wahl erfragt (siehe
+  // offerAppearancePathChoice) und stecken noch im alten state.charDraft - beim Foto-Weg NICHT
+  // verlieren, sonst w\u00fcrde confirmPhotoTraits() sp\u00e4ter f\u00e4lschlich nochmal danach fragen.
+  const prev = state.charDraft || {};
   state.charDraft = {
-    name: state.currentPersonName || "", roleLabel: "", role: null, age: null, hair: "", clothing: "", feature: "",
+    name: state.currentPersonName || prev.name || "", roleLabel: prev.roleLabel || "", role: prev.role || null,
+    age: prev.age != null ? prev.age : null, hair: "", clothing: "", feature: "",
     // sourcePhoto bleibt nur als Metadatum erhalten (z.B. f\u00fcr den optionalen Experimentalmodus) \u2013
     // der regul\u00e4re Weg verwendet es NICHT mehr als aktiven Bearbeitungs-Ausgangspunkt.
     fromPhoto: true, sourcePhoto: dataUri,
-    spec: makeCharacterSpec({name: state.currentPersonName || "", sourceType: "photo_extraction"}),
+    spec: makeCharacterSpec({name: state.currentPersonName || prev.name || "", roleLabel: prev.roleLabel || "", role: prev.role || "", sourceType: "photo_extraction"}),
     prompt: null, drafts: [], seed: null
   };
+  if(prev.spec && prev.spec.identityCore){
+    state.charDraft.spec.identityCore.age = prev.spec.identityCore.age;
+    state.charDraft.spec.identityCore.ageGroup = prev.spec.identityCore.ageGroup;
+  }
   state.phase = "char_photo_extracting"; saveState();
   (async()=>{
     const card = await botSay(`<div class="gen-card"><div class="gen-status"><span class="sparkle-loader">\u2728</span><br>Wir schauen uns das Foto an \u2026</div></div>`, {log:false});
@@ -2753,9 +2827,15 @@ function chPhotoTraitsCorrect(text){
 function confirmPhotoTraits(){
   userSay("\u2705 Passt, zeichnen!");
   const c = state.charDraft;
+  if(state.currentPersonName) { c.name = state.currentPersonName; c.spec.name = state.currentPersonName; }
+  if(c.role){
+    // Neuer Ablauf: Rolle+Alter stehen schon vor der Foto/Chip-Wahl fest (siehe
+    // offerAppearancePathChoice) - nicht nochmal fragen, direkt weiter zur Bildgenerierung.
+    saveState();
+    finishPhotoCharSetup();
+    return;
+  }
   if(state.currentPersonName){
-    // Name ist schon aus ask_who bekannt (neuer Ablauf) - nicht nochmal fragen, direkt zur Rolle.
-    c.name = state.currentPersonName; c.spec.name = state.currentPersonName;
     saveState();
     (async()=>{
       await botSay(`Und wer ist ${escapeHtml(state.currentPersonName)} bei euch?`);
@@ -2822,8 +2902,8 @@ function finishPhotoCharSetup(){
     // Regul\u00e4rer Weg (Vision-Extraktion): es existiert noch kein Bild \u2013 jetzt zum ersten Mal \u00fcber
     // denselben flux-lora-Renderer wie ein Textcharakter zeichnen.
     (async()=>{
-      await botSay(`Alles klar, wir spielen ${c.name} jetzt nach! \ud83e\ude84`);
-      await generateCharSheet(GEN_OP.INITIAL);
+      await botSay(`Alles klar, wir zaubern gleich drei Varianten von ${c.name}, damit ihr die \u00e4hnlichste ausw\u00e4hlen k\u00f6nnt! \ud83e\ude84`);
+      await generateCharVariants();
     })();
     return;
   }
@@ -2932,7 +3012,8 @@ function chRole(r){
   if(r==="Mädchen"||r==="Junge"){
     botSay(`Und wie alt ist ${c.name}?`);
     state.phase = "char_age"; saveState();
-  } else chAskHair();
+    showChips(AGE_CHIPS.map(a=>({label:a, action:()=>chAge(a)})));
+  } else offerAppearancePathChoice();
 }
 function chRoleCustom(text){
   userSay(text);
@@ -2940,17 +3021,136 @@ function chRoleCustom(text){
   const roleEn = mapFreeRoleToEnglish(text);
   c.roleLabel = text.trim(); c.role = roleEn;
   c.spec.roleLabel = text.trim(); c.spec.role = roleEn;
-  chAskHair();
+  offerAppearancePathChoice();
 }
 function chAge(text){
   userSay(text);
-  const age = parseInt(text.replace(/\D/g,""), 10);
+  const age = parseInt(String(text).replace(/\D/g,""), 10);
   const finalAge = isNaN(age) ? 4 : age;
   const c = state.charDraft;
   c.age = finalAge;
   c.spec.identityCore.age = finalAge;
   c.spec.identityCore.ageGroup = finalAge <= 3 ? "toddler" : (finalAge <= 12 ? "child" : (finalAge <= 17 ? "teen" : "adult"));
-  chAskHair();
+  offerAppearancePathChoice();
+}
+/* ---------------- Charakter-Baustein Weg A/B (Briefing v2, Abschnitt 3.1) ----------------
+   Nach Name+Rolle+Alter (die den Zeichenstil beeinflussen, siehe ageRole()) wählt die Nutzerin
+   zwischen Foto und Merkmale-Chips statt weiter im Chat frei zu beschreiben. */
+function offerAppearancePathChoice(){
+  const c = state.charDraft;
+  (async()=>{
+    await botSay(`Wie soll ${escapeHtml(c.name || "die Person")} aussehen? Wähl, wie's dir lieber ist.`);
+    state.phase = "char_appearance_choice"; saveState();
+    const html = `<div class="appearance-choice-row">
+      <div class="appearance-choice-card" onclick="userSay('📷 Foto hochladen'); clearChips(); startCharPhotoUpload();"><span class="aic-icon">📷</span><span class="aic-label">Foto hochladen</span><span class="aic-sub">schnellster, genauester Weg</span></div>
+      <div class="appearance-choice-card" onclick="userSay('🎨 Merkmale auswählen'); clearChips(); startCharTraitsPick();"><span class="aic-icon">🎨</span><span class="aic-label">Merkmale auswählen</span><span class="aic-sub">ganz ohne Foto</span></div>
+    </div>`;
+    await botSay(html);
+    applyTabUI(); // Anhang-Button jetzt als Foto-Abkürzung aktiv, siehe attachButtonClick()
+  })();
+}
+/* ---- Weg B: Merkmale-Chip-Karte (eine Karte, alle Kategorien gleichzeitig, siehe Briefing v2
+   Abschnitt 3.1 + Rückfrage-Antwort "Eine Karte mit allen Chip-Gruppen"). Nicht in state/
+   localStorage-Schema fest verankert, sondern als state.charDraft.traitPicks - lebt nur, solange
+   der Entwurf lebt. charTraitsCardNode/-LogIndex sind bewusst NICHT persistiert (wie
+   pendingPhotoDataUri): reines Live-DOM-Update während der Sitzung, siehe refreshCharTraitsCard(). */
+let charTraitsCardNode = null, charTraitsCardLogIndex = -1;
+function startCharTraitsPick(){
+  const c = state.charDraft;
+  if(!c) return;
+  c.traitPicks = {hairColor:null, hairstyle:null, clothColor:null, clothType:null, accessories:[], extra:""};
+  state.phase = "char_traits_pick"; saveState();
+  applyTabUI();
+  (async()=>{
+    charTraitsCardLogIndex = state.chatLog.length;
+    charTraitsCardNode = await botSay(charTraitsCardHtml());
+  })();
+}
+function traitChipRow(groupKey, options, current){
+  const multi = groupKey === "accessories";
+  return options.map(opt=>{
+    const active = multi ? (current||[]).includes(opt.label) : current === opt.label;
+    const emoji = opt.emoji ? opt.emoji + " " : "";
+    return `<button type="button" class="trait-chip${active?" active":""}" onclick="toggleTraitChip('${groupKey}','${opt.label.replace(/'/g,"\\'")}')">${emoji}${escapeHtml(opt.label)}</button>`;
+  }).join("");
+}
+function charTraitsCardHtml(){
+  const c = state.charDraft;
+  const p = (c && c.traitPicks) || {};
+  const ready = p.hairColor && p.hairstyle && p.clothColor && p.clothType;
+  return `<div class="trait-card" id="char-traits-card">
+    <div class="trait-group"><div class="trait-group-label">Haarfarbe</div><div class="trait-chip-row">${traitChipRow("hairColor", HAIR_COLOR_CHIPS, p.hairColor)}</div></div>
+    <div class="trait-group"><div class="trait-group-label">Frisur</div><div class="trait-chip-row">${traitChipRow("hairstyle", HAIRSTYLE_CHIPS, p.hairstyle)}</div></div>
+    <div class="trait-group"><div class="trait-group-label">Kleidungsfarbe</div><div class="trait-chip-row">${traitChipRow("clothColor", CLOTH_COLOR_CHIPS, p.clothColor)}</div></div>
+    <div class="trait-group"><div class="trait-group-label">Kleidungstyp</div><div class="trait-chip-row">${traitChipRow("clothType", CLOTH_TYPE_CHIPS, p.clothType)}</div></div>
+    <div class="trait-group"><div class="trait-group-label">Accessoires (mehrere möglich)</div><div class="trait-chip-row">${traitChipRow("accessories", ACCESSORY_CHIPS, p.accessories)}</div></div>
+    <div class="trait-group"><div class="trait-group-label">Was ist noch besonders? (optional)</div><input type="text" class="trait-extra-input" value="${escapeHtml(p.extra||"")}" placeholder="z. B. „hat immer ihr Kuscheltier dabei“" oninput="updateTraitExtra(this.value)"></div>
+    <button type="button" class="trait-submit-btn" onclick="submitCharTraits()" ${ready?"":"disabled"}>🪄 ${escapeHtml((c&&c.name)||"Person")} zaubern</button>
+  </div>`;
+}
+function resumeCharTraitsCard(){
+  // Nach einem Seitenreload während char_traits_pick: rebuildChat() hat die zuletzt synchronisierte
+  // Karten-HTML schon aus state.chatLog wiederhergestellt (siehe refreshCharTraitsCard/
+  // updateTraitExtra) - hier nur die modulweiten DOM-/Log-Referenzen neu verdrahten, damit weitere
+  // Chip-Klicks wieder live aktualisieren statt stillschweigend ins Leere zu laufen.
+  const msgs = chatEl().querySelectorAll(".msg.bot");
+  charTraitsCardNode = msgs[msgs.length - 1] || null;
+  charTraitsCardLogIndex = state.chatLog.length - 1;
+}
+function refreshCharTraitsCard(){
+  const html = charTraitsCardHtml();
+  if(charTraitsCardNode){
+    const bubble = charTraitsCardNode.querySelector(".bubble");
+    if(bubble) bubble.innerHTML = html;
+  }
+  if(charTraitsCardLogIndex >= 0 && state.chatLog[charTraitsCardLogIndex]) state.chatLog[charTraitsCardLogIndex].h = html;
+  saveState();
+}
+function toggleTraitChip(group, value){
+  const c = state.charDraft;
+  if(!c || !c.traitPicks) return;
+  const p = c.traitPicks;
+  if(group === "accessories"){
+    const idx = p.accessories.indexOf(value);
+    if(idx === -1) p.accessories.push(value); else p.accessories.splice(idx,1);
+  } else {
+    p[group] = (p[group] === value) ? null : value;
+  }
+  refreshCharTraitsCard();
+}
+function updateTraitExtra(val){
+  const c = state.charDraft;
+  if(c && c.traitPicks) c.traitPicks.extra = val;
+  // Kein DOM-Re-Render (würde den Fokus aus dem Eingabefeld werfen) - nur den Chat-Log-Eintrag
+  // synchron halten, damit ein Reload während des Tippens den Text nicht verliert.
+  if(charTraitsCardLogIndex >= 0 && state.chatLog[charTraitsCardLogIndex]) state.chatLog[charTraitsCardLogIndex].h = charTraitsCardHtml();
+  saveState();
+}
+function submitCharTraits(){
+  const c = state.charDraft;
+  const p = c && c.traitPicks;
+  if(!c || !p || !p.hairColor || !p.hairstyle || !p.clothColor || !p.clothType) return;
+  userSay(`🪄 ${c.name||"Person"} zaubern`);
+  const hairColorChip = HAIR_COLOR_CHIPS.find(x=>x.label===p.hairColor);
+  const hairstyleChip = HAIRSTYLE_CHIPS.find(x=>x.label===p.hairstyle);
+  const clothColorChip = CLOTH_COLOR_CHIPS.find(x=>x.label===p.clothColor);
+  const clothTypeChip = CLOTH_TYPE_CHIPS.find(x=>x.label===p.clothType);
+  // "Glatze" schließt eine Haarfarbe logisch aus - Frisur-Fragment reicht dann allein.
+  const hairEn = (hairstyleChip.label === "Glatze")
+    ? hairstyleChip.en
+    : `${hairstyleChip.en} ${hairColorChip.en} hair`;
+  const clothEn = `${clothColorChip.en} ${clothTypeChip.en}`;
+  const accessoryEn = ACCESSORY_CHIPS.filter(a=>p.accessories.includes(a.label)).map(a=>a.en).join(", ");
+  const extraDe = (p.extra||"").trim();
+  const featureEn = [accessoryEn, extraDe ? translate(extraDe) : ""].filter(Boolean).join(", ");
+  c.hair = hairEn; c.spec.identityCore.hairColor = hairEn;
+  c.clothing = clothEn; c.spec.defaultOutfit.top = clothEn;
+  c.feature = featureEn; c.spec.identityCore.signatureMarker = featureEn;
+  saveState();
+  (async()=>{
+    await botSay(`Alles notiert! Ich zaubere ${escapeHtml(c.name||"die Person")} jetzt. ✨`);
+    generateCharSheet(GEN_OP.INITIAL);
+  })();
 }
 function chAskHair(){
   (async()=>{
@@ -3021,6 +3221,48 @@ function chTweakFree(text){
     await botSay(`Alles klar, ich passe ${c.name || "die Person"} an. 🪄`);
     generateCharSheet(GEN_OP.EDIT);
   })();
+}
+/* ---- Weg A: 3 echte Bildvarianten statt einer einzigen Generierung (Briefing v2, Abschnitt 3.1
+   "KI schlägt 2-3 wmlstil-Varianten vor... ein Tap zum Bestätigen"). Nur für den regulären
+   Vision-Extraktions-Fotoweg (finishPhotoCharSetup, !c.img-Zweig) - der Beschreibungs-/Chip-Weg
+   (submitCharTraits) und der experimentelle Foto-Direktmodus laufen weiterhin über den normalen
+   Behalten/Ändern/Nochmal-Zyklus in generateCharSheet(). */
+async function generateCharVariants(){
+  const c = state.charDraft;
+  c.prompt = c.prompt || charPrompt(c);
+  state.phase = "char_variants_generating"; state.previewFocus = null; saveState();
+  renderLivePanel(true);
+  const card = await botSay(`<div class="gen-card"><div class="gen-status"><span class="sparkle-loader">✨</span><br>Wir zaubern 3 Varianten von ${escapeHtml(c.name||"der Person")} …</div></div>`, {log:false});
+  try{
+    const results = await Promise.all([0,1,2].map(()=>generateImage(c.prompt, "char")));
+    c.variantChoices = results.map(r=>({url:r.url, seed:r.seed}));
+    saveState();
+    const html = `Welche gefällt euch am besten? Einfach antippen. 👇${renderVariantPickHtml(c.variantChoices)}`;
+    card.querySelector(".bubble").innerHTML = html;
+    state.chatLog.push({w:"bot", h:html}); saveState();
+    scrollChat();
+    renderLivePanel();
+  }catch(e){
+    const html = `Hoppla, da hat der Zauberstab gestreikt: <b>${escapeHtml(e.message)}</b><span class="note">Prüfe deinen fal.ai-Key in ⚙️ oder versuch es gleich nochmal.</span>`;
+    card.querySelector(".bubble").innerHTML = html;
+    state.chatLog.push({w:"bot", h:html}); saveState();
+    renderLivePanel();
+    showChips([{label:"🔁 Nochmal versuchen", accent:true, action:()=>{ clearChips(); generateCharVariants(); }}]);
+  }
+}
+function renderVariantPickHtml(variants){
+  return `<div class="variant-pick-grid">${variants.map((v,i)=>`
+    <div class="variant-pick-item" onclick="pickCharVariant(${i})"><img src="${v.url}" alt="Variante ${i+1}"><span class="variant-pick-label">Variante ${i+1}</span></div>`).join("")}</div>`;
+}
+function pickCharVariant(i){
+  const c = state.charDraft;
+  const chosen = c && c.variantChoices && c.variantChoices[i];
+  if(!chosen) return;
+  c.img = chosen.url; c.seed = chosen.seed;
+  c.drafts = [{url:chosen.url, seed:chosen.seed}]; c.currentDraftIndex = 0;
+  c.variantChoices = null;
+  saveState();
+  acceptChar(`✅ Variante ${i+1}`);
 }
 async function generateCharSheet(operation){
   operation = operation || GEN_OP.INITIAL;
