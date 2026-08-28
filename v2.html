@@ -1138,8 +1138,15 @@ function tabbarHtml(active){
   ];
   return `<div class="tabbar">${tabs.map(t=>`<button class="tab${t.id===active?" active":""}" onclick="go('${t.go}')"><span class="tico">${t.icon}</span><span>${t.label}</span></button>`).join("")}</div>`;
 }
-function wizGreetHtml(text, sub){
-  return `<div class="wiz-greet"><img src="${asset('wizard-mascot.png')}" alt="WizzelWim"><div class="wiz-bubble">${text}${sub?`<div class="sub">${sub}</div>`:""}</div></div>`;
+/* Echte WizzelWim-Posen aus dem Design-Handoff statt eines generischen Platzhalter-Bildes –
+   pro Screen die im Referenz-Mockup (reference-screens.html) verwendete Pose, siehe Aufrufe unten. */
+const WIZ_POSE = {
+  badge: "wizard-badge.png", magnifier: "wizard-magnifier.png",
+  bubble: "wizard-speechbubble.png", onbook: "wizard-on-book.png"
+};
+function wizGreetHtml(text, sub, pose){
+  const img = WIZ_POSE[pose] || WIZ_POSE.bubble;
+  return `<div class="wiz-greet"><img src="${asset(img)}" alt="WizzelWim"><div class="wiz-bubble">${text}${sub?`<div class="sub">${sub}</div>`:""}</div></div>`;
 }
 function autosaveLine(){
   return `<div class="autosave">Automatisch gespeichert · du kannst jederzeit pausieren</div>`;
@@ -1308,7 +1315,7 @@ function startApp(){
 SCREENS.product_overview = function(){
   return `
   <div class="screen app-shell">
-    ${wizGreetHtml("Bevor wir loslegen, ein kurzer Überblick.", "Das ist unverbindlich – du entscheidest erst später, und kannst es dir jederzeit anders überlegen.")}
+    ${wizGreetHtml("Bevor wir loslegen, ein kurzer Überblick.", "Das ist unverbindlich – du entscheidest erst später, und kannst es dir jederzeit anders überlegen.", "bubble")}
     <div class="tier-cards">
       ${Object.values(PRODUCT_TIERS).map(t=>`<div class="tier-card"><div><div class="tt">${t.name}</div><div class="td">${t.desc}</div></div><div class="tp">${t.price} €</div></div>`).join("")}
     </div>
@@ -1332,7 +1339,7 @@ SCREENS.dashboard = function(){
   <div class="app-shell">
     ${appbarHtml("Start", {back:false})}
     <div class="screen">
-      ${wizGreetHtml(hasChars ? "Schön, dass ihr wieder da seid!" : "Hi, ich bin WizzelWim!", hasChars ? "Wie geht's weiter?" : "Lasst uns mit eurer Familie anfangen.")}
+      ${wizGreetHtml(hasChars ? "Schön, dass ihr wieder da seid!" : "Hi, ich bin WizzelWim!", hasChars ? "Wie geht's weiter?" : "Lasst uns mit eurer Familie anfangen.", hasChars ? "badge" : "magnifier")}
       ${voucherBanner}
       <div class="dash-card">
         <div class="dc-head"><div class="dc-title">🧑‍🎨 Charaktere</div>${!hasChars ? '<span class="badge-start">Hier starten</span>' : ""}</div>
@@ -1388,7 +1395,7 @@ SCREENS.char_form = function(params){
   <div class="app-shell">
     ${appbarHtml("Neue Person", {backFn:"go('char_overview')"})}
     <div class="screen">
-      ${wizGreetHtml("Wer kommt als Nächstes dazu?")}
+      ${wizGreetHtml("Wer kommt als Nächstes dazu?", null, "bubble")}
       <div class="form-field">
         <label>Name</label>
         <input id="cf-name" type="text" value="${escapeHtml(d.name)}" placeholder="z. B. Lina" oninput="cfUpdateName(this.value)">
@@ -1431,7 +1438,7 @@ SCREENS.char_method = function(){
   <div class="app-shell">
     ${appbarHtml("Wie soll " + (state.activeCharDraft.name||"die Person") + " aussehen?", {backFn:"go('char_form')"})}
     <div class="screen">
-      ${wizGreetHtml("Zwei Wege stehen euch offen – beide führen zum selben Ziel.")}
+      ${wizGreetHtml("Zwei Wege stehen euch offen – beide führen zum selben Ziel.", null, "bubble")}
       <div class="choice-cards">
         <div class="choice-card emph" onclick="go('char_photo')"><span class="cc-icon">📷</span><div class="cc-title">Foto hochladen</div><div class="cc-sub">Wir zeichnen die Person in unserem Stil nach</div></div>
         <div class="choice-card emph" onclick="go('char_chips')"><span class="cc-icon">✏️</span><div class="cc-title">Merkmale wählen</div><div class="cc-sub">Haare, Kleidung &amp; mehr per Antippen</div></div>
@@ -1448,7 +1455,7 @@ SCREENS.char_photo = function(){
   <div class="app-shell">
     ${appbarHtml("Foto hochladen", {backFn:"go('char_method')"})}
     <div class="screen">
-      ${wizGreetHtml("Lade ein Foto hoch, ich spiele die Person in unserem Look nach.", "Kurzer Hinweis: Das Foto wird nur zur Erkennung übertragen und danach automatisch gelöscht – nicht bei uns gespeichert.")}
+      ${wizGreetHtml("Lade ein Foto hoch, ich spiele die Person in unserem Look nach.", "Kurzer Hinweis: Das Foto wird nur zur Erkennung übertragen und danach automatisch gelöscht – nicht bei uns gespeichert.", "bubble")}
       <div class="dropzone" id="photo-dropzone">
         <label class="btn btn-primary" for="cp-input">📷 Foto auswählen</label>
         <input type="file" id="cp-input" accept="image/*" style="display:none" onchange="cpFileSelected(this)">
@@ -1518,7 +1525,7 @@ SCREENS.char_chips = function(){
   <div class="app-shell">
     ${appbarHtml("Merkmale wählen", {backFn:"go('char_method')"})}
     <div class="screen">
-      ${wizGreetHtml("Wie sieht " + (d.name||"die Person") + " typischerweise aus?")}
+      ${wizGreetHtml("Wie sieht " + (d.name||"die Person") + " typischerweise aus?", null, "bubble")}
       ${swatch.length ? `<div class="live-swatch">${swatch.map(s=>`<span class="swatch-pill">${escapeHtml(s)}</span>`).join("")}</div>` : ""}
       <div class="trait-group"><div class="trait-group-label">Haarfarbe</div><div class="chip-row">${chipRow("hairColor", HAIR_COLOR_CHIPS, p.identityCore.hairColorLabel)}</div></div>
       <div class="trait-group"><div class="trait-group-label">Frisur</div><div class="chip-row">${chipRow("hairstyle", HAIRSTYLE_CHIPS, p.hairstyleLabel)}</div></div>
@@ -1590,7 +1597,7 @@ SCREENS.char_loading = function(params){
   <div class="app-shell">
     ${appbarHtml("Einen Moment …", {back:false})}
     <div class="loading-screen">
-      <img src="${asset('wizard-mascot.png')}" alt="WizzelWim">
+      <img src="${asset('wizard-magnifier.png')}" alt="WizzelWim">
       <h3>${escapeHtml(p.label || "WizzelWim zaubert …")}</h3>
       <p class="small">${escapeHtml(p.sub || "")}</p>
       <div class="loading-bar"><i style="width:70%"></i></div>
@@ -1616,7 +1623,7 @@ SCREENS.char_result = function(){
   <div class="app-shell">
     ${appbarHtml((d.name||"Person") + " ist startklar!", {backFn:"go('" + backTarget + "')"})}
     <div class="screen">
-      ${wizGreetHtml("Fertig! Schaut mal, ob ihr euch findet. 🔍")}
+      ${wizGreetHtml("Fertig! Schaut mal, ob ihr euch findet. 🔍", null, "badge")}
       <div class="card card-elev center">
         <img src="${d.img}" alt="${escapeHtml(d.name)}" style="border-radius:14px;width:100%;max-width:260px;margin:0 auto;">
       </div>
@@ -1645,7 +1652,7 @@ SCREENS.char_overview = function(){
   <div class="app-shell">
     ${appbarHtml("Eure Personen", {backFn:"go('dashboard')"})}
     <div class="screen">
-      ${wizGreetHtml(state.characters.length ? "Wer soll noch dazu?" : "Noch ist niemand dabei – legt los!")}
+      ${wizGreetHtml(state.characters.length ? "Wer soll noch dazu?" : "Noch ist niemand dabei – legt los!", null, "magnifier")}
       <div class="gallery-grid">
         ${state.characters.map((c,i)=>`<div class="gallery-item" onclick="go('char_edit_pick',{i:${i}})"><img src="${c.img}" alt="${escapeHtml(c.name)}"><div class="gl">${escapeHtml(c.name)}</div></div>`).join("")}
         <div class="gallery-add" onclick="go('char_form')">+ Person</div>
@@ -1709,7 +1716,7 @@ SCREENS.scene_choice = function(){
   <div class="app-shell">
     ${appbarHtml(isFirst ? "Euer erstes Wimmelbild" : "Nächstes Wimmelbild", {backFn:"go('dashboard')"})}
     <div class="screen">
-      ${wizGreetHtml(isFirst ? "Wie wollen wir eure erste Szene festlegen?" : "Wie soll die nächste Szene entstehen?", "Ihr müsst euch nicht alles selbst ausdenken – ich ergänze gerne.")}
+      ${wizGreetHtml(isFirst ? "Wie wollen wir eure erste Szene festlegen?" : "Wie soll die nächste Szene entstehen?", "Ihr müsst euch nicht alles selbst ausdenken – ich ergänze gerne.", "onbook")}
       <div class="scene-choice-row">
         <div class="choice-card record emph" onclick="go('scene_record')"><span class="cc-icon">🎙️</span><div class="cc-title">Gutenachtgeschichte aufnehmen</div><div class="cc-sub">Erzählt frei drauflos, ich höre zu</div></div>
         <div class="choice-card emph" onclick="go('scene_tiles')"><span class="cc-icon">🖼️</span><div class="cc-title">Thema wählen</div><div class="cc-sub">Fertige Anlässe zum Antippen</div></div>
@@ -1726,7 +1733,7 @@ SCREENS.scene_tiles = function(){
   <div class="app-shell">
     ${appbarHtml("Thema wählen", {backFn:"go('scene_choice')"})}
     <div class="screen">
-      ${wizGreetHtml("Welches Thema passt zu eurer Erinnerung?")}
+      ${wizGreetHtml("Welches Thema passt zu eurer Erinnerung?", null, "onbook")}
       <div class="tile-grid">
         ${SCENE_TILES.map(t=>t.img
           ? `<div class="scene-tile" onclick="pickSceneTile('${t.tileId}')"><img src="${asset(t.img)}" alt="${t.label}"><div class="stl">${t.label}</div></div>`
@@ -1754,7 +1761,7 @@ SCREENS.scene_record = function(){
   <div class="app-shell">
     ${appbarHtml("Erzählt mir davon", {backFn:"go('scene_choice')"})}
     <div class="screen center">
-      ${wizGreetHtml("Erzählt einfach frei, wie bei einer Gutenachtgeschichte.", "Wenn dir nichts mehr einfällt, ergänze ich gerne den Rest.")}
+      ${wizGreetHtml("Erzählt einfach frei, wie bei einer Gutenachtgeschichte.", "Wenn dir nichts mehr einfällt, ergänze ich gerne den Rest.", "bubble")}
       ${speechSupported() ? `
         <button class="record-btn" id="rec-btn" onclick="toggleRecording()">🎙️</button>
         <div class="waveform" id="rec-wave" style="display:none"><i style="animation-delay:.0s"></i><i style="animation-delay:.1s"></i><i style="animation-delay:.2s"></i><i style="animation-delay:.3s"></i><i style="animation-delay:.4s"></i></div>
@@ -1824,7 +1831,7 @@ SCREENS.scene_freetext = function(){
   <div class="app-shell">
     ${appbarHtml("Eigene Idee", {backFn:"go('scene_choice')"})}
     <div class="screen">
-      ${wizGreetHtml("Beschreib mir kurz, was ihr erlebt habt – den Rest übernehme ich.")}
+      ${wizGreetHtml("Beschreib mir kurz, was ihr erlebt habt – den Rest übernehme ich.", null, "bubble")}
       <div class="form-field"><textarea id="ft-text" placeholder="z. B. Unser Ausflug zum Bauernhof im Herbst …"></textarea></div>
       <p class="small" style="font-weight:800">Oder lass dich inspirieren:</p>
       ${SCENE_FREETEXT_TEMPLATES.map(t=>`<div class="example-template" onclick="fillFreetext(this)">${t}</div>`).join("")}
@@ -1856,7 +1863,7 @@ SCREENS.scene_loading = function(){
   <div class="app-shell">
     ${appbarHtml("Einen Moment …", {back:false})}
     <div class="loading-screen">
-      <img src="${asset('wizard-mascot.png')}" alt="WizzelWim">
+      <img src="${asset('wizard-magnifier.png')}" alt="WizzelWim">
       <h3>WizzelWim zaubert …</h3>
       <p class="small">Die Wimmels verteilen gerade die Rollen. (${done}/${total} Situationen)</p>
       <div class="loading-bar"><i style="width:${total?Math.round(done/total*100):10}%"></i></div>
@@ -1951,7 +1958,7 @@ SCREENS.scene_edit = function(){
   <div class="app-shell">
     ${appbarHtml("Details anpassen", {backFn:"go('scene_result')"})}
     <div class="screen">
-      ${wizGreetHtml("Tippt eine Situation an, um sie auszutauschen.")}
+      ${wizGreetHtml("Tippt eine Situation an, um sie auszutauschen.", null, "badge")}
       ${s.img ? `<img class="scene-result-img" src="${s.img}" alt="">` : ""}
       <div class="chip-row mt16">${s.situations.map((sit,i)=>`<div class="chip" onclick="openSwapPicker(${i})">${escapeHtml(sit.de||sit.text)}</div>`).join("")}</div>
     </div>
@@ -1996,7 +2003,7 @@ SCREENS.decision = function(){
   <div class="app-shell">
     ${appbarHtml("Geschafft!", {back:false})}
     <div class="screen">
-      ${wizGreetHtml("Geschafft – dein erstes Wimmelbild ist fertig! 🎉", "Hat es dir Spaß gemacht?")}
+      ${wizGreetHtml("Geschafft – dein erstes Wimmelbild ist fertig! 🎉", "Hat es dir Spaß gemacht?", "onbook")}
       <p>Du kannst es genau so als Poster bestellen. Oder du machst weiter: Noch 1 Wimmelbild und eine Seite mit allen Charakteren zusammen, und daraus wird ein kleines, gebundenes Wimmelbuch. Noch 4 weitere Wimmelbilder, und daraus wird ein großes Wimmelbuch.</p>
       <div class="tier-choice-card" onclick="chooseTier('poster')"><div class="tch-top"><span class="tch-name">🖼️ Poster</span><span class="tch-price">34 €</span></div><div class="tch-desc">Dieses eine Bild, fertig.</div></div>
       <div class="tier-choice-card" onclick="chooseTier('mini')"><div class="tch-top"><span class="tch-name">📖 Mini-Wimmelbuch</span><span class="tch-price">59 €</span></div><div class="tch-desc">Noch 1 Wimmelbild + Charakter-Seite, 8 Seiten.</div></div>
@@ -2026,7 +2033,7 @@ SCREENS.progress = function(){
   <div class="app-shell">
     ${appbarHtml("Euer Wimmelbuch", {backFn:"go('dashboard')"})}
     <div class="screen">
-      ${wizGreetHtml(done + " von " + target + " Wimmelbildern fertig", "Ihr könnt jederzeit pausieren und später weitermachen.")}
+      ${wizGreetHtml(done + " von " + target + " Wimmelbildern fertig", "Ihr könnt jederzeit pausieren und später weitermachen.", "bubble")}
       <div class="progress-gallery">
         ${state.scenes.map(s=>`<div class="pg-item"><img src="${s.img}" alt=""><span class="pg-check">✓</span></div>`).join("")}
         ${Array.from({length: Math.max(0, target-done)}).map(()=>`<div class="pg-empty" onclick="go('scene_choice')">+ Nächstes<br>Wimmelbild</div>`).join("")}
@@ -2096,7 +2103,7 @@ SCREENS.dedication = function(){
   <div class="app-shell">
     ${appbarHtml("Widmung (optional)", {backFn:"go('preview')", skipFn:"go('checkout_confirm')"})}
     <div class="screen">
-      ${wizGreetHtml("Möchtet ihr ein paar persönliche Worte hinzufügen?", "Ganz optional – ihr könnt das auch überspringen.")}
+      ${wizGreetHtml("Möchtet ihr ein paar persönliche Worte hinzufügen?", "Ganz optional – ihr könnt das auch überspringen.", "magnifier")}
       <div class="form-field"><textarea id="ded-text" placeholder="Eure Widmung …">${escapeHtml(state.dedication||"")}</textarea></div>
       ${speechSupported() ? `<button class="btn btn-secondary" onclick="recordDedication()">🎙️ Lieber einsprechen</button>` : ""}
       <p class="small" style="font-weight:800" class="mt16">Oder lass dich inspirieren:</p>
@@ -2127,7 +2134,7 @@ SCREENS.checkout_confirm = function(){
   <div class="app-shell">
     ${appbarHtml("Preis bestätigen", {backFn:"go('dedication')"})}
     <div class="screen">
-      ${wizGreetHtml("Fast geschafft! Ein letzter Blick auf euer Wimmelbuch.")}
+      ${wizGreetHtml("Fast geschafft! Ein letzter Blick auf euer Wimmelbuch.", null, "badge")}
       <div class="tier-cards">
         ${Object.values(PRODUCT_TIERS).map(t=>`<div class="tier-choice-card ${t.id===state.tier?"chosen":""}" onclick="switchTierInPlace('${t.id}')"><div class="tch-top"><span class="tch-name">${t.name}</span><span class="tch-price">${t.price} €</span></div><div class="tch-desc">${t.desc}</div></div>`).join("")}
       </div>
@@ -2202,7 +2209,7 @@ SCREENS.confirmation = function(){
   <div class="app-shell">
     ${appbarHtml("Bestellt!", {back:false})}
     <div class="screen center">
-      <img src="${asset('wizard-mascot.png')}" alt="WizzelWim" style="width:140px;margin:10px auto">
+      <img src="${asset('wizard-on-book.png')}" alt="WizzelWim" style="width:140px;margin:10px auto">
       <h2>Danke, ${escapeHtml(o.name.split(" ")[0]||"")}! 💛</h2>
       <p>Euer <b>${tier.name}</b> ist bei uns eingegangen und wird liebevoll für den Druck vorbereitet.</p>
       <div class="card mt16">
@@ -2232,7 +2239,7 @@ SCREENS.voucher_buy = function(params){
   <div class="app-shell">
     ${appbarHtml("Wimmel Wizard verschenken", {backFn:"go('landing')"})}
     <div class="screen">
-      ${wizGreetHtml("Was für ein schönes Geschenk!", "Wählt einen Wert, schreibt ein paar Worte – den Rest übernehmen die Beschenkten.")}
+      ${wizGreetHtml("Was für ein schönes Geschenk!", "Wählt einen Wert, schreibt ein paar Worte – den Rest übernehmen die Beschenkten.", "bubble")}
       <div class="tier-cards">
         ${Object.values(PRODUCT_TIERS).map(t=>`<div class="tier-choice-card ${t.id===chosen?"chosen":""}" onclick="go('voucher_buy',{tier:'${t.id}'})"><div class="tch-top"><span class="tch-name">${t.name}</span><span class="tch-price">${t.price} €</span></div><div class="tch-desc">${t.desc}</div></div>`).join("")}
       </div>
@@ -2267,7 +2274,7 @@ SCREENS.voucher_confirm = function(){
   <div class="app-shell">
     ${appbarHtml("Gutschein unterwegs!", {back:false})}
     <div class="screen center">
-      <img src="${asset('wizard-mascot.png')}" alt="" style="width:140px;margin:10px auto">
+      <img src="${asset('wizard-on-book.png')}" alt="" style="width:140px;margin:10px auto">
       <h2>Danke für dieses schöne Geschenk! 💛</h2>
       <p>Bestellnummer <b>${o.orderNumber}</b> – der Gutschein über ${o.price} € geht ${o.delivery==="Digital"?"gleich per E-Mail":"per Post"} raus.</p>
       <button class="btn btn-primary btn-block mt20" onclick="go('landing')">Zurück zur Startseite</button>
