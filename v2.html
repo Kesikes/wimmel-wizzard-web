@@ -40,23 +40,29 @@ a{color:var(--secondary);}
   padding:14px 22px; border-radius:16px; border:none; font-weight:800; font-size:15.5px;
   min-height:44px; text-align:center;
 }
-.btn-primary{background:var(--primary); color:#fff; box-shadow:0 6px 14px rgba(193,80,46,0.28);}
-.btn-secondary{background:#fff; color:var(--text); border:2px solid rgba(58,42,30,0.15);}
+.btn-primary{background:var(--primary); color:#fff;}
+.btn-secondary{background:var(--card); color:var(--primary); border:1.5px solid var(--primary);}
 .btn-outline{background:transparent; color:var(--primary); border:2px solid var(--primary);}
 .btn-block{width:100%;}
 .btn-row{display:flex; gap:10px; flex-wrap:wrap;}
 .btn-row .btn{flex:1;}
 .chip{
-  display:inline-flex; align-items:center; gap:6px; padding:10px 16px; border-radius:999px;
-  border:2px solid rgba(58,42,30,0.14); background:#fff; font-weight:700; font-size:14px; min-height:40px;
+  display:inline-flex; align-items:center; gap:6px; padding:9px 14px; border-radius:999px;
+  border:1.5px solid rgba(58,42,30,0.16); background:var(--card); font-weight:700; font-size:12.5px; min-height:36px;
   color:var(--text);
 }
-.chip.selected{background:var(--primary); border-color:var(--primary); color:#fff;}
+/* Referenz .chipOn: hellblauer Chip mit blauem Text, NICHT orange gefuellt (war vorher invertiert). */
+.chip.selected{background:var(--blue1); border-color:var(--secondary); color:var(--secondary);}
 .chip-row{display:flex; flex-wrap:wrap; gap:8px;}
 
 /* ---- Cards ---- */
-.card{background:var(--card); border-radius:20px; box-shadow:var(--shadow-card); padding:18px;}
+.card{background:var(--card); border-radius:18px; box-shadow:var(--shadow-card); padding:16px; border:1px solid rgba(58,42,30,0.1);}
 .card-elev{box-shadow:var(--shadow-elev);}
+/* Farbige Icon-Kacheln fuer Auswahlkarten (Referenz: 4b/5a/2a) statt nackter Emoji-Spans. */
+.icon-tile{width:52px; height:52px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0; margin:0 auto 8px;}
+.icon-tile.blue{background:linear-gradient(135deg,#6FC4DE,#2D7590);}
+.icon-tile.orange{background:linear-gradient(135deg,#FFC94A,#C1502E);}
+.icon-tile.green{background:linear-gradient(135deg,#A8D5A2,#4A7A5A);}
 
 /* ---- Equal-weight continue/stop rule (non-negotiable) ---- */
 .coequal-row{display:flex; flex-direction:column; gap:12px; margin-top:16px;}
@@ -93,7 +99,7 @@ a{color:var(--secondary);}
 .home-bar .hb-price{font-size:12px; font-weight:800; color:var(--secondary); background:rgba(255,255,255,0.55); border-radius:999px; padding:6px 12px;}
 
 .tabbar{
-  position:sticky; bottom:0; z-index:40; background:#fff; display:flex; border-top:1px solid rgba(58,42,30,0.1);
+  position:sticky; bottom:0; z-index:40; background:var(--card); display:flex; border-top:1px solid rgba(58,42,30,0.1);
   padding:6px 6px calc(6px + env(safe-area-inset-bottom));
 }
 .tabbar .tab{flex:1; display:flex; flex-direction:column; align-items:center; gap:2px; padding:8px 2px; background:none; border:none; color:var(--muted); font-size:11px; font-weight:700;}
@@ -107,7 +113,7 @@ a{color:var(--secondary);}
 .wiz-greet{display:flex; gap:12px; align-items:flex-start; margin-bottom:18px;}
 .wiz-greet img{width:56px; height:auto; flex:none;}
 .wiz-bubble{
-  background:#fff; border-radius:18px; border-top-left-radius:4px; padding:12px 16px; font-weight:700; font-size:14.5px;
+  background:var(--card); border:1px solid rgba(58,42,30,0.12); border-radius:18px; border-top-left-radius:5px; padding:14px 16px; font-weight:700; font-size:14.5px;
   box-shadow:var(--shadow-card); position:relative;
 }
 .wiz-bubble .sub{font-weight:400; color:var(--muted); font-size:13px; margin-top:4px;}
@@ -156,16 +162,17 @@ a{color:var(--secondary);}
 .honesty-block{background:rgba(255,255,255,0.65); border-radius:18px; padding:18px; font-weight:700; font-size:15px; line-height:1.55; text-align:center;}
 
 .tier-cards{display:flex; flex-direction:column; gap:12px; margin-top:12px;}
-.tier-card{background:#fff; border-radius:18px; padding:16px; box-shadow:var(--shadow-card); display:flex; justify-content:space-between; align-items:center; gap:10px;}
+.tier-card{background:var(--card); border-radius:18px; padding:16px; box-shadow:var(--shadow-card); display:flex; justify-content:space-between; align-items:center; gap:10px;}
+.tier-card .icon-tile{margin:0;}
 .tier-card .tt{font-family:'Baloo 2'; font-weight:800; font-size:16px;}
 .tier-card .td{color:var(--muted); font-size:13px;}
 .tier-card .tp{font-family:'Baloo 2'; font-weight:800; font-size:18px; color:var(--primary); white-space:nowrap;}
 
 .trust-row{display:flex; flex-wrap:wrap; gap:10px; margin-top:10px;}
-.trust-item{background:#fff; border-radius:14px; padding:12px; flex:1 1 44%; text-align:center; font-weight:800; font-size:12.5px; box-shadow:var(--shadow-card);}
+.trust-item{background:var(--card); border-radius:14px; padding:12px; flex:1 1 44%; text-align:center; font-weight:800; font-size:12.5px; box-shadow:var(--shadow-card);}
 .trust-item .ti-icon{font-size:22px; display:block; margin-bottom:4px;}
 
-.faq-item{background:#fff; border-radius:14px; padding:14px 16px; margin-bottom:10px; box-shadow:var(--shadow-card);}
+.faq-item{background:var(--card); border-radius:14px; padding:14px 16px; margin-bottom:10px; box-shadow:var(--shadow-card);}
 .faq-q{font-weight:800; display:flex; justify-content:space-between; cursor:pointer;}
 .faq-a{color:var(--muted); font-size:13.5px; margin-top:8px; display:none; line-height:1.5;}
 .faq-item.open .faq-a{display:block;}
@@ -174,7 +181,7 @@ a{color:var(--secondary);}
 .footer-legal a{color:var(--muted2); margin:0 6px;}
 
 /* ---- product tier overview / decision cards ---- */
-.tier-choice-card{background:#fff; border-radius:18px; padding:18px; box-shadow:var(--shadow-card); margin-bottom:12px; border:3px solid transparent;}
+.tier-choice-card{background:var(--card); border-radius:18px; padding:18px; box-shadow:var(--shadow-card); margin-bottom:12px; border:3px solid transparent;}
 .tier-choice-card.chosen{border-color:var(--primary);}
 .tier-choice-card .tch-top{display:flex; justify-content:space-between; align-items:baseline;}
 .tier-choice-card .tch-name{font-family:'Baloo 2'; font-weight:800; font-size:17px;}
@@ -183,7 +190,7 @@ a{color:var(--secondary);}
 .equal-note{background:rgba(74,122,90,0.1); border-radius:14px; padding:14px; font-weight:700; font-size:14px; text-align:center; color:var(--success); margin-top:14px;}
 
 /* ---- dashboard ---- */
-.dash-card{background:#fff; border-radius:20px; padding:18px; box-shadow:var(--shadow-card); margin-bottom:14px; position:relative; display:flex; gap:13px; align-items:center; flex-wrap:wrap;}
+.dash-card{background:var(--card); border-radius:18px; padding:18px; box-shadow:var(--shadow-card); margin-bottom:14px; position:relative; display:flex; gap:13px; align-items:center; flex-wrap:wrap; border:1px solid rgba(58,42,30,0.1);}
 .dash-card.start{border:2px solid var(--primary);}
 .dash-card.locked{opacity:0.55; filter:grayscale(0.3);}
 .dash-card .dc-body{flex:1; min-width:0;}
@@ -204,17 +211,21 @@ a{color:var(--secondary);}
 
 /* ---- character screens ---- */
 .choice-cards{display:flex; flex-direction:column; gap:14px;}
-.choice-card{background:#fff; border-radius:18px; padding:20px; box-shadow:var(--shadow-card); text-align:center; border:2px solid transparent;}
+.choice-card{background:var(--card); border-radius:18px; padding:20px; box-shadow:var(--shadow-card); text-align:center; border:2px solid transparent;}
 .choice-card .cc-icon{font-size:34px; display:block; margin-bottom:8px;}
 .choice-card .cc-title{font-family:'Baloo 2'; font-weight:800; font-size:16px;}
 .choice-card .cc-sub{color:var(--muted); font-size:12.5px; margin-top:4px;}
+/* Referenz codiert die beiden/drei Wahlkarten farblich unterschiedlich statt alle im selben Orange
+   (4b: Foto=blau, Merkmale=orange; 5a: Erzaehlen=blau, Thema=orange, Freitext=gruen). */
 .choice-card.emph{border-color:var(--primary);}
+.choice-card.emph-blue{border-color:rgba(45,117,144,0.5);}
+.choice-card.emph-green{border-color:rgba(74,122,90,0.45);}
 
-.dropzone{border:2px dashed rgba(58,42,30,0.25); border-radius:18px; padding:26px; text-align:center; background:#fff;}
+.dropzone{border:2px dashed rgba(45,117,144,0.4); border-radius:20px; padding:26px; text-align:center; background:var(--blue1);}
 .dropzone img.preview-thumb{width:120px; border-radius:14px; margin:10px auto;}
 
 .variant-grid{display:flex; gap:12px; overflow-x:auto; padding:10px 0;}
-.variant-item{flex:0 0 46%; background:#fff; border-radius:16px; padding:8px; box-shadow:var(--shadow-card); text-align:center; border:3px solid transparent;}
+.variant-item{flex:0 0 46%; background:var(--card); border-radius:16px; padding:8px; box-shadow:var(--shadow-card); text-align:center; border:3px solid transparent;}
 .variant-item img{border-radius:12px; aspect-ratio:3/4; object-fit:cover;}
 .variant-item.picked{border-color:var(--primary);}
 .variant-item .vl{font-weight:800; font-size:13px; margin-top:6px;}
@@ -222,25 +233,25 @@ a{color:var(--secondary);}
 .trait-group{margin-bottom:16px;}
 .trait-group-label{font-weight:800; font-size:13.5px; margin-bottom:8px; color:var(--muted);}
 .live-swatch{position:sticky; top:60px; z-index:5; background:var(--bg); padding:10px 0; display:flex; gap:8px; flex-wrap:wrap;}
-.swatch-pill{background:#fff; border-radius:999px; padding:6px 12px; font-size:12px; font-weight:800; box-shadow:var(--shadow-card);}
+.swatch-pill{background:var(--card); border-radius:999px; padding:6px 12px; font-size:12px; font-weight:800; box-shadow:var(--shadow-card);}
 
 .sheet-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:14px 0;}
-.sheet-cell{background:#fff; border-radius:14px; padding:8px; text-align:center; box-shadow:var(--shadow-card);}
+.sheet-cell{background:var(--card); border-radius:14px; padding:8px; text-align:center; box-shadow:var(--shadow-card);}
 .sheet-cell img{border-radius:10px; aspect-ratio:3/4; object-fit:cover; width:100%;}
 .sheet-cell .sl{font-weight:800; font-size:12px; color:var(--muted); margin-top:4px;}
 
 .gallery-grid{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;}
-.gallery-item{background:#fff; border-radius:14px; padding:8px; text-align:center; box-shadow:var(--shadow-card);}
+.gallery-item{background:var(--card); border-radius:14px; padding:8px; text-align:center; box-shadow:var(--shadow-card);}
 .gallery-item img{border-radius:10px; aspect-ratio:3/4; object-fit:cover; width:100%;}
 .gallery-item .gl{font-weight:800; font-size:11.5px; margin-top:4px;}
-.gallery-add{background:#fff; border-radius:14px; border:2px dashed rgba(58,42,30,0.25); display:flex; flex-direction:column; align-items:center; justify-content:center; aspect-ratio:3/4; font-size:12px; font-weight:800; color:var(--muted);}
+.gallery-add{background:var(--card); border-radius:14px; border:2px dashed rgba(58,42,30,0.25); display:flex; flex-direction:column; align-items:center; justify-content:center; aspect-ratio:3/4; font-size:12px; font-weight:800; color:var(--muted);}
 
 /* ---- scene screens ---- */
 .scene-choice-row{display:flex; flex-direction:column; gap:14px;}
 .scene-choice-row .choice-card.record{padding:26px;}
 
 .tile-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
-.scene-tile{background:#fff; border-radius:16px; overflow:hidden; box-shadow:var(--shadow-card); text-align:center; position:relative;}
+.scene-tile{background:var(--card); border-radius:16px; overflow:hidden; box-shadow:var(--shadow-card); text-align:center; position:relative;}
 .scene-tile img{width:100%; aspect-ratio:4/3; object-fit:cover;}
 .scene-tile .stl{font-weight:800; padding:8px 4px; font-size:13px;}
 .scene-tile.icon-only{padding:26px 8px;}
@@ -254,7 +265,7 @@ a{color:var(--secondary);}
 .waveform i{width:5px; background:var(--secondary); border-radius:3px; animation:wave 1s infinite ease-in-out;}
 @keyframes wave{0%,100%{height:8px;}50%{height:34px;}}
 
-.example-template{background:#fff; border-radius:14px; padding:12px 14px; margin-bottom:8px; font-size:13.5px; box-shadow:var(--shadow-card);}
+.example-template{background:var(--card); border-radius:14px; padding:12px 14px; margin-bottom:8px; font-size:13.5px; box-shadow:var(--shadow-card);}
 
 .loading-screen{text-align:center; padding:60px 20px;}
 .loading-screen img{width:120px; margin:0 auto 18px; animation:float 2.4s ease-in-out infinite;}
@@ -281,7 +292,7 @@ a{color:var(--secondary);}
 .form-field input, .form-field textarea{width:100%; border:2px solid rgba(58,42,30,0.15); border-radius:12px; padding:12px 14px; font-family:inherit; font-size:14.5px; background:#fff;}
 .form-field textarea{min-height:90px; resize:vertical;}
 .pay-row{display:flex; gap:8px; flex-wrap:wrap;}
-.price-breakdown{background:#fff; border-radius:16px; padding:16px; box-shadow:var(--shadow-card);}
+.price-breakdown{background:var(--card); border-radius:16px; padding:16px; box-shadow:var(--shadow-card);}
 .pb-line{display:flex; justify-content:space-between; font-size:14px; padding:6px 0;}
 .pb-total{border-top:2px solid rgba(58,42,30,0.1); margin-top:8px; padding-top:10px; font-weight:800; font-size:16px;}
 .trust-line{text-align:center; font-size:12px; color:var(--muted2); margin-top:14px; font-weight:700;}
@@ -1084,6 +1095,13 @@ const PRODUCT_TIERS = {
   mini:   {id:"mini",   name:"Mini-Wimmelbuch", price:59, scenes:2, desc:"2 Wimmelbilder + 1 Charakter-Seite, 8 Seiten Softcover."},
   buch:   {id:"buch",   name:"Wimmelbuch", price:89, scenes:5, desc:"5 Wimmelbilder, fest gebunden."}
 };
+// Referenz codiert die 3 Produktstufen konsequent blau/orange/gruen (siehe icon-tile-Kacheln in
+// 2a/6/7) statt eines einheitlichen Emoji-vor-Namen-Texts.
+const TIER_ICON = {
+  poster: {emoji:"🖼️", color:"blue"},
+  mini:   {emoji:"📖", color:"orange"},
+  buch:   {emoji:"📚", color:"green"}
+};
 const AVATAR_COLORS = ["#C1502E","#2D7590","#4A7A5A","#9B6B9B","#D98C4A","#5B7FA6"];
 function avatarColor(i){ return AVATAR_COLORS[i % AVATAR_COLORS.length]; }
 
@@ -1331,7 +1349,7 @@ SCREENS.landing = function(){
     <div class="section-inner">
       <h2>Eure Produktstufen</h2>
       <div class="tier-cards">
-        ${Object.values(PRODUCT_TIERS).map(t=>`<div class="tier-card"><div><div class="tt">${t.name}</div><div class="td">${t.desc}</div></div><div class="tp">${t.price} €</div></div>`).join("")}
+        ${Object.values(PRODUCT_TIERS).map(t=>`<div class="tier-card"><div class="icon-tile ${TIER_ICON[t.id].color}">${TIER_ICON[t.id].emoji}</div><div style="flex:1"><div class="tt">${t.name}</div><div class="td">${t.desc}</div></div><div class="tp">${t.price} €</div></div>`).join("")}
       </div>
       <p class="small center mt12">Du kannst dich später jederzeit umentscheiden.</p>
     </div>
@@ -1383,7 +1401,7 @@ SCREENS.product_overview = function(){
   <div class="screen app-shell">
     ${wizGreetHtml("Bevor wir loslegen, ein kurzer Überblick.", "Das ist unverbindlich – du entscheidest erst später, und kannst es dir jederzeit anders überlegen.", "bubble")}
     <div class="tier-cards">
-      ${Object.values(PRODUCT_TIERS).map(t=>`<div class="tier-card"><div><div class="tt">${t.name}</div><div class="td">${t.desc}</div></div><div class="tp">${t.price} €</div></div>`).join("")}
+      ${Object.values(PRODUCT_TIERS).map(t=>`<div class="tier-card"><div class="icon-tile ${TIER_ICON[t.id].color}">${TIER_ICON[t.id].emoji}</div><div style="flex:1"><div class="tt">${t.name}</div><div class="td">${t.desc}</div></div><div class="tp">${t.price} €</div></div>`).join("")}
     </div>
     <p class="small center mt16">Du kannst dich später jederzeit umentscheiden – nichts ist in Stein gemeißelt.</p>
     <button class="btn btn-primary btn-block mt20" onclick="acceptProductOverview()">Einfach loslegen</button>
@@ -1516,8 +1534,8 @@ SCREENS.char_method = function(){
     <div class="screen">
       ${wizGreetHtml("Zwei Wege stehen euch offen – beide führen zum selben Ziel.", null, "bubble")}
       <div class="choice-cards">
-        <div class="choice-card emph" onclick="go('char_photo')"><span class="cc-icon">📷</span><div class="cc-title">Foto hochladen</div><div class="cc-sub">Wir zeichnen die Person in unserem Stil nach</div></div>
-        <div class="choice-card emph" onclick="go('char_chips')"><span class="cc-icon">✏️</span><div class="cc-title">Merkmale wählen</div><div class="cc-sub">Haare, Kleidung &amp; mehr per Antippen</div></div>
+        <div class="choice-card emph-blue" onclick="go('char_photo')"><div class="icon-tile blue">📷</div><div class="cc-title">Foto hochladen</div><div class="cc-sub">Wir zeichnen die Person in unserem Stil nach</div></div>
+        <div class="choice-card emph" onclick="go('char_chips')"><div class="icon-tile orange">✏️</div><div class="cc-title">Merkmale wählen</div><div class="cc-sub">Haare, Kleidung &amp; mehr per Antippen</div></div>
       </div>
     </div>
     ${tabbarHtml("personen")}
@@ -1794,9 +1812,9 @@ SCREENS.scene_choice = function(){
     <div class="screen">
       ${wizGreetHtml(isFirst ? "Wie wollen wir eure erste Szene festlegen?" : "Wie soll die nächste Szene entstehen?", "Ihr müsst euch nicht alles selbst ausdenken – ich ergänze gerne.", "onbook")}
       <div class="scene-choice-row">
-        <div class="choice-card record emph" onclick="go('scene_record')"><span class="cc-icon">🎙️</span><div class="cc-title">Gutenachtgeschichte aufnehmen</div><div class="cc-sub">Erzählt frei drauflos, ich höre zu</div></div>
-        <div class="choice-card emph" onclick="go('scene_tiles')"><span class="cc-icon">🖼️</span><div class="cc-title">Thema wählen</div><div class="cc-sub">Fertige Anlässe zum Antippen</div></div>
-        <div class="choice-card emph" onclick="go('scene_freetext')"><span class="cc-icon">✏️</span><div class="cc-title">Eigene Idee eintippen</div><div class="cc-sub">Kurz beschreiben, Rest übernehmen wir</div></div>
+        <div class="choice-card record emph-blue" onclick="go('scene_record')"><div class="icon-tile blue">🎙️</div><div class="cc-title">Gutenachtgeschichte aufnehmen</div><div class="cc-sub">Erzählt frei drauflos, ich höre zu</div></div>
+        <div class="choice-card emph" onclick="go('scene_tiles')"><div class="icon-tile orange">🖼️</div><div class="cc-title">Thema wählen</div><div class="cc-sub">Fertige Anlässe zum Antippen</div></div>
+        <div class="choice-card emph-green" onclick="go('scene_freetext')"><div class="icon-tile green">✏️</div><div class="cc-title">Eigene Idee eintippen</div><div class="cc-sub">Kurz beschreiben, Rest übernehmen wir</div></div>
       </div>
     </div>
     ${tabbarHtml("bilder")}
