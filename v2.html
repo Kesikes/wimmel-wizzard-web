@@ -68,7 +68,7 @@ a{color:var(--secondary);}
   display:flex; align-items:center; justify-content:space-between; box-shadow:0 2px 10px rgba(0,0,0,0.08);
 }
 .topbar .logo{font-family:'Baloo 2',sans-serif; font-weight:800; font-size:19px; color:#3A2A1E; display:flex; align-items:center; gap:8px;}
-.topbar .logo img{width:30px; height:30px; border-radius:50%; object-fit:cover;}
+.topbar .logo img{width:30px; height:30px; border-radius:9px; object-fit:cover;}
 .topbar-cta{background:#3A2A1E; color:#fff; border-radius:999px; padding:10px 16px; font-weight:800; font-size:13.5px; border:none;}
 .topbar-give{font-size:12.5px; font-weight:700; color:#3A2A1E; text-decoration:underline; background:none; border:none;}
 
@@ -94,7 +94,7 @@ a{color:var(--secondary);}
 
 /* ---- WizzelWim greeting bubble (recurs, never a chat log) ---- */
 .wiz-greet{display:flex; gap:12px; align-items:flex-start; margin-bottom:18px;}
-.wiz-greet img{width:56px; height:56px; border-radius:50%; object-fit:cover; flex:none; background:#fff; box-shadow:var(--shadow-card);}
+.wiz-greet img{width:56px; height:auto; flex:none;}
 .wiz-bubble{
   background:#fff; border-radius:18px; border-top-left-radius:4px; padding:12px 16px; font-weight:700; font-size:14.5px;
   box-shadow:var(--shadow-card); position:relative;
@@ -177,7 +177,7 @@ a{color:var(--secondary);}
 .dash-card .dc-title{font-family:'Baloo 2'; font-weight:800; font-size:16.5px; display:flex; align-items:center; gap:8px;}
 .badge-start{background:var(--primary); color:#fff; font-size:11px; font-weight:800; padding:4px 10px; border-radius:999px;}
 .avatar-row{display:flex; gap:-6px; margin-top:10px;}
-.mini-avatar{width:36px; height:36px; border-radius:50%; border:2px solid #fff; object-fit:cover; margin-left:-10px; box-shadow:0 1px 3px rgba(0,0,0,0.15);}
+.mini-avatar{width:36px; height:36px; border-radius:50%; border:2px solid #fff; object-fit:cover; object-position:50% 12%; background:#fff; margin-left:-10px; box-shadow:0 1px 3px rgba(0,0,0,0.15);}
 .mini-avatar:first-child{margin-left:0;}
 .thumb-row{display:flex; gap:10px; margin-top:10px; overflow-x:auto;}
 .thumb-row img{width:72px; height:52px; object-fit:cover; border-radius:10px; box-shadow:var(--shadow-card);}
