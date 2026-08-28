@@ -1,0 +1,2296 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wimmel Wizard – Euer Wimmelbuch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;600;700;800&display=swap">
+<style>
+:root{
+  --bg:#FBF1E1; --card:#FFFBF3; --text:#3A2A1E; --muted:rgba(58,42,30,0.68); --muted2:rgba(58,42,30,0.6);
+  --primary:#C1502E; --secondary:#2D7590; --success:#4A7A5A;
+  --header-grad:linear-gradient(135deg,#FFC94A,#F5A623);
+  --peach1:#FDE9D6; --peach2:#FBDCC0;
+  --blue1:#DCF1F6; --blue2:#CDEAF1;
+  --green1:#E4F1D9; --green2:#D6E9C6;
+  --yellow1:#FFE9B8; --yellow2:#FFDD94;
+  --lavender1:#F3E3EE; --lavender2:#EBD3E4;
+  --av1:#C1502E; --av2:#2D7590; --av3:#4A7A5A; --av4:#9B6B9B; --av5:#D98C4A; --av6:#5B7FA6;
+  --shadow-card:0 4px 14px rgba(58,42,30,0.05);
+  --shadow-elev:0 20px 25px -5px rgba(45,117,144,0.25);
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--bg); color:var(--text); font-family:'Nunito',sans-serif; font-weight:400;
+  -webkit-font-smoothing:antialiased; overflow-x:hidden;
+}
+h1,h2,h3,.heading{font-family:'Baloo 2',sans-serif; font-weight:800; margin:0 0 8px;}
+p{margin:0 0 10px; line-height:1.5;}
+img{max-width:100%; display:block;}
+button{font-family:inherit; cursor:pointer;}
+a{color:var(--secondary);}
+.wrap{max-width:480px; margin:0 auto; position:relative;}
+.px{padding-left:20px; padding-right:20px;}
+
+/* ---- Buttons / chips ---- */
+.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  padding:14px 22px; border-radius:16px; border:none; font-weight:800; font-size:15.5px;
+  min-height:44px; text-align:center;
+}
+.btn-primary{background:var(--primary); color:#fff; box-shadow:0 6px 14px rgba(193,80,46,0.28);}
+.btn-secondary{background:#fff; color:var(--text); border:2px solid rgba(58,42,30,0.15);}
+.btn-outline{background:transparent; color:var(--primary); border:2px solid var(--primary);}
+.btn-block{width:100%;}
+.btn-row{display:flex; gap:10px; flex-wrap:wrap;}
+.btn-row .btn{flex:1;}
+.chip{
+  display:inline-flex; align-items:center; gap:6px; padding:10px 16px; border-radius:999px;
+  border:2px solid rgba(58,42,30,0.14); background:#fff; font-weight:700; font-size:14px; min-height:40px;
+  color:var(--text);
+}
+.chip.selected{background:var(--primary); border-color:var(--primary); color:#fff;}
+.chip-row{display:flex; flex-wrap:wrap; gap:8px;}
+
+/* ---- Cards ---- */
+.card{background:var(--card); border-radius:20px; box-shadow:var(--shadow-card); padding:18px;}
+.card-elev{box-shadow:var(--shadow-elev);}
+
+/* ---- Equal-weight continue/stop rule (non-negotiable) ---- */
+.coequal-row{display:flex; flex-direction:column; gap:12px; margin-top:16px;}
+.coequal-row .btn{width:100%;}
+
+/* ---- Header / nav ---- */
+.topbar{
+  position:sticky; top:0; z-index:50; background:var(--header-grad); padding:12px 20px;
+  display:flex; align-items:center; justify-content:space-between; box-shadow:0 2px 10px rgba(0,0,0,0.08);
+}
+.topbar .logo{font-family:'Baloo 2',sans-serif; font-weight:800; font-size:19px; color:#3A2A1E; display:flex; align-items:center; gap:8px;}
+.topbar .logo img{width:30px; height:30px; border-radius:50%; object-fit:cover;}
+.topbar-cta{background:#3A2A1E; color:#fff; border-radius:999px; padding:10px 16px; font-weight:800; font-size:13.5px; border:none;}
+.topbar-give{font-size:12.5px; font-weight:700; color:#3A2A1E; text-decoration:underline; background:none; border:none;}
+
+.appbar{
+  position:sticky; top:0; z-index:40; background:var(--bg); padding:14px 20px 10px;
+  display:flex; align-items:center; gap:10px; border-bottom:1px solid rgba(58,42,30,0.08);
+}
+.appbar-back{background:#fff; border-radius:50%; width:38px; height:38px; display:flex; align-items:center; justify-content:center; border:none; font-size:18px; flex:none;}
+.appbar-title{font-family:'Baloo 2',sans-serif; font-weight:700; font-size:16px; flex:1;}
+.appbar-price{font-size:12.5px; font-weight:800; color:var(--primary); background:#fff; border-radius:999px; padding:6px 12px;}
+.appbar-skip{font-size:13px; font-weight:700; color:var(--secondary); background:none; border:none;}
+
+.tabbar{
+  position:sticky; bottom:0; z-index:40; background:#fff; display:flex; border-top:1px solid rgba(58,42,30,0.1);
+  padding:6px 6px calc(6px + env(safe-area-inset-bottom));
+}
+.tabbar .tab{flex:1; display:flex; flex-direction:column; align-items:center; gap:2px; padding:8px 2px; background:none; border:none; color:var(--muted); font-size:11px; font-weight:700;}
+.tabbar .tab.active{color:var(--primary);}
+.tabbar .tab .tico{font-size:19px;}
+
+.screen{padding:20px 20px 32px; min-height:60vh;}
+.app-shell{padding-bottom:0;}
+
+/* ---- WizzelWim greeting bubble (recurs, never a chat log) ---- */
+.wiz-greet{display:flex; gap:12px; align-items:flex-start; margin-bottom:18px;}
+.wiz-greet img{width:56px; height:56px; border-radius:50%; object-fit:cover; flex:none; background:#fff; box-shadow:var(--shadow-card);}
+.wiz-bubble{
+  background:#fff; border-radius:18px; border-top-left-radius:4px; padding:12px 16px; font-weight:700; font-size:14.5px;
+  box-shadow:var(--shadow-card); position:relative;
+}
+.wiz-bubble .sub{font-weight:400; color:var(--muted); font-size:13px; margin-top:4px;}
+
+/* ---- autosave line ---- */
+.autosave{font-size:12px; color:var(--muted2); font-weight:700; display:flex; align-items:center; gap:6px; margin:14px 0;}
+.autosave::before{content:"✓"; color:var(--success);}
+
+/* ---- torn paper divider ---- */
+.torn-bottom{
+  position:absolute; left:0; right:0; bottom:-1px; height:34px;
+  clip-path: polygon(0% 0%, 0.00% 44.9%, 1.67% 36.2%, 3.33% 50.7%, 5.00% 34.2%, 6.67% 36.4%, 8.33% 45.8%, 10.00% 49.9%, 11.67% 46.5%, 13.33% 26.5%, 15.00% 43.6%, 16.67% 49.9%, 18.33% 35.0%, 20.00% 50.0%, 21.67% 27.0%, 23.33% 47.9%, 25.00% 44.4%, 26.67% 24.5%, 28.33% 54.3%, 30.00% 38.1%, 31.67% 53.1%, 33.33% 49.1%, 35.00% 42.4%, 36.67% 33.2%, 38.33% 42.6%, 40.00% 43.9%, 41.67% 41.4%, 43.33% 40.9%, 45.00% 33.4%, 46.67% 30.5%, 48.33% 48.1%, 50.00% 38.6%, 51.67% 29.3%, 53.33% 24.6%, 55.00% 29.1%, 56.67% 51.7%, 58.33% 51.1%, 60.00% 32.4%, 61.67% 26.5%, 63.33% 24.6%, 65.00% 46.9%, 66.67% 40.1%, 68.33% 32.8%, 70.00% 33.0%, 71.67% 25.8%, 73.33% 37.8%, 75.00% 34.0%, 76.67% 26.2%, 78.33% 29.2%, 80.00% 43.4%, 81.67% 34.3%, 83.33% 52.9%, 85.00% 46.1%, 86.67% 51.4%, 88.33% 52.9%, 90.00% 40.5%, 91.67% 24.9%, 93.33% 33.1%, 95.00% 27.1%, 96.67% 27.8%, 98.33% 25.5%, 100.00% 36.4%, 100% 100%, 0% 100%);
+}
+.section{position:relative; padding:44px 20px 54px;}
+.section-inner{max-width:480px; margin:0 auto;}
+.section.peach{background:linear-gradient(180deg,var(--peach1),var(--peach2));}
+.section.blue{background:linear-gradient(180deg,var(--blue1),var(--blue2));}
+.section.green{background:linear-gradient(180deg,var(--green1),var(--green2));}
+.section.yellow{background:linear-gradient(180deg,var(--yellow1),var(--yellow2));}
+.section.lavender{background:linear-gradient(180deg,var(--lavender1),var(--lavender2));}
+.section.peach .torn-bottom{fill:var(--blue1);}
+.torn-bottom.to-blue{background:var(--blue1);}
+.torn-bottom.to-green{background:var(--green1);}
+.torn-bottom.to-yellow{background:var(--yellow1);}
+.torn-bottom.to-lavender{background:var(--lavender1);}
+.torn-bottom.to-bg{background:var(--bg);}
+.torn-bottom.to-peach{background:var(--peach1);}
+
+/* ---- landing hero ---- */
+.hero{position:relative; padding:28px 20px 60px; background:#fff; text-align:center;}
+.hero img.hero-img{width:100%; border-radius:20px; box-shadow:var(--shadow-card); margin-bottom:18px;}
+.hero h1{font-size:26px; line-height:1.2;}
+.hero .sub{color:var(--muted); font-size:15px; margin-bottom:18px;}
+.family-strip{width:100%; display:block;}
+
+.examples-row{display:flex; gap:12px; overflow-x:auto; scroll-snap-type:x mandatory; padding:6px 0 4px; -webkit-overflow-scrolling:touch;}
+.examples-row .ex-item{flex:0 0 72%; scroll-snap-align:start;}
+.examples-row .ex-item img{border-radius:16px; box-shadow:var(--shadow-card); aspect-ratio:4/3; object-fit:cover; width:100%;}
+.examples-row .ex-cap{font-weight:800; margin-top:8px; text-align:center; font-size:14px;}
+
+.steps-row{display:flex; flex-direction:column; gap:14px; margin-top:12px;}
+.step-item{display:flex; gap:12px; align-items:flex-start; background:rgba(255,255,255,0.55); border-radius:16px; padding:14px;}
+.step-num{width:32px; height:32px; border-radius:50%; background:var(--secondary); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; flex:none;}
+
+.honesty-block{background:rgba(255,255,255,0.65); border-radius:18px; padding:18px; font-weight:700; font-size:15px; line-height:1.55; text-align:center;}
+
+.tier-cards{display:flex; flex-direction:column; gap:12px; margin-top:12px;}
+.tier-card{background:#fff; border-radius:18px; padding:16px; box-shadow:var(--shadow-card); display:flex; justify-content:space-between; align-items:center; gap:10px;}
+.tier-card .tt{font-family:'Baloo 2'; font-weight:800; font-size:16px;}
+.tier-card .td{color:var(--muted); font-size:13px;}
+.tier-card .tp{font-family:'Baloo 2'; font-weight:800; font-size:18px; color:var(--primary); white-space:nowrap;}
+
+.trust-row{display:flex; flex-wrap:wrap; gap:10px; margin-top:10px;}
+.trust-item{background:#fff; border-radius:14px; padding:12px; flex:1 1 44%; text-align:center; font-weight:800; font-size:12.5px; box-shadow:var(--shadow-card);}
+.trust-item .ti-icon{font-size:22px; display:block; margin-bottom:4px;}
+
+.faq-item{background:#fff; border-radius:14px; padding:14px 16px; margin-bottom:10px; box-shadow:var(--shadow-card);}
+.faq-q{font-weight:800; display:flex; justify-content:space-between; cursor:pointer;}
+.faq-a{color:var(--muted); font-size:13.5px; margin-top:8px; display:none; line-height:1.5;}
+.faq-item.open .faq-a{display:block;}
+
+.footer-legal{padding:28px 20px 40px; text-align:center; font-size:12px; color:var(--muted2);}
+.footer-legal a{color:var(--muted2); margin:0 6px;}
+
+/* ---- product tier overview / decision cards ---- */
+.tier-choice-card{background:#fff; border-radius:18px; padding:18px; box-shadow:var(--shadow-card); margin-bottom:12px; border:3px solid transparent;}
+.tier-choice-card.chosen{border-color:var(--primary);}
+.tier-choice-card .tch-top{display:flex; justify-content:space-between; align-items:baseline;}
+.tier-choice-card .tch-name{font-family:'Baloo 2'; font-weight:800; font-size:17px;}
+.tier-choice-card .tch-price{font-family:'Baloo 2'; font-weight:800; color:var(--primary); font-size:18px;}
+.tier-choice-card .tch-desc{color:var(--muted); font-size:13.5px; margin:6px 0 10px;}
+.equal-note{background:rgba(74,122,90,0.1); border-radius:14px; padding:14px; font-weight:700; font-size:14px; text-align:center; color:var(--success); margin-top:14px;}
+
+/* ---- dashboard ---- */
+.dash-card{background:#fff; border-radius:20px; padding:18px; box-shadow:var(--shadow-card); margin-bottom:14px; position:relative;}
+.dash-card.locked{opacity:0.55; filter:grayscale(0.3);}
+.dash-card .dc-head{display:flex; justify-content:space-between; align-items:center;}
+.dash-card .dc-title{font-family:'Baloo 2'; font-weight:800; font-size:16.5px; display:flex; align-items:center; gap:8px;}
+.badge-start{background:var(--primary); color:#fff; font-size:11px; font-weight:800; padding:4px 10px; border-radius:999px;}
+.avatar-row{display:flex; gap:-6px; margin-top:10px;}
+.mini-avatar{width:36px; height:36px; border-radius:50%; border:2px solid #fff; object-fit:cover; margin-left:-10px; box-shadow:0 1px 3px rgba(0,0,0,0.15);}
+.mini-avatar:first-child{margin-left:0;}
+.thumb-row{display:flex; gap:10px; margin-top:10px; overflow-x:auto;}
+.thumb-row img{width:72px; height:52px; object-fit:cover; border-radius:10px; box-shadow:var(--shadow-card);}
+.thumb-add{width:72px; height:52px; border-radius:10px; border:2px dashed rgba(58,42,30,0.3); display:flex; align-items:center; justify-content:center; font-size:20px; color:var(--muted); flex:none;}
+.price-pill{position:sticky; top:60px; z-index:10;}
+
+/* ---- character screens ---- */
+.choice-cards{display:flex; flex-direction:column; gap:14px;}
+.choice-card{background:#fff; border-radius:18px; padding:20px; box-shadow:var(--shadow-card); text-align:center; border:2px solid transparent;}
+.choice-card .cc-icon{font-size:34px; display:block; margin-bottom:8px;}
+.choice-card .cc-title{font-family:'Baloo 2'; font-weight:800; font-size:16px;}
+.choice-card .cc-sub{color:var(--muted); font-size:12.5px; margin-top:4px;}
+.choice-card.emph{border-color:var(--primary);}
+
+.dropzone{border:2px dashed rgba(58,42,30,0.25); border-radius:18px; padding:26px; text-align:center; background:#fff;}
+.dropzone img.preview-thumb{width:120px; border-radius:14px; margin:10px auto;}
+
+.variant-grid{display:flex; gap:12px; overflow-x:auto; padding:10px 0;}
+.variant-item{flex:0 0 46%; background:#fff; border-radius:16px; padding:8px; box-shadow:var(--shadow-card); text-align:center; border:3px solid transparent;}
+.variant-item img{border-radius:12px; aspect-ratio:3/4; object-fit:cover;}
+.variant-item.picked{border-color:var(--primary);}
+.variant-item .vl{font-weight:800; font-size:13px; margin-top:6px;}
+
+.trait-group{margin-bottom:16px;}
+.trait-group-label{font-weight:800; font-size:13.5px; margin-bottom:8px; color:var(--muted);}
+.live-swatch{position:sticky; top:60px; z-index:5; background:var(--bg); padding:10px 0; display:flex; gap:8px; flex-wrap:wrap;}
+.swatch-pill{background:#fff; border-radius:999px; padding:6px 12px; font-size:12px; font-weight:800; box-shadow:var(--shadow-card);}
+
+.sheet-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:14px 0;}
+.sheet-cell{background:#fff; border-radius:14px; padding:8px; text-align:center; box-shadow:var(--shadow-card);}
+.sheet-cell img{border-radius:10px; aspect-ratio:3/4; object-fit:cover; width:100%;}
+.sheet-cell .sl{font-weight:800; font-size:12px; color:var(--muted); margin-top:4px;}
+
+.gallery-grid{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;}
+.gallery-item{background:#fff; border-radius:14px; padding:8px; text-align:center; box-shadow:var(--shadow-card);}
+.gallery-item img{border-radius:10px; aspect-ratio:3/4; object-fit:cover; width:100%;}
+.gallery-item .gl{font-weight:800; font-size:11.5px; margin-top:4px;}
+.gallery-add{background:#fff; border-radius:14px; border:2px dashed rgba(58,42,30,0.25); display:flex; flex-direction:column; align-items:center; justify-content:center; aspect-ratio:3/4; font-size:12px; font-weight:800; color:var(--muted);}
+
+/* ---- scene screens ---- */
+.scene-choice-row{display:flex; flex-direction:column; gap:14px;}
+.scene-choice-row .choice-card.record{padding:26px;}
+
+.tile-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+.scene-tile{background:#fff; border-radius:16px; overflow:hidden; box-shadow:var(--shadow-card); text-align:center; position:relative;}
+.scene-tile img{width:100%; aspect-ratio:4/3; object-fit:cover;}
+.scene-tile .stl{font-weight:800; padding:8px 4px; font-size:13px;}
+.scene-tile.icon-only{padding:26px 8px;}
+.scene-tile.icon-only .sti{font-size:34px; display:block; margin-bottom:6px;}
+.scene-tile.custom{background:rgba(255,255,255,0.6); border:2px dashed rgba(58,42,30,0.25);}
+
+.record-btn{width:96px; height:96px; border-radius:50%; background:var(--primary); color:#fff; font-size:34px; border:none; box-shadow:0 8px 20px rgba(193,80,46,0.35); margin:20px auto; display:block;}
+.record-btn.active{animation:pulse 1.2s infinite;}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(193,80,46,0.5);}70%{box-shadow:0 0 0 22px rgba(193,80,46,0);}100%{box-shadow:0 0 0 0 rgba(193,80,46,0);}}
+.waveform{display:flex; gap:4px; align-items:flex-end; height:40px; justify-content:center; margin:14px 0;}
+.waveform i{width:5px; background:var(--secondary); border-radius:3px; animation:wave 1s infinite ease-in-out;}
+@keyframes wave{0%,100%{height:8px;}50%{height:34px;}}
+
+.example-template{background:#fff; border-radius:14px; padding:12px 14px; margin-bottom:8px; font-size:13.5px; box-shadow:var(--shadow-card);}
+
+.loading-screen{text-align:center; padding:60px 20px;}
+.loading-screen img{width:120px; margin:0 auto 18px; animation:float 2.4s ease-in-out infinite;}
+@keyframes float{0%,100%{transform:translateY(0);}50%{transform:translateY(-10px);}}
+.loading-bar{height:8px; background:rgba(58,42,30,0.1); border-radius:99px; overflow:hidden; margin:16px auto; max-width:220px;}
+.loading-bar i{display:block; height:100%; background:var(--primary); border-radius:99px; transition:width .4s;}
+
+.scene-result-img{width:100%; border-radius:18px; box-shadow:var(--shadow-elev);}
+.situation-chip-row{display:flex; gap:8px; overflow-x:auto; padding:12px 0;}
+.situation-chip-row .schip{flex:none; background:#fff; border-radius:999px; padding:8px 14px; font-size:12.5px; font-weight:700; box-shadow:var(--shadow-card); white-space:nowrap;}
+.secondary-row{display:flex; gap:10px; margin-top:8px;}
+.secondary-row .btn{flex:1; font-size:13px; padding:10px 12px;}
+
+/* ---- gallery/progress dashboard ---- */
+.progress-gallery{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+.pg-item{position:relative; border-radius:16px; overflow:hidden; box-shadow:var(--shadow-card);}
+.pg-item img{width:100%; aspect-ratio:4/3; object-fit:cover;}
+.pg-check{position:absolute; top:6px; right:6px; background:var(--success); color:#fff; border-radius:50%; width:24px; height:24px; display:flex; align-items:center; justify-content:center; font-size:13px;}
+.pg-empty{border:2px dashed rgba(58,42,30,0.25); border-radius:16px; aspect-ratio:4/3; display:flex; align-items:center; justify-content:center; font-weight:800; color:var(--muted); font-size:13px; text-align:center; padding:8px;}
+
+/* ---- checkout / form ---- */
+.form-field{margin-bottom:12px;}
+.form-field label{display:block; font-weight:800; font-size:13px; margin-bottom:6px;}
+.form-field input, .form-field textarea{width:100%; border:2px solid rgba(58,42,30,0.15); border-radius:12px; padding:12px 14px; font-family:inherit; font-size:14.5px; background:#fff;}
+.form-field textarea{min-height:90px; resize:vertical;}
+.pay-row{display:flex; gap:8px; flex-wrap:wrap;}
+.price-breakdown{background:#fff; border-radius:16px; padding:16px; box-shadow:var(--shadow-card);}
+.pb-line{display:flex; justify-content:space-between; font-size:14px; padding:6px 0;}
+.pb-total{border-top:2px solid rgba(58,42,30,0.1); margin-top:8px; padding-top:10px; font-weight:800; font-size:16px;}
+.trust-line{text-align:center; font-size:12px; color:var(--muted2); margin-top:14px; font-weight:700;}
+
+/* ---- misc ---- */
+.center{text-align:center;}
+.mt8{margin-top:8px;} .mt12{margin-top:12px;} .mt16{margin-top:16px;} .mt20{margin-top:20px;} .mt24{margin-top:24px;}
+.mb0{margin-bottom:0;}
+.small{font-size:12.5px; color:var(--muted);}
+.toast{position:fixed; bottom:80px; left:50%; transform:translateX(-50%); background:#3A2A1E; color:#fff; padding:10px 18px; border-radius:999px; font-weight:700; font-size:13px; z-index:200; box-shadow:0 8px 20px rgba(0,0,0,0.2);}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const ASSETS_BASE = "./assets-v2/";
+function asset(name){ return ASSETS_BASE + name; }
+const ROLE_MAP = {"Mädchen":"girl","Junge":"boy","Mama":"woman","Papa":"man","Oma":"grandmother","Opa":"grandfather"};
+const AGE_CHIPS = ["1","2","3","4","5","6","7","8","9","10","11","12","13+"];
+
+/* Briefing v2, Abschnitt 3.1 "Weg B – Merkmale wählen": Chip-/Kachel-Taxonomie statt Freitext.
+   "Kleid" bewusst NICHT dabei (siehe BREAKERS oben - "kleid"/"dress" wird stilbedingt immer zu
+   "colorful tunic and leggings" umgeschrieben, ein Kleid-Chip würde also nie als Kleid ankommen).
+   Jeder Chip trägt sein englisches Prompt-Fragment direkt mit (statt sich auf die grammatikalisch
+   unzuverlässige translate()-Wortliste zu verlassen, siehe charTraitsToSpec()). */
+const HAIR_COLOR_CHIPS = [
+  {label:"Blond", en:"blonde"}, {label:"Hellbraun", en:"light brown"}, {label:"Dunkelbraun", en:"dark brown"},
+  {label:"Schwarz", en:"black"}, {label:"Rot", en:"red"}, {label:"Grau-Weiß", en:"gray and white"}, {label:"Bunt", en:"colorful"}
+];
+const HAIRSTYLE_CHIPS = [
+  {label:"Kurz", en:"short"}, {label:"Mittellang", en:"medium-length"}, {label:"Lang", en:"long"},
+  {label:"Lockig", en:"curly"}, {label:"Glatt", en:"straight"}, {label:"Zöpfe", en:"braided pigtails"}, {label:"Glatze", en:"shaved head, no hair"}
+];
+const CLOTH_COLOR_CHIPS = [
+  {label:"Rot", en:"red"}, {label:"Blau", en:"blue"}, {label:"Grün", en:"green"}, {label:"Gelb", en:"yellow"},
+  {label:"Rosa", en:"pink"}, {label:"Lila", en:"purple"}, {label:"Orange", en:"orange"}, {label:"Bunt gemustert", en:"colorful patterned"}
+];
+const CLOTH_TYPE_CHIPS = [
+  {label:"Pullover & Hose", en:"sweater and pants"}, {label:"T-Shirt & Shorts", en:"t-shirt and shorts"},
+  {label:"Latzhose", en:"overalls"}, {label:"Jacke", en:"jacket"}, {label:"Overall", en:"romper"}
+];
+const ACCESSORY_CHIPS = [
+  {label:"Brille", emoji:"👓", en:"round glasses"},
+  {label:"Mütze", emoji:"🧢", en:"a beanie"},
+  {label:"Schleife", emoji:"🎀", en:"a hair bow"},
+  {label:"Schal", emoji:"🧣", en:"a scarf"},
+  {label:"Rucksack", emoji:"🎒", en:"a backpack"},
+  {label:"Kuscheltier", emoji:"🧸", en:"a plush toy"}
+];
+
+/* Wörter, die den Stil brechen → sichere Alternativen (Briefing Abschnitt 7) */
+const BREAKERS = [
+  [/sommerkleid|kleid\b|dress/gi, "colorful tunic and leggings"],
+  [/\belderly\b/gi, ""], [/\byoung woman\b/gi, "woman"], [/\bcharacter\b/gi, ""],
+  [/cap backwards|basecap verkehrt/gi, "beanie"]
+];
+
+/* Mini-Übersetzung Deutsch → Englisch für Prompt-Fragmente */
+const DICT = [
+  ["dunkelblond","dark blonde"],["hellblond","light blonde"],["blond","blonde"],["dunkelbraun","dark brown"],["hellbraun","light brown"],["braun","brown"],
+  ["schwarz","black"],["rothaarig","red-haired"],["rote","red"],["rot","red"],["grau","gray"],["weiß","white"],["blaue","blue"],["blau","blue"],
+  ["grüne","green"],["grün","green"],["gelbe","yellow"],["gelb","yellow"],["orange","orange"],["rosa","pink"],["pinke","pink"],["pink","pink"],["lila","purple"],["türkis","teal"],
+  ["lockige","curly"],["locken","curly hair"],["glatte","straight"],["glatt","straight"],["zöpfe","braided pigtails"],["zopf","braid"],["dutt","hair bun"],
+  ["pferdeschwanz","ponytail"],["kurze haare","short hair"],["lange haare","long hair"],["kurzhaarschnitt","short haircut"],["glatze","bald head"],["haare","hair"],
+  ["ringelpulli","striped sweater"],["ringel","striped"],["gestreifte","striped"],["gestreift","striped"],["gepunktete","dotted"],["gepunktet","dotted"],["karierte","plaid"],["kariert","plaid"],
+  ["bommelmütze","pom-pom beanie"],["wollmütze","wool beanie"],["mütze","beanie"],["hut","hat"],["kappe","cap"],["stirnband","headband"],
+  ["brille","round glasses"],["schal","scarf"],["halstuch","neckerchief"],["latzhose","overalls"],["jeanshose","pants"],["jeans","pants"],
+  ["schleife","hair bow"],["rucksack","backpack"],["overall","romper"],
+  ["strumpfhose","tights"],["leggings","leggings"],["jogginghose","jogging pants"],["hose","pants"],["shorts","shorts"],["rock","skirt"],
+  ["regenjacke","rain jacket"],["winterjacke","winter jacket"],["jacke","jacket"],["mantel","coat"],["weste","vest"],["strickjacke","cardigan"],
+  ["kapuzenpulli","hoodie"],["pullover","sweater"],["pulli","sweater"],["t-shirt","t-shirt"],["shirt","shirt"],["hemd","shirt"],
+  ["gummistiefel","rubber boots"],["stiefel","boots"],["turnschuhe","sneakers"],["sandalen","sandals"],["schuhe","shoes"],["barfuß","barefoot"],
+  ["verschiedenfarbige","clearly different colors from each other"],["unterschiedlichen farben","clearly different colors from each other"],
+  ["sommersprossen","freckles"],["schnuller","pacifier"],["teddy","teddy bear"],["kuscheltier","plush toy"],["luftballon","balloon"],
+  ["hund","dog"],["katze","cat"],["hase","rabbit"],["fahrrad","bicycle"],["laufrad","balance bike"],["roller","scooter"],["bollerwagen","hand wagon"],
+  ["eis","ice cream"],["sandburg","sandcastle"],["drachen","kite"],["schaufel","shovel"],["eimer","bucket"],["picknick","picnic"],
+  ["schwimmen","swimming"],["baden","bathing"],["planschen","splashing"],["grillen","barbecue"],["spielen","playing"],["klettern","climbing"],
+  ["schaukel","swing"],["rutsche","slide"],["sandkasten","sandbox"],["traktor","tractor"],["boot","boat"],["muscheln","seashells"],
+  ["zöpfen","braided pigtails"],["grüner","green"],["grünen","green"],["grünem","green"],["roter","red"],["roten","red"],["rotem","red"],
+  ["blauer","blue"],["blauen","blue"],["gelber","yellow"],["gelben","yellow"],["brauner","brown"],["braunen","brown"],
+  ["schwarzer","black"],["schwarzen","black"],["weißer","white"],["weißen","white"],["rosanen","pink"],
+  ["riesige","huge"],["riesigen","huge"],["riesig","huge"],["große","big"],["großen","big"],["großer","big"],["groß","big"],
+  ["kleine","little"],["kleinen","little"],["kleiner","little"],["klein","little"],
+  ["gebaut","building"],["gebuddelt","digging"],["verloren","losing"],["gefunden","finding"],["gegessen","eating"],["getobt","romping around"],
+  ["gelacht","laughing"],["gerutscht","sliding"],["geschaukelt","on the swing"],["geklettert","climbing"],["gefüttert","feeding animals"],
+  ["wir","we"],["haben",""],["habe",""],["hat",""],["hatte",""],["war",""],["waren",""],["ist",""],["sind",""],
+  ["beim","while"],["dann","then"],["danach","then"],["dabei",""],["dort","there"],["seine","his"],["seinen","his"],["ihre","her"],["ihren","her"],
+  ["ganz",""],["sehr",""],["auch",""],["noch",""],["mal",""],["so",""],["es",""],["gab","there was"],
+  ["am","at the"],["im","in the"],["auf","on"],["an","at"],["in","in"],["zum","to the"],["zur","to the"],["vom","from the"],
+  ["und","and"],["mit","with"],["eine","a"],["einen","a"],["einem","a"],["einer","a"],["ein","a"],["der","the"],["die","the"],["das","the"],["dem","the"],["den","the"]
+];
+
+const SURPRISES = [
+  "a dog chasing a red balloon","an ice cream cart with a long queue","a cat sleeping on a roof",
+  "kids flying a colorful kite","someone carrying a wobbly stack of boxes","a duck family walking in a row",
+  "a picnic blanket with a giant watermelon","a mailman on a bicycle with too many letters",
+  "a grandpa feeding pigeons","two kids in a cardboard box pretending it is a boat",
+  "a runaway stroller with a happy baby","a squirrel stealing a pretzel","someone watering flowers with a huge watering can"
+];
+
+const SCENE_LOCATIONS = [
+  {id:"home", label:"🏠 Zuhause", en:"family home", type:"cutaway"},
+  {id:"beach", label:"🏖️ Strand", en:"beach", type:"landscape"},
+  {id:"park", label:"🌳 Park / Spielplatz", en:"park with playground", type:"landscape"},
+  {id:"farm", label:"🚜 Bauernhof", en:"farm", type:"landscape"},
+  {id:"zoo", label:"🦁 Zoo", en:"zoo", type:"landscape"},
+  {id:"pool", label:"🏊 Schwimmbad", en:"outdoor swimming pool", type:"landscape"},
+  {id:"city", label:"🏙️ Stadt", en:"busy town street market", type:"landscape"},
+  {id:"mountains", label:"⛰️ Berge", en:"mountain meadow", type:"landscape"},
+  {id:"school", label:"🏫 Kita / Schule", en:"kindergarten building", type:"cutaway"}
+];
+
+/* ---------------- Gag-Bibliothek ----------------
+   Kuratierte Sammlung kleiner, in sich abgeschlossener Wimmelbild-Situationen ("Running-Gags"/
+   Vignetten), auf Nutzerwunsch entstanden ("wie bekommen wir smart die vielen kleinen Situationen
+   aus den Nutzern heraus, ohne sie zu langweilen?"). Statt die KI frei erfinden zu lassen (Risiko:
+   generische/unpassende Halluzinationen), schöpft die Szenen-Story-Auswahl aus diesem festen,
+   redaktionell kuratierten Pool klassischer Wimmelbuch-Motive (kleine Missgeschicke, Verfolgungsjagden,
+   Tiere die menschliche Situationen durcheinanderbringen, liebevolles Chaos) – angelehnt an die
+   Bildsprache klassischer Wimmelbücher (Ali Mitgutsch u.a.: wortlose kleine Geschichten, wiederkehrende
+   augenzwinkernde Details). Jeder Eintrag hat "de" (Anzeigetext im Chip) und "en" (fertiger, bereits
+   übersetzter Prompt-Baustein – bewusst NICHT durch translate() geschickt, da das nur ein einfaches
+   Wörterbuch ist und bei ganzen Sätzen keine sinnvolle Übersetzung liefert). "generic" ist der Fallback
+   für frei eingegebene ("✏️ Woanders …") Orte ohne eigene Liste.
+*/
+const GAG_LIBRARY = {
+  home: [
+    {de:"Papa steckt beim Möbelaufbau fest und braucht Hilfe von allen", en:"dad stuck while assembling furniture, everyone pitching in to help"},
+    {de:"Die Katze hat sich in der Wäscheleine verheddert", en:"a cat tangled up in the laundry line"},
+    {de:"Ein Kuchen brennt fast an, weil alle beim Fernsehen zugesehen haben", en:"a cake almost burning while everyone was watching TV"},
+    {de:"Die Kinder bauen eine riesige Höhle aus Sofakissen", en:"kids building a huge fort out of sofa cushions"},
+    {de:"Jemand sucht verzweifelt die zweite Socke", en:"someone desperately searching for a missing sock"},
+    {de:"Ein Wasserrohrbruch verwandelt die Küche in einen kleinen See", en:"a burst pipe turning the kitchen into a small lake"},
+    {de:"Oma erzählt eine Geschichte und alle hören gebannt zu", en:"grandma telling a story while everyone listens spellbound"},
+    {de:"Der Hund hat die Hausschuhe im ganzen Haus verteilt", en:"a dog scattering house slippers all over the house"},
+    {de:"Beim Frühstück fällt die Milch um und alle lachen", en:"spilled milk at breakfast with everyone laughing"},
+    {de:"Im Kinderzimmer tobt eine Kissenschlacht", en:"a pillow fight raging in the kids' room"}
+  ],
+  beach: [
+    {de:"Eine Sandburg wird von der Flut weggespült, alle rennen sie zu retten", en:"a sandcastle being washed away by the tide, everyone rushing to save it"},
+    {de:"Eine Möwe klaut jemandem die Pommes", en:"a seagull stealing someone's bag of fries"},
+    {de:"Ein Drachen verheddert sich in einem Sonnenschirm", en:"a kite tangled up in a beach umbrella"},
+    {de:"Jemand wird beim Eincremen von einer Windböe überrascht", en:"a gust of wind surprising someone mid-sunscreen"},
+    {de:"Ein Krebs kneift jemanden in den Zeh", en:"a crab pinching someone's toe, everyone startled"},
+    {de:"Ein aufblasbares Einhorn treibt langsam aufs Meer hinaus", en:"an inflatable unicorn drifting slowly out to sea"},
+    {de:"Kinder buddeln einen Tunnel und treffen sich in der Mitte", en:"kids digging a tunnel and meeting in the middle"},
+    {de:"Ein Hund buddelt ein riesiges Loch und wird ganz sandig", en:"a dog digging a huge sandy hole, covered in sand"},
+    {de:"Beim Beachvolleyball fliegt der Ball ins Wasser", en:"a beach volleyball flying into the water"},
+    {de:"Jemand döst ein und wird fast von der Flut erwischt", en:"someone dozing off almost getting caught by the tide"}
+  ],
+  park: [
+    {de:"Ein Hund klaut jemandem die Wurst vom Grill", en:"a dog stealing a sausage from someone's barbecue"},
+    {de:"Ein Drachen bleibt in einem Baum hängen", en:"a kite stuck in a tree"},
+    {de:"Ein Eis fällt einem Kind aus der Hand, direkt vor die Nase eines Hundes", en:"an ice cream falling from a kid's hand right in front of a dog"},
+    {de:"Ein Luftballon entwischt einem Kind und fliegt in den Himmel", en:"a balloon escaping a child's hand and floating into the sky"},
+    {de:"Zwei Eichhörnchen streiten sich um eine Nuss", en:"two squirrels fighting over a nut"},
+    {de:"Jemand rutscht viel zu schnell die Rutsche runter und fliegt am Ende ab", en:"someone sliding down the slide way too fast and flying off the end"},
+    {de:"Eine Wippe kippt, weil eine Seite viel schwerer ist", en:"a seesaw tipping because one side is much heavier"},
+    {de:"Enten überfallen ein Picknick", en:"ducks raiding a picnic blanket"},
+    {de:"Ein Kind versteckt sich beim Fangenspielen hinter einer viel zu kleinen Laterne", en:"a child hiding behind a way too small lamppost during a game of tag"},
+    {de:"Jemand fährt mit dem Roller gegen eine Parkbank", en:"someone crashing a scooter into a park bench"}
+  ],
+  farm: [
+    {de:"Ein Schwein ist ausgebüxt und rennt über den Hof", en:"a pig that escaped its pen running across the farmyard"},
+    {de:"Ein Traktor bleibt im Schlamm stecken", en:"a tractor stuck in the mud"},
+    {de:"Hühner picken jemandem an den Schnürsenkeln", en:"chickens pecking at someone's shoelaces"},
+    {de:"Eine Kuh leckt einem Kind über die Wange", en:"a cow licking a kid's cheek"},
+    {de:"Ein Eimer Milch kippt mitten im Kuhstall um", en:"a bucket of milk tipping over in the barn"},
+    {de:"Ein Ferkel hat sich in einen viel zu großen Gummistiefel verkrochen", en:"a piglet hiding inside a way too big rubber boot"},
+    {de:"Eine Gans jagt den Bauern über den Hof", en:"a goose chasing the farmer across the yard"},
+    {de:"Kinder verstecken sich im Heuhaufen", en:"kids hiding in a haystack"},
+    {de:"Ein Hahn kräht viel zu früh und weckt alle auf", en:"a rooster crowing way too early and waking everyone up"},
+    {de:"Eine Ziege frisst die Wäsche von der Leine", en:"a goat eating laundry off the clothesline"}
+  ],
+  zoo: [
+    {de:"Ein Affe klaut jemandem die Mütze", en:"a monkey stealing someone's hat"},
+    {de:"Ein Pinguin rutscht auf dem Bauch über den Weg", en:"a penguin sliding on its belly across the path"},
+    {de:"Ein Elefant spritzt mit dem Rüssel Wasser auf die Besucher", en:"an elephant spraying water on visitors with its trunk"},
+    {de:"Ein Kind macht Grimassen vor dem Gorilla-Gehege", en:"a kid making funny faces at the gorilla enclosure"},
+    {de:"Ein Papagei ruft plötzlich etwas Lustiges", en:"a parrot suddenly shouting something funny"},
+    {de:"Ein Zebra und ein Kind schauen sich lange in die Augen", en:"a zebra and a child staring at each other for a long time"},
+    {de:"Eine Giraffe streckt beim Fotografieren den Kopf mitten ins Bild", en:"a giraffe poking its head right into a photo being taken"},
+    {de:"Ein Erdmännchen steht Wache und beobachtet alle Besucher", en:"a meerkat standing guard watching all the visitors"},
+    {de:"Ein Eisbär planscht laut ins Wasser und bespritzt alle", en:"a polar bear splashing loudly into the water, soaking everyone nearby"},
+    {de:"Ein Kind füttert versehentlich die Enten statt die Ziegen", en:"a kid accidentally feeding the ducks instead of the goats"}
+  ],
+  pool: [
+    {de:"Ein Kind macht einen riesigen Bauchklatscher", en:"a kid doing a huge belly flop"},
+    {de:"Die Rutsche spritzt jemanden komplett nass", en:"the water slide splashing someone completely soaked"},
+    {de:"Ein Wasserball fliegt mitten in eine Familie", en:"a beach ball flying right into a family"},
+    {de:"Jemand verliert beim Tauchen die Schwimmbrille", en:"someone losing their swim goggles while diving"},
+    {de:"Ein Hund springt versehentlich mit ins Becken", en:"a dog accidentally jumping into the pool"},
+    {de:"Zwei Kinder liefern sich eine Wasserschlacht", en:"two kids having a splashing water fight"},
+    {de:"Jemand rutscht am Beckenrand aus und plumpst rein", en:"someone slipping at the poolside and tumbling in"},
+    {de:"Ein aufblasbares Krokodil treibt führerlos durchs Becken", en:"an inflatable crocodile drifting aimlessly across the pool"},
+    {de:"Beim Sprung vom Beckenrand geht fast die Badehose verloren", en:"someone almost losing their swim trunks jumping off the poolside"},
+    {de:"Ein Eis wird schnell gegessen, bevor es in der Sonne schmilzt", en:"an ice cream being eaten quickly before it melts in the sun"}
+  ],
+  city: [
+    {de:"Ein Marktstand-Verkäufer jongliert mit Äpfeln", en:"a market vendor juggling apples"},
+    {de:"Ein Straßenmusiker sammelt ein kleines Publikum", en:"a street musician gathering a small crowd"},
+    {de:"Jemand rennt dem Bus hinterher und schafft es gerade noch", en:"someone chasing after the bus and just catching it"},
+    {de:"Ein Hund zieht sein Herrchen quer über die Straße", en:"a dog pulling its owner across the street"},
+    {de:"Ein Kind bleibt vor einem Spielzeug-Schaufenster wie angewurzelt stehen", en:"a child frozen in place staring at a toy shop window"},
+    {de:"Tauben picken Krümel vor einem Café", en:"pigeons pecking crumbs outside a cafe"},
+    {de:"Ein Fahrradkurier balanciert einen riesigen Stapel Pakete", en:"a bike courier balancing a huge stack of packages"},
+    {de:"Ein Eiswagen hat eine lange Schlange", en:"an ice cream van with a long queue"},
+    {de:"Eine Tüte Orangen fällt jemandem hin und kullert über den Gehweg", en:"a bag of oranges spilling and rolling across the sidewalk"},
+    {de:"Ein Straßenkünstler steht so still, dass ihn alle für eine Statue halten", en:"a street performer standing so still everyone thinks he's a statue"}
+  ],
+  mountains: [
+    {de:"Eine Kuh mit Glocke steht mitten auf dem Wanderweg", en:"a cow with a bell standing in the middle of the hiking trail"},
+    {de:"Ein Murmeltier pfeift und alle drehen sich erschrocken um", en:"a marmot whistling loudly, startling everyone"},
+    {de:"Jemand rutscht auf einer Wiese den Hang hinunter", en:"someone sliding down a grassy slope"},
+    {de:"Eine Familie macht ein Picknick mit Blick ins Tal", en:"a family having a picnic overlooking the valley"},
+    {de:"Ein Adler zieht hoch oben seine Kreise", en:"an eagle circling high above"},
+    {de:"Kinder bauen einen Steinmann am Wegesrand", en:"kids building a small stone cairn by the trail"},
+    {de:"Ein Wanderer hat sich verlaufen und studiert die Karte", en:"a hiker totally lost, studying a map"},
+    {de:"Ein Schmetterling landet auf jemandes Nase", en:"a butterfly landing on someone's nose"},
+    {de:"Ein Hund apportiert einen viel zu großen Stock", en:"a dog fetching a way too big stick"},
+    {de:"Am Gipfel jubeln alle und schwenken die Arme", en:"everyone cheering and waving their arms at the summit"}
+  ],
+  school: [
+    {de:"Beim Basteln landet mehr Kleber auf den Fingern als auf dem Papier", en:"more glue ending up on fingers than on the paper during crafts"},
+    {de:"Ein Kind hat die Hausaufgaben zu Hause vergessen", en:"a kid realizing they forgot their homework at home"},
+    {de:"In der Pause bricht spontan ein Fangenspiel aus", en:"a spontaneous game of tag breaking out at recess"},
+    {de:"Beim Vorlesen schläft ein Kind fast ein", en:"a kid almost falling asleep during story time"},
+    {de:"Ein Turnbeutel geht auf und alles kullert heraus", en:"a gym bag bursting open, everything spilling out"},
+    {de:"Zwei Kinder tauschen heimlich ihre Pausenbrote", en:"two kids secretly swapping their lunch sandwiches"},
+    {de:"Beim Malen kippt ein Wasserglas über das Bild", en:"a glass of water tipping over onto a painting"},
+    {de:"Ein Kind versteckt sich beim Verstecken viel zu offensichtlich", en:"a kid hiding way too obviously during a game of hide and seek"},
+    {de:"In der Bauecke türmt sich ein riesiger Klötzchenturm", en:"a huge tower of building blocks rising in the play corner"},
+    {de:"Ein Luftballon platzt und alle erschrecken kurz", en:"a balloon popping and startling everyone for a moment"}
+  ],
+  generic: [
+    {de:"Jemand verliert beim Rennen einen Schuh", en:"someone losing a shoe while running"},
+    {de:"Ein Hund schnappt sich etwas und rennt fröhlich davon", en:"a dog grabbing something and running off happily"},
+    {de:"Zwei Kinder liefern sich ein spontanes Wettrennen", en:"two kids having a spontaneous race"},
+    {de:"Jemand balanciert vorsichtig etwas, das gleich herunterfallen könnte", en:"someone carefully balancing something that's about to topple over"},
+    {de:"Eine kleine Gruppe staunt über etwas ganz Neues", en:"a small group staring in wonder at something new"},
+    {de:"Ein Regenschirm dreht sich im Wind fast um", en:"an umbrella nearly flipping inside out in the wind"},
+    {de:"Jemand hat sich verkleidet und sorgt für Aufsehen", en:"someone in a costume causing a stir"},
+    {de:"Zwei Freunde teilen sich ein Eis, bevor es schmilzt", en:"two friends sharing an ice cream before it melts"},
+    {de:"Ein Vogel landet frech mitten in der Szene", en:"a bird cheekily landing right in the middle of the scene"},
+    {de:"Jemand winkt fröhlich allen anderen zu", en:"someone waving happily at everyone else"}
+  ]
+};
+function pickGagChips(loc, count, excludeSet){
+  const pool = (loc && GAG_LIBRARY[loc.id]) || GAG_LIBRARY.generic;
+  const fresh = pool.filter(g=>!excludeSet.has(g.de));
+  const src = fresh.length >= count ? fresh : pool; // wenn schon (fast) alle verbraucht: Pool einfach nochmal anbieten
+  return [...src].sort(()=>Math.random()-.5).slice(0, count);
+}
+
+/* ---------------- Datenmodell: CharacterSpec / CharacterPack ----------------
+   Kanonisches, quellen-unabhängiges Datenformat für eine Person (P0-Refactoring gemäß
+   Arbeitsauftrag v1.1, Abschnitt 4/6). Sowohl der Beschreibungs-Weg als auch der Foto-Weg
+   (nach Vision-Merkmalsextraktion) erzeugen dieselbe Struktur. Reines JS/JSDoc statt
+   TypeScript, da der Prototyp keinen Build-Schritt hat – die Typedefs dienen nur der
+   Lesbarkeit/Editor-Hilfe, es gibt keine Laufzeitprüfung.
+
+   @typedef {"text"|"photo_extraction"|"photo_direct_experimental"|"legacy"} CharacterSourceType
+   @typedef {Object} CharacterSpec
+   @property {string} id
+   @property {string} name
+   @property {string} [role]          kurzes deutsches Label, z.B. "Mädchen", "Mama"
+   @property {CharacterSourceType} sourceType
+   @property {Object} identityCore    Haarform/-farbe, Körperbau, Hautfarbe, Brille, Merkmal – NICHT Kleidung
+   @property {Object} defaultOutfit   normales Outfit; szenenabhängige Abweichungen sind bewusst NICHT hier
+   @property {string[]} wimmelId      mind. 3 aus der Ferne erkennbare Merkmale (Abschnitt 7)
+   @property {"wmlstil"} styleProfileId
+   @property {string} [originalPhotoRef] nur Metadatum, NIE als aktiver Bearbeitungs-Ausgangspunkt genutzt
+   @property {string} createdAt
+   @property {string} updatedAt
+*/
+function makeCharacterSpec({id, name, role, roleLabel, sourceType}){
+  const now = new Date().toISOString();
+  return {
+    id: id || ("char_" + Math.random().toString(36).slice(2, 10)),
+    // role = englisches Prompt-Token (girl/boy/woman/man/...), roleLabel = deutsches Anzeige-Label.
+    name: name || "", role: role || "", roleLabel: roleLabel || "", sourceType: sourceType || "text",
+    identityCore: {ageGroup: "child", age: null, bodyShape: "", skinTone: "", hairShape: "", hairColor: "", glasses: null, facialHair: "", signatureMarker: ""},
+    defaultOutfit: {top: "", bottom: "", shoes: "", accessories: []},
+    wimmelId: [],
+    styleProfileId: "wmlstil",
+    originalPhotoRef: null,
+    createdAt: now, updatedAt: now
+  };
+}
+/* @typedef {"draft"|"generating"|"accepted"|"locked"|"superseded"|"legacy_partial"} CharacterPackStatus
+   @typedef {Object} CharacterReference
+   @property {string} assetId
+   @property {"front"|"three_quarter"|"side"|"walking"|"sitting"|"interaction"} role
+   @property {boolean} transparentBackground
+   @typedef {Object} CharacterPack
+   @property {string} characterId
+   @property {number} version
+   @property {CharacterPackStatus} status
+   @property {CharacterSpec} specSnapshot
+   @property {CharacterReference[]} references
+   @property {string} createdAt
+   @property {number} [supersedesVersion]
+*/
+function makeCharacterPack(characterId, specSnapshot, frontAssetId, opts){
+  opts = opts || {};
+  // "front"-only ist der reguläre P0-Zustand (Abschnitt 6: Multi-View braucht erst einen
+  // Machbarkeitstest), nicht provisorisch/mangelhaft – daher Status "legacy_partial" nur als
+  // ehrlicher Name für "noch keine Mehrfachansichten", nicht als Fehlerzustand.
+  return {
+    characterId, version: opts.version || 1, status: opts.status || "legacy_partial",
+    specSnapshot, palette: [],
+    references: frontAssetId ? [{assetId: frontAssetId, role: "front", transparentBackground: false}] : [],
+    createdAt: new Date().toISOString(),
+    supersedesVersion: opts.supersedesVersion
+  };
+}
+/* Referenzbild-Rollen für Bildgenerierungs-Requests (Abschnitt 9) – ersetzt das bisherige
+   unspezifische "irgendein akzeptiertes Buchbild" (pickStyleRefImage).
+   @typedef {"STYLE_REFERENCE"|"CHARACTER_FRONT"|"CHARACTER_THREE_QUARTER"|"CHARACTER_SIDE"
+            |"POSE_REFERENCE"|"SCENE_BACKGROUND"|"EDIT_SOURCE"|"COMPOSITION_REFERENCE"} ReferenceImageRole
+   @typedef {Object} TypedReferenceImage
+   @property {string} url
+   @property {ReferenceImageRole} role
+   @property {string} [characterId]
+   @property {number} [characterVersion]
+*/
+/* Expliziter Operationsmodus statt Ableitung aus Seed/Bild-Vorhandensein (Abschnitt 12) – der
+   Seed war laut Arbeitsauftrag "ein Architekturfehler": fal-ai/nano-banana-2/edit liefert laut
+   offiziellem Schema NIE einen Seed zurück, wodurch seed-basierte Ablaufsteuerung für darüber
+   erzeugte Assets grundsätzlich falsch entscheidet (siehe der zuletzt gefundene "Etwas ändern
+   greift nicht"-Bug).
+   @typedef {"INITIAL_GENERATION"|"EDIT_CURRENT"|"REROLL_CURRENT"|"REBUILD_FROM_CHARACTER_SPEC"} GenerationOperation
+*/
+const GEN_OP = { INITIAL: "INITIAL_GENERATION", EDIT: "EDIT_CURRENT", REROLL: "REROLL_CURRENT" };
+
+const WMLSTIL_CHAR_SAMPLE_IMG = "data:image/jpeg;base64,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";
+
+/* ---------------- Reused verbatim from index.html (Wimmel Wizard v1) ----------------
+   escapeHtml, translate/ageRole/twoColorBoost/charPrompt/charInScene/charSheetViewPrompt,
+   threeQuarterEditInstruction, scenePrompt, situationImagePrompt, kontextInstruction,
+   sceneComposeInstruction, photoStyleInstruction, pickSceneCharacterRefs/pickSceneSituationRefs,
+   mapFreeRoleToEnglish, generateImage + helpers, callClaude + helpers, guessLocId/topUpSituations/
+   regionLabel/situationPlacementText/pickMixedGagChips, resizeImageToDataUri. Adapted only where the
+   v1 code referenced chat-log/state.phase globals that don't exist in v2 (state.characters/state.scenes
+   still exist and have the same shape, so most functions are untouched). */
+function escapeHtml(s){ const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+function translate(text){
+  let t = " " + text.toLowerCase().replace(/[.!?;]/g, ",") + " ";
+  DICT.forEach(([de,en])=>{ t = t.replace(new RegExp("(^|[\\s,])" + de + "(?=$|[\\s,])","g"), "$1" + en); });
+  BREAKERS.forEach(([re,repl])=>{ t = t.replace(re, repl); });
+  return t.replace(/\s+/g," ").replace(/\s,/g,",").replace(/,{2,}/g,",").trim().replace(/^,|,$/g,"").trim();
+}
+function ageRole(spec){
+  // Liest jetzt aus CharacterSpec.identityCore statt aus flachen c.role/c.age-Feldern (P0-
+  // Refactoring: ein einziger Prompt-Baustein für Text- UND Foto-Weg, siehe charPrompt/charInScene).
+  const role = spec.role, age = spec.identityCore.age;
+  if((role==="girl"||role==="boy") && age && age<=5)
+    return `toddler ${role}, age ${age}, chibi proportions, large round head, short small body`;
+  if((role==="girl"||role==="boy") && age) return `${role}, age ${age}`;
+  return role;
+}
+function twoColorBoost(featEn){
+  /* Briefing §7: Zwei-Farben-Merkmale explizit verstärken */
+  const colors = (featEn.match(/\b(red|green|blue|yellow|pink|purple|orange|brown|black|white|teal|gray)\b/g)||[]);
+  if(new Set(colors).size >= 2 && /boot|shoe|sock|sneaker|mitten|glove/.test(featEn))
+    return featEn + ", they are clearly different colors from each other";
+  return featEn;
+}
+function charPrompt(c){
+  // Baut den Bildgenerierungs-Prompt AUSSCHLIESSLICH aus dem kanonischen CharacterSpec (c.spec) –
+  // egal ob die Person per Beschreibung, per KI-Chat oder (nach Vision-Merkmalsextraktion) per
+  // Foto erfasst wurde. Das ist der "gemeinsame Renderer" aus dem Arbeitsauftrag v1.1, Abschnitt 3.
+  const spec = c.spec;
+  const parts = ["wmlstil", ageRole(spec), translate(spec.identityCore.hairColor), translate(spec.defaultOutfit.top)];
+  if(spec.identityCore.signatureMarker) parts.push(twoColorBoost(translate(spec.identityCore.signatureMarker)));
+  parts.push("round head, minimal face, dot eyes, single vertical line nose, no ears, no mouth, no visible neck, standing, flat color fill, thick black marker outline, graphic recording sketchnote style, white background, full body, front view");
+  return parts.filter(Boolean).join(", ");
+}
+function charInScene(c){
+  const spec = c.spec;
+  const bits = [ageRole(spec), translate(spec.identityCore.hairColor)];
+  if(spec.identityCore.signatureMarker) bits.push(twoColorBoost(translate(spec.identityCore.signatureMarker)));
+  const cl = translate(spec.defaultOutfit.top).split(",")[0];
+  if(cl) bits.push(cl);
+  return bits.filter(Boolean).join(", ");
+}
+// ---- Charakter-Sheet (Front + Seite + Rücken + 3/4): Nutzer-Feedback "war eigentlich schon
+// vereinbart" – nach jeder Charakterannahme automatisch weitere Ansichten erzeugen, damit man die
+// Person auch von der Seite/hinten/schräg im Buch wiedererkennt. Seite und Rücken laufen seit
+// LoRA v5 zuverlässig direkt über den flux-lora-Trigger (kein Referenzbild nötig, siehe fal-proxy.js-
+// Kommentar). 3/4 bleibt bei reiner Text-Generierung schwächer und läuft daher weiterhin über
+// nano-banana-2/edit mit dem gerade akzeptierten Frontbild als Referenz (siehe dev-tools/
+// scenario-runner.js, Szenario "view_angle_real_style_test", nach mehreren Feedback-Runden final).
+function charSheetViewPrompt(c, view){
+  const spec = c.spec;
+  const parts = ["wmlstil", ageRole(spec), translate(spec.identityCore.hairColor), translate(spec.defaultOutfit.top)];
+  if(spec.identityCore.signatureMarker) parts.push(twoColorBoost(translate(spec.identityCore.signatureMarker)));
+  if(view === "side"){
+    parts.push("full side profile view facing left, as if seen from the side, round head silhouette with no ears, no mouth and no visible neck, exactly one eye drawn as a clearly visible black dot on the side of the face facing the viewer, absolutely no nose shape of any kind – not a line, not a triangle, not a bump, not a dot – a completely smooth profile silhouette from forehead to chin, standing, full body, flat color fill, thick black marker outline, graphic recording sketchnote style, white background");
+  } else if(view === "back"){
+    parts.push("seen entirely from behind (back view), only the back of the head, hair/headwear and clothing visible, no face at all, no eyes, no nose, no mouth, nothing facial, standing, full body, viewed directly from behind, flat color fill, thick black marker outline, graphic recording sketchnote style, white background");
+  }
+  return parts.filter(Boolean).join(", ");
+}
+function threeQuarterEditInstruction(){
+  // Wortgleich mit dem in dev-tools/scenario-runner.js nach 4 Feedback-Runden final abgestimmten
+  // Text (Augenabstand normal statt zusammengequetscht, ganzer Oberkörper dreht mit, Nase als
+  // gerader Strich ohne Haken) – hier bewusst identisch wiederverwendet statt neu formuliert.
+  return "Redraw this exact character in THREE QUARTER VIEW: the whole body is turned slightly to the right – head, shoulders AND upper body all rotate together as one unit, not just the head on an otherwise front-facing body. Keep the exact same hair style and color, headwear, clothing and all identifying details as the reference. The head is a round shape with no ears, no mouth and no visible neck. The entire facial feature group – both eyes AND the nose together, as one unit – is shifted slightly to the right of the vertical center of the face. Both eyes stay fully visible as small dots, keeping their normal spacing exactly as wide apart as in the reference image (do NOT squeeze them closer together), just shifted as a pair to the right side of the face; the nose is positioned right below the midpoint between the two eyes and moves right together with them. Draw the nose as ONE perfectly straight vertical line segment, like the keyboard character \"|\" – completely straight from top to bottom, with NO curve, NO hook, NO bend, NO foot or serif at the bottom end, NOT shaped like a check mark, a hook, a \"J\", or an upside-down \"L\". Match the exact illustration style of the reference image: thick black marker outline, flat colors, graphic recording sketchnote style. Full body, standing, plain white background.";
+}
+function scenePrompt(s){
+  const loc = s.loc;
+  const parts = ["wmlstil"];
+  if(loc.type==="cutaway") parts.push(`${loc.en} building cutaway scene, multiple floors, rooms visible`);
+  else parts.push(`${loc.en} landscape scene`);
+  // Wichtig fürs Wiederfinden der Charaktere: sie zuerst und explizit als "im Vordergrund,
+  // deutlich sichtbar" nennen, statt sie in "many small characters" untergehen zu lassen.
+  const heroes = state.characters.map(c=>charInScene(c)).filter(Boolean);
+  // Bugfix (Nutzer-Feedback beim Testlauf: Helden "stehen einfach nur mittig rum", Hintergrund
+  // "überhaupt nicht im Stil", Szene muss "viel mehr wimmeln"): heroes sollen aktiv an der
+  // Handlung teilnehmen statt nur platziert zu werden, UND es wird jetzt eine konkrete Zahl an
+  // Hintergrundfiguren + eine explizite Stilangleichung für ALLE Figuren (nicht nur die Helden)
+  // eingefordert.
+  if(heroes.length){
+    parts.push(`in the foreground, actively taking part in the action described below (not standing still, not posed neutrally): ${heroes.join(" and ")}`);
+  }
+  parts.push("a densely packed wimmelbild scene with 40 to 60 small background characters spread across the entire image, each one doing their own tiny activity or little visual joke, true busy seek-and-find picture-book density, every single character in the image – foreground heroes and all background characters alike – drawn in exactly the same flat, minimal style: round heads, dot eyes, single vertical nose line, no shading, no gradients, no realistic detail");
+  // Nutzer-Feedback (Situationen-Board): s.situations ist jetzt der bevorzugte Weg – eine Liste
+  // einzelner Situationen MIT Positions-/Größen-Hinweis aus dem Kreise-Board (siehe
+  // situationPlacementText/renderSituationBoard). s.storyEn/s.story bleiben als Fallback für den
+  // geskripteten Chat-Weg ohne KI-Server (siehe scStory/scStoryPick) erhalten, der kein Board kennt.
+  if(Array.isArray(s.situations) && s.situations.length){
+    parts.push(s.situations.map(situationPlacementText).join(" "));
+  } else if(s.storyEn) parts.push(s.storyEn);
+  else if(s.story) parts.push(translate(s.story));
+  if(s.extras && s.extras.length) parts.push(s.extras.join(", "));
+  parts.push("plain sky background, no text, no signage, flat color fill, thick black marker outline, graphic recording sketchnote style applied consistently across the whole image, high detail, wide composition");
+  return parts.filter(Boolean).join(", ");
+}
+
+/* ---------------- Bildgenerierung ---------------- */
+function falKey(){ return sessionStorage.getItem("ww_falkey") || ""; }
+function isHttp(){ return location.protocol === "http:" || location.protocol === "https:"; }
+function proxyUrl(){
+  const o = (localStorage.getItem("ww_proxy_url") || "").trim();
+  if(o) return o;
+  return isHttp() ? "/api/fal-proxy" : ""; // nach Vercel-Deployment automatisch aktiv, lokal (file://) aus
+}
+function kontextInstruction(raw){
+  // Baut aus einer kurzen Änderungsbeschreibung die Editier-Anweisung für fal-ai/nano-banana-2/edit.
+  // Kein LoRA mehr im Spiel (Nano Banana 2 kann keine trainierten Gewichte nutzen) – Stilkonsistenz
+  // kommt stattdessen über mitgeschickte Referenzbilder (siehe generateImage/styleRefUrl) UND über
+  // diese explizite Stilbeschreibung im Text. Der "keep everything else"-Zusatz ist entscheidend
+  // dafür, dass wirklich nur das gewünschte Detail geändert wird.
+  // Bugfix (beim Testlauf mit dev-tools/scenario-runner.js gefunden): ein Tweak-Text, der nicht
+  // vollständig von translate() ins Englische übersetzt wurde (z.B. "Es regnet jetzt leicht" – "Es"
+  // und "regnet" fehlten im Wörterbuch), landete als übrig gebliebener deutscher Satzfetzen in der
+  // Editier-Anweisung. Nano Banana 2 hat das ohne explizites Gegen-Signal wörtlich als Bildunterschrift
+  // in den Himmel geschrieben, statt es nur als Änderungsbeschreibung zu lesen. scenePrompt() hatte
+  // "no text, no signage" schon immer – kontextInstruction() (der EDIT-Pfad) bisher nicht. Ergänzt.
+  return `${raw}. Keep everything else in the image exactly the same: same pose, same character identity, same composition, same background. Match the exact hand-drawn illustration style of the reference image(s): thick black marker outlines, flat solid colors, round minimal faces with simple dot eyes, graphic-recording sketchnote style. No text, no captions, no signage, no written words anywhere in the image.`;
+}
+// Charakterkonsistenz über mehrere Szenen: Erstgenerierung/Reroll einer Szene läuft jetzt über
+// fal-ai/nano-banana-2/edit statt reiner Text-zu-Bild-Generierung (flux-lora), MIT den bereits
+// akzeptierten Charakterbildern als visuellem Anker (siehe pickSceneCharacterRefs). Vorher kannte
+// das Modell die Personen nur aus der Textbeschreibung und musste sie in jeder Szene neu erfinden –
+// das führte zwischen Szenen zu sichtbarem Drift (Details, Proportionen, Farbnuancen). Der volle
+// scenePrompt() bleibt als Basis erhalten (Ort, Geschichte, Kompositionsregeln), ergänzt um die
+// ausdrückliche Anweisung, die mitgeschickten Referenzbilder 1:1 zu übernehmen.
+function sceneComposeInstruction(s, charRefCount){
+  // Bugfix (Nutzer-Feedback: Helden "stehen einfach nur mittig rum"): "simply placed... do not
+  // reimagine, redesign or restyle them" wurde offenbar auch auf die POSE angewendet, nicht nur auf
+  // Identität/Design – das Modell hat die Helden dadurch einfach unverändert (stehend, neutral) in
+  // die Szene kopiert statt sie in die Handlung einzubauen. Jetzt: Identität/Design bleiben strikt
+  // fix, Pose/Haltung/Handlung ausdrücklich freigegeben und sogar eingefordert. Zusätzlich wird jetzt
+  // explizit gefordert, dass auch alle Hintergrundfiguren im selben Stil gezeichnet werden – vorher
+  // bezog sich die Stilanweisung nur implizit auf "die Referenzen", nicht auf die ganze Szene.
+  // Nutzer-Feedback (nach Sichtung des generierten Wimmelbilds): erfundene Hintergrundfiguren
+  // teilweise "komplett in einem anderen Stil" – die bisherige Stilanweisung war zu allgemein
+  // ("same style as references"). Jetzt zusätzlich mit konkreten Negativ-Beispielen, nach demselben
+  // Muster, das beim Nase-Feintuning der Charakter-Ansichten funktioniert hat (siehe dev-tools/
+  // scenario-runner.js): explizit benennen, was NICHT passieren darf, statt es nur implizit
+  // auszuschließen.
+  // Seit dem Situationen-Board mit echten Einzelbildern pro Situation (pickSceneSituationRefs)
+  // sind nicht mehr ALLE Referenzbilder Charaktere – die ersten charRefCount sind Charaktere, der
+  // Rest sind kleine Einzel-Vignetten je Situation. Das muss dem Modell explizit gesagt werden,
+  // sonst versucht es fälschlich, auch die Situations-Vignetten als "Person" zu interpretieren.
+  const n = charRefCount || 0;
+  const refExplainer = n > 0
+    ? `The first ${n} attached reference image(s) show the exact established design of each character appearing in this scene – their face, proportions, hair color, clothing and any identifying details. Draw every character from these reference images into this new scene keeping their identity and design EXACTLY the same as their reference (same face, same proportions, same hair, same clothing colors). Their POSE must change to match the action described above: give them dynamic, natural body positions and gestures that actively show them taking part in what is happening in the scene – do not simply copy their reference pose or stand them still and neutral. Any FURTHER attached reference images (beyond the first ${n}) are small individual vignette illustrations, each showing ONE specific situation that must appear somewhere in this scene (see the placement instructions above for exactly where). Redraw the people, animals and objects shown in each of these vignette images into the correct area of the final scene, in the same flat illustration style as the rest of the image – do NOT copy them in as separate inset pictures, frames or panels, they must blend seamlessly into the single continuous scene.`
+    : `Any attached reference images are small individual vignette illustrations, each showing ONE specific situation that must appear somewhere in this scene (see the placement instructions above for exactly where). Redraw the people, animals and objects shown in each of these vignette images into the correct area of the final scene, in the same flat illustration style as the rest of the image – do NOT copy them in as separate inset pictures, frames or panels, they must blend seamlessly into the single continuous scene.`;
+  return `${s.prompt} ${refExplainer} Every character in the scene, including all small background characters, must be drawn in the exact same flat-color, thick black marker outline, graphic-recording sketchnote illustration style, applied consistently across the entire image. Do not draw any character – hero or background – in a different illustration style, a more detailed or more realistic style, a different line weight, or with shading, gradients, texture or soft airbrushed coloring: every single character in the whole image must look like it was drawn by the same illustrator in the exact same reduced flat style, with round minimal faces, dot eyes and a single line nose, with no exceptions anywhere in the picture.`;
+}
+function photoStyleInstruction(){
+  // Editier-Anweisung für die Foto-zu-Illustration-Option: das hochgeladene Foto wird über
+  // fal-ai/nano-banana-2/edit (siehe generateImage) komplett in unseren Zeichenstil übertragen,
+  // statt es nur leicht zu retuschieren. Explizit auf STARKE Vereinfachung gepolt (kein Textur-/
+  // Strähnen-Detail), weil das Modell ohne diese Betonung dazu neigt, zu viel Detailtreue aus dem
+  // Foto zu übernehmen (feine Haarsträhnen, Strickmuster etc.) statt unseren flachen, reduzierten
+  // Stil zu treffen. Bekommt zusätzlich IMMER ein Referenzbild in unserem Stil mit (siehe
+  // pickStyleRefImage) – das hilft dem Modell deutlich mehr als die Textbeschreibung allein.
+  return "The first attached image is a photo of a real person. The second attached image is a REQUIRED style reference showing the exact target illustration style. Redraw the person from the first photo so it looks EXACTLY like the second reference image's style was used to draw them – same reduction level, same line weight, same simplicity. Do not photorealistically render any part of them. Rules, no exceptions: flat solid colors only, absolutely no texture/shading/gradients/highlights anywhere. Hair is 1-2 large flat solid-color blobs with a single outline, never individual strands or highlights. Clothing is flat solid-color shapes with at most one simple seam line, never fabric folds, knit texture, or patterns. Thick uniform black outlines everywhere. Face: plain round shape, two small dot eyes, one short vertical line for a nose, absolutely nothing else on the face (no mouth, no eyebrows, no blush, no visible ears, no earrings or piercings, no glasses unless the reference shows them). No visible neck. Full body, standing, front view, plain white background. Only keep the person's actual hair color, clothing colors, and one distinctive feature (if any) from the photo – everything else about the rendering must match the flat, minimal reference style, not the photo's realism.";
+}
+function pickStyleRefImage(excludeUrl){
+  // Sucht ein bereits akzeptiertes Bild aus demselben Buch als Stil-Anker für Nano Banana 2 –
+  // zusätzlich zum aktuell bearbeiteten Bild selbst. Ohne LoRA ist das die einzige Möglichkeit,
+  // dem Modell zu zeigen "genau DIESER Zeichenstil, nicht irgendein anderer". Gibt es noch kein
+  // eigenes Bild im Buch (z.B. beim allerersten Foto-Upload), greifen wir auf ein einzelnes
+  // wmlstil-Charakter-Beispielbild zurück (NICHT auf WIMMEL_SAMPLE_IMG – das ist eine breite,
+  // winzig-detaillierte Wimmelbild-Szene und als Stil-Anker für ein Ganzkörper-Portrait ungeeignet,
+  // das hat die Ergebnisse beim ersten Anlauf sogar verschlechtert).
+  const pool = [...state.characters.map(c=>c.img), ...state.scenes.map(s=>s.img)].filter(u => u && u !== excludeUrl);
+  if(pool.length) return pool[0];
+  return typeof WMLSTIL_CHAR_SAMPLE_IMG === "string" && WMLSTIL_CHAR_SAMPLE_IMG !== excludeUrl ? WMLSTIL_CHAR_SAMPLE_IMG : undefined;
+}
+// P0.4 (Arbeitsauftrag v1.1, Abschnitt 8) + Konsistenz-Fix: bei JEDER Szenen-Generierung (Erst-
+// generierung, Reroll UND gezielte Änderung) wird nicht mehr nur EIN beliebiges "irgendein
+// akzeptiertes Buchbild" als Stilanker mitgeschickt, sondern das aktuelle Bild JEDES Charakters
+// (typisiert als CHARACTER_FRONT-Referenz), damit sie in jeder Szene wiedererkennbar bleiben. Da
+// jede Szene laut scenePrompt() ohnehin immer alle Charaktere zeigt, ist "alle Charakterbilder"
+// hier die korrekte Menge (kein Sub-Set-Tracking pro Szene nötig/vorhanden). Voraussetzung: der
+// fal-proxy muss das Feld "styleRefUrls" (Array) an fal.ai durchreichen (siehe fal-proxy/index.ts).
+function pickSceneCharacterRefs(excludeUrl){
+  const refs = state.characters.map(c=>c.img).filter(u => u && u !== excludeUrl);
+  if(refs.length) return refs.slice(0, 8);
+  const fallback = pickStyleRefImage(excludeUrl);
+  return fallback ? [fallback] : [];
+}
+// Echte Einzelbilder pro Situation (siehe generateAllSituationImages) fließen bei der
+// Erstgenerierung der Szene als zusätzliche visuelle Referenzen mit ein, nicht nur als Platzierungs-
+// Text (situationPlacementText/scenePrompt). fal-ai/nano-banana-2/edit erlaubt max. 14 image_urls
+// insgesamt (siehe fal-proxy.js) – der verbleibende Rest nach den Charakter-Referenzen geht an die
+// Situationen, bevorzugt die als "L" markierten (prominentesten) zuerst.
+function pickSceneSituationRefs(s, limit){
+  if(!s || !Array.isArray(s.situations)) return [];
+  const order = {L:0, M:1, S:2};
+  return s.situations
+    .filter(x => x.img)
+    .slice()
+    .sort((a,b) => (order[a.size] ?? 1) - (order[b.size] ?? 1))
+    .slice(0, Math.max(0, limit))
+    .map(x => x.img);
+}
+async function generateImage(prompt, kind, seed, editImageUrl, styleRefUrl, extra){
+  // kind: "char" | "scene"; seed: optional, für konsistente Neu-Generierungen.
+  // editImageUrl: wenn gesetzt, läuft die Anfrage über fal-ai/nano-banana-2/edit statt Text-zu-Bild.
+  // Vorher getestet: fal-ai/flux-kontext-lora mit unserem Stil-LoRA – live beim Nutzertest sehr
+  // unzuverlässig (komplett andere Proportionen/Personen statt der gewünschten Detail-Änderung).
+  // Nano Banana 2 (Google, Gemini 3.1 Flash Image) braucht kein LoRA: Stilkonsistenz kommt über
+  // mitgeschickte Referenzbilder (editImageUrl + optional styleRefUrl), nicht über trainierte Gewichte.
+  // "prompt" ist in diesem Fall die kurze Editier-Anweisung, nicht die volle Bildbeschreibung.
+  // P0.4: styleRefUrl darf jetzt sowohl eine einzelne URL (Charakter-Edit, unverändert) als auch ein
+  // Array typisierter Referenzbilder sein (Szenen-Edit, siehe pickSceneCharacterRefs) – hier auf ein
+  // einheitliches Array normalisiert.
+  const styleRefUrls = Array.isArray(styleRefUrl) ? styleRefUrl.filter(Boolean) : (styleRefUrl ? [styleRefUrl] : []);
+  const proxy = proxyUrl();
+  const key = falKey();
+  if(!proxy && !key) return {url: placeholderSVG(kind), placeholder: true};
+
+  if(proxy){
+    // Empfohlener Weg: eigener Server hält den fal.ai-Key geheim
+    const resp = await fetch(proxy, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        prompt, kind,
+        ...(seed!=null ? {seed} : {}),
+        ...(editImageUrl ? {imageUrl: editImageUrl} : {}),
+        ...(styleRefUrls.length ? {styleRefUrls} : {}),
+        // "extra": optionale zusätzliche Proxy-Felder für gezielte manuelle/Test-Aufrufe (z.B.
+        // testLoraUrl, siehe dev-tools/scenario-runner.js) – im normalen Produktpfad immer undefined.
+        ...(extra && typeof extra === "object" ? extra : {})
+      })
+    });
+    let data;
+    try{ data = await resp.json(); }catch(e){ throw new Error("Antwort vom Bild-Server war kein gültiges JSON."); }
+    if(!resp.ok || data.error) throw new Error(data.error || ("Bild-Server-Fehler " + resp.status));
+    if(!data.url) throw new Error("Bild-Server hat keine Bild-URL geliefert.");
+    return {url: data.url, seed: data.seed, placeholder: false};
+  }
+
+  // Nur fürs lokale Testen: direkter Aufruf mit Key aus dem Browser (siehe Warnhinweis in ⚙️)
+  const body = editImageUrl ? {
+    prompt,
+    image_urls: [editImageUrl, ...styleRefUrls],
+    aspect_ratio: kind==="char" ? "3:4" : "16:9",
+    resolution: "1K",
+    output_format: "png",
+    num_images: 1,
+    ...(seed!=null ? {seed} : {})
+  } : {
+    prompt,
+    loras: [{path: LORA_URL, scale: 1}],
+    image_size: kind==="char" ? {width:768, height:1024} : {width:1024, height:576},
+    num_inference_steps: kind==="char" ? 42 : 46,
+    guidance_scale: 5,
+    num_images: 1,
+    enable_safety_checker: true,
+    output_format: "png",
+    ...(seed!=null ? {seed} : {})
+  };
+  const endpoint = editImageUrl ? "https://fal.run/fal-ai/nano-banana-2/edit" : "https://fal.run/fal-ai/flux-lora";
+  const resp = await fetch(endpoint, {
+    method: "POST",
+    headers: {"Authorization": "Key " + key, "Content-Type": "application/json"},
+    body: JSON.stringify(body)
+  });
+  if(!resp.ok){
+    const txt = await resp.text().catch(()=> "");
+    throw new Error("fal.ai Fehler " + resp.status + (txt ? " – " + txt.slice(0,140) : ""));
+  }
+  const data = await resp.json();
+  const url = data.images && data.images[0] && data.images[0].url;
+  if(!url) throw new Error("fal.ai hat kein Bild geliefert.");
+  return {url, seed: data.seed, placeholder: false};
+}
+function placeholderSVG(kind){
+  const w = kind==="char" ? 300 : 480, h = kind==="char" ? 400 : 270;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+    <rect width="${w}" height="${h}" fill="#F6EEDD"/>
+    <g transform="translate(${w/2},${h/2-20})"><circle r="26" fill="#FBE8D8" stroke="#33302B" stroke-width="4"/>
+    <circle cx="-8" cy="-4" r="3" fill="#33302B"/><circle cx="8" cy="-4" r="3" fill="#33302B"/>
+    <line x1="0" y1="2" x2="0" y2="10" stroke="#33302B" stroke-width="3"/>
+    <path d="M-20 24 Q0 14 20 24 L20 60 H-20 Z" fill="#8FA982" stroke="#33302B" stroke-width="4"/></g>
+    <text x="${w/2}" y="${h-28}" text-anchor="middle" font-family="sans-serif" font-size="13" fill="#6B655C">Platzhalter – fal.ai-Key in ⚙️ hinterlegen</text>
+  </svg>`;
+  return "data:image/svg+xml;utf8," + encodeURIComponent(svg);
+}
+
+/* ---------------- KI-gestützte Gesprächsführung (Claude) ---------------- */
+function chatProxyUrl(){
+  const o = (localStorage.getItem("ww_chat_proxy_url") || "").trim();
+  if(o) return o;
+  return isHttp() ? "/api/claude-proxy" : ""; // nach Vercel-Deployment automatisch aktiv, lokal (file://) aus
+}
+function useAI(){ return !!chatProxyUrl(); }
+async function callClaude(mode, messages, context){
+  const url = chatProxyUrl();
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({mode, messages, context})
+  });
+  let data;
+  try{ data = await resp.json(); }catch(e){ throw new Error("Antwort vom Chat-Server war kein gültiges JSON."); }
+  if(!resp.ok || data.error) throw new Error(data.error || ("Chat-Server-Fehler " + resp.status));
+  return data; // {reply, tool_call}
+}
+
+
+/* ---- reused: gag-pool helpers, role mapping, situation prompt building ---- */
+function pickMixedGagChips(count, excludeSet){
+  const all = SCENE_LOCATIONS.flatMap(loc => GAG_LIBRARY[loc.id].map(g=>({de:g.de, en:g.en, loc})));
+  const fresh = all.filter(g=>!excludeSet.has(g.de));
+  const src = fresh.length >= count ? fresh : all;
+  return [...src].sort(()=>Math.random()-.5).slice(0, count);
+}
+function mapFreeRoleToEnglish(label){
+  // Gemeinsame Heuristik für frei getippte/von Claude gelieferte Rollen-Label, die nicht in
+  // ROLE_MAP stehen (z.B. "Tante", "unser Hund Bello") – vorher an zwei Stellen dupliziert
+  // (chRoleCustom, chRoleCustomForPhoto), jetzt eine einzige Quelle.
+  const t = (label || "").toLowerCase();
+  return /hund|kater|katze|hase/.test(t) ? translate(t) : (/tante|freundin|oma|uroma/.test(t) ? "woman" : "man");
+}
+function guessLocId(label){
+  const t = (label || "").toLowerCase();
+  const map = {home:["zuhause","haus","wohnung"], beach:["strand","meer","see"], park:["park","spielplatz"], farm:["bauernhof","farm"], zoo:["zoo","tierpark"], pool:["schwimmbad","pool","freibad","bad"], city:["stadt","markt","innenstadt"], mountains:["berg"], school:["kita","schule","kindergarten"]};
+  for(const [id, kws] of Object.entries(map)){ if(kws.some(k=>t.includes(k))) return id; }
+  return null;
+}
+function topUpSituations(list, locLabel){
+  // Sicherheitsnetz: "mindestens 15 Situationen" ist ein Kernversprechen an den Kunden (siehe
+  // Onboarding-Text in startScenes()) und soll nicht allein davon abhängen, dass sich die KI exakt
+  // an die Systemanweisung hält – reicht die Liste nicht, wird aus der kuratierten Gag-Bibliothek
+  // aufgefüllt, passend zum erkannten Ort (Fallback: generic).
+  if(list.length >= 15) return list;
+  const locId = guessLocId(locLabel);
+  const pool = (locId && GAG_LIBRARY[locId]) ? GAG_LIBRARY[locId] : GAG_LIBRARY.generic;
+  const used = new Set(list.map(s=>s.text));
+  for(const g of pool){
+    if(list.length >= 15) break;
+    if(!used.has(g.en)){ list.push({text: g.en, de: g.de}); used.add(g.en); }
+  }
+  return list;
+}
+function defaultBubbleLayout(n){
+  // Locker gestreute Grid-Anordnung mit Zufalls-Jitter, angelehnt an die überlappenden Kreise aus
+  // der Nutzer-Grafik – kein exaktes Raster, damit es organisch statt tabellarisch wirkt.
+  const cols = Math.max(3, Math.round(Math.sqrt(n * 16 / 9)));
+  const rows = Math.ceil(n / cols);
+  const cellW = 100 / cols, cellH = 100 / rows;
+  const positions = [];
+  for(let i = 0; i < n; i++){
+    const col = i % cols, row = Math.floor(i / cols);
+    const jitterX = (Math.random() - 0.5) * cellW * 0.6;
+    const jitterY = (Math.random() - 0.5) * cellH * 0.6;
+    const x = Math.min(95, Math.max(5, cellW * col + cellW / 2 + jitterX));
+    const y = Math.min(93, Math.max(7, cellH * row + cellH / 2 + jitterY));
+    positions.push({x, y});
+  }
+  return positions;
+}
+function sizePx(size){ return size === "S" ? 74 : size === "L" ? 132 : 100; }
+function regionLabel(x, y){
+  const h = x < 33 ? "left" : x < 67 ? "center" : "right";
+  const v = y < 33 ? "top" : y < 67 ? "middle" : "bottom";
+  if(h === "center" && v === "middle") return "dead center";
+  return `${v} ${h}`;
+}
+function situationPlacementText(s){
+  const region = regionLabel(s.x != null ? s.x : 50, s.y != null ? s.y : 50);
+  const prominence = s.size === "L"
+    ? ", drawn noticeably larger and more prominent than the surrounding characters, easy to spot first"
+    : s.size === "S"
+      ? ", drawn small and tucked into the background as a subtle little detail"
+      : "";
+  return `In the ${region} area of the scene: ${s.text}${prominence}.`;
+}
+// Echtes Einzelbild pro Situation (Nutzer-Vorgabe): jede Situation bekommt ihre eigene kleine
+// Vignette in wmlstil, statt nur als Text-Kreis zu existieren. Ohne Referenzbild über flux-lora
+// (Trigger "wmlstil") – dieselbe Pipeline wie die Erstgenerierung eines Charakter-Portraits.
+function situationImagePrompt(s, sceneDraft){
+  const loc = sceneDraft && sceneDraft.loc;
+  const locPart = loc && loc.en ? `, set at ${loc.en}` : "";
+  return `wmlstil, a single small self-contained illustrated vignette on a plain white background showing: ${s.text}${locPart}, flat color fill, thick black marker outline, graphic recording sketchnote style, no border, no frame, no text, no captions`;
+}
+
+/* ---- reused: image resize before upload ---- */
+function resizeImageToDataUri(file, maxDim, quality){
+  maxDim = maxDim || 1024; quality = quality || 0.85;
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onerror = ()=>reject(new Error("Datei konnte nicht gelesen werden."));
+    reader.onload = ()=>{
+      const img = new Image();
+      img.onerror = ()=>reject(new Error("Bild konnte nicht geladen werden."));
+      img.onload = ()=>{
+        let w = img.width, h = img.height;
+        if(w > maxDim || h > maxDim){
+          if(w >= h){ h = Math.round(h * maxDim / w); w = maxDim; }
+          else { w = Math.round(w * maxDim / h); h = maxDim; }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.src = String(reader.result);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+/* =====================================================================================
+   Wimmel Wizard v2 – neue Screen-basierte Führung (Landingpage -> Dashboard -> Bausteine)
+   Alles oberhalb dieser Zeile ist unverändert aus index.html übernommen (siehe Kommentar
+   oben): Chip-Taxonomien, Gag-Bibliothek, Prompt-Bauer, generateImage()/callClaude() gegen
+   dieselben /api/fal-proxy und /api/claude-proxy Endpunkte. Ab hier: v2-eigene UI/State.
+   ===================================================================================== */
+
+/* ---- Produktstufen (Designvorgabe, §8.3) ---- */
+const PRODUCT_TIERS = {
+  poster: {id:"poster", name:"Poster", price:34, scenes:1, desc:"1 Wimmelbild, ungebunden, zum Aufhängen."},
+  mini:   {id:"mini",   name:"Mini-Wimmelbuch", price:59, scenes:2, desc:"2 Wimmelbilder + 1 Charakter-Seite, 8 Seiten Softcover."},
+  buch:   {id:"buch",   name:"Wimmelbuch", price:89, scenes:5, desc:"5 Wimmelbilder, fest gebunden."}
+};
+const AVATAR_COLORS = ["#C1502E","#2D7590","#4A7A5A","#9B6B9B","#D98C4A","#5B7FA6"];
+function avatarColor(i){ return AVATAR_COLORS[i % AVATAR_COLORS.length]; }
+
+/* ---- Themen-Kacheln für Screen 5b: die 5 echten Beispielfotos + Icon-Kacheln für den Rest
+   von SCENE_LOCATIONS (siehe Briefing: "Weihnachten/Bauernhof/Meer/Kindergarten/Markttag mappen
+   auf SCENE_LOCATIONS-artige Einträge, die man bei Bedarf ergänzt, plus Icon-Kacheln für den Rest"). */
+const SCENE_TILES = [
+  {tileId:"weihnachten", label:"Weihnachten", img:"example-weihnachten.png", gagId:"home",
+    loc:{id:"home", label:"🎄 Weihnachten zuhause", en:"a cozy home decorated for Christmas, string lights, a small Christmas tree", type:"cutaway"}},
+  {tileId:"farm", label:"Bauernhof", img:"example-bauernhof.png", gagId:"farm", loc: SCENE_LOCATIONS.find(l=>l.id==="farm")},
+  {tileId:"beach", label:"Am Meer", img:"example-meer.png", gagId:"beach", loc: SCENE_LOCATIONS.find(l=>l.id==="beach")},
+  {tileId:"school", label:"Kindergarten", img:"example-kindergarten.png", gagId:"school", loc: SCENE_LOCATIONS.find(l=>l.id==="school")},
+  {tileId:"city", label:"Markttag", img:"example-markttag.png", gagId:"city", loc: SCENE_LOCATIONS.find(l=>l.id==="city")},
+  {tileId:"home", label:"Zuhause", emoji:"🏠", gagId:"home", loc: SCENE_LOCATIONS.find(l=>l.id==="home")},
+  {tileId:"park", label:"Park", emoji:"🌳", gagId:"park", loc: SCENE_LOCATIONS.find(l=>l.id==="park")},
+  {tileId:"zoo", label:"Zoo", emoji:"🦁", gagId:"zoo", loc: SCENE_LOCATIONS.find(l=>l.id==="zoo")},
+  {tileId:"pool", label:"Schwimmbad", emoji:"🏊", gagId:"pool", loc: SCENE_LOCATIONS.find(l=>l.id==="pool")},
+  {tileId:"mountains", label:"Berge", emoji:"⛰️", gagId:"mountains", loc: SCENE_LOCATIONS.find(l=>l.id==="mountains")}
+];
+
+/* ---- State: einzelner localStorage-Schlüssel, keine Konten/Logins (siehe Briefing "Explicitly
+   OK to simplify"). Foto-Datauri lebt bewusst NICHT hier drin, siehe pendingPhotoDataUri weiter
+   unten (identisches Muster wie index.html) – "dein Foto wird danach automatisch gelöscht" stimmt
+   dadurch wirklich. */
+const STATE_KEY = "ww_v2_state";
+let pendingPhotoDataUri = null; // transient, nie in state/localStorage
+let recognizedTextTransient = ""; // Erzähl-Modus, ebenfalls nur transient nötig
+
+function defaultState(){
+  return {
+    screen: "landing", screenParams: null,
+    seenProductOverview: false,
+    characters: [], scenes: [],
+    tier: null,
+    dedication: "", dedicationDone: false,
+    voucher: null,
+    order: null,
+    activeCharDraft: null, activeSceneDraft: null,
+    photoVariants: null,
+    previewPage: 0,
+    createdAt: new Date().toISOString()
+  };
+}
+let state = loadState();
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STATE_KEY);
+    if(raw){ return Object.assign(defaultState(), JSON.parse(raw)); }
+  }catch(e){}
+  return defaultState();
+}
+function saveState(){ try{ localStorage.setItem(STATE_KEY, JSON.stringify(state)); }catch(e){} }
+
+/* ---- Router ---- */
+function go(screen, params){
+  state.screen = screen;
+  state.screenParams = params || null;
+  saveState();
+  render();
+  window.scrollTo(0,0);
+}
+function render(){
+  const app = document.getElementById("app");
+  const screenAtStart = state.screen;
+  const fn = SCREENS[state.screen] || SCREENS.landing;
+  const html = fn(state.screenParams || {});
+  // Guard: manche Screen-Funktionen sind reine "Wächter" und rufen bei fehlendem Draft/State
+  // selbst go(...) auf (z.B. SCREENS.scene_result ohne aktiven sceneDraft -> zurück zu
+  // scene_choice) und geben danach "" zurück. go() ruft render() dabei rekursiv bereits VOLLSTÄNDIG
+  // auf - ohne diesen Guard würde der äußere, noch laufende render()-Aufruf das gerade korrekt
+  // gezeichnete Ziel-Screen mit diesem leeren "" wieder überschreiben.
+  if(state.screen !== screenAtStart) return;
+  app.innerHTML = html;
+  const after = SCREENS[state.screen + "__after"];
+  if(after) after(state.screenParams || {});
+}
+const SCREENS = {};
+function $(id){ return document.getElementById(id); }
+function toast(msg){
+  const t = document.createElement("div");
+  t.className = "toast"; t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(), 2600);
+}
+
+/* ---- gemeinsame Chrome-Bausteine (App-Bar, Tab-Leiste, Wizzelwim-Grußblase) ----
+   Wichtigste UI-Regel laut Briefing: Wizzelwim taucht als Bild+Sprechblase am Kopf eines Screens
+   auf, NIE als durchlaufender Chatverlauf (bewusster Bruch mit index.html). */
+function appbarHtml(title, opts){
+  opts = opts || {};
+  const back = opts.back !== false ? `<button class="appbar-back" onclick="${opts.backFn || "go('dashboard')"}">←</button>` : `<span style="width:38px"></span>`;
+  const price = `<span class="appbar-price">${priceLabel()}</span>`;
+  const skip = opts.skipFn ? `<button class="appbar-skip" onclick="${opts.skipFn}">Überspringen</button>` : "";
+  return `<div class="appbar">${back}<div class="appbar-title">${escapeHtml(title||"")}</div>${skip || price}</div>`;
+}
+function priceLabel(){
+  if(state.tier && PRODUCT_TIERS[state.tier]) return PRODUCT_TIERS[state.tier].price + " €";
+  return "ab 34 €";
+}
+function tabbarHtml(active){
+  const tabs = [
+    {id:"start", icon:"🏠", label:"Start", go:"dashboard"},
+    {id:"personen", icon:"🧑‍🎨", label:"Personen", go: state.characters.length ? "char_overview" : "char_intro"},
+    {id:"bilder", icon:"🖼️", label:"Bilder", go: state.scenes.length ? "progress" : (state.characters.length ? "scene_choice" : "dashboard")},
+    {id:"bestellen", icon:"🛒", label:"Bestellen", go: state.tier ? "checkout_confirm" : (state.scenes.length ? "decision" : "dashboard")}
+  ];
+  return `<div class="tabbar">${tabs.map(t=>`<button class="tab${t.id===active?" active":""}" onclick="go('${t.go}')"><span class="tico">${t.icon}</span><span>${t.label}</span></button>`).join("")}</div>`;
+}
+function wizGreetHtml(text, sub){
+  return `<div class="wiz-greet"><img src="${asset('wizard-mascot.png')}" alt="WizzelWim"><div class="wiz-bubble">${text}${sub?`<div class="sub">${sub}</div>`:""}</div></div>`;
+}
+function autosaveLine(){
+  return `<div class="autosave">Automatisch gespeichert · du kannst jederzeit pausieren</div>`;
+}
+function coequalRow(primaryLabel, primaryFn, secondaryLabel, secondaryFn, primaryClass){
+  return `<div class="coequal-row">
+    <button class="btn ${primaryClass||'btn-primary'} btn-block" onclick="${primaryFn}">${primaryLabel}</button>
+    <button class="btn btn-secondary btn-block" onclick="${secondaryFn}">${secondaryLabel}</button>
+  </div>`;
+}
+
+/* ---- Speech-to-Text (Erzähl-Modus + optionales Einsprechen der Widmung): echte Web-Speech-API,
+   ehrlicher Fallback-Text wenn nicht verfügbar (siehe Briefing "Explicitly OK to simplify" – kein
+   vorgetäuschter Recorder). ---- */
+function speechSupported(){ return !!(window.SpeechRecognition || window.webkitSpeechRecognition); }
+function makeRecognizer(onResult, onEnd){
+  const Ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const rec = new Ctor();
+  rec.lang = "de-DE"; rec.interimResults = false; rec.maxAlternatives = 1;
+  rec.onresult = (ev)=>{
+    let text = "";
+    for(let i=0;i<ev.results.length;i++) text += ev.results[i][0].transcript + " ";
+    onResult(text.trim());
+  };
+  rec.onend = ()=>{ if(onEnd) onEnd(); };
+  rec.onerror = ()=>{ if(onEnd) onEnd(); };
+  return rec;
+}
+
+/* ---- Bestell-/Druckauftrags-Benachrichtigung: identischer Aufruf wie index.html
+   (submitPrintOrder/orderNotifyUrl), nur fire-and-forget nach der simulierten Zahlung. Reine
+   Katalog-/Notify-Funktion, keine echte Zahlungsabwicklung (siehe Briefing "Explicitly OK to
+   simplify" – Checkout ist ein echtes Formular, aber ohne echte Zahlungsanbindung). ---- */
+function orderNotifyUrl(){
+  const o = (localStorage.getItem("ww_order_proxy_url") || "").trim();
+  if(o) return o;
+  return isHttp() ? "/api/order-notify" : "";
+}
+async function submitPrintOrderNotify(){
+  const url = orderNotifyUrl();
+  if(!url) return {status:"skipped"};
+  try{
+    const resp = await fetch(url, {
+      method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({
+        order: state.order,
+        characters: state.characters.map(c=>({name:c.name, img:c.img})),
+        scenes: state.scenes.map(s=>({label:s.loc && s.loc.label, img:s.img}))
+      })
+    });
+    let data; try{ data = await resp.json(); }catch(e){ data = {}; }
+    if(!resp.ok || data.error) throw new Error(data.error || ("Server-Fehler " + resp.status));
+    return {status:"sent"};
+  }catch(e){ return {status:"error", error: e.message}; }
+}
+
+
+/* =========================== Screen 1: Landingpage =========================== */
+const FAQ_ITEMS = [
+  {q:"Wie lange dauert die Lieferung?", a:"Nach Fertigstellung eures Wimmelbuchs rechnet mit ca. 7–10 Werktagen bis es bei euch ankommt – wir drucken jedes Exemplar einzeln für euch."},
+  {q:"Was passiert mit unseren Fotos?", a:"Fotos werden nur zur Merkmalserkennung genutzt und danach nicht bei uns gespeichert. Ihr könnt euer Wimmelbuch auch komplett ohne Foto, nur mit Beschreibungen, erstellen."},
+  {q:"Was, wenn die Zeichnung nicht ganz ähnlich aussieht?", a:"Unser Zeichenstil ist bewusst reduziert und liebevoll, kein Foto-Abbild. Ihr könnt jederzeit Merkmale anpassen und neu zaubern lassen, bis es passt."},
+  {q:"Kann ich später noch die Produktstufe wechseln?", a:"Ja, jederzeit – bis kurz vor dem Druck könnt ihr zwischen Poster, Mini-Wimmelbuch und Wimmelbuch wechseln, auch wieder zurück."},
+  {q:"Sind unsere Daten sicher?", a:"Eure Daten liegen DSGVO-konform auf Servern in der EU. Wir geben nichts an Dritte weiter."}
+];
+SCREENS.landing = function(){
+  const examples = [
+    ["example-weihnachten.png","Weihnachten"],["example-bauernhof.png","Bauernhof"],
+    ["example-meer.png","Am Meer"],["example-kindergarten.png","Kindergarten"],["example-markttag.png","Markttag"]
+  ];
+  return `
+  <div class="topbar">
+    <div class="logo"><img src="${asset('wizard-badge.png')}" alt="">Wimmel Wizard</div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <button class="topbar-give" onclick="go('voucher_buy')">Verschenken</button>
+      <button class="topbar-cta" onclick="startApp()">Jetzt loswimmeln</button>
+    </div>
+  </div>
+  <div class="hero">
+    <img class="hero-img" src="${asset('hero-open-book-tilted.png')}" alt="Aufgeschlagenes Wimmelbuch">
+    <h1>Euer Alltag. Als Wimmelbuch, das bleibt.</h1>
+    <p class="sub">Wir wissen, der Alltag ist voll. Genau deshalb muss aus euren kleinen Momenten kein großes Projekt werden – WizzelWim übernimmt das Wimmeln, ihr müsst nur ein bisschen erzählen.</p>
+    <button class="btn btn-primary btn-block" onclick="startApp()">Jetzt loswimmeln</button>
+  </div>
+  <img class="family-strip" src="${asset('wizzelwim-family-bubble.png')}" alt="Die Wimmels">
+
+  <div class="section peach">
+    <div class="section-inner">
+      <h2>Ein paar Beispiele</h2>
+      <div class="examples-row">
+        ${examples.map(e=>`<div class="ex-item"><img src="${asset(e[0])}" alt="${e[1]}"><div class="ex-cap">${e[1]}</div></div>`).join("")}
+      </div>
+    </div>
+    <div class="torn-bottom to-blue"></div>
+  </div>
+
+  <div class="section blue">
+    <div class="section-inner">
+      <h2>So entsteht euer Wimmelbild</h2>
+      <div class="steps-row">
+        <div class="step-item"><div class="step-num">1</div><div><b>Eure Familie wird gezeichnet</b><div class="small">Per Foto oder ein paar Klicks – ganz wie ihr mögt.</div></div></div>
+        <div class="step-item"><div class="step-num">2</div><div><b>Eure Geschichte wird erzählt</b><div class="small">Ein Thema wählen, erzählen oder eintippen – WizzelWim komponiert den Rest.</div></div></div>
+        <div class="step-item"><div class="step-num">3</div><div><b>Euer Buch kommt nach Hause</b><div class="small">Fein gedruckt und gebunden, bereit zum Entdecken.</div></div></div>
+      </div>
+    </div>
+    <div class="torn-bottom to-bg"></div>
+  </div>
+
+  <div class="section" style="background:var(--bg);padding-top:36px;padding-bottom:36px;">
+    <div class="section-inner">
+      <div class="honesty-block">„Ein Wimmelbild ist ein kleines Kunstwerk – nimm dir gerne Zeit dafür. Du kannst so viel individualisieren, wie du möchtest, musst aber nicht. Jeder einzelne Schritt dauert nur wenige Minuten, und du kannst jederzeit pausieren – wir speichern automatisch.“</div>
+    </div>
+  </div>
+
+  <div class="section green">
+    <div class="section-inner">
+      <h2>Eure Produktstufen</h2>
+      <div class="tier-cards">
+        ${Object.values(PRODUCT_TIERS).map(t=>`<div class="tier-card"><div><div class="tt">${t.name}</div><div class="td">${t.desc}</div></div><div class="tp">${t.price} €</div></div>`).join("")}
+      </div>
+      <p class="small center mt12">Du kannst dich später jederzeit umentscheiden.</p>
+    </div>
+    <div class="torn-bottom to-yellow"></div>
+  </div>
+
+  <div class="section yellow">
+    <div class="section-inner">
+      <h2>Darauf könnt ihr euch verlassen</h2>
+      <div class="trust-row">
+        <div class="trust-item"><span class="ti-icon">🔒</span>DSGVO · EU-Server</div>
+        <div class="trust-item"><span class="ti-icon">📷</span>Fotos optional</div>
+        <div class="trust-item"><span class="ti-icon">🇩🇪</span>Made in Germany</div>
+        <div class="trust-item"><span class="ti-icon">✏️</span>Handgezeichneter Stil</div>
+      </div>
+    </div>
+    <div class="torn-bottom to-lavender"></div>
+  </div>
+
+  <div class="section lavender">
+    <div class="section-inner">
+      <h2>Häufige Fragen</h2>
+      ${FAQ_ITEMS.map((f,i)=>`<div class="faq-item" id="faq-${i}"><div class="faq-q" onclick="toggleFaq(${i})"><span>${f.q}</span><span>+</span></div><div class="faq-a">${f.a}</div></div>`).join("")}
+    </div>
+  </div>
+
+  <div class="footer-legal">
+    <div class="btn-row" style="max-width:280px;margin:0 auto 18px;"><button class="btn btn-primary btn-block" onclick="startApp()">Jetzt loswimmeln</button></div>
+    <a href="#">Impressum</a> · <a href="#">Datenschutz</a> · <a href="#">AGB</a>
+  </div>
+  `;
+};
+function toggleFaq(i){
+  const el = document.getElementById("faq-"+i);
+  if(el) el.classList.toggle("open");
+}
+function startApp(){
+  if(state.voucher && state.voucher.redeemed){ go("dashboard"); return; }
+  if(!state.seenProductOverview && !state.characters.length && !state.scenes.length){
+    go("product_overview");
+  } else {
+    go("dashboard");
+  }
+}
+
+/* =========================== Screen 2: Produktstufen-Überblick =========================== */
+SCREENS.product_overview = function(){
+  return `
+  <div class="screen app-shell">
+    ${wizGreetHtml("Bevor wir loslegen, ein kurzer Überblick.", "Das ist unverbindlich – du entscheidest erst später, und kannst es dir jederzeit anders überlegen.")}
+    <div class="tier-cards">
+      ${Object.values(PRODUCT_TIERS).map(t=>`<div class="tier-card"><div><div class="tt">${t.name}</div><div class="td">${t.desc}</div></div><div class="tp">${t.price} €</div></div>`).join("")}
+    </div>
+    <p class="small center mt16">Du kannst dich später jederzeit umentscheiden – nichts ist in Stein gemeißelt.</p>
+    <button class="btn btn-primary btn-block mt20" onclick="acceptProductOverview()">Einfach loslegen</button>
+  </div>`;
+};
+function acceptProductOverview(){
+  state.seenProductOverview = true; saveState();
+  go("dashboard");
+}
+
+/* =========================== Screen 3: Dashboard =========================== */
+SCREENS.dashboard = function(){
+  const hasChars = state.characters.length > 0;
+  const hasScenes = state.scenes.length > 0;
+  const voucherBanner = (state.voucher && state.voucher.redeemed)
+    ? `<div class="card" style="background:var(--yellow1);margin-bottom:14px;"><b>💛 ${escapeHtml(state.voucher.from || "Jemand")} hat euch dieses Wimmelbuch geschenkt</b><p class="small mt8 mb0">${escapeHtml(state.voucher.message || "")}</p></div>`
+    : "";
+  return `
+  <div class="app-shell">
+    ${appbarHtml("Start", {back:false})}
+    <div class="screen">
+      ${wizGreetHtml(hasChars ? "Schön, dass ihr wieder da seid!" : "Hi, ich bin WizzelWim!", hasChars ? "Wie geht's weiter?" : "Lasst uns mit eurer Familie anfangen.")}
+      ${voucherBanner}
+      <div class="dash-card">
+        <div class="dc-head"><div class="dc-title">🧑‍🎨 Charaktere</div>${!hasChars ? '<span class="badge-start">Hier starten</span>' : ""}</div>
+        <p class="small mb0">${hasChars ? state.characters.length + " Person(en) bereit" : "Wer soll im Wimmelbuch vorkommen?"}</p>
+        ${hasChars ? `<div class="avatar-row">${state.characters.map(c=>`<img class="mini-avatar" src="${c.img || placeholderSVG('char')}" alt="${escapeHtml(c.name)}">`).join("")}</div>` : ""}
+        <button class="btn btn-primary btn-block mt12" onclick='go("${hasChars ? "char_overview" : "char_intro"}")'>${hasChars ? "Personen verwalten" : "Erste Person hinzufügen"}</button>
+      </div>
+      <div class="dash-card ${hasChars ? "" : "locked"}">
+        <div class="dc-title">🖼️ Wimmelbild &amp; Geschichte</div>
+        <p class="small mb0">${hasScenes ? state.scenes.length + " Wimmelbild(er) fertig" : (hasChars ? "Euer erstes Wimmelbild kann losgehen." : "Erst Personen anlegen, dann geht's hier weiter.")}</p>
+        ${hasScenes ? `<div class="thumb-row">${state.scenes.map(s=>`<img src="${s.img}" alt="">`).join("")}<div class="thumb-add" onclick="${hasChars ? "go(\'scene_choice\')" : ""}">+</div></div>` : ""}
+        ${hasChars ? `<button class="btn btn-primary btn-block mt12" onclick='go("scene_choice")'>${hasScenes ? "+ Nächstes Wimmelbild" : "Erstes Wimmelbild starten"}</button>` : ""}
+      </div>
+      <div class="dash-card ${hasScenes ? "" : "locked"}">
+        <div class="dc-title">📖 Vorschau</div>
+        <p class="small mb0">${hasScenes ? "Schaut euch euer Werk an." : "Erscheint, sobald ein Wimmelbild fertig ist."}</p>
+        ${hasScenes ? `<button class="btn btn-secondary btn-block mt12" onclick='go("preview")'>Vorschau ansehen</button>` : ""}
+      </div>
+      ${autosaveLine()}
+    </div>
+    ${tabbarHtml("start")}
+  </div>`;
+};
+
+/* =========================== Baustein 4: Charaktere =========================== */
+function newCharDraft(prefillRole){
+  const spec = makeCharacterSpec({sourceType:"text"});
+  return {name:"", roleLabel: prefillRole || "", role: prefillRole ? (ROLE_MAP[prefillRole]||mapFreeRoleToEnglish(prefillRole)) : "", age:null,
+    spec, img:null, seed:undefined, drafts:[], sheet:null, method:null};
+}
+
+/* ---- 4a: Intro ---- */
+SCREENS.char_intro = function(){
+  return `
+  <div class="app-shell">
+    ${appbarHtml("Charaktere", {backFn:"go('dashboard')"})}
+    <div class="screen center">
+      <img src="${asset('wizard-on-book.png')}" alt="WizzelWim" style="width:200px;margin:10px auto 20px;">
+      <h2>Auf geht's, lasst uns eure Familie zeichnen!</h2>
+      <p class="sub" style="color:var(--muted)">Für jede Person entsteht ein kleines Charakter-Sheet – damit ihr sie später in jedem Wimmelbild wiederfindet.</p>
+      <button class="btn btn-primary btn-block mt20" onclick="go('char_form')">Erste Person hinzufügen</button>
+    </div>
+    ${tabbarHtml("personen")}
+  </div>`;
+};
+
+/* ---- 4b: Name + Rolle + Alter ---- */
+SCREENS.char_form = function(params){
+  const prefillRole = (params && params.role) || "";
+  if(!state.activeCharDraft) state.activeCharDraft = newCharDraft(prefillRole);
+  const d = state.activeCharDraft;
+  return `
+  <div class="app-shell">
+    ${appbarHtml("Neue Person", {backFn:"go('char_overview')"})}
+    <div class="screen">
+      ${wizGreetHtml("Wer kommt als Nächstes dazu?")}
+      <div class="form-field">
+        <label>Name</label>
+        <input id="cf-name" type="text" value="${escapeHtml(d.name)}" placeholder="z. B. Lina" oninput="cfUpdateName(this.value)">
+      </div>
+      <div class="trait-group">
+        <div class="trait-group-label">Wer ist das bei euch?</div>
+        <div class="chip-row">${Object.keys(ROLE_MAP).map(r=>`<div class="chip${d.roleLabel===r?' selected':''}" onclick="cfPickRole('${r}')">${r}</div>`).join("")}<div class="chip${(d.roleLabel && !ROLE_MAP[d.roleLabel])?' selected':''}" onclick="cfPickRoleCustom()">✏️ Andere</div></div>
+      </div>
+      ${(d.roleLabel==="Mädchen"||d.roleLabel==="Junge") ? `<div class="trait-group"><div class="trait-group-label">Wie alt?</div><div class="chip-row">${AGE_CHIPS.map(a=>`<div class="chip${String(d.age)===a?' selected':''}" onclick="cfPickAge('${a}')">${a}</div>`).join("")}</div></div>` : ""}
+      ${autosaveLine()}
+      <button class="btn btn-primary btn-block mt12" ${(!d.name||!d.roleLabel)?"disabled style='opacity:.5'":""} onclick="go('char_method')">Weiter</button>
+    </div>
+    ${tabbarHtml("personen")}
+  </div>`;
+};
+function cfUpdateName(v){ state.activeCharDraft.name = v; state.activeCharDraft.spec.name = v; saveState(); }
+function cfPickRole(r){
+  const d = state.activeCharDraft;
+  d.roleLabel = r; d.role = ROLE_MAP[r]; d.spec.roleLabel = r; d.spec.role = ROLE_MAP[r];
+  if(r!=="Mädchen" && r!=="Junge") d.age = null;
+  saveState(); render();
+}
+function cfPickRoleCustom(){
+  const t = prompt("Wer ist es? (z. B. „Tante“, „unser Hund Bello“)");
+  if(!t) return;
+  const d = state.activeCharDraft;
+  d.roleLabel = t.trim(); d.role = mapFreeRoleToEnglish(t); d.spec.roleLabel = d.roleLabel; d.spec.role = d.role;
+  saveState(); render();
+}
+function cfPickAge(a){
+  const d = state.activeCharDraft;
+  d.age = a; const n = a==="13+" ? 13 : parseInt(a,10);
+  d.spec.identityCore.age = n; d.spec.identityCore.ageGroup = n<=3?"toddler":(n<=12?"child":"adult");
+  saveState(); render();
+}
+
+/* ---- 4b2: Foto oder Merkmale ---- */
+SCREENS.char_method = function(){
+  return `
+  <div class="app-shell">
+    ${appbarHtml("Wie soll " + (state.activeCharDraft.name||"die Person") + " aussehen?", {backFn:"go('char_form')"})}
+    <div class="screen">
+      ${wizGreetHtml("Zwei Wege stehen euch offen – beide führen zum selben Ziel.")}
+      <div class="choice-cards">
+        <div class="choice-card emph" onclick="go('char_photo')"><span class="cc-icon">📷</span><div class="cc-title">Foto hochladen</div><div class="cc-sub">Wir zeichnen die Person in unserem Stil nach</div></div>
+        <div class="choice-card emph" onclick="go('char_chips')"><span class="cc-icon">✏️</span><div class="cc-title">Merkmale wählen</div><div class="cc-sub">Haare, Kleidung &amp; mehr per Antippen</div></div>
+      </div>
+    </div>
+    ${tabbarHtml("personen")}
+  </div>`;
+};
+
+/* ---- 4c: Foto-Weg ---- */
+SCREENS.char_photo = function(){
+  const variants = state.photoVariants;
+  return `
+  <div class="app-shell">
+    ${appbarHtml("Foto hochladen", {backFn:"go('char_method')"})}
+    <div class="screen">
+      ${wizGreetHtml("Lade ein Foto hoch, ich spiele die Person in unserem Look nach.", "Kurzer Hinweis: Das Foto wird nur zur Erkennung übertragen und danach automatisch gelöscht – nicht bei uns gespeichert.")}
+      <div class="dropzone" id="photo-dropzone">
+        <label class="btn btn-primary" for="cp-input">📷 Foto auswählen</label>
+        <input type="file" id="cp-input" accept="image/*" style="display:none" onchange="cpFileSelected(this)">
+        <div id="cp-preview"></div>
+      </div>
+      <div id="cp-variants">${variants ? renderPhotoVariants(variants) : ""}</div>
+    </div>
+    ${tabbarHtml("personen")}
+  </div>`;
+};
+function renderPhotoVariants(variants){
+  return `<p class="mt16" style="font-weight:800">Welche Variante gefällt euch am besten?</p>
+    <div class="variant-grid">${variants.map((v,i)=>`<div class="variant-item" onclick="pickPhotoVariant(${i})"><img src="${v.url}" alt="Variante ${i+1}"><div class="vl">Variante ${i+1}</div></div>`).join("")}</div>`;
+}
+async function cpFileSelected(input){
+  const file = input.files && input.files[0];
+  if(!file) return;
+  const preview = $("cp-preview");
+  if(!/^image\//.test(file.type)){ preview.innerHTML = '<p class="small">Bitte ein Bildformat wählen (JPG, PNG, …).</p>'; return; }
+  preview.innerHTML = '<p class="small">Foto wird vorbereitet …</p>';
+  try{
+    const dataUri = await resizeImageToDataUri(file, 1024, 0.85);
+    pendingPhotoDataUri = dataUri;
+    preview.innerHTML = '<img class="preview-thumb" src="'+dataUri+'" alt="Vorschau"><button class="btn btn-primary btn-block mt12" onclick="generatePhotoVariants()">✨ Diese Person zaubern</button>';
+  }catch(e){
+    preview.innerHTML = '<p class="small">Hoppla, das Foto konnte nicht gelesen werden: '+escapeHtml(e.message)+'</p>';
+  }
+}
+async function generatePhotoVariants(){
+  if(!pendingPhotoDataUri){ toast("Foto ist nicht mehr da, bitte nochmal auswählen."); return; }
+  const dataUri = pendingPhotoDataUri;
+  const d = state.activeCharDraft;
+  d.spec.sourceType = "photo_direct_experimental";
+  go("char_loading", {label:"Wir spielen " + (d.name||"die Person") + " nach …", sub:"WizzelWim schaut sich das Foto an und zeichnet drei Varianten."});
+  try{
+    const styleRef = pickStyleRefImage();
+    const results = await Promise.all([0,1,2].map(()=>generateImage(photoStyleInstruction(), "char", undefined, dataUri, styleRef)));
+    state.photoVariants = results.map(r=>({url:r.url, seed:r.seed}));
+    pendingPhotoDataUri = null; // Foto ist danach wirklich weg, nur noch die gezeichneten Varianten bleiben
+    saveState();
+    go("char_photo");
+  }catch(e){
+    toast("Hoppla: " + e.message);
+    go("char_photo");
+  }
+}
+function pickPhotoVariant(i){
+  const v = state.photoVariants[i];
+  if(!v) return;
+  const d = state.activeCharDraft;
+  d.img = v.url; d.seed = v.seed; d.drafts = [{url:v.url, seed:v.seed}];
+  state.photoVariants = null;
+  saveState();
+  generateCharacterSheetViews();
+}
+
+/* ---- 4d: Merkmale wählen (Chips) ---- */
+SCREENS.char_chips = function(){
+  const d = state.activeCharDraft;
+  const p = d.spec;
+  const swatch = [];
+  if(p.identityCore.hairColorLabel) swatch.push(p.identityCore.hairColorLabel);
+  if(p.hairstyleLabel) swatch.push(p.hairstyleLabel);
+  if(p.clothColorLabel) swatch.push(p.clothColorLabel);
+  if(p.clothTypeLabel) swatch.push(p.clothTypeLabel);
+  return `
+  <div class="app-shell">
+    ${appbarHtml("Merkmale wählen", {backFn:"go('char_method')"})}
+    <div class="screen">
+      ${wizGreetHtml("Wie sieht " + (d.name||"die Person") + " typischerweise aus?")}
+      ${swatch.length ? `<div class="live-swatch">${swatch.map(s=>`<span class="swatch-pill">${escapeHtml(s)}</span>`).join("")}</div>` : ""}
+      <div class="trait-group"><div class="trait-group-label">Haarfarbe</div><div class="chip-row">${chipRow("hairColor", HAIR_COLOR_CHIPS, p.identityCore.hairColorLabel)}</div></div>
+      <div class="trait-group"><div class="trait-group-label">Frisur</div><div class="chip-row">${chipRow("hairstyle", HAIRSTYLE_CHIPS, p.hairstyleLabel)}</div></div>
+      <div class="trait-group"><div class="trait-group-label">Kleidungsfarbe</div><div class="chip-row">${chipRow("clothColor", CLOTH_COLOR_CHIPS, p.clothColorLabel)}</div></div>
+      <div class="trait-group"><div class="trait-group-label">Kleidungstyp</div><div class="chip-row">${chipRow("clothType", CLOTH_TYPE_CHIPS, p.clothTypeLabel)}</div></div>
+      <div class="trait-group"><div class="trait-group-label">Accessoires (mehrere möglich)</div><div class="chip-row">${chipRow("accessories", ACCESSORY_CHIPS, p.accessoryLabels||[])}</div></div>
+      <div class="form-field">
+        <label>Was ist noch besonders an ${escapeHtml(d.name||"ihr/ihm")}? (optional)</label>
+        <input type="text" value="${escapeHtml(p.identityCore.signatureMarkerText||"")}" placeholder="z. B. zwei verschiedenfarbige Gummistiefel" oninput="ccUpdateMarker(this.value)">
+      </div>
+      ${autosaveLine()}
+      <button class="btn btn-primary btn-block mt12" onclick="submitCharChips()">🪄 Person zaubern</button>
+    </div>
+    ${tabbarHtml("personen")}
+  </div>`;
+};
+function chipRow(group, options, current){
+  const isMulti = Array.isArray(current);
+  return options.map(o=>{
+    const selected = isMulti ? current.includes(o.label) : current===o.label;
+    return `<div class="chip${selected?' selected':''}" onclick="ccToggleChip('${group}','${o.label}')">${o.emoji?o.emoji+" ":""}${o.label}</div>`;
+  }).join("");
+}
+function ccToggleChip(group, label){
+  const p = state.activeCharDraft.spec;
+  if(group==="accessories"){
+    p.accessoryLabels = p.accessoryLabels || [];
+    const i = p.accessoryLabels.indexOf(label);
+    if(i>=0) p.accessoryLabels.splice(i,1); else p.accessoryLabels.push(label);
+  } else if(group==="hairColor"){ p.identityCore.hairColorLabel = p.identityCore.hairColorLabel===label?"":label; }
+  else if(group==="hairstyle"){ p.hairstyleLabel = p.hairstyleLabel===label?"":label; }
+  else if(group==="clothColor"){ p.clothColorLabel = p.clothColorLabel===label?"":label; }
+  else if(group==="clothType"){ p.clothTypeLabel = p.clothTypeLabel===label?"":label; }
+  saveState(); render();
+}
+function ccUpdateMarker(v){ state.activeCharDraft.spec.identityCore.signatureMarkerText = v; saveState(); }
+function submitCharChips(){
+  const d = state.activeCharDraft;
+  const p = d.spec;
+  const hairColorChip = HAIR_COLOR_CHIPS.find(x=>x.label===p.identityCore.hairColorLabel);
+  const hairstyleChip = HAIRSTYLE_CHIPS.find(x=>x.label===p.hairstyleLabel);
+  const clothColorChip = CLOTH_COLOR_CHIPS.find(x=>x.label===p.clothColorLabel);
+  const clothTypeChip = CLOTH_TYPE_CHIPS.find(x=>x.label===p.clothTypeLabel);
+  const accessoryEn = ACCESSORY_CHIPS.filter(a=>(p.accessoryLabels||[]).includes(a.label)).map(a=>a.en).join(", ");
+  p.identityCore.hairColor = [hairstyleChip?hairstyleChip.en:"", hairColorChip?hairColorChip.en:""].filter(Boolean).join(" ");
+  p.defaultOutfit.top = [clothColorChip?clothColorChip.en:"", clothTypeChip?clothTypeChip.en:"", accessoryEn].filter(Boolean).join(", ");
+  p.identityCore.signatureMarker = p.identityCore.signatureMarkerText ? translate(p.identityCore.signatureMarkerText) : "";
+  saveState();
+  go("char_loading", {label:"Wir zeichnen " + (d.name||"die Person") + " …", sub:"WizzelWim greift zum Zauberstab."});
+  generateCharFront();
+}
+async function generateCharFront(){
+  const d = state.activeCharDraft;
+  try{
+    const res = await generateImage(charPrompt(d), "char");
+    d.img = res.url; d.seed = res.seed; d.drafts = [{url:res.url, seed:res.seed}];
+    saveState();
+    await generateCharacterSheetViews();
+  }catch(e){
+    toast("Hoppla: " + e.message);
+    go("char_chips");
+  }
+}
+
+/* ---- 4e: Character Sheet Ergebnis ---- */
+SCREENS.char_loading = function(params){
+  const p = params || {};
+  return `
+  <div class="app-shell">
+    ${appbarHtml("Einen Moment …", {back:false})}
+    <div class="loading-screen">
+      <img src="${asset('wizard-mascot.png')}" alt="WizzelWim">
+      <h3>${escapeHtml(p.label || "WizzelWim zaubert …")}</h3>
+      <p class="small">${escapeHtml(p.sub || "")}</p>
+      <div class="loading-bar"><i style="width:70%"></i></div>
+    </div>
+  </div>`;
+};
+async function generateCharacterSheetViews(){
+  const d = state.activeCharDraft;
+  go("char_loading", {label:"Wir zeichnen das Charakter-Sheet für " + (d.name||"die Person"), sub:"Seite, Rücken und 3/4-Ansicht entstehen gerade."});
+  const results = {};
+  try{ results.side = (await generateImage(charSheetViewPrompt(d, "side"), "char")).url; }catch(e){ results.sideError = e.message; }
+  try{ results.back = (await generateImage(charSheetViewPrompt(d, "back"), "char")).url; }catch(e){ results.backError = e.message; }
+  try{ results.threeQ = (await generateImage(threeQuarterEditInstruction(), "char", undefined, d.img)).url; }catch(e){ results.threeQError = e.message; }
+  d.sheet = results;
+  saveState();
+  go("char_result");
+}
+SCREENS.char_result = function(){
+  const d = state.activeCharDraft;
+  const backTarget = (d.spec && d.spec.sourceType === "photo_direct_experimental") ? "char_photo" : "char_chips";
+  const cell = (label, url) => `<div class="sheet-cell">${url?`<img src="${url}" alt="${label}">`:`<div class="small">nicht geglückt</div>`}<div class="sl">${label}</div></div>`;
+  return `
+  <div class="app-shell">
+    ${appbarHtml((d.name||"Person") + " ist startklar!", {backFn:"go('" + backTarget + "')"})}
+    <div class="screen">
+      ${wizGreetHtml("Fertig! Schaut mal, ob ihr euch findet. 🔍")}
+      <div class="card card-elev center">
+        <img src="${d.img}" alt="${escapeHtml(d.name)}" style="border-radius:14px;width:100%;max-width:260px;margin:0 auto;">
+      </div>
+      <div class="sheet-grid">
+        ${cell("Seite", d.sheet && d.sheet.side)}
+        ${cell("Rücken", d.sheet && d.sheet.back)}
+        ${cell("3/4", d.sheet && d.sheet.threeQ)}
+      </div>
+      ${coequalRow("✅ Fertig – nächste Person", "acceptCharacter()", "✏️ Bearbeiten", "go('" + backTarget + "')")}
+    </div>
+    ${tabbarHtml("personen")}
+  </div>`;
+};
+function acceptCharacter(){
+  const d = state.activeCharDraft;
+  state.characters.push(d);
+  state.activeCharDraft = null;
+  saveState();
+  go("char_overview");
+}
+
+/* ---- 4f: Personen-Übersicht ---- */
+SCREENS.char_overview = function(){
+  const suggestions = ["Oma","Opa","Geschwister","Haustier"].filter(s=>!state.characters.some(c=>c.roleLabel===s));
+  return `
+  <div class="app-shell">
+    ${appbarHtml("Eure Personen", {backFn:"go('dashboard')"})}
+    <div class="screen">
+      ${wizGreetHtml(state.characters.length ? "Wer soll noch dazu?" : "Noch ist niemand dabei – legt los!")}
+      <div class="gallery-grid">
+        ${state.characters.map((c,i)=>`<div class="gallery-item" onclick="go('char_edit_pick',{i:${i}})"><img src="${c.img}" alt="${escapeHtml(c.name)}"><div class="gl">${escapeHtml(c.name)}</div></div>`).join("")}
+        <div class="gallery-add" onclick="go('char_form')">+ Person</div>
+      </div>
+      ${suggestions.length ? `<div class="trait-group mt20"><div class="trait-group-label">Noch jemand dazu?</div><div class="chip-row">${suggestions.map(s=>`<div class="chip" onclick="startCharFromSuggestion('${s}')">${s}</div>`).join("")}</div></div>` : ""}
+      ${coequalRow("Weiter zur Geschichte", "go('scene_choice')", "Zurück zum Start", "go('dashboard')")}
+    </div>
+    ${tabbarHtml("personen")}
+  </div>`;
+};
+function startCharFromSuggestion(role){
+  go("char_form", {role});
+}
+SCREENS.char_edit_pick = function(params){
+  const c = state.characters[params.i];
+  if(!c) { go("char_overview"); return ""; }
+  return `
+  <div class="app-shell">
+    ${appbarHtml(c.name, {backFn:"go('char_overview')"})}
+    <div class="screen">
+      <div class="card card-elev center"><img src="${c.img}" style="border-radius:14px;max-width:260px;margin:0 auto;"></div>
+      <div class="sheet-grid">
+        <div class="sheet-cell">${c.sheet&&c.sheet.side?`<img src="${c.sheet.side}">`:'<div class="small">–</div>'}<div class="sl">Seite</div></div>
+        <div class="sheet-cell">${c.sheet&&c.sheet.back?`<img src="${c.sheet.back}">`:'<div class="small">–</div>'}<div class="sl">Rücken</div></div>
+        <div class="sheet-cell">${c.sheet&&c.sheet.threeQ?`<img src="${c.sheet.threeQ}">`:'<div class="small">–</div>'}<div class="sl">3/4</div></div>
+      </div>
+      <p class="small center mt12">Feinschliff pro Person ist in diesem Prototyp noch nicht verdrahtet – ihr könnt aber jederzeit eine neue Person mit denselben Merkmalen anlegen.</p>
+      <button class="btn btn-secondary btn-block mt12" onclick="go('char_overview')">Zurück zur Übersicht</button>
+    </div>
+    ${tabbarHtml("personen")}
+  </div>`;
+};
+
+/* =========================== Baustein 5: Wimmelbild erschaffen =========================== */
+function composeSituations(gagId, userItems){
+  const used = new Set(userItems.map(u=>u.de || u.text));
+  const need = Math.max(0, 16 - userItems.length);
+  const pool = GAG_LIBRARY[gagId] || GAG_LIBRARY.generic;
+  const fresh = pool.filter(g=>!used.has(g.de));
+  const src = fresh.length >= need ? fresh : pool;
+  const picks = [...src].sort(()=>Math.random()-.5).slice(0, need);
+  return [...userItems, ...picks.map(g=>({text:g.en, de:g.de}))];
+}
+function newSceneDraft(loc, situations){
+  // Automatische, nicht-interaktive Streuung ueber die Flaeche (reuses defaultBubbleLayout aus
+  // index.html) statt des manuellen Drag-Boards - Position/Groesse fliessen weiterhin ueber
+  // situationPlacementText() in den Bild-Prompt ein, nur waehlt WizzelWim sie diesmal selbst statt
+  // die Nutzerin per Drag&Drop (siehe Briefing Section 8.1: Erstvorschlag automatisch komponiert).
+  const positions = defaultBubbleLayout(situations.length);
+  const withLayout = situations.map((s,i)=>({
+    ...s, x: positions[i].x, y: positions[i].y,
+    size: Math.random()<0.15 ? "L" : (Math.random()<0.15 ? "S" : "M")
+  }));
+  return {id:"scene_"+Math.random().toString(36).slice(2,9), loc, situations: withLayout, img:null, seed:undefined, drafts:[], prompt:null};
+}
+
+/* ---- 5a: Szenen-Wahl ---- */
+SCREENS.scene_choice = function(){
+  const isFirst = state.scenes.length === 0;
+  return `
+  <div class="app-shell">
+    ${appbarHtml(isFirst ? "Euer erstes Wimmelbild" : "Nächstes Wimmelbild", {backFn:"go('dashboard')"})}
+    <div class="screen">
+      ${wizGreetHtml(isFirst ? "Wie wollen wir eure erste Szene festlegen?" : "Wie soll die nächste Szene entstehen?", "Ihr müsst euch nicht alles selbst ausdenken – ich ergänze gerne.")}
+      <div class="scene-choice-row">
+        <div class="choice-card record emph" onclick="go('scene_record')"><span class="cc-icon">🎙️</span><div class="cc-title">Gutenachtgeschichte aufnehmen</div><div class="cc-sub">Erzählt frei drauflos, ich höre zu</div></div>
+        <div class="choice-card emph" onclick="go('scene_tiles')"><span class="cc-icon">🖼️</span><div class="cc-title">Thema wählen</div><div class="cc-sub">Fertige Anlässe zum Antippen</div></div>
+        <div class="choice-card emph" onclick="go('scene_freetext')"><span class="cc-icon">✏️</span><div class="cc-title">Eigene Idee eintippen</div><div class="cc-sub">Kurz beschreiben, Rest übernehmen wir</div></div>
+      </div>
+    </div>
+    ${tabbarHtml("bilder")}
+  </div>`;
+};
+
+/* ---- 5b: Themen-Kacheln ---- */
+SCREENS.scene_tiles = function(){
+  return `
+  <div class="app-shell">
+    ${appbarHtml("Thema wählen", {backFn:"go('scene_choice')"})}
+    <div class="screen">
+      ${wizGreetHtml("Welches Thema passt zu eurer Erinnerung?")}
+      <div class="tile-grid">
+        ${SCENE_TILES.map(t=>t.img
+          ? `<div class="scene-tile" onclick="pickSceneTile('${t.tileId}')"><img src="${asset(t.img)}" alt="${t.label}"><div class="stl">${t.label}</div></div>`
+          : `<div class="scene-tile icon-only" onclick="pickSceneTile('${t.tileId}')"><span class="sti">${t.emoji}</span><div class="stl">${t.label}</div></div>`
+        ).join("")}
+        <div class="scene-tile custom icon-only" onclick="go('scene_freetext')"><span class="sti">✏️</span><div class="stl">Eigene Idee</div></div>
+      </div>
+    </div>
+    ${tabbarHtml("bilder")}
+  </div>`;
+};
+function pickSceneTile(tileId){
+  const t = SCENE_TILES.find(x=>x.tileId===tileId);
+  if(!t) return;
+  const situations = composeSituations(t.gagId, []);
+  state.activeSceneDraft = newSceneDraft(t.loc, situations);
+  saveState();
+  go("scene_loading");
+  runSceneGeneration();
+}
+
+/* ---- 5c: Erzähl-Modus ---- */
+SCREENS.scene_record = function(){
+  return `
+  <div class="app-shell">
+    ${appbarHtml("Erzählt mir davon", {backFn:"go('scene_choice')"})}
+    <div class="screen center">
+      ${wizGreetHtml("Erzählt einfach frei, wie bei einer Gutenachtgeschichte.", "Wenn dir nichts mehr einfällt, ergänze ich gerne den Rest.")}
+      ${speechSupported() ? `
+        <button class="record-btn" id="rec-btn" onclick="toggleRecording()">🎙️</button>
+        <div class="waveform" id="rec-wave" style="display:none"><i style="animation-delay:.0s"></i><i style="animation-delay:.1s"></i><i style="animation-delay:.2s"></i><i style="animation-delay:.3s"></i><i style="animation-delay:.4s"></i></div>
+        <p class="small" id="rec-status">Tippe zum Starten der Aufnahme</p>
+        <div id="rec-result"></div>
+      ` : `
+        <p class="mt16" style="font-weight:700">Diese Aufnahmefunktion braucht Chrome auf dem Handy oder Computer – nutze stattdessen gerne den Freitext oder ein Thema.</p>
+        <div class="btn-row mt16"><button class="btn btn-primary" onclick="go('scene_freetext')">✏️ Freitext</button><button class="btn btn-secondary" onclick="go('scene_tiles')">🖼️ Thema wählen</button></div>
+      `}
+    </div>
+    ${tabbarHtml("bilder")}
+  </div>`;
+};
+let activeRecognizer = null;
+function toggleRecording(){
+  const btn = $("rec-btn"), wave = $("rec-wave"), status = $("rec-status");
+  if(activeRecognizer){ activeRecognizer.stop(); return; }
+  try{
+    activeRecognizer = makeRecognizer(function(text){
+      recognizedTextTransient = text;
+      renderRecordResult(text);
+    }, function(){
+      activeRecognizer = null;
+      if(btn) btn.classList.remove("active");
+      if(wave) wave.style.display = "none";
+      if(status) status.textContent = "Tippe zum Starten der Aufnahme";
+    });
+    activeRecognizer.start();
+    btn.classList.add("active"); wave.style.display = "flex"; status.textContent = "Ich höre zu …";
+  }catch(e){ toast("Aufnahme konnte nicht gestartet werden."); }
+}
+function renderRecordResult(text){
+  const box = $("rec-result");
+  if(!box) return;
+  if(!text){ box.innerHTML = '<p class="small">Ich habe leider nichts verstanden – versuch es gern nochmal, oder wechsle zum Freitext.</p>'; return; }
+  const chips = text.split(/(?<=[.!?])\s+|,\s+| und /i).map(s=>s.trim()).filter(s=>s.length>3).slice(0,3);
+  box.innerHTML = `<p class="small" style="font-weight:800">Das habe ich verstanden:</p>
+    <div class="chip-row">${chips.map((c,i)=>`<div class="chip selected" id="rchip-${i}">${escapeHtml(c)} <span onclick="event.stopPropagation();removeRchip(${i})">✕</span></div>`).join("")}</div>
+    <button class="btn btn-primary btn-block mt12" onclick="confirmRecordedScene()">Weiter</button>`;
+  window._rchips = chips;
+}
+function removeRchip(i){
+  window._rchips.splice(i,1);
+  renderRecordResult(window._rchips.join(". "));
+}
+function confirmRecordedScene(){
+  const chips = window._rchips || [];
+  const fullText = chips.join(". ");
+  const gagId = guessLocId(fullText) || "generic";
+  const loc = SCENE_LOCATIONS.find(l=>l.id===gagId) || {id:"generic", label:"✏️ Eure Erzählung", en:"a lively everyday scene", type:"landscape"};
+  const userItems = chips.map(c=>({text: translate(c), de: c}));
+  const situations = composeSituations(gagId, userItems);
+  state.activeSceneDraft = newSceneDraft(loc, situations);
+  saveState();
+  go("scene_loading");
+  runSceneGeneration();
+}
+
+/* ---- 5d: Freitext ---- */
+const SCENE_FREETEXT_TEMPLATES = [
+  "Ein Sonntag auf dem Wochenmarkt, mit Apfelsaft-Probieren und einem Straßenmusiker.",
+  "Der erste Schultag, mit Schultüte, aufgeregten Kindern und einem Fotoshooting vor der Tür.",
+  "Ein verregneter Nachmittag zuhause mit Pfützenspringen davor und heißer Schokolade danach."
+];
+SCREENS.scene_freetext = function(){
+  return `
+  <div class="app-shell">
+    ${appbarHtml("Eigene Idee", {backFn:"go('scene_choice')"})}
+    <div class="screen">
+      ${wizGreetHtml("Beschreib mir kurz, was ihr erlebt habt – den Rest übernehme ich.")}
+      <div class="form-field"><textarea id="ft-text" placeholder="z. B. Unser Ausflug zum Bauernhof im Herbst …"></textarea></div>
+      <p class="small" style="font-weight:800">Oder lass dich inspirieren:</p>
+      ${SCENE_FREETEXT_TEMPLATES.map(t=>`<div class="example-template" onclick="fillFreetext(this)">${t}</div>`).join("")}
+      <button class="btn btn-primary btn-block mt16" onclick="submitFreetextScene()">Wimmelbild komponieren</button>
+    </div>
+    ${tabbarHtml("bilder")}
+  </div>`;
+};
+function fillFreetext(el){ $("ft-text").value = el.textContent; }
+function submitFreetextScene(){
+  const text = ($("ft-text").value || "").trim();
+  if(!text){ toast("Magst du kurz ein paar Worte dazu schreiben?"); return; }
+  const gagId = guessLocId(text) || "generic";
+  const loc = SCENE_LOCATIONS.find(l=>l.id===gagId) || {id:"generic", label:"✏️ Eure Idee", en:"a lively everyday scene", type:"landscape"};
+  const userItems = [{text: translate(text), de: text}];
+  const situations = composeSituations(gagId, userItems);
+  state.activeSceneDraft = newSceneDraft(loc, situations);
+  saveState();
+  go("scene_loading");
+  runSceneGeneration();
+}
+
+/* ---- 5e: Ladebildschirm + Generierung ---- */
+SCREENS.scene_loading = function(){
+  const d = state.activeSceneDraft;
+  const total = d ? d.situations.length : 16;
+  const done = d ? d.situations.filter(s=>s.img||s.imgError).length : 0;
+  return `
+  <div class="app-shell">
+    ${appbarHtml("Einen Moment …", {back:false})}
+    <div class="loading-screen">
+      <img src="${asset('wizard-mascot.png')}" alt="WizzelWim">
+      <h3>WizzelWim zaubert …</h3>
+      <p class="small">Die Wimmels verteilen gerade die Rollen. (${done}/${total} Situationen)</p>
+      <div class="loading-bar"><i style="width:${total?Math.round(done/total*100):10}%"></i></div>
+      <p class="small mt20">Du kannst die App verlassen – wir speichern automatisch.</p>
+    </div>
+  </div>`;
+};
+async function runSceneGeneration(){
+  const s = state.activeSceneDraft;
+  if(!s) return;
+  // Schritt 1: jede Situation bekommt ihre eigene kleine Vignette (identische Pipeline wie
+  // index.html's generateAllSituationImages/generateSituationImage) – diese Bilder dienen später
+  // als zusätzliche Referenzbilder für die Gesamtkomposition (pickSceneSituationRefs).
+  for(let i=0;i<s.situations.length;i++){
+    const sit = s.situations[i];
+    try{
+      const res = await generateImage(situationImagePrompt(sit, s), "scene");
+      sit.img = res.url;
+    }catch(e){ sit.imgError = e.message; }
+    saveState();
+    if(state.screen === "scene_loading") render();
+  }
+  // Schritt 2: Gesamtszene komponieren – exakt derselbe Aufruf-Pattern wie generateScene()
+  // (GEN_OP.INITIAL-Zweig) in index.html: Charakterbilder + Situations-Vignetten als Referenzen.
+  await composeSceneImage(s, {reroll:false});
+  go("scene_result");
+}
+async function composeSceneImage(s, opts){
+  opts = opts || {};
+  s.prompt = s.prompt || scenePrompt(s);
+  try{
+    const charRefs = pickSceneCharacterRefs().slice(0, 8);
+    const situationRefs = pickSceneSituationRefs(s, Math.max(0, 13 - charRefs.length));
+    const allRefs = [...charRefs, ...situationRefs];
+    const res = allRefs.length
+      ? await generateImage(sceneComposeInstruction(s, charRefs.length), "scene", undefined, allRefs[0], allRefs.slice(1))
+      : await generateImage(s.prompt, "scene");
+    s.img = res.url;
+    if(res.seed != null) s.seed = res.seed;
+    s.drafts = s.drafts || []; s.drafts.push({url:res.url, seed:res.seed});
+  }catch(e){
+    s.imgError = e.message;
+  }
+  saveState();
+}
+
+/* ---- 5f: Ergebnis ---- */
+SCREENS.scene_result = function(){
+  const s = state.activeSceneDraft;
+  if(!s){ go("scene_choice"); return ""; }
+  const shown = s.situations.slice(0,6);
+  const more = s.situations.length - shown.length;
+  return `
+  <div class="app-shell">
+    ${appbarHtml(s.loc.label, {backFn:"go('dashboard')"})}
+    <div class="screen">
+      ${s.img ? `<img class="scene-result-img" src="${s.img}" alt="Euer Wimmelbild">` : `<p class="small">Hoppla, dieses Bild ist leider nicht geglückt: ${escapeHtml(s.imgError||"")}</p>`}
+      <div class="situation-chip-row">
+        ${shown.map(sit=>`<div class="schip">${escapeHtml(sit.de || sit.text)}</div>`).join("")}
+        ${more>0 ? `<div class="schip">+${more} mehr</div>` : ""}
+      </div>
+      <button class="btn btn-primary btn-block mt12" onclick="finishScene()">Wimmelbild ist fertig!</button>
+      <div class="secondary-row">
+        <button class="btn btn-secondary" onclick="go('scene_edit')">✏️ Details anpassen</button>
+        <button class="btn btn-secondary" onclick="rerollScene()">🔁 Nochmal zaubern</button>
+      </div>
+      ${autosaveLine()}
+    </div>
+    ${tabbarHtml("bilder")}
+  </div>`;
+};
+async function rerollScene(){
+  const s = state.activeSceneDraft;
+  go("scene_loading");
+  await composeSceneImage(s, {reroll:true});
+  go("scene_result");
+}
+function finishScene(){
+  const s = state.activeSceneDraft;
+  state.scenes.push(s);
+  state.activeSceneDraft = null;
+  saveState();
+  if(state.tier === null){ go("decision"); }
+  else { go("progress"); }
+}
+
+/* ---- optionaler Feinschliff: Situation antippen -> austauschen -> Szene neu komponieren ---- */
+SCREENS.scene_edit = function(){
+  const s = state.activeSceneDraft;
+  if(!s){ go("scene_choice"); return ""; }
+  return `
+  <div class="app-shell">
+    ${appbarHtml("Details anpassen", {backFn:"go('scene_result')"})}
+    <div class="screen">
+      ${wizGreetHtml("Tippt eine Situation an, um sie auszutauschen.")}
+      ${s.img ? `<img class="scene-result-img" src="${s.img}" alt="">` : ""}
+      <div class="chip-row mt16">${s.situations.map((sit,i)=>`<div class="chip" onclick="openSwapPicker(${i})">${escapeHtml(sit.de||sit.text)}</div>`).join("")}</div>
+    </div>
+    ${tabbarHtml("bilder")}
+  </div>`;
+};
+function openSwapPicker(idx){
+  const s = state.activeSceneDraft;
+  const gagId = s.loc.id === "weihnachten" ? "home" : (GAG_LIBRARY[s.loc.id] ? s.loc.id : "generic");
+  const pool = GAG_LIBRARY[gagId] || GAG_LIBRARY.generic;
+  const used = new Set(s.situations.map(x=>x.de));
+  const options = pool.filter(g=>!used.has(g.de)).slice(0,6);
+  const list = options.map((g,j)=>`<div class="chip" onclick="swapSituation(${idx},${j})" data-j="${j}">${escapeHtml(g.de)}</div>`).join("");
+  window._swapOptions = options;
+  const box = document.createElement("div");
+  box.className = "card mt16"; box.id = "swap-box";
+  box.innerHTML = `<p style="font-weight:800">Womit ersetzen?</p><div class="chip-row">${list}</div>`;
+  const old = $("swap-box"); if(old) old.remove();
+  document.querySelector(".screen").appendChild(box);
+}
+async function swapSituation(idx, j){
+  const s = state.activeSceneDraft;
+  const newGag = window._swapOptions[j];
+  if(!newGag) return;
+  const oldSit = s.situations[idx];
+  s.situations[idx] = {...oldSit, text: newGag.en, de: newGag.de, img: null, imgError: null};
+  saveState();
+  go("scene_loading");
+  try{
+    const instruction = kontextInstruction("Replace the situation '" + oldSit.text + "' with a new one: " + newGag.en + ". If the old situation is visible anywhere in the image, redraw that area to show the new situation instead");
+    const res = await generateImage(instruction, "scene", s.seed, s.img, pickSceneCharacterRefs(s.img));
+    s.img = res.url; if(res.seed!=null) s.seed = res.seed;
+    s.drafts = s.drafts||[]; s.drafts.push({url:res.url, seed:res.seed});
+  }catch(e){ s.imgError = e.message; }
+  saveState();
+  go("scene_edit");
+}
+
+/* =========================== Screen 6: Entscheidungspunkt (erstes Bild fertig) =========================== */
+SCREENS.decision = function(){
+  return `
+  <div class="app-shell">
+    ${appbarHtml("Geschafft!", {back:false})}
+    <div class="screen">
+      ${wizGreetHtml("Geschafft – dein erstes Wimmelbild ist fertig! 🎉", "Hat es dir Spaß gemacht?")}
+      <p>Du kannst es genau so als Poster bestellen. Oder du machst weiter: Noch 1 Wimmelbild und eine Seite mit allen Charakteren zusammen, und daraus wird ein kleines, gebundenes Wimmelbuch. Noch 4 weitere Wimmelbilder, und daraus wird ein großes Wimmelbuch.</p>
+      <div class="tier-choice-card" onclick="chooseTier('poster')"><div class="tch-top"><span class="tch-name">🖼️ Poster</span><span class="tch-price">34 €</span></div><div class="tch-desc">Dieses eine Bild, fertig.</div></div>
+      <div class="tier-choice-card" onclick="chooseTier('mini')"><div class="tch-top"><span class="tch-name">📖 Mini-Wimmelbuch</span><span class="tch-price">59 €</span></div><div class="tch-desc">Noch 1 Wimmelbild + Charakter-Seite, 8 Seiten.</div></div>
+      <div class="tier-choice-card" onclick="chooseTier('buch')"><div class="tch-top"><span class="tch-name">📚 Wimmelbuch</span><span class="tch-price">89 €</span></div><div class="tch-desc">Auf 5 Wimmelbilder ausbauen.</div></div>
+      <div class="equal-note">Das ist völlig okay, so wie es ist.</div>
+    </div>
+  </div>`;
+};
+function chooseTier(tier){
+  state.tier = tier; saveState();
+  if(tier === "poster"){ go("preview"); }
+  else { go("progress"); }
+}
+// Auf dem Preisbestätigungs-Screen (10) soll ein Tier-Wechsel NUR den Preis aktualisieren, nicht
+// zu Vorschau/Fortschritt zurückspringen (anders als der einmalige Entscheidungspunkt, Screen 6).
+function switchTierInPlace(tier){
+  state.tier = tier; saveState(); render();
+}
+
+/* =========================== Screen 7: Fortschritts-Dashboard bei Buch-Wahl =========================== */
+SCREENS.progress = function(){
+  const tier = PRODUCT_TIERS[state.tier] || PRODUCT_TIERS.mini;
+  const target = tier.scenes;
+  const done = state.scenes.length;
+  const reachedMiniThreshold = state.tier === "mini" && done >= 2;
+  return `
+  <div class="app-shell">
+    ${appbarHtml("Euer Wimmelbuch", {backFn:"go('dashboard')"})}
+    <div class="screen">
+      ${wizGreetHtml(done + " von " + target + " Wimmelbildern fertig", "Ihr könnt jederzeit pausieren und später weitermachen.")}
+      <div class="progress-gallery">
+        ${state.scenes.map(s=>`<div class="pg-item"><img src="${s.img}" alt=""><span class="pg-check">✓</span></div>`).join("")}
+        ${Array.from({length: Math.max(0, target-done)}).map(()=>`<div class="pg-empty" onclick="go('scene_choice')">+ Nächstes<br>Wimmelbild</div>`).join("")}
+      </div>
+      ${reachedMiniThreshold ? `
+        <div class="card mt20">
+          <p style="font-weight:800">Ihr habt jetzt ein fertiges kleines Wimmelbuch!</p>
+          <p class="small">Wenn ihr Lust habt, könnt ihr es zu einem großen Wimmelbuch ausbauen – dafür fehlen noch 3 weitere Wimmelbilder. Kein Muss, nur ein Angebot, falls euch das Weitermachen Spaß macht.</p>
+          ${coequalRow("📚 Zum großen Buch ausbauen", "upgradeTier('buch')", "Mini-Buch fertigstellen", "go('preview')")}
+        </div>` : ""}
+      <p class="small center mt20" onclick="downgradeTier()" style="text-decoration:underline;cursor:pointer">eigentlich reicht mir das, was schon fertig ist</p>
+      ${done >= target ? `<button class="btn btn-primary btn-block mt12" onclick="go('preview')">Weiter zur Vorschau</button>` : ""}
+    </div>
+    ${tabbarHtml("bilder")}
+  </div>`;
+};
+function upgradeTier(tier){ state.tier = tier; saveState(); render(); }
+function downgradeTier(){
+  if(state.scenes.length < 1){ toast("Dafür braucht es erst ein fertiges Wimmelbild."); return; }
+  state.tier = "poster"; saveState(); go("preview");
+}
+
+/* =========================== Screen 8: Gesamt-Vorschau =========================== */
+SCREENS.preview = function(){
+  const scenes = state.scenes;
+  if(!scenes.length){ go("dashboard"); return ""; }
+  const page = Math.min(state.previewPage||0, scenes.length-1);
+  const s = scenes[page];
+  return `
+  <div class="app-shell">
+    ${appbarHtml("Vorschau", {backFn:"go('dashboard')"})}
+    <div class="screen">
+      <img class="scene-result-img" src="${s.img}" alt="">
+      <div class="btn-row mt12" style="justify-content:center">
+        <button class="btn btn-secondary" onclick="previewThumbUp()">👍 Behalten</button>
+        <button class="btn btn-secondary" onclick="previewReroll()">🔁 Nochmal</button>
+      </div>
+      ${scenes.length>1 ? `
+      <div class="btn-row mt12">
+        <button class="btn btn-secondary" ${page===0?"disabled":""} onclick="previewNav(-1)">← Zurück</button>
+        <span class="small" style="align-self:center;flex:none;padding:0 10px">Seite ${page+1} / ${scenes.length}</span>
+        <button class="btn btn-secondary" ${page===scenes.length-1?"disabled":""} onclick="previewNav(1)">Weiter →</button>
+      </div>` : ""}
+      <button class="btn btn-primary btn-block mt20" onclick="go('dedication')">Weiter zur Widmung</button>
+    </div>
+    ${tabbarHtml("bilder")}
+  </div>`;
+};
+function previewNav(dir){ state.previewPage = Math.max(0, Math.min(state.scenes.length-1, (state.previewPage||0)+dir)); saveState(); render(); }
+function previewThumbUp(){ toast("Schön, das freut WizzelWim! 💛"); }
+async function previewReroll(){
+  const page = Math.min(state.previewPage||0, state.scenes.length-1);
+  const s = state.scenes[page];
+  go("scene_loading");
+  await composeSceneImage(s, {reroll:true});
+  go("preview");
+}
+
+/* =========================== Screen 9: Widmung =========================== */
+const DEDICATION_TEMPLATES = [
+  "Für die beste Familie der Welt – auf noch viele wimmelige Abenteuer!",
+  "Weil jeder Tag mit euch ein kleines Wimmelbild wert ist. Wir haben euch lieb.",
+  "Zur Erinnerung an dieses besondere Jahr – bleibt genauso wild und wunderbar."
+];
+SCREENS.dedication = function(){
+  return `
+  <div class="app-shell">
+    ${appbarHtml("Widmung (optional)", {backFn:"go('preview')", skipFn:"go('checkout_confirm')"})}
+    <div class="screen">
+      ${wizGreetHtml("Möchtet ihr ein paar persönliche Worte hinzufügen?", "Ganz optional – ihr könnt das auch überspringen.")}
+      <div class="form-field"><textarea id="ded-text" placeholder="Eure Widmung …">${escapeHtml(state.dedication||"")}</textarea></div>
+      ${speechSupported() ? `<button class="btn btn-secondary" onclick="recordDedication()">🎙️ Lieber einsprechen</button>` : ""}
+      <p class="small" style="font-weight:800" class="mt16">Oder lass dich inspirieren:</p>
+      ${DEDICATION_TEMPLATES.map(t=>`<div class="example-template" onclick="fillDedication(this)">${t}</div>`).join("")}
+      <button class="btn btn-primary btn-block mt16" onclick="saveDedication()">Weiter</button>
+    </div>
+  </div>`;
+};
+function fillDedication(el){ $("ded-text").value = el.textContent; }
+function recordDedication(){
+  try{
+    const rec = makeRecognizer(function(text){ $("ded-text").value = text; }, null);
+    rec.start();
+    toast("Ich höre zu …");
+  }catch(e){ toast("Aufnahme nicht verfügbar."); }
+}
+function saveDedication(){
+  state.dedication = ($("ded-text").value || "").trim();
+  state.dedicationDone = true;
+  saveState();
+  go("checkout_confirm");
+}
+
+/* =========================== Screen 10: Produktwahl & Preisbestätigung =========================== */
+SCREENS.checkout_confirm = function(){
+  const tier = PRODUCT_TIERS[state.tier || "poster"];
+  return `
+  <div class="app-shell">
+    ${appbarHtml("Preis bestätigen", {backFn:"go('dedication')"})}
+    <div class="screen">
+      ${wizGreetHtml("Fast geschafft! Ein letzter Blick auf euer Wimmelbuch.")}
+      <div class="tier-cards">
+        ${Object.values(PRODUCT_TIERS).map(t=>`<div class="tier-choice-card ${t.id===state.tier?"chosen":""}" onclick="switchTierInPlace('${t.id}')"><div class="tch-top"><span class="tch-name">${t.name}</span><span class="tch-price">${t.price} €</span></div><div class="tch-desc">${t.desc}</div></div>`).join("")}
+      </div>
+      <div class="price-breakdown mt16">
+        <div class="pb-line"><span>${tier.name}</span><span>${tier.price} €</span></div>
+        <div class="pb-line"><span>Versand</span><span>inklusive</span></div>
+        <div class="pb-line pb-total"><span>Gesamt</span><span>${tier.price} €</span></div>
+      </div>
+      <p class="small center mt12">Voraussichtlich lieferbar ca. 7–10 Werktage nach Fertigstellung.</p>
+      <button class="btn btn-primary btn-block mt16" onclick="go('checkout')">Weiter zur Kasse</button>
+    </div>
+    ${tabbarHtml("bestellen")}
+  </div>`;
+};
+
+/* =========================== Screen 11: Checkout =========================== */
+SCREENS.checkout = function(){
+  const tier = PRODUCT_TIERS[state.tier || "poster"];
+  const cover = state.scenes[0] ? state.scenes[0].img : (state.characters[0] ? state.characters[0].img : "");
+  return `
+  <div class="app-shell">
+    ${appbarHtml("Kasse", {backFn:"go('checkout_confirm')"})}
+    <div class="screen">
+      <div class="card center"><img src="${cover}" style="max-width:160px;border-radius:12px;margin:0 auto"><p style="font-weight:800;margin-top:8px">${tier.name} · ${tier.price} €</p></div>
+      <div class="form-field mt16"><label>Name</label><input id="co-name" type="text" placeholder="Vor- und Nachname"></div>
+      <div class="form-field"><label>Adresse</label><input id="co-addr" type="text" placeholder="Straße und Hausnummer"></div>
+      <div class="form-field"><label>PLZ &amp; Ort</label><input id="co-city" type="text" placeholder="12345 Musterstadt"></div>
+      <div class="form-field"><label>Zahlungsart</label><div class="pay-row" id="co-pay">
+        <div class="chip selected" data-pay="Apple Pay" onclick="pickPay(this)">🍎 Apple Pay</div>
+        <div class="chip" data-pay="PayPal" onclick="pickPay(this)">🅿️ PayPal</div>
+        <div class="chip" data-pay="Karte" onclick="pickPay(this)">💳 Karte</div>
+        <div class="chip" data-pay="Rechnung" onclick="pickPay(this)">🧾 Rechnung</div>
+      </div></div>
+      <p class="small">Voraussichtlich lieferbar ca. 7–10 Werktage nach Fertigstellung.</p>
+      <button class="btn btn-primary btn-block mt12" onclick="submitOrder()">Jetzt kaufen · ${tier.price} €</button>
+      <div class="trust-line">DSGVO-konform · EU-Server · Made in Germany</div>
+    </div>
+  </div>`;
+};
+function pickPay(el){
+  document.querySelectorAll("#co-pay .chip").forEach(c=>c.classList.remove("selected"));
+  el.classList.add("selected");
+}
+async function submitOrder(){
+  const name = ($("co-name").value||"").trim();
+  const addr = ($("co-addr").value||"").trim();
+  const city = ($("co-city").value||"").trim();
+  if(!name || !addr || !city){ toast("Magst du noch Name und Adresse ergänzen?"); return; }
+  const payEl = document.querySelector("#co-pay .selected");
+  const tier = PRODUCT_TIERS[state.tier || "poster"];
+  const orderNumber = "WW-" + Math.random().toString(36).slice(2,8).toUpperCase();
+  const deliveryDate = new Date(Date.now() + 10*24*3600*1000).toLocaleDateString("de-DE", {day:"2-digit", month:"2-digit", year:"numeric"});
+  state.order = {
+    orderNumber, name, address: addr, city, payment: payEl?payEl.dataset.pay:"Rechnung",
+    tier: tier.id, price: tier.price, deliveryDate, dedication: state.dedication || "",
+    createdAt: new Date().toISOString(), printStatus: "pending"
+  };
+  saveState();
+  go("confirmation");
+  const res = await submitPrintOrderNotify();
+  state.order.printStatus = res.status;
+  if(res.error) state.order.printError = res.error;
+  saveState();
+}
+
+/* =========================== Screen 12: Bestätigung =========================== */
+SCREENS.confirmation = function(){
+  const o = state.order;
+  if(!o){ go("dashboard"); return ""; }
+  const tier = PRODUCT_TIERS[o.tier];
+  return `
+  <div class="app-shell">
+    ${appbarHtml("Bestellt!", {back:false})}
+    <div class="screen center">
+      <img src="${asset('wizard-mascot.png')}" alt="WizzelWim" style="width:140px;margin:10px auto">
+      <h2>Danke, ${escapeHtml(o.name.split(" ")[0]||"")}! 💛</h2>
+      <p>Euer <b>${tier.name}</b> ist bei uns eingegangen und wird liebevoll für den Druck vorbereitet.</p>
+      <div class="card mt16">
+        <div class="pb-line"><span>Bestellnummer</span><span>${o.orderNumber}</span></div>
+        <div class="pb-line"><span>Voraussichtlich da am</span><span>${o.deliveryDate}</span></div>
+      </div>
+      <button class="btn btn-primary btn-block mt20" onclick="shareOrder()">💛 Ankündigen &amp; teilen</button>
+      <button class="btn btn-secondary btn-block mt12" onclick="go('scene_choice')">Noch ein Wimmelbild machen</button>
+    </div>
+  </div>`;
+};
+async function shareOrder(){
+  const text = "Wir haben gerade unser eigenes Wimmelbuch bei Wimmel Wizard gezaubert! ✨";
+  if(navigator.share){
+    try{ await navigator.share({title:"Wimmel Wizard", text}); return; }catch(e){}
+  }
+  try{ await navigator.clipboard.writeText(text); toast("Text kopiert – zum Teilen einfach einfügen!"); }
+  catch(e){ toast(text); }
+}
+
+/* =========================== Gutschein-Pfad (13a Kauf / 13b Einlösen) =========================== */
+SCREENS.voucher_buy = function(params){
+  const p = params || {};
+  const chosen = p.tier || "mini";
+  const tier = PRODUCT_TIERS[chosen];
+  return `
+  <div class="app-shell">
+    ${appbarHtml("Wimmel Wizard verschenken", {backFn:"go('landing')"})}
+    <div class="screen">
+      ${wizGreetHtml("Was für ein schönes Geschenk!", "Wählt einen Wert, schreibt ein paar Worte – den Rest übernehmen die Beschenkten.")}
+      <div class="tier-cards">
+        ${Object.values(PRODUCT_TIERS).map(t=>`<div class="tier-choice-card ${t.id===chosen?"chosen":""}" onclick="go('voucher_buy',{tier:'${t.id}'})"><div class="tch-top"><span class="tch-name">${t.name}</span><span class="tch-price">${t.price} €</span></div><div class="tch-desc">${t.desc}</div></div>`).join("")}
+      </div>
+      <div class="form-field mt16"><label>Persönliche Nachricht (optional)</label><textarea id="vb-msg" placeholder="Wir wünschen euch ganz viel Freude beim Wimmeln!"></textarea></div>
+      <div class="trait-group"><div class="trait-group-label">Zustellung</div><div class="chip-row" id="vb-delivery">
+        <div class="chip selected" data-d="Digital" onclick="pickDelivery(this)">📧 Digital per E-Mail</div>
+        <div class="chip" data-d="Post" onclick="pickDelivery(this)">✉️ Per Post</div>
+      </div></div>
+      <button class="btn btn-primary btn-block mt16" onclick="buyVoucher('${chosen}')">Gutschein kaufen · ${tier.price} €</button>
+    </div>
+  </div>`;
+};
+function pickDelivery(el){
+  document.querySelectorAll("#vb-delivery .chip").forEach(c=>c.classList.remove("selected"));
+  el.classList.add("selected");
+}
+function buyVoucher(tierId){
+  const tier = PRODUCT_TIERS[tierId];
+  const msg = ($("vb-msg").value || "").trim();
+  const deliveryEl = document.querySelector("#vb-delivery .selected");
+  state.order = {
+    orderNumber: "GS-" + Math.random().toString(36).slice(2,8).toUpperCase(),
+    voucher: true, tier: tierId, price: tier.price, message: msg,
+    delivery: deliveryEl?deliveryEl.dataset.d:"Digital", createdAt: new Date().toISOString()
+  };
+  saveState();
+  go("voucher_confirm");
+}
+SCREENS.voucher_confirm = function(){
+  const o = state.order;
+  return `
+  <div class="app-shell">
+    ${appbarHtml("Gutschein unterwegs!", {back:false})}
+    <div class="screen center">
+      <img src="${asset('wizard-mascot.png')}" alt="" style="width:140px;margin:10px auto">
+      <h2>Danke für dieses schöne Geschenk! 💛</h2>
+      <p>Bestellnummer <b>${o.orderNumber}</b> – der Gutschein über ${o.price} € geht ${o.delivery==="Digital"?"gleich per E-Mail":"per Post"} raus.</p>
+      <button class="btn btn-primary btn-block mt20" onclick="go('landing')">Zurück zur Startseite</button>
+    </div>
+  </div>`;
+};
+
+/* =========================== Init =========================== */
+(function initApp(){
+  try{
+    const params = new URLSearchParams(location.search);
+    if(params.get("gutschein") === "1" && !(state.voucher && state.voucher.redeemed)){
+      state.voucher = {
+        redeemed: true, from: "Oma & Opa",
+        message: "Wir schenken euch dieses Wimmelbuch von Herzen – wimmelt drauf los!"
+      };
+      state.screen = "dashboard";
+      saveState();
+    }
+  }catch(e){}
+  if(!SCREENS[state.screen]) state.screen = "landing";
+  render();
+})();
+</script>
+</body>
+</html>
