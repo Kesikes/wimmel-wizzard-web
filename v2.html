@@ -2099,9 +2099,9 @@ SCREENS.decision = function(){
     <div class="screen">
       ${wizGreetHtml("Geschafft – dein erstes Wimmelbild ist fertig! 🎉", "Hat es dir Spaß gemacht?", "onbook")}
       <p>Du kannst es genau so als Poster bestellen. Oder du machst weiter: Noch 1 Wimmelbild und eine Seite mit allen Charakteren zusammen, und daraus wird ein kleines, gebundenes Wimmelbuch. Noch 4 weitere Wimmelbilder, und daraus wird ein großes Wimmelbuch.</p>
-      <div class="tier-choice-card" onclick="chooseTier('poster')"><div class="tch-top"><span class="tch-name">🖼️ Poster</span><span class="tch-price">34 €</span></div><div class="tch-desc">Dieses eine Bild, fertig.</div></div>
-      <div class="tier-choice-card" onclick="chooseTier('mini')"><div class="tch-top"><span class="tch-name">📖 Mini-Wimmelbuch</span><span class="tch-price">59 €</span></div><div class="tch-desc">Noch 1 Wimmelbild + Charakter-Seite, 8 Seiten.</div></div>
-      <div class="tier-choice-card" onclick="chooseTier('buch')"><div class="tch-top"><span class="tch-name">📚 Wimmelbuch</span><span class="tch-price">89 €</span></div><div class="tch-desc">Auf 5 Wimmelbilder ausbauen.</div></div>
+      <div class="tier-choice-card" onclick="chooseTier('poster')" style="display:flex;gap:13px;align-items:center"><div class="icon-tile blue" style="margin:0">🖼️</div><div style="flex:1;min-width:0"><div class="tch-top"><span class="tch-name">Poster</span><span class="tch-price">34 €</span></div><div class="tch-desc">Dieses eine Bild, fertig.</div></div></div>
+      <div class="tier-choice-card" onclick="chooseTier('mini')" style="display:flex;gap:13px;align-items:center"><div class="icon-tile orange" style="margin:0">📖</div><div style="flex:1;min-width:0"><div class="tch-top"><span class="tch-name">Mini-Wimmelbuch</span><span class="tch-price">59 €</span></div><div class="tch-desc">Noch 1 Wimmelbild + Charakter-Seite, 8 Seiten.</div></div></div>
+      <div class="tier-choice-card" onclick="chooseTier('buch')" style="display:flex;gap:13px;align-items:center"><div class="icon-tile green" style="margin:0">📚</div><div style="flex:1;min-width:0"><div class="tch-top"><span class="tch-name">Wimmelbuch</span><span class="tch-price">89 €</span></div><div class="tch-desc">Auf 5 Wimmelbilder ausbauen.</div></div></div>
       <div class="equal-note">Das ist völlig okay, so wie es ist.</div>
     </div>
   </div>`;
@@ -2230,7 +2230,7 @@ SCREENS.checkout_confirm = function(){
     <div class="screen">
       ${wizGreetHtml("Fast geschafft! Ein letzter Blick auf euer Wimmelbuch.", null, "badge")}
       <div class="tier-cards">
-        ${Object.values(PRODUCT_TIERS).map(t=>`<div class="tier-choice-card ${t.id===state.tier?"chosen":""}" onclick="switchTierInPlace('${t.id}')"><div class="tch-top"><span class="tch-name">${t.name}</span><span class="tch-price">${t.price} €</span></div><div class="tch-desc">${t.desc}</div></div>`).join("")}
+        ${Object.values(PRODUCT_TIERS).map(t=>`<div class="tier-choice-card ${t.id===state.tier?"chosen":""}" onclick="switchTierInPlace('${t.id}')" style="display:flex;gap:13px;align-items:center"><div class="icon-tile ${TIER_ICON[t.id].color}" style="margin:0">${TIER_ICON[t.id].emoji}</div><div style="flex:1;min-width:0"><div class="tch-top"><span class="tch-name">${t.name}</span><span class="tch-price">${t.price} €</span></div><div class="tch-desc">${t.desc}</div></div></div>`).join("")}
       </div>
       <div class="price-breakdown mt16">
         <div class="pb-line"><span>${tier.name}</span><span>${tier.price} €</span></div>
@@ -2335,7 +2335,7 @@ SCREENS.voucher_buy = function(params){
     <div class="screen">
       ${wizGreetHtml("Was für ein schönes Geschenk!", "Wählt einen Wert, schreibt ein paar Worte – den Rest übernehmen die Beschenkten.", "bubble")}
       <div class="tier-cards">
-        ${Object.values(PRODUCT_TIERS).map(t=>`<div class="tier-choice-card ${t.id===chosen?"chosen":""}" onclick="go('voucher_buy',{tier:'${t.id}'})"><div class="tch-top"><span class="tch-name">${t.name}</span><span class="tch-price">${t.price} €</span></div><div class="tch-desc">${t.desc}</div></div>`).join("")}
+        ${Object.values(PRODUCT_TIERS).map(t=>`<div class="tier-choice-card ${t.id===chosen?"chosen":""}" onclick="go('voucher_buy',{tier:'${t.id}'})" style="display:flex;gap:13px;align-items:center"><div class="icon-tile ${TIER_ICON[t.id].color}" style="margin:0">${TIER_ICON[t.id].emoji}</div><div style="flex:1;min-width:0"><div class="tch-top"><span class="tch-name">${t.name}</span><span class="tch-price">${t.price} €</span></div><div class="tch-desc">${t.desc}</div></div></div>`).join("")}
       </div>
       <div class="form-field mt16"><label>Persönliche Nachricht (optional)</label><textarea id="vb-msg" placeholder="Wir wünschen euch ganz viel Freude beim Wimmeln!"></textarea></div>
       <div class="trait-group"><div class="trait-group-label">Zustellung</div><div class="chip-row" id="vb-delivery">
