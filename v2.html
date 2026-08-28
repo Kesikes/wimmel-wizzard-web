@@ -650,6 +650,22 @@ function twoColorBoost(featEn){
     return featEn + ", they are clearly different colors from each other";
   return featEn;
 }
+// Nutzer-Feedback (Live-Test v2, Charakter-Sheet): Figuren kamen mit zu viel Körper-Detail raus
+// (z.B. eine Figur mit langen, anatomisch durchgezeichneten Beinen inkl. Knie/Wadenform) – die
+// bisherige Stilbeschreibung deckte nur Kopf/Gesicht ab, nicht Arme/Beine. Ein Satz, überall dort
+// eingehängt, wo ein Körper gezeichnet wird (Front/Seite/Rücken/3/4/Foto-Weg/Szene), damit Arme und
+// Beine konsequent als einfache, dünne Formen ohne Gelenke/Anatomie gezeichnet werden.
+function bodySimplicityClause(){
+  return "thin simple limbs: arms and legs are plain smooth tapered shapes with no visible joints, no knees, no elbows, no muscles, no anatomical shading or realistic proportions – as simple and reduced as the round head and dot eyes";
+}
+// Nutzer-Feedback (nach dem Body-Simplicity-Fix): die Arme/Beine sind jetzt richtig einfach, ABER
+// die Kolorierung ist dadurch komplett flach geworden ("das ist jetzt nur flat") – vorher hatte der
+// Stil sanfte Schattierungen (leichte Wangenröte, dezente Schattentöne auf Kleidung/Haar), das soll
+// zurück, NUR die Gliedmaßen sollen einfach bleiben. Ersetzt die vorherige harte "flat color fill" /
+// "no shading, no gradients" Sprache überall dort, wo Körper/Kleidung gezeichnet werden.
+function colorStyleClause(){
+  return "soft gentle shading is welcome and encouraged (a light blush on the cheeks, a subtly darker one-tone shadow along clothing folds, hair strands or the underside of the body/limbs) – colors are not perfectly flat, but still simple and clean, never photorealistic, never airbrushed, never a smooth photographic gradient or glossy highlight";
+}
 function charPrompt(c){
   // Baut den Bildgenerierungs-Prompt AUSSCHLIESSLICH aus dem kanonischen CharacterSpec (c.spec) –
   // egal ob die Person per Beschreibung, per KI-Chat oder (nach Vision-Merkmalsextraktion) per
@@ -657,7 +673,7 @@ function charPrompt(c){
   const spec = c.spec;
   const parts = ["wmlstil", ageRole(spec), translate(spec.identityCore.hairColor), translate(spec.defaultOutfit.top)];
   if(spec.identityCore.signatureMarker) parts.push(twoColorBoost(translate(spec.identityCore.signatureMarker)));
-  parts.push("round head, minimal face, dot eyes, single vertical line nose, no ears, no mouth, no visible neck, standing, flat color fill, thick black marker outline, graphic recording sketchnote style, white background, full body, front view");
+  parts.push("round head, minimal face, dot eyes, single vertical line nose, no ears, no mouth, no visible neck, standing, " + bodySimplicityClause() + ", " + colorStyleClause() + ", thick black marker outline, graphic recording sketchnote style, white background, full body, front view");
   return parts.filter(Boolean).join(", ");
 }
 function charInScene(c){
@@ -680,17 +696,32 @@ function charSheetViewPrompt(c, view){
   const parts = ["wmlstil", ageRole(spec), translate(spec.identityCore.hairColor), translate(spec.defaultOutfit.top)];
   if(spec.identityCore.signatureMarker) parts.push(twoColorBoost(translate(spec.identityCore.signatureMarker)));
   if(view === "side"){
-    parts.push("full side profile view facing left, as if seen from the side, round head silhouette with no ears, no mouth and no visible neck, exactly one eye drawn as a clearly visible black dot on the side of the face facing the viewer, absolutely no nose shape of any kind – not a line, not a triangle, not a bump, not a dot – a completely smooth profile silhouette from forehead to chin, standing, full body, flat color fill, thick black marker outline, graphic recording sketchnote style, white background");
+    parts.push("full side profile view facing left, as if seen from the side, round head silhouette with no ears, no mouth and no visible neck, exactly one eye drawn as a clearly visible black dot on the side of the face facing the viewer, absolutely no nose shape of any kind – not a line, not a triangle, not a bump, not a dot – a completely smooth profile silhouette from forehead to chin, standing, full body, " + bodySimplicityClause() + ", " + colorStyleClause() + ", thick black marker outline, graphic recording sketchnote style, white background");
   } else if(view === "back"){
-    parts.push("seen entirely from behind (back view), only the back of the head, hair/headwear and clothing visible, no face at all, no eyes, no nose, no mouth, nothing facial, standing, full body, viewed directly from behind, flat color fill, thick black marker outline, graphic recording sketchnote style, white background");
+    parts.push("seen entirely from behind (back view), only the back of the head, hair/headwear and clothing visible, no face at all, no eyes, no nose, no mouth, nothing facial, standing, full body, " + bodySimplicityClause() + ", " + colorStyleClause() + ", viewed directly from behind, thick black marker outline, graphic recording sketchnote style, white background");
   }
   return parts.filter(Boolean).join(", ");
+}
+// Nutzer-Feedback (Live-Test v2, Charakter-Sheet): Seitenansicht kam "komplett falsch" raus und
+// Ansichten wirkten insgesamt "nicht konsistent" zueinander (andere Frisur/Proportionen als vorne).
+// Ursache: Seite/Rücken liefen bisher als reine Text-zu-Bild-Generierung (nur der LoRA-Trigger,
+// KEIN Referenzbild) – jede Ansicht wurde de facto unabhängig neu erfunden. Umgestellt auf denselben
+// Ansatz wie die 3/4-Ansicht: das gerade akzeptierte Frontbild geht als editImageUrl mit, das Modell
+// zeichnet dieselbe Figur um statt sie neu zu erfinden. Die Kommentar-Historie behauptete, reine
+// Text-Generierung sei seit LoRA v5 "zuverlässig" – das aktuelle Live-Testergebnis widerspricht dem,
+// darum jetzt bewusst auf Referenzbild-Konsistenz umgestellt statt weiter auf den Trigger zu vertrauen.
+function sideViewEditInstruction(){
+  return "Redraw this exact character in FULL SIDE PROFILE VIEW, facing left, as if seen directly from the side. Keep the exact same hairstyle, hair color, headwear, clothing, clothing colors and all identifying details as the reference. Round head silhouette with no ears, no mouth and no visible neck. Exactly one eye, drawn as a clearly visible black dot on the side of the face facing the viewer. Absolutely no nose shape of any kind – not a line, not a triangle, not a bump, not a dot – a completely smooth profile silhouette from forehead to chin. " + bodySimplicityClause() + ". " + colorStyleClause() + ". Match the exact illustration style of the reference image: thick black marker outline, graphic recording sketchnote style. Full body, standing, plain white background.";
+}
+function backViewEditInstruction(){
+  return "Redraw this exact character seen entirely FROM BEHIND (back view). Keep the exact same hairstyle, hair color, headwear, clothing and clothing colors as the reference. Only the back of the head, hair/headwear and clothing are visible – no face at all, no eyes, no nose, no mouth, nothing facial. " + bodySimplicityClause() + ". " + colorStyleClause() + ". Match the exact illustration style of the reference image: thick black marker outline, graphic recording sketchnote style. Full body, standing, viewed directly from behind, plain white background.";
 }
 function threeQuarterEditInstruction(){
   // Wortgleich mit dem in dev-tools/scenario-runner.js nach 4 Feedback-Runden final abgestimmten
   // Text (Augenabstand normal statt zusammengequetscht, ganzer Oberkörper dreht mit, Nase als
-  // gerader Strich ohne Haken) – hier bewusst identisch wiederverwendet statt neu formuliert.
-  return "Redraw this exact character in THREE QUARTER VIEW: the whole body is turned slightly to the right – head, shoulders AND upper body all rotate together as one unit, not just the head on an otherwise front-facing body. Keep the exact same hair style and color, headwear, clothing and all identifying details as the reference. The head is a round shape with no ears, no mouth and no visible neck. The entire facial feature group – both eyes AND the nose together, as one unit – is shifted slightly to the right of the vertical center of the face. Both eyes stay fully visible as small dots, keeping their normal spacing exactly as wide apart as in the reference image (do NOT squeeze them closer together), just shifted as a pair to the right side of the face; the nose is positioned right below the midpoint between the two eyes and moves right together with them. Draw the nose as ONE perfectly straight vertical line segment, like the keyboard character \"|\" – completely straight from top to bottom, with NO curve, NO hook, NO bend, NO foot or serif at the bottom end, NOT shaped like a check mark, a hook, a \"J\", or an upside-down \"L\". Match the exact illustration style of the reference image: thick black marker outline, flat colors, graphic recording sketchnote style. Full body, standing, plain white background.";
+  // gerader Strich ohne Haken) – hier bewusst identisch wiederverwendet statt neu formuliert, nur um
+  // die Körper-Vereinfachung (bodySimplicityClause) ergänzt (siehe Kommentar bei sideViewEditInstruction).
+  return "Redraw this exact character in THREE QUARTER VIEW: the whole body is turned slightly to the right – head, shoulders AND upper body all rotate together as one unit, not just the head on an otherwise front-facing body. Keep the exact same hair style and color, headwear, clothing and all identifying details as the reference. The head is a round shape with no ears, no mouth and no visible neck. The entire facial feature group – both eyes AND the nose together, as one unit – is shifted slightly to the right of the vertical center of the face. Both eyes stay fully visible as small dots, keeping their normal spacing exactly as wide apart as in the reference image (do NOT squeeze them closer together), just shifted as a pair to the right side of the face; the nose is positioned right below the midpoint between the two eyes and moves right together with them. Draw the nose as ONE perfectly straight vertical line segment, like the keyboard character \"|\" – completely straight from top to bottom, with NO curve, NO hook, NO bend, NO foot or serif at the bottom end, NOT shaped like a check mark, a hook, a \"J\", or an upside-down \"L\". " + bodySimplicityClause() + ". " + colorStyleClause() + ". Match the exact illustration style of the reference image: thick black marker outline, graphic recording sketchnote style. Full body, standing, plain white background.";
 }
 function scenePrompt(s){
   const loc = s.loc;
@@ -708,7 +739,7 @@ function scenePrompt(s){
   if(heroes.length){
     parts.push(`in the foreground, actively taking part in the action described below (not standing still, not posed neutrally): ${heroes.join(" and ")}`);
   }
-  parts.push("a densely packed wimmelbild scene with 40 to 60 small background characters spread across the entire image, each one doing their own tiny activity or little visual joke, true busy seek-and-find picture-book density, every single character in the image – foreground heroes and all background characters alike – drawn in exactly the same flat, minimal style: round heads, dot eyes, single vertical nose line, no shading, no gradients, no realistic detail");
+  parts.push("a densely packed wimmelbild scene with 40 to 60 small background characters spread across the entire image, each one doing their own tiny activity or little visual joke, true busy seek-and-find picture-book density, every single character in the image – foreground heroes and all background characters alike – drawn in exactly the same reduced, minimal style: round heads, dot eyes, single vertical nose line, " + bodySimplicityClause() + ", " + colorStyleClause() + ", no realistic/photographic detail");
   // Nutzer-Feedback (Situationen-Board): s.situations ist jetzt der bevorzugte Weg – eine Liste
   // einzelner Situationen MIT Positions-/Größen-Hinweis aus dem Kreise-Board (siehe
   // situationPlacementText/renderSituationBoard). s.storyEn/s.story bleiben als Fallback für den
@@ -718,7 +749,7 @@ function scenePrompt(s){
   } else if(s.storyEn) parts.push(s.storyEn);
   else if(s.story) parts.push(translate(s.story));
   if(s.extras && s.extras.length) parts.push(s.extras.join(", "));
-  parts.push("plain sky background, no text, no signage, flat color fill, thick black marker outline, graphic recording sketchnote style applied consistently across the whole image, high detail, wide composition");
+  parts.push("plain sky background, no text, no signage, " + colorStyleClause() + ", thick black marker outline, graphic recording sketchnote style applied consistently across the whole image, high detail, wide composition");
   return parts.filter(Boolean).join(", ");
 }
 
@@ -742,7 +773,7 @@ function kontextInstruction(raw){
   // Editier-Anweisung. Nano Banana 2 hat das ohne explizites Gegen-Signal wörtlich als Bildunterschrift
   // in den Himmel geschrieben, statt es nur als Änderungsbeschreibung zu lesen. scenePrompt() hatte
   // "no text, no signage" schon immer – kontextInstruction() (der EDIT-Pfad) bisher nicht. Ergänzt.
-  return `${raw}. Keep everything else in the image exactly the same: same pose, same character identity, same composition, same background. Match the exact hand-drawn illustration style of the reference image(s): thick black marker outlines, flat solid colors, round minimal faces with simple dot eyes, graphic-recording sketchnote style. No text, no captions, no signage, no written words anywhere in the image.`;
+  return `${raw}. Keep everything else in the image exactly the same: same pose, same character identity, same composition, same background. Match the exact hand-drawn illustration style of the reference image(s): thick black marker outlines, round minimal faces with simple dot eyes, ${bodySimplicityClause()}, ${colorStyleClause()}, graphic-recording sketchnote style. No text, no captions, no signage, no written words anywhere in the image.`;
 }
 // Charakterkonsistenz über mehrere Szenen: Erstgenerierung/Reroll einer Szene läuft jetzt über
 // fal-ai/nano-banana-2/edit statt reiner Text-zu-Bild-Generierung (flux-lora), MIT den bereits
@@ -773,7 +804,7 @@ function sceneComposeInstruction(s, charRefCount){
   const refExplainer = n > 0
     ? `The first ${n} attached reference image(s) show the exact established design of each character appearing in this scene – their face, proportions, hair color, clothing and any identifying details. Draw every character from these reference images into this new scene keeping their identity and design EXACTLY the same as their reference (same face, same proportions, same hair, same clothing colors). Their POSE must change to match the action described above: give them dynamic, natural body positions and gestures that actively show them taking part in what is happening in the scene – do not simply copy their reference pose or stand them still and neutral. Any FURTHER attached reference images (beyond the first ${n}) are small individual vignette illustrations, each showing ONE specific situation that must appear somewhere in this scene (see the placement instructions above for exactly where). Redraw the people, animals and objects shown in each of these vignette images into the correct area of the final scene, in the same flat illustration style as the rest of the image – do NOT copy them in as separate inset pictures, frames or panels, they must blend seamlessly into the single continuous scene.`
     : `Any attached reference images are small individual vignette illustrations, each showing ONE specific situation that must appear somewhere in this scene (see the placement instructions above for exactly where). Redraw the people, animals and objects shown in each of these vignette images into the correct area of the final scene, in the same flat illustration style as the rest of the image – do NOT copy them in as separate inset pictures, frames or panels, they must blend seamlessly into the single continuous scene.`;
-  return `${s.prompt} ${refExplainer} Every character in the scene, including all small background characters, must be drawn in the exact same flat-color, thick black marker outline, graphic-recording sketchnote illustration style, applied consistently across the entire image. Do not draw any character – hero or background – in a different illustration style, a more detailed or more realistic style, a different line weight, or with shading, gradients, texture or soft airbrushed coloring: every single character in the whole image must look like it was drawn by the same illustrator in the exact same reduced flat style, with round minimal faces, dot eyes and a single line nose, with no exceptions anywhere in the picture.`;
+  return `${s.prompt} ${refExplainer} Every character in the scene, including all small background characters, must be drawn in the exact same thick black marker outline, graphic-recording sketchnote illustration style, applied consistently across the entire image. Do not draw any character – hero or background – in a different illustration style, a more detailed or more realistic/photographic style, or a different line weight: every single character in the whole image must look like it was drawn by the same illustrator in the exact same reduced style, with round minimal faces, dot eyes, a single line nose, ${bodySimplicityClause()}, and ${colorStyleClause()}, with no exceptions anywhere in the picture.`;
 }
 function photoStyleInstruction(){
   // Editier-Anweisung für die Foto-zu-Illustration-Option: das hochgeladene Foto wird über
@@ -783,7 +814,7 @@ function photoStyleInstruction(){
   // Foto zu übernehmen (feine Haarsträhnen, Strickmuster etc.) statt unseren flachen, reduzierten
   // Stil zu treffen. Bekommt zusätzlich IMMER ein Referenzbild in unserem Stil mit (siehe
   // pickStyleRefImage) – das hilft dem Modell deutlich mehr als die Textbeschreibung allein.
-  return "The first attached image is a photo of a real person. The second attached image is a REQUIRED style reference showing the exact target illustration style. Redraw the person from the first photo so it looks EXACTLY like the second reference image's style was used to draw them – same reduction level, same line weight, same simplicity. Do not photorealistically render any part of them. Rules, no exceptions: flat solid colors only, absolutely no texture/shading/gradients/highlights anywhere. Hair is 1-2 large flat solid-color blobs with a single outline, never individual strands or highlights. Clothing is flat solid-color shapes with at most one simple seam line, never fabric folds, knit texture, or patterns. Thick uniform black outlines everywhere. Face: plain round shape, two small dot eyes, one short vertical line for a nose, absolutely nothing else on the face (no mouth, no eyebrows, no blush, no visible ears, no earrings or piercings, no glasses unless the reference shows them). No visible neck. Full body, standing, front view, plain white background. Only keep the person's actual hair color, clothing colors, and one distinctive feature (if any) from the photo – everything else about the rendering must match the flat, minimal reference style, not the photo's realism.";
+  return "The first attached image is a photo of a real person. The second attached image is a REQUIRED style reference showing the exact target illustration style. Redraw the person from the first photo so it looks EXACTLY like the second reference image's style was used to draw them – same reduction level, same line weight, same simplicity. Do not photorealistically render any part of them. Rules, no exceptions: Hair is 1-2 large simple color blobs with a single outline, never individual strands or fine highlights. Clothing is simple color shapes with at most one seam line, never fabric folds, knit texture, or patterns. Thick uniform black outlines everywhere. Face: plain round shape, two small dot eyes, one short vertical line for a nose, absolutely nothing else on the face (no mouth, no eyebrows, no visible ears, no earrings or piercings, no glasses unless the reference shows them). No visible neck. " + bodySimplicityClause() + ". " + colorStyleClause() + ". Full body, standing, front view, plain white background. Only keep the person's actual hair color, clothing colors, and one distinctive feature (if any) from the photo – everything else about the rendering, including the arms and legs, must match the reduced reference style, not the photo's realistic body shape or proportions.";
 }
 function pickStyleRefImage(excludeUrl){
   // Sucht ein bereits akzeptiertes Bild aus demselben Buch als Stil-Anker für Nano Banana 2 –
@@ -1006,7 +1037,7 @@ function situationPlacementText(s){
 function situationImagePrompt(s, sceneDraft){
   const loc = sceneDraft && sceneDraft.loc;
   const locPart = loc && loc.en ? `, set at ${loc.en}` : "";
-  return `wmlstil, a single small self-contained illustrated vignette on a plain white background showing: ${s.text}${locPart}, flat color fill, thick black marker outline, graphic recording sketchnote style, no border, no frame, no text, no captions`;
+  return `wmlstil, a single small self-contained illustrated vignette on a plain white background showing: ${s.text}${locPart}, ${bodySimplicityClause()}, ${colorStyleClause()}, thick black marker outline, graphic recording sketchnote style, no border, no frame, no text, no captions`;
 }
 
 /* ---- reused: image resize before upload ---- */
@@ -1648,8 +1679,8 @@ async function generateCharacterSheetViews(){
   const d = state.activeCharDraft;
   go("char_loading", {label:"Wir zeichnen das Charakter-Sheet für " + (d.name||"die Person"), sub:"Seite, Rücken und 3/4-Ansicht entstehen gerade."});
   const results = {};
-  try{ results.side = (await generateImage(charSheetViewPrompt(d, "side"), "char")).url; }catch(e){ results.sideError = e.message; }
-  try{ results.back = (await generateImage(charSheetViewPrompt(d, "back"), "char")).url; }catch(e){ results.backError = e.message; }
+  try{ results.side = (await generateImage(sideViewEditInstruction(), "char", undefined, d.img)).url; }catch(e){ results.sideError = e.message; }
+  try{ results.back = (await generateImage(backViewEditInstruction(), "char", undefined, d.img)).url; }catch(e){ results.backError = e.message; }
   try{ results.threeQ = (await generateImage(threeQuarterEditInstruction(), "char", undefined, d.img)).url; }catch(e){ results.threeQError = e.message; }
   d.sheet = results;
   saveState();
