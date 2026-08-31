@@ -716,21 +716,19 @@ function charPrompt(c){
   parts.push("round head, minimal face, dot eyes, single vertical line nose, no ears, no mouth, no visible neck, standing, " + bodySimplicityClause() + ", " + colorStyleClause() + ", thick black marker outline, graphic recording sketchnote style, white background, full body, front view");
   return parts.filter(Boolean).join(", ");
 }
-// Stilkonsistenz-Architektur-Überarbeitung (Nutzer-Feedback mit 5 Referenzbildern: "der Stil hat
-// sich eher verschlechtert als verbessert"): Grundproblem war, dass die Frontansicht bisher als
-// reine Text-zu-Bild-Generierung über fal-ai/flux-lora lief (trainierte Gewichte, Trigger-Wort
-// "wmlstil"), WÄHREND alle anderen Schritte (Seite/Rücken/3-4, Szene) über fal-ai/nano-banana-2/edit
-// laufen (kann KEIN LoRA nutzen, sondern nur Text + Referenzbilder). Das waren zwei komplett getrennte,
-// unabhängig voneinander driftende Stilquellen – die Frontansicht kannte das eigentliche Referenzbild
-// (WMLSTIL_CHAR_SAMPLE_IMG) bisher gar nicht. Jetzt: Frontansicht läuft ebenfalls über nano-banana-2/edit,
-// mit dem echten Referenzbild als Stil-Anker (analog zu photoStyleInstruction(), nur ohne echtes Foto
-// als Ausgangsbild – die Personenbeschreibung kommt stattdessen komplett aus charPrompt()). Wichtig:
-// die Anweisung muss explizit sagen, dass die Identität/Person im Referenzbild NICHT übernommen werden
-// soll, nur der Zeichenstil – sonst zeichnet das Modell versehentlich die Referenzperson statt der
-// beschriebenen neuen Figur.
-function charFrontStyleAnchoredPrompt(c){
-  return "The attached image is a REQUIRED style reference showing the exact target illustration style – study it closely: circular head shape, light shading/coloring detail and blush on the cheeks (no soft gradient edge on the blush), a single straight short line for the nose, no ears, very thin simple arms and legs, small feet, thick black marker outline. Completely ignore the specific person, identity, hairstyle and clothing shown in this reference image – use it ONLY as a style/technique guide, not as content. Now draw a brand new, different character in exactly that style: " + charPrompt(c) + ". Match the reference's exact reduction level, line weight and coloring technique – do not simplify less or more than the reference does.";
-}
+// Stilkonsistenz-Architektur-Überarbeitung, Versuch 1 (Nutzer-Feedback mit 5 Referenzbildern: "der
+// Stil hat sich eher verschlechtert als verbessert"): hatte hier versucht, die Frontansicht von
+// fal-ai/flux-lora (trainierte LoRA-Gewichte, Trigger-Wort "wmlstil") auf fal-ai/nano-banana-2/edit
+// mit WMLSTIL_CHAR_SAMPLE_IMG als Referenzbild umzustellen. Live-Test zeigte: das war ein Rückschritt.
+// Zum einen wirft man damit die bereits trainierte LoRA (siehe abgeschlossene Trainings-Aufgaben aus
+// früheren Sessions: view-angle-Trainingsbatch generiert, gecaptiont, trainiert, getestet) einfach
+// weg. Zum anderen ist WMLSTIL_CHAR_SAMPLE_IMG selbst ein veraltetes, für den aktuell gewünschten
+// Feinschliff (gerade Strich-Nase, Blush ohne weichen Rand) ungeeignetes Referenzbild – es zeigt gar
+// keine erkennbare Nasenlinie. Ergebnis im Test: Seitenansicht bekam wieder eine Dreiecks-Nase,
+// Rückenansicht zeigte eine komplett andere Person (Identitäts-Leck aus dem Referenzbild). Fix:
+// Frontansicht wieder zurück auf die trainierte LoRA (siehe generateCharFront). Die eigentliche
+// Baustelle ist die LoRA selbst bzw. ein besseres, aktuelleres Referenzbild für die Edit-Schritte –
+// nicht die grundsätzliche Umstellung auf nano-banana-2/edit für die Frontansicht.
 function charInScene(c){
   const spec = c.spec;
   const bits = [ageRole(spec), translate(spec.identityCore.hairColor)];
@@ -1782,9 +1780,10 @@ function submitCharChips(){
 async function generateCharFront(){
   const d = state.activeCharDraft;
   try{
-    // Umgestellt auf nano-banana-2/edit mit WMLSTIL_CHAR_SAMPLE_IMG als echtem Stil-Anker statt
-    // reiner flux-lora-Text-Generierung (siehe charFrontStyleAnchoredPrompt-Kommentar).
-    const res = await generateImage(charFrontStyleAnchoredPrompt(d), "char", undefined, WMLSTIL_CHAR_SAMPLE_IMG);
+    // Zurückgerollt auf reine flux-lora-Text-Generierung mit der trainierten LoRA (Trigger "wmlstil")
+    // – siehe Kommentar bei charPrompt(): der Versuch, hier stattdessen über nano-banana-2/edit mit
+    // WMLSTIL_CHAR_SAMPLE_IMG zu ankern, hat die Ergebnisse im Live-Test nachweislich verschlechtert.
+    const res = await generateImage(charPrompt(d), "char");
     d.img = res.url; d.seed = res.seed; d.drafts = [{url:res.url, seed:res.seed}];
     saveState();
     await generateCharacterSheetViews();
@@ -1812,13 +1811,13 @@ async function generateCharacterSheetViews(){
   const d = state.activeCharDraft;
   go("char_loading", {label:"Wir zeichnen das Charakter-Sheet für " + (d.name||"die Person"), sub:"Seite, Rücken und 3/4-Ansicht entstehen gerade."});
   const results = {};
-  // WMLSTIL_CHAR_SAMPLE_IMG jetzt zusätzlich als styleRefUrl mitgeschickt (Stilkonsistenz-Architektur-
-  // Überarbeitung) – d.img bleibt die primäre Identitäts-Referenz (editImageUrl), das echte Referenzbild
-  // wirkt zusätzlich als Stil-Anker, damit Seite/Rücken/3-4 nicht nur von der ggf. schon leicht
-  // abweichenden Frontansicht, sondern auch vom Original-Zielstil ausgehen.
-  try{ results.side = (await generateImage(sideViewEditInstruction(), "char", undefined, d.img, WMLSTIL_CHAR_SAMPLE_IMG)).url; }catch(e){ results.sideError = e.message; }
-  try{ results.back = (await generateImage(backViewEditInstruction(), "char", undefined, d.img, WMLSTIL_CHAR_SAMPLE_IMG)).url; }catch(e){ results.backError = e.message; }
-  try{ results.threeQ = (await generateImage(threeQuarterEditInstruction(), "char", undefined, d.img, WMLSTIL_CHAR_SAMPLE_IMG)).url; }catch(e){ results.threeQError = e.message; }
+  // Zurückgerollt: WMLSTIL_CHAR_SAMPLE_IMG als zusätzlicher styleRefUrl hier wieder entfernt – Live-
+  // Test zeigte Identitäts-Leck aus dem alten Referenzbild (Rückenansicht wurde eine andere Person)
+  // UND die Seitenansicht-Nase kippte trotz Textfix wieder zu einem Dreieck. d.img bleibt alleinige
+  // Referenz, wie vor dieser Session.
+  try{ results.side = (await generateImage(sideViewEditInstruction(), "char", undefined, d.img)).url; }catch(e){ results.sideError = e.message; }
+  try{ results.back = (await generateImage(backViewEditInstruction(), "char", undefined, d.img)).url; }catch(e){ results.backError = e.message; }
+  try{ results.threeQ = (await generateImage(threeQuarterEditInstruction(), "char", undefined, d.img)).url; }catch(e){ results.threeQError = e.message; }
   d.sheet = results;
   saveState();
   go("char_result");
@@ -2104,14 +2103,12 @@ async function composeSceneImage(s, opts){
   s.prompt = s.prompt || scenePrompt(s);
   try{
     const charRefs = pickSceneCharacterRefs().slice(0, 8);
-    // Budget von 13 auf 12 gesenkt (Stilkonsistenz-Architektur-Überarbeitung), um bewusst einen
-    // Referenzbild-Slot für WMLSTIL_CHAR_SAMPLE_IMG freizuhalten – fal-proxy erlaubt max. 14
-    // image_urls insgesamt (1 editImageUrl + 13 styleRefUrls), damit bleibt mit Anker genug Puffer.
-    const situationRefs = pickSceneSituationRefs(s, Math.max(0, 12 - charRefs.length));
+    // Zurückgerollt auf Budget 13 (kein WMLSTIL_CHAR_SAMPLE_IMG-Zusatzanker mehr, siehe Kommentar bei
+    // charPrompt() – das alte Referenzbild hat sich im Live-Test als kontraproduktiv erwiesen).
+    const situationRefs = pickSceneSituationRefs(s, Math.max(0, 13 - charRefs.length));
     const allRefs = [...charRefs, ...situationRefs];
-    const styleAnchor = typeof WMLSTIL_CHAR_SAMPLE_IMG === "string" ? [WMLSTIL_CHAR_SAMPLE_IMG] : [];
     const res = allRefs.length
-      ? await generateImage(sceneComposeInstruction(s, charRefs.length), "scene", undefined, allRefs[0], [...allRefs.slice(1), ...styleAnchor])
+      ? await generateImage(sceneComposeInstruction(s, charRefs.length), "scene", undefined, allRefs[0], allRefs.slice(1))
       : await generateImage(s.prompt, "scene");
     s.img = res.url;
     if(res.seed != null) s.seed = res.seed;
