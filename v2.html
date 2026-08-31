@@ -807,7 +807,13 @@ function scenePrompt(s){
   // ABER ein Murmeltier/Biber, das laut einer Situation "pfeift", bekam stattdessen ein Sound-Effekt-
   // Schriftzug "WHISTLE" ins Bild gemalt – das ist keine Sprechblase/kein Dialog, sondern eine
   // lautmalerische Bildunterschrift, die "no speech bubbles" nicht abdeckt. Explizit ergänzt.
-  parts.push("plain sky background, no text, no signage, no speech bubbles, no sound-effect words (like \"WHISTLE\" or \"SPLASH\"), " + colorStyleClause() + ", thick black marker outline, graphic recording sketchnote style applied consistently across the whole image, high detail, wide composition");
+  // Nutzer-Feedback Runde 5 (nach diesem Fix erneut getestet): "WHISTLE" kam TROTZDEM wieder,
+  // exakt derselbe Schriftzug – obwohl er als verbotenes Negativ-Beispiel genannt wurde. Vermutung:
+  // das Nennen des exakten Wortes "WHISTLE" im Prompt hat es dem Modell erst recht "verfügbar"
+  // gemacht (bekanntes Diffusion/Edit-Modell-Problem: eine Verneinung mit konkretem Beispielwort
+  // wirkt manchmal wie ein Vorschlag statt wie ein Verbot). Beispielwörter entfernt, rein abstrakte
+  // Beschreibung des Verbots ohne konkrete Text-Vorlage.
+  parts.push("plain sky background, no text, no signage, no speech bubbles, no comic-style sound-effect lettering of any kind, no onomatopoeia, no text representing a noise or sound anywhere in the image, " + colorStyleClause() + ", thick black marker outline, graphic recording sketchnote style applied consistently across the whole image, high detail, wide composition");
   return parts.filter(Boolean).join(", ");
 }
 
@@ -883,7 +889,7 @@ function sceneComposeInstruction(s, charRefCount){
   // sprachlich nach "jemand ruft/sagt etwas" klang. Jetzt zusätzlich ganz am ENDE dieses Prompts
   // (Recency-Effekt, das Letzte was das Modell vor der Bildgenerierung liest) eine explizite,
   // unmissverständliche Sprechblasen-/Text-Sperre.
-  return `${s.prompt} ${refExplainer} ${depthClause} Every character, foreground and background alike, in the exact same thick black marker outline, graphic-recording sketchnote style – no character in a more detailed, realistic or different line-weight style. Round minimal faces, dot eyes, single line nose, ${faceSimplicityClause()}, ${bodySimplicityClause()}, ${colorStyleClause()}. No speech bubbles, no sound-effect captions (like "WHISTLE"), no written words anywhere at all – any sound, shout or talking is shown only through pose, gesture and motion lines.`;
+  return `${s.prompt} ${refExplainer} ${depthClause} Every character, foreground and background alike, in the exact same thick black marker outline, graphic-recording sketchnote style – no character in a more detailed, realistic or different line-weight style. Round minimal faces, dot eyes, single line nose, ${faceSimplicityClause()}, ${bodySimplicityClause()}, ${colorStyleClause()}. Absolutely zero text, letters or lettering anywhere in this image, of any kind, for any reason – no speech bubbles, no onomatopoeia, no comic-style sound-effect lettering: every sound, shout or talking moment is shown ONLY through pose, gesture, motion lines and facial reaction, never through a single letter of text.`;
 }
 function photoStyleInstruction(){
   // Editier-Anweisung für die Foto-zu-Illustration-Option: das hochgeladene Foto wird über
@@ -1120,7 +1126,7 @@ function situationImagePrompt(s, sceneDraft){
   // (z.B. "a parrot suddenly shouting something funny"), hat das Modell dazu verleitet, eine echte
   // Sprechblase mit erfundenem Text ins Bild zu malen. "no text, no captions" allein hat das nicht
   // verhindert – explizit "no speech bubbles" ergänzt.
-  return `wmlstil, a single small self-contained illustrated vignette on a plain white background showing: ${s.text}${locPart}, ${faceSimplicityClause()}, ${bodySimplicityClause()}, ${colorStyleClause()}, thick black marker outline, graphic recording sketchnote style, no border, no frame, no text, no captions, no speech bubbles, no sound-effect words like "WHISTLE" or "SPLASH", no written words at all even if the situation involves shouting, talking or a loud noise – show that only through pose, gesture and motion lines`;
+  return `wmlstil, a single small self-contained illustrated vignette on a plain white background showing: ${s.text}${locPart}, ${faceSimplicityClause()}, ${bodySimplicityClause()}, ${colorStyleClause()}, thick black marker outline, graphic recording sketchnote style, no border, no frame, zero text or lettering of any kind anywhere, no captions, no speech bubbles, no onomatopoeia, no comic-style sound-effect lettering, even if the situation involves shouting, talking or a loud noise – show that only through pose, gesture and motion lines, never through text`;
 }
 
 /* ---- reused: image resize before upload ---- */
@@ -1274,10 +1280,24 @@ function priceLabel(){
 }
 /* Home-Bar fuers Dashboard: gelber Verlauf + Badge/Wortmarke wie in der Referenz (3a/3b),
    Logo-Tap fuehrt zurueck zur Landingpage - der geforderte staendige Weg zurueck dorthin. */
+// Nutzer-Feedback: "Von vorne"-Option fehlt (alles löschen und neu starten). Bisher gab es dafür
+// keine UI, nur die Möglichkeit, den localStorage-Key manuell über die Browser-Devtools zu leeren
+// (siehe defaultState()/STATE_KEY-Kommentar). Kleiner Reset-Button im Home-Header, mit Bestätigung
+// (destruktive Aktion – löscht Charaktere, Wimmelbilder, Bestellstatus unwiderruflich).
+function resetAll(){
+  if(!confirm("Wirklich alles löschen und von vorne beginnen? Eure Charaktere, Wimmelbilder und der Bestellstatus gehen dabei unwiderruflich verloren.")) return;
+  localStorage.removeItem(STATE_KEY);
+  state = defaultState();
+  saveState();
+  go("landing");
+}
 function homeBarHtml(){
   return `<div class="home-bar">
     <button class="logo" onclick="go('landing')"><img src="${asset('wizard-badge.png')}" alt="">WizzelWim</button>
-    <span class="hb-price">${state.tier ? "aktuell" : "ab"} ${priceLabel().replace("ab ","")}</span>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span class="hb-price">${state.tier ? "aktuell" : "ab"} ${priceLabel().replace("ab ","")}</span>
+      <button onclick="resetAll()" title="Alles löschen und von vorne beginnen" style="background:none;border:none;font-size:13px;color:rgba(58,42,30,0.45);cursor:pointer;padding:0;">↺ Von vorne</button>
+    </div>
   </div>`;
 }
 function tabbarHtml(active){
