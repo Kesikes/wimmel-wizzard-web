@@ -794,7 +794,10 @@ function scenePrompt(s){
   } else if(s.storyEn) parts.push(s.storyEn);
   else if(s.story) parts.push(translate(s.story));
   if(s.extras && s.extras.length) parts.push(s.extras.join(", "));
-  parts.push("plain sky background, no text, no signage, no speech bubbles, no dialogue text or captions anywhere (even a shouting, talking or surprised character is shown only through pose/gesture/motion lines, never through written words), " + colorStyleClause() + ", thick black marker outline, graphic recording sketchnote style applied consistently across the whole image, high detail, wide composition");
+  // Kürzung (Prompt-Längenlimit von fal.ai, siehe sceneComposeInstruction): die ausführlichere
+  // Sprechblasen-Sperre steht jetzt konzentriert am ENDE von sceneComposeInstruction (Recency-Effekt,
+  // wirkt erfahrungsgemäß stärker als hier mitten im Text) – hier nur die knappe Basis-Version.
+  parts.push("plain sky background, no text, no signage, no speech bubbles, " + colorStyleClause() + ", thick black marker outline, graphic recording sketchnote style applied consistently across the whole image, high detail, wide composition");
   return parts.filter(Boolean).join(", ");
 }
 
@@ -861,7 +864,7 @@ function sceneComposeInstruction(s, charRefCount){
   // sprachlich nach "jemand ruft/sagt etwas" klang. Jetzt zusätzlich ganz am ENDE dieses Prompts
   // (Recency-Effekt, das Letzte was das Modell vor der Bildgenerierung liest) eine explizite,
   // unmissverständliche Sprechblasen-/Text-Sperre.
-  return `${s.prompt} ${refExplainer} Every character in the scene, including all small background characters, must be drawn in the exact same thick black marker outline, graphic-recording sketchnote illustration style, applied consistently across the entire image. Do not draw any character – hero or background – in a different illustration style, a more detailed or more realistic/photographic style, or a different line weight: every single character in the whole image must look like it was drawn by the same illustrator in the exact same reduced style, with round minimal faces, dot eyes, a single line nose, ${faceSimplicityClause()}, ${bodySimplicityClause()}, and ${colorStyleClause()}, with no exceptions anywhere in the picture. Absolutely no speech bubbles, no dialogue text, no exclamation captions, no written words or letters anywhere in the image, for any character, no matter what they are doing (shouting, talking, laughing, reacting) – show that only through their pose, gesture and motion lines, never through text.`;
+  return `${s.prompt} ${refExplainer} Every character in the scene, including all small background characters, must be drawn in the exact same thick black marker outline, graphic-recording sketchnote illustration style, applied consistently across the entire image. Do not draw any character – hero or background – in a different illustration style, a more detailed or more realistic/photographic style, or a different line weight: every single character in the whole image must look like it was drawn by the same illustrator in the exact same reduced style, with round minimal faces, dot eyes, a single line nose, ${faceSimplicityClause()}, ${bodySimplicityClause()}, and ${colorStyleClause()}, with no exceptions anywhere in the picture. No speech bubbles or written words anywhere, even for shouting/talking characters – pose and gesture only.`;
 }
 function photoStyleInstruction(){
   // Editier-Anweisung für die Foto-zu-Illustration-Option: das hochgeladene Foto wird über
