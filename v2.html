@@ -697,8 +697,14 @@ function colorStyleClause(){
 // noch für Figuren, deren HAAR-BESCHREIBUNG selbst explizit "bald"/"shaved head" sagt (das betrifft
 // nur named heroes wie Opa Klaus, NIE die frei erfundenen Hintergrundfiguren, die gar keine eigene
 // Haarbeschreibung bekommen) - schließt damit die Ausnahme-Lücke für den Hintergrund komplett.
+// Nutzer-Feedback Runde 3 (Live-Test nach Runde-2-Fix): die verschärfte Formulierung + eine
+// zusätzliche vorangestellte "Primacy"-Kopie desselben Satzes (in sceneComposeInstruction) haben den
+// Gesamt-Prompt über das Längenlimit von fal-ai/nano-banana-2/edit getrieben ("Prompt zu lang."-Fehler,
+// Komposition schlug fehl). Deutlich eingekürzt auf das Wesentliche (Verbot bleibt hart/konkret, aber
+// ohne die längeren Erklär-Nebensätze) UND die separate Primacy-Kopie in sceneComposeInstruction
+// wieder entfernt, damit der Satz nur noch zweimal statt dreimal im Prompt steht.
 function faceSimplicityClause(){
-  return "CRITICAL RULE, applies to every single character including tiny background figures: absolutely no mouth or mouth-line on anyone, not even smiling, laughing or shouting characters – happiness and expression are shown only through the eyes and body pose, a drawn mouth is always a mistake and must never appear. No ears. No visible neck. And every single head must show a simple flat-colored hair shape or headwear covering it – a bare skin-colored circle/scalp with nothing drawn on top is always a mistake and must never appear, no matter how small or far away the character is, UNLESS that character's own hair description explicitly says \"bald\" or \"shaved head\" (that exception applies only to specific named characters described that way, never to freely invented background characters)";
+  return "no mouth on anyone, not even smiling/laughing characters (show expression only via eyes and pose) – no ears, no visible neck, and every head (even tiny background ones) must show colored hair or headwear, never a bare bald scalp, unless that character's own hair is explicitly described as bald/shaved head";
 }
 function charPrompt(c){
   // Baut den Bildgenerierungs-Prompt AUSSCHLIESSLICH aus dem kanonischen CharacterSpec (c.spec) –
@@ -843,15 +849,12 @@ function sceneComposeInstruction(s, charRefCount){
   const refExplainer = n > 0
     ? `The first ${n} attached reference image(s) show the exact established design of each character appearing in this scene – their face, proportions, hair color, clothing and any identifying details. Draw every character from these reference images into this new scene keeping their identity and design EXACTLY the same as their reference (same face, same proportions, same hair, same clothing colors). Their POSE must change to match the action described above: give them dynamic, natural body positions and gestures that actively show them taking part in what is happening in the scene – do not simply copy their reference pose or stand them still and neutral. Any FURTHER attached reference images (beyond the first ${n}) are small individual vignette illustrations, each showing ONE specific situation that must appear somewhere in this scene (see the placement instructions above for exactly where). Redraw the people, animals and objects shown in each of these vignette images into the correct area of the final scene, in the same flat illustration style as the rest of the image – do NOT copy them in as separate inset pictures, frames or panels, they must blend seamlessly into the single continuous scene.`
     : `Any attached reference images are small individual vignette illustrations, each showing ONE specific situation that must appear somewhere in this scene (see the placement instructions above for exactly where). Redraw the people, animals and objects shown in each of these vignette images into the correct area of the final scene, in the same flat illustration style as the rest of the image – do NOT copy them in as separate inset pictures, frames or panels, they must blend seamlessly into the single continuous scene.`;
-  // Nutzer-Feedback Runde 2: obwohl faceSimplicityClause() bereits zweimal im Prompt vorkam (einmal
-  // eingebettet in s.prompt/scenePrompt, einmal am Ende dieses Satzes), tauchten beim erneuten Live-
-  // Test weiterhin Hintergrundfiguren mit Mund bzw. ganz ohne Haare auf. Zusätzlich zur geschärften
-  // Formulierung in faceSimplicityClause() selbst jetzt eine dritte, ganz an den ANFANG des gesamten
-  // Prompts vorgezogene Kurzfassung derselben Regel (Primacy-Effekt) – bei einem derart langen Prompt
-  // mit 40-60 Figuren-Anweisungen soll die wichtigste Stilregel nicht erst nach mehreren hundert
-  // Wörtern zum ersten Mal auftauchen, sondern gleich zu Beginn gesetzt werden.
-  const faceLead = `Style rule that overrides everything else in this image, for every single character no matter how small or far in the background: ${faceSimplicityClause()}.`;
-  return `${faceLead} ${s.prompt} ${refExplainer} Every character in the scene, including all small background characters, must be drawn in the exact same thick black marker outline, graphic-recording sketchnote illustration style, applied consistently across the entire image. Do not draw any character – hero or background – in a different illustration style, a more detailed or more realistic/photographic style, or a different line weight: every single character in the whole image must look like it was drawn by the same illustrator in the exact same reduced style, with round minimal faces, dot eyes, a single line nose, ${faceSimplicityClause()}, ${bodySimplicityClause()}, and ${colorStyleClause()}, with no exceptions anywhere in the picture.`;
+  // Nutzer-Feedback Runde 2/3: faceSimplicityClause() steht bereits zweimal im finalen Prompt (einmal
+  // eingebettet in s.prompt/scenePrompt, einmal am Ende dieses Satzes) – eine dritte, vorangestellte
+  // Kopie (Primacy-Effekt) wurde in Runde 3 wieder entfernt, weil sie den Prompt über fal.ai's
+  // Längenlimit trieb ("Prompt zu lang."-Fehler). Stattdessen wurde die Formulierung selbst
+  // (faceSimplicityClause) schärfer UND kürzer gemacht, um im vorhandenen Platz mehr Wirkung zu erzielen.
+  return `${s.prompt} ${refExplainer} Every character in the scene, including all small background characters, must be drawn in the exact same thick black marker outline, graphic-recording sketchnote illustration style, applied consistently across the entire image. Do not draw any character – hero or background – in a different illustration style, a more detailed or more realistic/photographic style, or a different line weight: every single character in the whole image must look like it was drawn by the same illustrator in the exact same reduced style, with round minimal faces, dot eyes, a single line nose, ${faceSimplicityClause()}, ${bodySimplicityClause()}, and ${colorStyleClause()}, with no exceptions anywhere in the picture.`;
 }
 function photoStyleInstruction(){
   // Editier-Anweisung für die Foto-zu-Illustration-Option: das hochgeladene Foto wird über
