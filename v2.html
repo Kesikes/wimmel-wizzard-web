@@ -677,6 +677,16 @@ function bodySimplicityClause(){
 function colorStyleClause(){
   return "soft gentle shading is welcome and encouraged (a light blush on the cheeks, a subtly darker one-tone shadow along clothing folds, hair strands or the underside of the body/limbs) – colors are not perfectly flat, but still simple and clean, never photorealistic, never airbrushed, never a smooth photographic gradient or glossy highlight";
 }
+// Nutzer-Feedback (Live-Test Wimmelbild-Szene): mehrere Hintergrundfiguren kamen "nicht im Stil"
+// raus - manche mit sichtbarem Mund, manche ganz ohne Haare (kahler Kopf ohne Frisur/Kopfbedeckung).
+// charPrompt() verbietet Mund/Ohren für Helden explizit, aber scenePrompt()/sceneComposeInstruction()
+// hatten diese Verbote für die 40-60 Hintergrundfiguren bisher nicht - nur "dot eyes, single line
+// nose" war genannt, alles andere blieb dem Modell überlassen. Gleiche explizite Regeln jetzt auch
+// für die Szene, plus eine explizite Haar/Kopfbedeckungs-Pflicht (Ausnahme: eine Figur ist bewusst
+// als Glatze angelegt, z.B. ein Referenz-Charakter wie Opa Klaus).
+function faceSimplicityClause(){
+  return "no mouth, no ears, no visible neck on any character, and every head has a simple flat-color hairstyle or headwear (never a bare, featureless bald scalp) unless that specific character is deliberately bald in their reference design";
+}
 function charPrompt(c){
   // Baut den Bildgenerierungs-Prompt AUSSCHLIESSLICH aus dem kanonischen CharacterSpec (c.spec) –
   // egal ob die Person per Beschreibung, per KI-Chat oder (nach Vision-Merkmalsextraktion) per
@@ -755,7 +765,7 @@ function scenePrompt(s){
   if(heroes.length){
     parts.push(`in the foreground, actively taking part in the action described below (not standing still, not posed neutrally): ${heroes.join(" and ")}`);
   }
-  parts.push("a densely packed wimmelbild scene with 40 to 60 small background characters spread across the entire image, each one doing their own tiny activity or little visual joke, true busy seek-and-find picture-book density, every single character in the image – foreground heroes and all background characters alike – drawn in exactly the same reduced, minimal style: round heads, dot eyes, single vertical nose line, " + bodySimplicityClause() + ", " + colorStyleClause() + ", no realistic/photographic detail");
+  parts.push("a densely packed wimmelbild scene with 40 to 60 small background characters spread across the entire image, each one doing their own tiny activity or little visual joke, true busy seek-and-find picture-book density, every single character in the image – foreground heroes and all background characters alike – drawn in exactly the same reduced, minimal style: round heads, dot eyes, single vertical nose line, " + faceSimplicityClause() + ", " + bodySimplicityClause() + ", " + colorStyleClause() + ", no realistic/photographic detail");
   // Nutzer-Feedback (Situationen-Board): s.situations ist jetzt der bevorzugte Weg – eine Liste
   // einzelner Situationen MIT Positions-/Größen-Hinweis aus dem Kreise-Board (siehe
   // situationPlacementText/renderSituationBoard). s.storyEn/s.story bleiben als Fallback für den
@@ -820,7 +830,7 @@ function sceneComposeInstruction(s, charRefCount){
   const refExplainer = n > 0
     ? `The first ${n} attached reference image(s) show the exact established design of each character appearing in this scene – their face, proportions, hair color, clothing and any identifying details. Draw every character from these reference images into this new scene keeping their identity and design EXACTLY the same as their reference (same face, same proportions, same hair, same clothing colors). Their POSE must change to match the action described above: give them dynamic, natural body positions and gestures that actively show them taking part in what is happening in the scene – do not simply copy their reference pose or stand them still and neutral. Any FURTHER attached reference images (beyond the first ${n}) are small individual vignette illustrations, each showing ONE specific situation that must appear somewhere in this scene (see the placement instructions above for exactly where). Redraw the people, animals and objects shown in each of these vignette images into the correct area of the final scene, in the same flat illustration style as the rest of the image – do NOT copy them in as separate inset pictures, frames or panels, they must blend seamlessly into the single continuous scene.`
     : `Any attached reference images are small individual vignette illustrations, each showing ONE specific situation that must appear somewhere in this scene (see the placement instructions above for exactly where). Redraw the people, animals and objects shown in each of these vignette images into the correct area of the final scene, in the same flat illustration style as the rest of the image – do NOT copy them in as separate inset pictures, frames or panels, they must blend seamlessly into the single continuous scene.`;
-  return `${s.prompt} ${refExplainer} Every character in the scene, including all small background characters, must be drawn in the exact same thick black marker outline, graphic-recording sketchnote illustration style, applied consistently across the entire image. Do not draw any character – hero or background – in a different illustration style, a more detailed or more realistic/photographic style, or a different line weight: every single character in the whole image must look like it was drawn by the same illustrator in the exact same reduced style, with round minimal faces, dot eyes, a single line nose, ${bodySimplicityClause()}, and ${colorStyleClause()}, with no exceptions anywhere in the picture.`;
+  return `${s.prompt} ${refExplainer} Every character in the scene, including all small background characters, must be drawn in the exact same thick black marker outline, graphic-recording sketchnote illustration style, applied consistently across the entire image. Do not draw any character – hero or background – in a different illustration style, a more detailed or more realistic/photographic style, or a different line weight: every single character in the whole image must look like it was drawn by the same illustrator in the exact same reduced style, with round minimal faces, dot eyes, a single line nose, ${faceSimplicityClause()}, ${bodySimplicityClause()}, and ${colorStyleClause()}, with no exceptions anywhere in the picture.`;
 }
 function photoStyleInstruction(){
   // Editier-Anweisung für die Foto-zu-Illustration-Option: das hochgeladene Foto wird über
@@ -1053,7 +1063,7 @@ function situationPlacementText(s){
 function situationImagePrompt(s, sceneDraft){
   const loc = sceneDraft && sceneDraft.loc;
   const locPart = loc && loc.en ? `, set at ${loc.en}` : "";
-  return `wmlstil, a single small self-contained illustrated vignette on a plain white background showing: ${s.text}${locPart}, ${bodySimplicityClause()}, ${colorStyleClause()}, thick black marker outline, graphic recording sketchnote style, no border, no frame, no text, no captions`;
+  return `wmlstil, a single small self-contained illustrated vignette on a plain white background showing: ${s.text}${locPart}, ${faceSimplicityClause()}, ${bodySimplicityClause()}, ${colorStyleClause()}, thick black marker outline, graphic recording sketchnote style, no border, no frame, no text, no captions`;
 }
 
 /* ---- reused: image resize before upload ---- */
