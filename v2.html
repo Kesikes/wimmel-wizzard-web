@@ -784,7 +784,9 @@ function scenePrompt(s){
   if(heroes.length){
     parts.push(`in the foreground, actively taking part in the action described below (not standing still, not posed neutrally): ${heroes.join(" and ")}`);
   }
-  parts.push("a densely packed wimmelbild scene with 40 to 60 small background characters spread across the entire image, each one doing their own tiny activity or little visual joke, true busy seek-and-find picture-book density, every single character in the image – foreground heroes and all background characters alike – drawn in exactly the same reduced, minimal style: round heads, dot eyes, single vertical nose line, " + faceSimplicityClause() + ", " + bodySimplicityClause() + ", " + colorStyleClause() + ", no realistic/photographic detail");
+  // Kürzung (Prompt-Längenlimit von fal.ai): stark redundante Formulierungen ("busy seek-and-find
+  // picture-book density", dreifache Wiederholung von "same style") entfernt, Kernaussage bleibt.
+  parts.push("a densely packed wimmelbild scene with 40-60 small background characters, each doing their own tiny activity, true seek-and-find density. Every character, heroes and background alike, in exactly the same reduced style: round heads, dot eyes, single line nose, " + faceSimplicityClause() + ", " + bodySimplicityClause() + ", " + colorStyleClause() + ", no realistic/photographic detail");
   // Nutzer-Feedback (Situationen-Board): s.situations ist jetzt der bevorzugte Weg – eine Liste
   // einzelner Situationen MIT Positions-/Größen-Hinweis aus dem Kreise-Board (siehe
   // situationPlacementText/renderSituationBoard). s.storyEn/s.story bleiben als Fallback für den
@@ -848,10 +850,12 @@ function sceneComposeInstruction(s, charRefCount){
   // sind nicht mehr ALLE Referenzbilder Charaktere – die ersten charRefCount sind Charaktere, der
   // Rest sind kleine Einzel-Vignetten je Situation. Das muss dem Modell explizit gesagt werden,
   // sonst versucht es fälschlich, auch die Situations-Vignetten als "Person" zu interpretieren.
+  // Kürzung (Prompt-Längenlimit von fal.ai): beide Zweige stark eingedampft, Kernaussagen (Identität
+  // fix, Pose frei, Vignetten einbetten statt als Inset-Panel) bleiben erhalten.
   const n = charRefCount || 0;
   const refExplainer = n > 0
-    ? `The first ${n} attached reference image(s) show the exact established design of each character appearing in this scene – their face, proportions, hair color, clothing and any identifying details. Draw every character from these reference images into this new scene keeping their identity and design EXACTLY the same as their reference (same face, same proportions, same hair, same clothing colors). Their POSE must change to match the action described above: give them dynamic, natural body positions and gestures that actively show them taking part in what is happening in the scene – do not simply copy their reference pose or stand them still and neutral. Any FURTHER attached reference images (beyond the first ${n}) are small individual vignette illustrations, each showing ONE specific situation that must appear somewhere in this scene (see the placement instructions above for exactly where). Redraw the people, animals and objects shown in each of these vignette images into the correct area of the final scene, in the same flat illustration style as the rest of the image – do NOT copy them in as separate inset pictures, frames or panels, they must blend seamlessly into the single continuous scene.`
-    : `Any attached reference images are small individual vignette illustrations, each showing ONE specific situation that must appear somewhere in this scene (see the placement instructions above for exactly where). Redraw the people, animals and objects shown in each of these vignette images into the correct area of the final scene, in the same flat illustration style as the rest of the image – do NOT copy them in as separate inset pictures, frames or panels, they must blend seamlessly into the single continuous scene.`;
+    ? `The first ${n} reference image(s) show each character's established design (face, proportions, hair, clothing) – keep identity and design EXACTLY the same, but give them dynamic natural poses matching the action described above, not their neutral reference pose. Any further reference images are small vignettes, each showing one situation to include (see placement above) – redraw their people/animals/objects into the correct area, blended into the single scene, not as separate inset panels.`
+    : `Any attached reference images are small vignettes, each showing one situation to include (see placement above) – redraw their people/animals/objects into the correct area, blended into the single scene, not as separate inset panels.`;
   // Nutzer-Feedback Runde 2/3: faceSimplicityClause() steht bereits zweimal im finalen Prompt (einmal
   // eingebettet in s.prompt/scenePrompt, einmal am Ende dieses Satzes) – eine dritte, vorangestellte
   // Kopie (Primacy-Effekt) wurde in Runde 3 wieder entfernt, weil sie den Prompt über fal.ai's
@@ -864,7 +868,7 @@ function sceneComposeInstruction(s, charRefCount){
   // sprachlich nach "jemand ruft/sagt etwas" klang. Jetzt zusätzlich ganz am ENDE dieses Prompts
   // (Recency-Effekt, das Letzte was das Modell vor der Bildgenerierung liest) eine explizite,
   // unmissverständliche Sprechblasen-/Text-Sperre.
-  return `${s.prompt} ${refExplainer} Every character in the scene, including all small background characters, must be drawn in the exact same thick black marker outline, graphic-recording sketchnote illustration style, applied consistently across the entire image. Do not draw any character – hero or background – in a different illustration style, a more detailed or more realistic/photographic style, or a different line weight: every single character in the whole image must look like it was drawn by the same illustrator in the exact same reduced style, with round minimal faces, dot eyes, a single line nose, ${faceSimplicityClause()}, ${bodySimplicityClause()}, and ${colorStyleClause()}, with no exceptions anywhere in the picture. No speech bubbles or written words anywhere, even for shouting/talking characters – pose and gesture only.`;
+  return `${s.prompt} ${refExplainer} Every character, foreground and background alike, in the exact same thick black marker outline, graphic-recording sketchnote style – no character in a more detailed, realistic or different line-weight style. Round minimal faces, dot eyes, single line nose, ${faceSimplicityClause()}, ${bodySimplicityClause()}, ${colorStyleClause()}. No speech bubbles or written words anywhere, even for shouting/talking characters – pose and gesture only.`;
 }
 function photoStyleInstruction(){
   // Editier-Anweisung für die Foto-zu-Illustration-Option: das hochgeladene Foto wird über
