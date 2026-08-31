@@ -756,7 +756,11 @@ function sideViewEditInstruction(){
   // reference" mit dem No-Nose-Verbot kollidiert und das Referenzbild (Frontansicht) selbst eine
   // Nase (Strich) zeigt, die das Modell mitkopiert. Jetzt ein expliziter Gegen-Satz, der genau diese
   // eine Ausnahme von "wie die Referenz" benennt, statt es implizit zu lassen.
-  return "Redraw this exact character in FULL SIDE PROFILE VIEW, facing left, as if seen directly from the side. Keep the exact same hairstyle, hair color, headwear, clothing and clothing colors as the reference – EXCEPT the nose: the reference (front view) has a small vertical-line nose mark on its face, but that mark must NOT be carried over into this side view at all. Round head silhouette with no ears, no mouth and no visible neck. Exactly one eye, drawn as a clearly visible black dot on the side of the face facing the viewer. Absolutely no nose shape of any kind anywhere on the face – not a line, not a triangle, not a bump, not a dot, not even a small mark where a nose would be – a completely smooth, featureless profile silhouette from forehead to chin except for that one eye dot. " + bodySimplicityClause() + ". " + colorStyleClause() + ". Match the exact illustration style of the reference image: thick black marker outline, graphic recording sketchnote style. Full body, standing, plain white background.";
+  // Nutzer-Feedback Runde 2 (neuer Live-Test, anderer Charakter): Nase kam trotz alledem wieder – nur
+  // Verbote ("absolutely no nose shape... not a bump...") beschreiben offenbar nicht klar genug, WIE
+  // die Silhouette stattdessen aussehen soll. Jetzt zusätzlich eine positive Formbeschreibung (Vergleich
+  // mit einem glatten Halbmond/Ei) als konkretes Zielbild, statt nur Verneinungen aufzuzählen.
+  return "Redraw this exact character in FULL SIDE PROFILE VIEW, facing left, as if seen directly from the side. Keep the exact same hairstyle, hair color, headwear, clothing and clothing colors as the reference – EXCEPT the nose: the reference (front view) has a small vertical-line nose mark on its face, but that mark must NOT be carried over into this side view at all. Round head silhouette with no ears, no mouth and no visible neck. Exactly one eye, drawn as a clearly visible black dot on the side of the face facing the viewer. The front edge of the face (forehead to chin) is drawn as ONE single smooth, unbroken curved line, like the edge of an egg or a crescent moon – it curves gently inward the whole way, with NO outward bump, NO protrusion and NO change of direction anywhere along that curve. Absolutely no nose shape of any kind anywhere on the face – not a line, not a triangle, not a bump, not a dot, not even a small mark where a nose would be. " + bodySimplicityClause() + ". " + colorStyleClause() + ". Match the exact illustration style of the reference image: thick black marker outline, graphic recording sketchnote style. Full body, standing, plain white background.";
 }
 function backViewEditInstruction(){
   return "Redraw this exact character seen entirely FROM BEHIND (back view). Keep the exact same hairstyle, hair color, headwear, clothing and clothing colors as the reference. Only the back of the head, hair/headwear and clothing are visible – no face at all, no eyes, no nose, no mouth, nothing facial. " + bodySimplicityClause() + ". " + colorStyleClause() + ". Match the exact illustration style of the reference image: thick black marker outline, graphic recording sketchnote style. Full body, standing, viewed directly from behind, plain white background.";
@@ -799,7 +803,11 @@ function scenePrompt(s){
   // Kürzung (Prompt-Längenlimit von fal.ai, siehe sceneComposeInstruction): die ausführlichere
   // Sprechblasen-Sperre steht jetzt konzentriert am ENDE von sceneComposeInstruction (Recency-Effekt,
   // wirkt erfahrungsgemäß stärker als hier mitten im Text) – hier nur die knappe Basis-Version.
-  parts.push("plain sky background, no text, no signage, no speech bubbles, " + colorStyleClause() + ", thick black marker outline, graphic recording sketchnote style applied consistently across the whole image, high detail, wide composition");
+  // Nutzer-Feedback Runde 4: "no speech bubbles" hat die Sprechblase mit erfundenem Dialog verhindert,
+  // ABER ein Murmeltier/Biber, das laut einer Situation "pfeift", bekam stattdessen ein Sound-Effekt-
+  // Schriftzug "WHISTLE" ins Bild gemalt – das ist keine Sprechblase/kein Dialog, sondern eine
+  // lautmalerische Bildunterschrift, die "no speech bubbles" nicht abdeckt. Explizit ergänzt.
+  parts.push("plain sky background, no text, no signage, no speech bubbles, no sound-effect words (like \"WHISTLE\" or \"SPLASH\"), " + colorStyleClause() + ", thick black marker outline, graphic recording sketchnote style applied consistently across the whole image, high detail, wide composition");
   return parts.filter(Boolean).join(", ");
 }
 
@@ -852,10 +860,17 @@ function sceneComposeInstruction(s, charRefCount){
   // sonst versucht es fälschlich, auch die Situations-Vignetten als "Person" zu interpretieren.
   // Kürzung (Prompt-Längenlimit von fal.ai): beide Zweige stark eingedampft, Kernaussagen (Identität
   // fix, Pose frei, Vignetten einbetten statt als Inset-Panel) bleiben erhalten.
+  // Nutzer-Feedback (Live-Test Berg-Szene): Ergebnis wirkt "eher wie eine Kollage" – einzelne
+  // Situationen erscheinen als deutlich getrennte "Inseln" mit weißen/leeren Zwischenräumen statt
+  // einer durchgehenden Landschaft mit Tiefe. "blended into the single scene, not as separate inset
+  // panels" allein hat das nicht verhindert – vermutlich weil das Modell die einzelnen Vignetten-
+  // Referenzbilder zu wörtlich als eigene Bildausschnitte übernimmt. Jetzt mit konkreter Anweisung
+  // zu EINEM durchgehenden Boden/Gelände und Vordergrund/Mittelgrund/Hintergrund-Tiefe statt Patchwork.
   const n = charRefCount || 0;
   const refExplainer = n > 0
-    ? `The first ${n} reference image(s) show each character's established design (face, proportions, hair, clothing) – keep identity and design EXACTLY the same, but give them dynamic natural poses matching the action described above, not their neutral reference pose. Any further reference images are small vignettes, each showing one situation to include (see placement above) – redraw their people/animals/objects into the correct area, blended into the single scene, not as separate inset panels.`
-    : `Any attached reference images are small vignettes, each showing one situation to include (see placement above) – redraw their people/animals/objects into the correct area, blended into the single scene, not as separate inset panels.`;
+    ? `The first ${n} reference image(s) show each character's established design (face, proportions, hair, clothing) – keep identity and design EXACTLY the same, but give them dynamic natural poses matching the action described above, not their neutral reference pose. Any further reference images are small vignettes, each showing one situation to include (see placement above) – use them only as content reference and redraw everyone directly onto ONE continuous ground/landscape, never as separate patches with empty space between them.`
+    : `Any attached reference images are small vignettes, each showing one situation to include (see placement above) – use them only as content reference and redraw everyone directly onto ONE continuous ground/landscape, never as separate patches with empty space between them.`;
+  const depthClause = "The whole scene is ONE single continuous landscape seen from a slightly elevated angle, with unbroken ground/terrain connecting every part of the image – no gaps of empty background between groups of characters, no separate floating patches, no collage look. Give it gentle depth: larger, more detailed characters in the foreground, smaller ones higher up and further back, all on the same connected ground.";
   // Nutzer-Feedback Runde 2/3: faceSimplicityClause() steht bereits zweimal im finalen Prompt (einmal
   // eingebettet in s.prompt/scenePrompt, einmal am Ende dieses Satzes) – eine dritte, vorangestellte
   // Kopie (Primacy-Effekt) wurde in Runde 3 wieder entfernt, weil sie den Prompt über fal.ai's
@@ -868,7 +883,7 @@ function sceneComposeInstruction(s, charRefCount){
   // sprachlich nach "jemand ruft/sagt etwas" klang. Jetzt zusätzlich ganz am ENDE dieses Prompts
   // (Recency-Effekt, das Letzte was das Modell vor der Bildgenerierung liest) eine explizite,
   // unmissverständliche Sprechblasen-/Text-Sperre.
-  return `${s.prompt} ${refExplainer} Every character, foreground and background alike, in the exact same thick black marker outline, graphic-recording sketchnote style – no character in a more detailed, realistic or different line-weight style. Round minimal faces, dot eyes, single line nose, ${faceSimplicityClause()}, ${bodySimplicityClause()}, ${colorStyleClause()}. No speech bubbles or written words anywhere, even for shouting/talking characters – pose and gesture only.`;
+  return `${s.prompt} ${refExplainer} ${depthClause} Every character, foreground and background alike, in the exact same thick black marker outline, graphic-recording sketchnote style – no character in a more detailed, realistic or different line-weight style. Round minimal faces, dot eyes, single line nose, ${faceSimplicityClause()}, ${bodySimplicityClause()}, ${colorStyleClause()}. No speech bubbles, no sound-effect captions (like "WHISTLE"), no written words anywhere at all – any sound, shout or talking is shown only through pose, gesture and motion lines.`;
 }
 function photoStyleInstruction(){
   // Editier-Anweisung für die Foto-zu-Illustration-Option: das hochgeladene Foto wird über
@@ -1105,7 +1120,7 @@ function situationImagePrompt(s, sceneDraft){
   // (z.B. "a parrot suddenly shouting something funny"), hat das Modell dazu verleitet, eine echte
   // Sprechblase mit erfundenem Text ins Bild zu malen. "no text, no captions" allein hat das nicht
   // verhindert – explizit "no speech bubbles" ergänzt.
-  return `wmlstil, a single small self-contained illustrated vignette on a plain white background showing: ${s.text}${locPart}, ${faceSimplicityClause()}, ${bodySimplicityClause()}, ${colorStyleClause()}, thick black marker outline, graphic recording sketchnote style, no border, no frame, no text, no captions, no speech bubbles or written words even if the situation involves shouting or talking – show that only through pose and gesture`;
+  return `wmlstil, a single small self-contained illustrated vignette on a plain white background showing: ${s.text}${locPart}, ${faceSimplicityClause()}, ${bodySimplicityClause()}, ${colorStyleClause()}, thick black marker outline, graphic recording sketchnote style, no border, no frame, no text, no captions, no speech bubbles, no sound-effect words like "WHISTLE" or "SPLASH", no written words at all even if the situation involves shouting, talking or a loud noise – show that only through pose, gesture and motion lines`;
 }
 
 /* ---- reused: image resize before upload ---- */
@@ -2114,7 +2129,13 @@ SCREENS.scene_edit = function(){
 function openSwapPicker(idx){
   const s = state.activeSceneDraft;
   const gagId = s.loc.id === "weihnachten" ? "home" : (GAG_LIBRARY[s.loc.id] ? s.loc.id : "generic");
-  const pool = GAG_LIBRARY[gagId] || GAG_LIBRARY.generic;
+  // Bugfix (Nutzer-Feedback: Chips lassen sich antippen, aber "Womit ersetzen?" zeigt keine
+  // Optionen an): composeSituations() nimmt für die Erstgenerierung standardmäßig ALLE Einträge aus
+  // dem orts-spezifischen GAG_LIBRARY-Pool (bei "zoo" z.B. genau 10 von 10). Dadurch war der Pool
+  // beim Tauschen immer schon vollständig "used" und der Filter lieferte 0 Optionen – der Picker
+  // öffnete sich, blieb aber leer, was wie "nicht editierbar" wirkte. Fallback: zusätzlich den
+  // orts-unabhängigen generic-Pool als Ersatz-Kandidaten anbieten, wenn der eigene Pool aufgebraucht ist.
+  const pool = [...(GAG_LIBRARY[gagId] || []), ...GAG_LIBRARY.generic];
   const used = new Set(s.situations.map(x=>x.de));
   const options = pool.filter(g=>!used.has(g.de)).slice(0,6);
   const list = options.map((g,j)=>`<div class="chip" onclick="swapSituation(${idx},${j})" data-j="${j}">${escapeHtml(g.de)}</div>`).join("");
