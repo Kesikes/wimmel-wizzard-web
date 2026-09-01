@@ -52,7 +52,7 @@ module.exports = async (req, res) => {
   // 14 image_urls insgesamt (inkl. imageUrl selbst), 8 zusätzliche Referenzen sind großzügig genug.
   const styleRefUrls = (Array.isArray(body.styleRefUrls) ? body.styleRefUrls : (body.styleRefUrl ? [body.styleRefUrl] : []))
     .filter(isImageRef)
-    .slice(0, 8);
+    .slice(0, 13);
   // EXPERIMENTAL (P0.5: Multi-View-Machbarkeitstest, siehe Planungsdokument Abschnitt 6): erlaubt
   // testweise eine Generierung OHNE unser LoRA und OHNE Referenzbild, direkt über die reine
   // Nano-Banana-2-Text-zu-Bild-Variante (fal-ai/nano-banana-2, kein "/edit"). Diente dazu zu prüfen,
@@ -67,6 +67,16 @@ module.exports = async (req, res) => {
   // akzeptiert; kein Teil des regulären Produktpfads (Client setzt body.testLoraUrl nie).
   const testLoraUrl = typeof body.testLoraUrl === "string" && /^https:\/\/[a-z0-9.-]*fal\.media\//.test(body.testLoraUrl)
     ? body.testLoraUrl
+    : undefined;
+  // EXPERIMENTAL (Testlauf 16-Vignetten-Wimmelbild, 2K/21:9-Anfrage): optionaler Pass-Through für
+  // resolution/aspect_ratio, NUR für den Bild-Edit-Pfad (imageUrl gesetzt). Kein Teil des regulären
+  // Produktpfads (der Client setzt body.resolution/body.aspectRatio nie) – nur für gezielte manuelle
+  // Testaufrufe über generateImage(..., extra). Ohne diese Felder bleibt das bisherige Verhalten
+  // (1K, 3:4 char / 16:9 scene) unverändert.
+  const ALLOWED_RESOLUTIONS = ["1K", "2K", "4K"];
+  const testResolution = ALLOWED_RESOLUTIONS.includes(body.resolution) ? body.resolution : undefined;
+  const testAspectRatio = typeof body.aspectRatio === "string" && /^[0-9]{1,2}:[0-9]{1,2}$/.test(body.aspectRatio)
+    ? body.aspectRatio
     : undefined;
 
   if (!prompt) {
@@ -102,8 +112,8 @@ module.exports = async (req, res) => {
     ? {
         prompt,
         image_urls: [imageUrl, ...styleRefUrls],
-        aspect_ratio: kind === "char" ? "3:4" : "16:9",
-        resolution: "1K",
+        aspect_ratio: testAspectRatio || (kind === "char" ? "3:4" : "16:9"),
+        resolution: testResolution || "1K",
         output_format: "png",
         num_images: 1,
         ...(seed !== undefined ? { seed } : {}),
