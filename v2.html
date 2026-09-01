@@ -942,7 +942,12 @@ function sceneComposeInstruction(s, charRefCount){
   // sprachlich nach "jemand ruft/sagt etwas" klang. Jetzt zusätzlich ganz am ENDE dieses Prompts
   // (Recency-Effekt, das Letzte was das Modell vor der Bildgenerierung liest) eine explizite,
   // unmissverständliche Sprechblasen-/Text-Sperre.
-  return `${s.prompt} ${refExplainer} ${depthClause} Every character, foreground and background alike, in the exact same thick black marker outline, graphic-recording sketchnote style – no character in a more detailed, realistic or different line-weight style. Round minimal faces, dot eyes, single line nose, ${faceSimplicityClause()}, ${bodySimplicityClause()}, ${colorStyleClause()}. Absolutely zero text, letters or lettering anywhere in this image, of any kind, for any reason – no speech bubbles, no onomatopoeia, no comic-style sound-effect lettering: every sound, shout or talking moment is shown ONLY through pose, gesture, motion lines and facial reaction, never through a single letter of text.`;
+  // Kürzung (Live-Test Gardasee-Szene, 6 Situationen + 4 Helden: "Prompt zu lang."-Fehler bei 6198
+  // Zeichen): bodySimplicityClause()/colorStyleClause() standen hier ein zweites Mal (schon einmal in
+  // scenePrompt/s.prompt enthalten) – diese Redundanz entfernt, faceSimplicityClause() bleibt hier
+  // stehen (Recency-Effekt für das gerade verschärfte Hals/Ohren/Mund-Verbot ist wichtiger als die
+  // zweite Kopie von Körper-/Farbregeln, die im Prompt bereits einmal vorkommen).
+  return `${s.prompt} ${refExplainer} ${depthClause} Every character, foreground and background alike, in the exact same thick black marker outline, graphic-recording sketchnote style – no character in a more detailed, realistic or different line-weight style. Round minimal faces, dot eyes, single line nose, ${faceSimplicityClause()}. Absolutely zero text, letters or lettering anywhere in this image, of any kind, for any reason – no speech bubbles, no onomatopoeia, no comic-style sound-effect lettering: every sound, shout or talking moment is shown ONLY through pose, gesture, motion lines and facial reaction, never through a single letter of text.`;
 }
 function photoStyleInstruction(){
   // Editier-Anweisung für die Foto-zu-Illustration-Option: das hochgeladene Foto wird über
