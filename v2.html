@@ -933,10 +933,14 @@ function sceneComposeInstruction(s, charRefCount){
   // ~6860 Zeichen, obwohl die einzelnen Situationstexte schon knapp gehalten waren): refExplainer/
   // depthClause tragen dieselbe Kernaussage jetzt in weniger Wörtern – wichtig bei vielen Situationen/
   // Helden, weil dieser Teil unabhängig von deren Anzahl konstant mitläuft.
+  // Architektur-Entscheidung (siehe composeSceneImage): Situations-Vignetten werden nicht mehr als
+  // Referenzbild mitgeschickt, alle Referenzbilder hier sind jetzt ausschließlich Charakterbilder –
+  // die alte "further reference images are situation vignettes"-Erklärung ist damit obsolet und wurde
+  // entfernt (kürzer + korrekt).
   const n = charRefCount || 0;
   const refExplainer = n > 0
-    ? `The first ${n} reference image(s) show each character's fixed design (face, proportions, hair, clothing) – keep identity/design EXACTLY the same, but give dynamic natural poses matching the action, not their neutral reference pose. Further reference images are small situation vignettes – use as content reference only, redraw everyone onto ONE continuous ground/landscape, never as separate patches with empty space between them.`
-    : `Any attached reference images are small situation vignettes – use as content reference only, redraw everyone onto ONE continuous ground/landscape, never as separate patches with empty space between them.`;
+    ? `The ${n} reference image(s) show each character's fixed design (face, proportions, hair, clothing) – keep identity/design EXACTLY the same, but give dynamic natural poses matching the action, not their neutral reference pose.`
+    : "";
   const depthClause = "The whole scene is ONE continuous landscape seen from a slightly elevated angle, unbroken ground connecting every part – no gaps between groups, no floating patches, no collage look. Gentle depth: larger, more detailed characters in front, smaller ones further back, all on the same ground.";
   // Nutzer-Feedback Runde 2/3: faceSimplicityClause() steht bereits zweimal im finalen Prompt (einmal
   // eingebettet in s.prompt/scenePrompt, einmal am Ende dieses Satzes) – eine dritte, vorangestellte
@@ -955,7 +959,15 @@ function sceneComposeInstruction(s, charRefCount){
   // scenePrompt/s.prompt enthalten) – diese Redundanz entfernt, faceSimplicityClause() bleibt hier
   // stehen (Recency-Effekt für das gerade verschärfte Hals/Ohren/Mund-Verbot ist wichtiger als die
   // zweite Kopie von Körper-/Farbregeln, die im Prompt bereits einmal vorkommen).
-  return `${s.prompt} ${refExplainer} ${depthClause} Every character, foreground and background alike, in the exact same thick black marker outline, graphic-recording sketchnote style – no character in a more detailed, realistic or different line-weight style. Round minimal faces, dot eyes, single line nose, ${faceSimplicityClause()}. Absolutely zero text, letters or lettering anywhere in this image, of any kind, for any reason – no speech bubbles, no onomatopoeia, no comic-style sound-effect lettering: every sound, shout or talking moment is shown ONLY through pose, gesture, motion lines and facial reaction, never through a single letter of text.`;
+  // Bugfix (Live-Vergleichstest Gardasee, Testlauf B): das Wort "wmlstil" steht als Trigger-Wort am
+  // Anfang von scenePrompt()/s.prompt – nötig für den reinen Text-zu-Bild-Pfad (flux-lora), aber
+  // dieser Aufruf hier läuft IMMER über den Edit-Pfad (nano-banana-2/edit, siehe composeSceneImage),
+  // der das Trigger-Wort nicht braucht. Im Live-Test hat das Modell "wmlstil" wörtlich als Schild an
+  // der Bar ins Bild gemalt. Hier rausgeschnitten, scenePrompt() selbst bleibt unverändert (der
+  // Fallback-Zweig ohne Charakterbilder in composeSceneImage nutzt weiterhin s.prompt direkt und
+  // braucht das Trigger-Wort dort noch).
+  const promptNoTrigger = s.prompt.replace(/^wmlstil,\s*/, "");
+  return `${promptNoTrigger} ${refExplainer} ${depthClause} Every character, foreground and background alike, in the exact same thick black marker outline, graphic-recording sketchnote style – no character in a more detailed, realistic or different line-weight style. Round minimal faces, dot eyes, single line nose, ${faceSimplicityClause()}. Absolutely zero text, letters or lettering anywhere in this image, of any kind, for any reason – no speech bubbles, no onomatopoeia, no comic-style sound-effect lettering: every sound, shout or talking moment is shown ONLY through pose, gesture, motion lines and facial reaction, never through a single letter of text.`;
 }
 function photoStyleInstruction(){
   // Editier-Anweisung für die Foto-zu-Illustration-Option: das hochgeladene Foto wird über
@@ -2155,12 +2167,27 @@ async function composeSceneImage(s, opts){
   s.prompt = s.prompt || scenePrompt(s);
   try{
     const charRefs = pickSceneCharacterRefs().slice(0, 8);
-    // Zurückgerollt auf Budget 13 (kein WMLSTIL_CHAR_SAMPLE_IMG-Zusatzanker mehr, siehe Kommentar bei
-    // charPrompt() – das alte Referenzbild hat sich im Live-Test als kontraproduktiv erwiesen).
-    const situationRefs = pickSceneSituationRefs(s, Math.max(0, 13 - charRefs.length));
-    const allRefs = [...charRefs, ...situationRefs];
-    const res = allRefs.length
-      ? await generateImage(sceneComposeInstruction(s, charRefs.length), "scene", undefined, allRefs[0], allRefs.slice(1))
+    // Architektur-Entscheidung nach Live-Vergleichstest (Gardasee-Szene, 16 Situationen + 4 Helden,
+    // "Testlauf A" vs. "Testlauf B", vom Nutzer selbst per Bildvergleich beurteilt): die
+    // Situations-Vignetten (pickSceneSituationRefs) werden NICHT MEHR als zusätzliche Referenzbilder
+    // an die finale Komposition mitgeschickt. Nutzer-Feedback wörtlich: "Testlauf A ist nichts
+    // geworden. die Character sind komplett nicht im Stil. Testlauf B ist super." – Testlauf A nutzte
+    // Charakterbilder + 9 Vignetten (13 Referenzbilder), Testlauf B NUR die 4 Charakterbilder + den
+    // Situationstext. Sichtbarer Unterschied im Bildvergleich: in Testlauf A hatten Gesichter eine
+    // realistische gebogene Nase mit Nasenloch und einen lächelnden Mund – klarer Stilbruch gegen
+    // "nur ein senkrechter Strich als Nase, kein Mund". Vermutung: Nano Banana 2 gewichtet mitgeschickte
+    // Referenzbilder sehr stark; die Vignetten kommen aus einer anderen Pipeline (reines flux-lora
+    // Text-zu-Bild ohne Stil-Anker) und hatten selbst leichten Stil-Drift, der sich bei 13 Referenzbildern
+    // gegen die 4 korrekten Charakterbilder durchgesetzt hat. Mit NUR den 4 sauberen Charakterbildern
+    // als Referenz hält sich das Modell zuverlässig an Stil-Textregeln + Charakterbilder.
+    // Die Vignetten werden weiterhin in runSceneGeneration() generiert und im Situationen-Board als
+    // Vorschaubild angezeigt (Nutzerwunsch: Board-UX mit echten Vorschaubildern bleibt) – sie fließen
+    // nur nicht mehr in DIESEN Aufruf hier ein.
+    // Zusätzlich testweise mit 2K/21:9 verifiziert (breites Panorama-Format passt gut zum
+    // Wimmelbild-Charakter) – als neuer Standard übernommen, siehe fal-proxy.js resolution/aspectRatio
+    // Pass-Through.
+    const res = charRefs.length
+      ? await generateImage(sceneComposeInstruction(s, charRefs.length), "scene", undefined, charRefs[0], charRefs.slice(1), {resolution:"2K", aspectRatio:"21:9"})
       : await generateImage(s.prompt, "scene");
     s.img = res.url;
     if(res.seed != null) s.seed = res.seed;
