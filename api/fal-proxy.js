@@ -78,6 +78,14 @@ module.exports = async (req, res) => {
   const testAspectRatio = typeof body.aspectRatio === "string" && /^[0-9]{1,2}:[0-9]{1,2}$/.test(body.aspectRatio)
     ? body.aspectRatio
     : undefined;
+  // EXPERIMENTAL (Nano-Banana-Pro-Test, Audit Abschnitt 14): optionaler Endpoint-Override, NUR für den
+  // Bild-Edit-Pfad (imageUrl gesetzt). Testet fal-ai/nano-banana-pro/edit (wirbt mit Mehrpersonen-
+  // Identitätskonsistenz bis 5 Personen) als reinen Endpoint-Austausch gegen die bisherige
+  // nano-banana-2/edit, gleiche image_urls/Parameter. Kein Teil des regulären Produktpfads (der Client
+  // setzt body.model nie auf diesen Wert) – nur für gezielte manuelle Testaufrufe über
+  // generateImage(..., extra). Ohne dieses Feld bleibt das bisherige Verhalten (nano-banana-2/edit)
+  // unverändert.
+  const useProModel = body.model === "nano_banana_pro" && !!imageUrl;
 
   if (!prompt) {
     res.status(400).json({ error: "Kein Prompt übergeben." });
@@ -130,7 +138,9 @@ module.exports = async (req, res) => {
         image_size: kind === "char" ? { width: 768, height: 1024 } : { width: 1024, height: 576 },
         ...(seed !== undefined ? { seed } : {}),
       };
-  const falEndpoint = imageUrl ? "https://fal.run/fal-ai/nano-banana-2/edit" : "https://fal.run/fal-ai/flux-lora";
+  const falEndpoint = imageUrl
+    ? (useProModel ? "https://fal.run/fal-ai/nano-banana-pro/edit" : "https://fal.run/fal-ai/nano-banana-2/edit")
+    : "https://fal.run/fal-ai/flux-lora";
 
   try {
     const resp = await fetch(falEndpoint, {
