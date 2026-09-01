@@ -719,16 +719,35 @@ function charPrompt(c){
 // Stilkonsistenz-Architektur-Überarbeitung, Versuch 1 (Nutzer-Feedback mit 5 Referenzbildern: "der
 // Stil hat sich eher verschlechtert als verbessert"): hatte hier versucht, die Frontansicht von
 // fal-ai/flux-lora (trainierte LoRA-Gewichte, Trigger-Wort "wmlstil") auf fal-ai/nano-banana-2/edit
-// mit WMLSTIL_CHAR_SAMPLE_IMG als Referenzbild umzustellen. Live-Test zeigte: das war ein Rückschritt.
-// Zum einen wirft man damit die bereits trainierte LoRA (siehe abgeschlossene Trainings-Aufgaben aus
-// früheren Sessions: view-angle-Trainingsbatch generiert, gecaptiont, trainiert, getestet) einfach
-// weg. Zum anderen ist WMLSTIL_CHAR_SAMPLE_IMG selbst ein veraltetes, für den aktuell gewünschten
-// Feinschliff (gerade Strich-Nase, Blush ohne weichen Rand) ungeeignetes Referenzbild – es zeigt gar
-// keine erkennbare Nasenlinie. Ergebnis im Test: Seitenansicht bekam wieder eine Dreiecks-Nase,
-// Rückenansicht zeigte eine komplett andere Person (Identitäts-Leck aus dem Referenzbild). Fix:
-// Frontansicht wieder zurück auf die trainierte LoRA (siehe generateCharFront). Die eigentliche
-// Baustelle ist die LoRA selbst bzw. ein besseres, aktuelleres Referenzbild für die Edit-Schritte –
-// nicht die grundsätzliche Umstellung auf nano-banana-2/edit für die Frontansicht.
+// mit WMLSTIL_CHAR_SAMPLE_IMG als Referenzbild umzustellen. Live-Test zeigte: das war ein Rückschritt
+// (Seitenansicht-Nase wieder Dreieck, Rückenansicht andere Person). Ursache eingegrenzt: nicht die
+// Grundidee war falsch, sondern (a) WMLSTIL_CHAR_SAMPLE_IMG selbst ist ein veraltetes Referenzbild
+// ohne erkennbare Nasenlinie, und (b) beim Charakter-Sheet kamen ZWEI Personen-Referenzbilder
+// gleichzeitig mit (d.img + WMLSTIL_CHAR_SAMPLE_IMG), was die Identitäts-Verwechslung erklärt.
+// Versuch 2 (Nutzer-Hinweis: "die hatten wir doch schon als Training-Data genutzt" + Ordnerfreigabe
+// "Character"): im freigegebenen Ordner liegt das TATSÄCHLICHE, große Referenz-Set (~37 Bilder), mit
+// dem die LoRA trainiert wurde – deutlich sauberer als das einzelne alte WMLSTIL_CHAR_SAMPLE_IMG
+// (klare gerade Nasenlinie, knackiger Blush ohne weichen Verlauf). ZWEI davon als assets-v2/wmlstil-
+// style-ref-1.jpg/-2.jpg mit ins Repo übernommen. Live-A/B-Test bestätigte zusätzlich ein zweites,
+// von dieser Session unabhängiges Problem: die reine LoRA-Text-Generierung ignoriert angeforderte
+// Farben teils komplett (angefragt "blau", geliefert durchgängig Rot/Orange) – nano-banana-2/edit
+// hält sich an explizite Text-Farbwünsche dagegen zuverlässig. Deshalb JETZT: Frontansicht (einziger
+// Schritt OHNE ein bereits existierendes d.img, also kein Zwei-Personen-Referenzbild-Risiko wie beim
+// Sheet) läuft über nano-banana-2/edit mit einem dieser sauberen Referenzbilder als reinem Stil-Anker
+// (Identität/Alter/Kleidung des Referenzbilds wird explizit ignoriert). Seite/Rücken/3-4 bleiben
+// bewusst wie zuletzt (nur d.img als Referenz, kein zusätzlicher Anker) – dort hatte die Kombination
+// zweier Personen-Bilder die Identität durcheinandergebracht, und d.img ist jetzt durch den
+// verbesserten Frontansicht-Schritt ohnehin schon näher am Zielstil.
+// fal.ai braucht eine absolut aufrufbare URL (kein "./assets-v2/..." relativ) – asset() liefert nur
+// einen relativen Pfad, der im <img src> vom Browser aufgelöst wird, für den API-Call aber über
+// location.href zu einer absoluten URL vervollständigt werden muss.
+const WMLSTIL_STYLE_REFS = ["wmlstil-style-ref-1.jpg", "wmlstil-style-ref-2.jpg"].map(n => new URL(asset(n), location.href).href);
+function pickWmlstilStyleRef(){
+  return WMLSTIL_STYLE_REFS[Math.floor(Math.random() * WMLSTIL_STYLE_REFS.length)];
+}
+function charFrontStyleAnchoredPrompt(c){
+  return "The attached image is a REQUIRED style reference showing the exact target illustration style – study it closely: circular head shape, crisp flat blush on the cheeks with a hard edge (no soft gradient), a single straight short line for the nose, no ears, very thin simple arms and legs, small feet, thick black marker outline, light flat shading. Completely ignore the specific person, identity, age, hairstyle and clothing shown in this reference image – use it ONLY as a style/technique guide, never as content. Now draw a brand new, different character in exactly that style, following this description precisely including all colors mentioned: " + charPrompt(c) + ". Match the reference's exact reduction level, line weight and coloring technique – do not simplify less or more than the reference does.";
+}
 function charInScene(c){
   const spec = c.spec;
   const bits = [ageRole(spec), translate(spec.identityCore.hairColor)];
@@ -1780,10 +1799,12 @@ function submitCharChips(){
 async function generateCharFront(){
   const d = state.activeCharDraft;
   try{
-    // Zurückgerollt auf reine flux-lora-Text-Generierung mit der trainierten LoRA (Trigger "wmlstil")
-    // – siehe Kommentar bei charPrompt(): der Versuch, hier stattdessen über nano-banana-2/edit mit
-    // WMLSTIL_CHAR_SAMPLE_IMG zu ankern, hat die Ergebnisse im Live-Test nachweislich verschlechtert.
-    const res = await generateImage(charPrompt(d), "char");
+    // Versuch 2 (siehe ausführlicher Kommentar bei charPrompt()): Frontansicht läuft jetzt über
+    // nano-banana-2/edit mit einem sauberen, echten Trainingsbild aus dem freigegebenen "Character"-
+    // Ordner als reinem Stil-Anker (Identität wird explizit ignoriert) statt über die reine
+    // flux-lora-Text-Generierung, die angeforderte Farben (z.B. "blau") im Live-Test nachweislich
+    // ignoriert hat.
+    const res = await generateImage(charFrontStyleAnchoredPrompt(d), "char", undefined, pickWmlstilStyleRef());
     d.img = res.url; d.seed = res.seed; d.drafts = [{url:res.url, seed:res.seed}];
     saveState();
     await generateCharacterSheetViews();
