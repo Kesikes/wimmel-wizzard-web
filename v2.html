@@ -1175,12 +1175,15 @@ function regionLabel(x, y){
 }
 function situationPlacementText(s){
   const region = regionLabel(s.x != null ? s.x : 50, s.y != null ? s.y : 50);
+  // Kürzung (Live-Test Gardasee-Szene mit 16 Situationen + 4 Helden): dieser Wrapper läuft PRO
+  // Situation, bei 16+ Situationen macht das den größten Teil der Prompt-Länge aus – dieselbe
+  // Kernaussage jetzt kürzer formuliert.
   const prominence = s.size === "L"
-    ? ", drawn noticeably larger and more prominent than the surrounding characters, easy to spot first"
+    ? ", drawn larger and more prominent, easy to spot first"
     : s.size === "S"
-      ? ", drawn small and tucked into the background as a subtle little detail"
+      ? ", drawn small, tucked into the background"
       : "";
-  return `In the ${region} area of the scene: ${s.text}${prominence}.`;
+  return `${region}: ${s.text}${prominence}.`;
 }
 // Echtes Einzelbild pro Situation (Nutzer-Vorgabe): jede Situation bekommt ihre eigene kleine
 // Vignette in wmlstil, statt nur als Text-Kreis zu existieren. Ohne Referenzbild über flux-lora
