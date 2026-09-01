@@ -843,7 +843,11 @@ function scenePrompt(s){
   }
   // Kürzung (Prompt-Längenlimit von fal.ai): stark redundante Formulierungen ("busy seek-and-find
   // picture-book density", dreifache Wiederholung von "same style") entfernt, Kernaussage bleibt.
-  parts.push("a densely packed wimmelbild scene with 40-60 small background characters, each doing their own tiny activity, true seek-and-find density. Every character, heroes and background alike, in exactly the same reduced style: round heads, dot eyes, single line nose, " + faceSimplicityClause() + ", " + bodySimplicityClause() + ", " + colorStyleClause() + ", no realistic/photographic detail");
+  // Weitere Kürzung (Live-Test Gardasee-Szene, 16 Situationen + 4 Helden): colorStyleClause() stand
+  // im vollen scenePrompt() zweimal (hier UND am Satzende weiter unten) – dieselbe Redundanz, die
+  // schon einmal in sceneComposeInstruction gefunden wurde. Hier entfernt, die zweite Kopie am Ende
+  // bleibt stehen (Recency-Effekt, direkt vor "thick black marker outline").
+  parts.push("a densely packed wimmelbild scene with 40-60 small background characters, each doing their own tiny activity, true seek-and-find density. Every character, heroes and background alike, in exactly the same reduced style: round heads, dot eyes, single line nose, " + faceSimplicityClause() + ", " + bodySimplicityClause() + ", no realistic/photographic detail");
   // Nutzer-Feedback (Situationen-Board): s.situations ist jetzt der bevorzugte Weg – eine Liste
   // einzelner Situationen MIT Positions-/Größen-Hinweis aus dem Kreise-Board (siehe
   // situationPlacementText/renderSituationBoard). s.storyEn/s.story bleiben als Fallback für den
@@ -925,11 +929,15 @@ function sceneComposeInstruction(s, charRefCount){
   // panels" allein hat das nicht verhindert – vermutlich weil das Modell die einzelnen Vignetten-
   // Referenzbilder zu wörtlich als eigene Bildausschnitte übernimmt. Jetzt mit konkreter Anweisung
   // zu EINEM durchgehenden Boden/Gelände und Vordergrund/Mittelgrund/Hintergrund-Tiefe statt Patchwork.
+  // Kürzung (Live-Test Gardasee-Szene mit 16 Situationen + 4 Helden: erneut "Prompt zu lang." bei
+  // ~6860 Zeichen, obwohl die einzelnen Situationstexte schon knapp gehalten waren): refExplainer/
+  // depthClause tragen dieselbe Kernaussage jetzt in weniger Wörtern – wichtig bei vielen Situationen/
+  // Helden, weil dieser Teil unabhängig von deren Anzahl konstant mitläuft.
   const n = charRefCount || 0;
   const refExplainer = n > 0
-    ? `The first ${n} reference image(s) show each character's established design (face, proportions, hair, clothing) – keep identity and design EXACTLY the same, but give them dynamic natural poses matching the action described above, not their neutral reference pose. Any further reference images are small vignettes, each showing one situation to include (see placement above) – use them only as content reference and redraw everyone directly onto ONE continuous ground/landscape, never as separate patches with empty space between them.`
-    : `Any attached reference images are small vignettes, each showing one situation to include (see placement above) – use them only as content reference and redraw everyone directly onto ONE continuous ground/landscape, never as separate patches with empty space between them.`;
-  const depthClause = "The whole scene is ONE single continuous landscape seen from a slightly elevated angle, with unbroken ground/terrain connecting every part of the image – no gaps of empty background between groups of characters, no separate floating patches, no collage look. Give it gentle depth: larger, more detailed characters in the foreground, smaller ones higher up and further back, all on the same connected ground.";
+    ? `The first ${n} reference image(s) show each character's fixed design (face, proportions, hair, clothing) – keep identity/design EXACTLY the same, but give dynamic natural poses matching the action, not their neutral reference pose. Further reference images are small situation vignettes – use as content reference only, redraw everyone onto ONE continuous ground/landscape, never as separate patches with empty space between them.`
+    : `Any attached reference images are small situation vignettes – use as content reference only, redraw everyone onto ONE continuous ground/landscape, never as separate patches with empty space between them.`;
+  const depthClause = "The whole scene is ONE continuous landscape seen from a slightly elevated angle, unbroken ground connecting every part – no gaps between groups, no floating patches, no collage look. Gentle depth: larger, more detailed characters in front, smaller ones further back, all on the same ground.";
   // Nutzer-Feedback Runde 2/3: faceSimplicityClause() steht bereits zweimal im finalen Prompt (einmal
   // eingebettet in s.prompt/scenePrompt, einmal am Ende dieses Satzes) – eine dritte, vorangestellte
   // Kopie (Primacy-Effekt) wurde in Runde 3 wieder entfernt, weil sie den Prompt über fal.ai's
