@@ -1099,36 +1099,67 @@ async function generateImage(prompt, kind, seed, editImageUrl, styleRefUrl, extr
 // Fehler/fehlendem Proxy null zurück statt zu werfen: der Verify-Schritt ist ein Auswahlhelfer, kein
 // kritischer Pfad – composeSceneImage() muss auch funktionieren, wenn er ausfällt (z.B. lokaler
 // Direktmodus ohne eigenen Server, siehe proxyUrl()).
+// Wirft jetzt bei technischen Fehlern (Netzwerk, fal.ai 5xx) statt sie stillschweigend zu
+// verschlucken – nur so kann withTechnicalRetry() in composeSceneImage() tatsächlich einen zweiten
+// Versuch starten. "Kein Proxy erreichbar" bleibt weiterhin ein regulärer null-Rückgabewert (kein
+// Fehler, sondern ein bewusst deaktivierter Verify-Schritt, z.B. im lokalen Direktmodus).
 async function verifySceneImage(imageUrl, verifyPrompt){
   const proxy = proxyUrl();
   if(!proxy || !imageUrl) return null;
-  try{
-    const resp = await fetch(proxy, {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({ mode: "verify", imageUrls: [imageUrl], verifyPrompt })
-    });
-    const data = await resp.json().catch(()=>null);
-    if(!data || !resp.ok || data.error) return null;
-    return typeof data.output === "string" ? data.output : null;
-  }catch(e){ return null; }
+  const resp = await fetch(proxy, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ mode: "verify", imageUrls: [imageUrl], verifyPrompt })
+  });
+  let data;
+  try{ data = await resp.json(); }catch(e){ throw new Error("Verify-Antwort war kein gültiges JSON."); }
+  if(!resp.ok || data.error) throw new Error(data.error || ("Verify-Server-Fehler " + resp.status));
+  return typeof data.output === "string" ? data.output : null;
 }
 // Parst die Vision-Model-Antwort auf die kombinierte Verify-Frage (siehe composeSceneImage). Das
 // Modell soll strikt JSON liefern, macht das aber erfahrungsgemäß nicht immer 100%ig sauber (z.B.
-// Markdown-Codefence drumherum) – daher robust nur den ersten {...}-Block herausgegriffen statt die
-// gesamte Antwort als JSON zu parsen. Bei jedem Parse-Fehler/fehlendem Feld gilt das Kriterium als
-// NICHT erfüllt (konservativ: lieber ein gutes Bild fälschlich niedriger bewerten als ein schlechtes
-// fälschlich als "ok" durchwinken).
+// Markdown-Codefence drumherum, oder jetzt mit Absicht vorangestellte Begründung, siehe fal-proxy.js
+// system_prompt) – daher robust nur den ERSTEN {...}-Block herausgegriffen statt die gesamte Antwort
+// als JSON zu parsen (funktioniert unabhängig davon, ob Text davor/danach steht). Bei jedem
+// Parse-Fehler/fehlendem Feld gilt das Kriterium als NICHT erfüllt (konservativ: lieber ein gutes
+// Bild fälschlich niedriger bewerten als ein schlechtes fälschlich als "ok" durchwinken).
+// Nutzer-Feedback (Live-Test Wintercamp-Szene): die erste Version hatte nur ein grobes "mouths_ok" –
+// beim genauen Hinsehen hatte das ausgewählte Bild trotz "mouths_ok: true" sichtbare Münder UND
+// Nasen (nicht nur der erlaubte senkrechte Strich) UND Ohren, alles Stilregel-Verstöße, die der
+// grobe Check nicht einzeln erfasst hat. Jetzt drei getrennte Kriterien statt einem, damit jeder
+// Stilregel-Verstoß einzeln erkannt und beim Scoring bestraft werden kann.
 function parseVerifyResult(output){
-  if(!output) return {heroes_ok:false, mouths_ok:false, raw:output||""};
+  const fail = {heroes_ok:false, mouths_ok:false, ears_ok:false, nose_ok:false, raw:output||""};
+  if(!output) return fail;
   const match = String(output).match(/\{[^{}]*\}/);
-  if(!match) return {heroes_ok:false, mouths_ok:false, raw:output};
+  if(!match) return fail;
   try{
     const obj = JSON.parse(match[0]);
-    return {heroes_ok: obj.heroes_ok === true, mouths_ok: obj.mouths_ok === true, raw: output};
+    return {
+      heroes_ok: obj.heroes_ok === true,
+      mouths_ok: obj.mouths_ok === true,
+      ears_ok: obj.ears_ok === true,
+      nose_ok: obj.nose_ok === true,
+      raw: output
+    };
   }catch(e){
-    return {heroes_ok:false, mouths_ok:false, raw:output};
+    return fail;
   }
+}
+// Retry-Wrapper NUR für technische Fehler (fal.ai 5xx/Netzwerk), getrennt von der inhaltlichen
+// Kandidaten-Auswahl in composeSceneImage(). Nutzer-Feedback (Live-Test Wintercamp-Szene): ein
+// einzelner transienter "500 downstream_service_error" von fal.ai hat den kompletten
+// Verify-Retry-Durchlauf abgebrochen, obwohl ein einfacher zweiter Versuch direkt danach sofort
+// funktioniert hat – das ist kein Qualitätsproblem, sondern ein ganz normaler transienter API-Fehler,
+// der einen Retry verdient, bevor man aufgibt.
+async function withTechnicalRetry(fn, attempts){
+  attempts = attempts || 3;
+  let lastErr;
+  for(let i=0; i<attempts; i++){
+    try{ return await fn(); }
+    catch(e){ lastErr = e; }
+  }
+  throw lastErr;
 }
 function placeholderSVG(kind){
   const w = kind==="char" ? 300 : 480, h = kind==="char" ? 400 : 270;
@@ -2242,22 +2273,39 @@ async function composeSceneImage(s, opts){
     const NUM_CANDIDATES = 2;
     const candidates = [];
     for(let i=0; i<NUM_CANDIDATES; i++){
-      candidates.push(await genOnce());
+      // withTechnicalRetry: siehe dortiger Kommentar – fängt nur transiente API-Fehler ab (bis zu
+      // 3 Versuche), keine inhaltliche Bewertung. Schlagen alle 3 Versuche fehl, wirft es weiter
+      // hoch in den äußeren try/catch dieser Funktion (s.imgError), genau wie vorher bei einem
+      // einzelnen fehlgeschlagenen Aufruf.
+      candidates.push(await withTechnicalRetry(genOnce, 3));
     }
 
     let best = candidates[0];
     if(charRefs.length && candidates.length > 1){
       const heroList = state.characters.map(c => `${c.name} (${charInScene(c)})`).join("; ");
-      const verifyPrompt = `This is an illustration meant to contain these named characters: ${heroList}. Answer strictly as JSON with two boolean fields and nothing else: {"heroes_ok": true or false, "mouths_ok": true or false}. "heroes_ok" is true only if ALL of the named characters above appear at least once, each clearly identifiable by their described features. "mouths_ok" is true only if NO character anywhere in the image, named or background, has a visible mouth (characters should only ever have two dot eyes, a short vertical nose line, and rosy cheeks on their face, nothing else).`;
+      // Nutzer-Feedback (Live-Test Wintercamp-Szene): "die haben immer noch Münder... auch eine
+      // Nase... auch Ohren" – das ausgewählte Bild wurde trotz "mouths_ok: true" fälschlich
+      // durchgewunken. Jetzt drei getrennte, einzeln strenger formulierte Kriterien statt einem
+      // groben "mouths_ok", UND die Anweisung, wirklich jede einzelne Figur zu prüfen statt nur
+      // die auffälligsten (siehe auch system_prompt in fal-proxy.js).
+      const verifyPrompt = `This is an illustration meant to contain these named characters: ${heroList}. Examine EVERY character in the image individually and carefully, including small or background characters, not just the most prominent ones. Then answer strictly as JSON with four boolean fields: {"heroes_ok": true or false, "mouths_ok": true or false, "ears_ok": true or false, "nose_ok": true or false}. "heroes_ok" is true only if ALL of the named characters above appear at least once, each clearly identifiable by their described features. "mouths_ok" is true only if there is NO character anywhere in the image, named or background, however small, that has any kind of visible mouth, lips, or smile line. "ears_ok" is true only if there is NO character anywhere in the image that has a visible ear. "nose_ok" is true only if EVERY character's nose in the entire image is nothing more than a single short straight vertical line - false if even one character has a rounded, curved, shaded, or otherwise realistic-looking nose with nostrils. Be strict: if you are unsure about any single character, answer false for that field.`;
       let bestScore = -1;
       for(const cand of candidates){
-        const output = await verifySceneImage(cand.url, verifyPrompt);
+        // Verify ist ein Auswahlhelfer, kein kritischer Pfad (siehe verifySceneImage-Kommentar):
+        // bis zu 2 Versuche bei technischen Fehlern, schlagen beide fehl, wird dieser Kandidat
+        // einfach mit "alles unbekannt/false" bewertet (score 0) statt die ganze Funktion abzubrechen
+        // – der erste Kandidat gewinnt dann per Default, genau wie vor dieser Änderung.
+        let output = null;
+        try{ output = await withTechnicalRetry(() => verifySceneImage(cand.url, verifyPrompt), 2); }
+        catch(e){ /* beide Versuche fehlgeschlagen, output bleibt null */ }
         const v = parseVerifyResult(output);
         cand.verify = v;
-        // heroes_ok wiegt höher als mouths_ok: ein fehlender/nicht erkennbarer Held macht die Szene
-        // für den eigentlichen Zweck (Wimmelbuch MIT den eigenen Charakteren) unbrauchbar, ein
-        // vereinzelter sichtbarer Mund ist ein kosmetischer Stilfehler.
-        const score = (v.heroes_ok ? 2 : 0) + (v.mouths_ok ? 1 : 0);
+        // heroes_ok wiegt am höchsten (fehlender Held macht die Szene für den eigentlichen Zweck
+        // unbrauchbar). Die drei Stilregel-Kriterien (Mund/Ohren/Nase) zählen jetzt gleichwertig
+        // einzeln, statt wie vorher in einem einzigen groben "mouths_ok" unterzugehen – ein Bild mit
+        // z.B. Ohren UND falscher Nase soll spürbar schlechter abschneiden als eines mit nur einem
+        // Verstoß, nicht gleich.
+        const score = (v.heroes_ok ? 3 : 0) + (v.mouths_ok ? 1 : 0) + (v.ears_ok ? 1 : 0) + (v.nose_ok ? 1 : 0);
         if(score > bestScore){ bestScore = score; best = cand; }
       }
     }

@@ -50,11 +50,25 @@ module.exports = async (req, res) => {
         body: JSON.stringify({
           image_urls: verifyImageUrls,
           prompt: verifyPrompt,
-          system_prompt: "Only answer the question, do not provide any additional information or add any prefix/suffix other than the answer of the original question. Don't use markdown.",
+          // Nutzer-Feedback (Live-Test Wintercamp-Szene): erste Version dieses system_prompt
+          // ("only answer the question, no additional information") hat das Modell offenbar dazu
+          // gebracht, oberflächlich/optimistisch zu urteilen ("mouths_ok: true" bei einem Bild, das
+          // bei genauerem Hinsehen sichtbare Münder, Nasen und Ohren hatte). Jetzt ausdrücklich zum
+          // sorgfältigen Durchsuchen des GESAMTEN Bilds aufgefordert, inkl. kleiner Hintergrundfiguren
+          // – kurze Begründung vor der JSON-Antwort ist jetzt erlaubt (parseVerifyResult in v2.html
+          // extrahiert ohnehin nur den ersten {...}-Block, egal was davor/danach steht), weil das
+          // Modell beim "erst hinschauen, dann urteilen" nachweislich gründlicher prüft als bei einer
+          // reinen Direktantwort ohne jede Zwischenüberlegung.
+          system_prompt: "You are a meticulous visual QA checker for a children's illustration style guide. Carefully scan the ENTIRE image before answering - every single character, including small or partially visible background figures, not just the most prominent ones in the foreground. Then respond with your final answer as a single strict JSON object, with no markdown formatting. You may add brief reasoning before the JSON, but the JSON object itself must be the very last thing in your answer.",
           model: "google/gemini-2.5-flash",
           // temperature 0: für einen Ja/Nein-Check soll dasselbe Bild bei jedem Aufruf dieselbe
           // Antwort liefern (deterministisch), nicht kreativ variieren.
           temperature: 0,
+          // reasoning: true + höheres max_tokens, damit das Modell vor der JSON-Antwort tatsächlich
+          // Platz hat, das Bild systematisch durchzugehen (siehe system_prompt oben), statt sofort zu
+          // antworten.
+          reasoning: true,
+          max_tokens: 600,
         }),
       });
       if (!resp.ok) {
