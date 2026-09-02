@@ -25,6 +25,51 @@ module.exports = async (req, res) => {
   }
 
   const body = req.body || {};
+
+  // EXPERIMENTAL (Verify-Retry-Minimalversion, Cowork-Chat "Wie aufwendig wäre das umzusetzen?"):
+  // zweiter, komplett eigenständiger Modus für Vision-QA-Checks (z.B. "sind alle 4 benannten
+  // Charaktere vorhanden? hat irgendeine Figur einen sichtbaren Mund?"). Läuft über denselben FAL_KEY
+  // wie der Rest dieser Datei, aber über einen anderen fal.ai-Endpoint (openrouter/router/vision,
+  // Gemini 2.5 Flash als Vision-Language-Model) statt eines Bildgenerierungs-Endpoints – kein neuer
+  // Secret/Provider nötig. Kein Teil des regulären Produktpfads (der Client setzt body.mode nie auf
+  // "verify") – nur für composeSceneImage()'s internen Kandidaten-Auswahlschritt in v2.html. Early
+  // Return VOR den unten folgenden prompt/imageUrl-Validierungen, weil dieser Modus ein komplett
+  // anderes Request-Format hat (image_urls + Frage statt prompt + evtl. imageUrl).
+  if (body.mode === "verify") {
+    const isImageRefV = (v) => typeof v === "string" && (/^https?:\/\//.test(v) || /^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(v));
+    const verifyImageUrls = (Array.isArray(body.imageUrls) ? body.imageUrls : []).filter(isImageRefV).slice(0, 14);
+    const verifyPrompt = String(body.verifyPrompt || "").trim();
+    if (!verifyImageUrls.length || !verifyPrompt) {
+      res.status(400).json({ error: "Verify: imageUrls und verifyPrompt erforderlich." });
+      return;
+    }
+    try {
+      const resp = await fetch("https://fal.run/openrouter/router/vision", {
+        method: "POST",
+        headers: { Authorization: "Key " + FAL_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          image_urls: verifyImageUrls,
+          prompt: verifyPrompt,
+          system_prompt: "Only answer the question, do not provide any additional information or add any prefix/suffix other than the answer of the original question. Don't use markdown.",
+          model: "google/gemini-2.5-flash",
+          // temperature 0: für einen Ja/Nein-Check soll dasselbe Bild bei jedem Aufruf dieselbe
+          // Antwort liefern (deterministisch), nicht kreativ variieren.
+          temperature: 0,
+        }),
+      });
+      if (!resp.ok) {
+        const txt = await resp.text().catch(() => "");
+        res.status(502).json({ error: `fal.ai Vision-Fehler ${resp.status}: ${txt.slice(0, 200)}` });
+        return;
+      }
+      const data = await resp.json();
+      res.status(200).json({ output: (data && data.output) || "" });
+    } catch (e) {
+      res.status(502).json({ error: "Verbindung zu fal.ai (Vision) fehlgeschlagen: " + String(e) });
+    }
+    return;
+  }
+
   const prompt = String(body.prompt || "").trim();
   const kind = body.kind === "scene" ? "scene" : "char";
   // Seed: wird vom Client mitgegeben, um bei Neu-Generierungen ("Nochmal zaubern") reproduzierbar

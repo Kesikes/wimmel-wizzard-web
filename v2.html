@@ -1092,6 +1092,44 @@ async function generateImage(prompt, kind, seed, editImageUrl, styleRefUrl, extr
   if(!url) throw new Error("fal.ai hat kein Bild geliefert.");
   return {url, seed: data.seed, placeholder: false};
 }
+// Verify-Retry-Minimalversion (Cowork-Chat: "Ergebnis-Varianz bei identischem Prompt ist die Norm,
+// nicht die Ausnahme – das lässt sich nicht wegpromten, nur systemisch abfangen"). Ruft fal-proxy.js
+// im neuen "mode: verify" auf (siehe dortiger Kommentar) – ein Vision-Language-Model beantwortet eine
+// Ja/Nein-Frage über ein bereits generiertes Bild, statt selbst eines zu erzeugen. Gibt bei jedem
+// Fehler/fehlendem Proxy null zurück statt zu werfen: der Verify-Schritt ist ein Auswahlhelfer, kein
+// kritischer Pfad – composeSceneImage() muss auch funktionieren, wenn er ausfällt (z.B. lokaler
+// Direktmodus ohne eigenen Server, siehe proxyUrl()).
+async function verifySceneImage(imageUrl, verifyPrompt){
+  const proxy = proxyUrl();
+  if(!proxy || !imageUrl) return null;
+  try{
+    const resp = await fetch(proxy, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ mode: "verify", imageUrls: [imageUrl], verifyPrompt })
+    });
+    const data = await resp.json().catch(()=>null);
+    if(!data || !resp.ok || data.error) return null;
+    return typeof data.output === "string" ? data.output : null;
+  }catch(e){ return null; }
+}
+// Parst die Vision-Model-Antwort auf die kombinierte Verify-Frage (siehe composeSceneImage). Das
+// Modell soll strikt JSON liefern, macht das aber erfahrungsgemäß nicht immer 100%ig sauber (z.B.
+// Markdown-Codefence drumherum) – daher robust nur den ersten {...}-Block herausgegriffen statt die
+// gesamte Antwort als JSON zu parsen. Bei jedem Parse-Fehler/fehlendem Feld gilt das Kriterium als
+// NICHT erfüllt (konservativ: lieber ein gutes Bild fälschlich niedriger bewerten als ein schlechtes
+// fälschlich als "ok" durchwinken).
+function parseVerifyResult(output){
+  if(!output) return {heroes_ok:false, mouths_ok:false, raw:output||""};
+  const match = String(output).match(/\{[^{}]*\}/);
+  if(!match) return {heroes_ok:false, mouths_ok:false, raw:output};
+  try{
+    const obj = JSON.parse(match[0]);
+    return {heroes_ok: obj.heroes_ok === true, mouths_ok: obj.mouths_ok === true, raw: output};
+  }catch(e){
+    return {heroes_ok:false, mouths_ok:false, raw:output};
+  }
+}
 function placeholderSVG(kind){
   const w = kind==="char" ? 300 : 480, h = kind==="char" ? 400 : 270;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
@@ -2186,12 +2224,48 @@ async function composeSceneImage(s, opts){
     // Zusätzlich testweise mit 2K/21:9 verifiziert (breites Panorama-Format passt gut zum
     // Wimmelbild-Charakter) – als neuer Standard übernommen, siehe fal-proxy.js resolution/aspectRatio
     // Pass-Through.
-    const res = charRefs.length
-      ? await generateImage(sceneComposeInstruction(s, charRefs.length), "scene", undefined, charRefs[0], charRefs.slice(1), {resolution:"2K", aspectRatio:"21:9"})
-      : await generateImage(s.prompt, "scene");
-    s.img = res.url;
-    if(res.seed != null) s.seed = res.seed;
-    s.drafts = s.drafts || []; s.drafts.push({url:res.url, seed:res.seed});
+    const instruction = charRefs.length ? sceneComposeInstruction(s, charRefs.length) : s.prompt;
+    const genOnce = () => charRefs.length
+      ? generateImage(instruction, "scene", undefined, charRefs[0], charRefs.slice(1), {resolution:"2K", aspectRatio:"21:9"})
+      : generateImage(s.prompt, "scene");
+
+    // Verify-Retry-Minimalversion (Live-Beobachtung mehrfach an diesem Tag: identischer Prompt/
+    // identische Pipeline liefert mal ein stilistisch komplett danebenliegendes Ergebnis, mal ein
+    // gutes – Varianz ist die Norm, nicht die Ausnahme, lässt sich nicht wegpromten). Statt EINMAL zu
+    // generieren, jetzt 2 Kandidaten (kein fester Seed => fal.ai würfelt pro Aufruf neu), danach je ein
+    // kombinierter Vision-Check (verifySceneImage/parseVerifyResult, siehe dort) auf zwei Kriterien:
+    // sind alle 4 benannten Helden vorhanden, und hat keine Figur einen sichtbaren Mund. Bestbewerteter
+    // Kandidat wird angezeigt, alle Kandidaten landen in s.drafts (inkl. Verify-Ergebnis) für spätere
+    // Sichtprüfung. Ohne erreichbaren Proxy (verifySceneImage liefert dann null) verhält sich das
+    // exakt wie vorher: erster Kandidat gewinnt automatisch (Score bleibt 0/0, "best" ist bereits
+    // candidates[0] als Default).
+    const NUM_CANDIDATES = 2;
+    const candidates = [];
+    for(let i=0; i<NUM_CANDIDATES; i++){
+      candidates.push(await genOnce());
+    }
+
+    let best = candidates[0];
+    if(charRefs.length && candidates.length > 1){
+      const heroList = state.characters.map(c => `${c.name} (${charInScene(c)})`).join("; ");
+      const verifyPrompt = `This is an illustration meant to contain these named characters: ${heroList}. Answer strictly as JSON with two boolean fields and nothing else: {"heroes_ok": true or false, "mouths_ok": true or false}. "heroes_ok" is true only if ALL of the named characters above appear at least once, each clearly identifiable by their described features. "mouths_ok" is true only if NO character anywhere in the image, named or background, has a visible mouth (characters should only ever have two dot eyes, a short vertical nose line, and rosy cheeks on their face, nothing else).`;
+      let bestScore = -1;
+      for(const cand of candidates){
+        const output = await verifySceneImage(cand.url, verifyPrompt);
+        const v = parseVerifyResult(output);
+        cand.verify = v;
+        // heroes_ok wiegt höher als mouths_ok: ein fehlender/nicht erkennbarer Held macht die Szene
+        // für den eigentlichen Zweck (Wimmelbuch MIT den eigenen Charakteren) unbrauchbar, ein
+        // vereinzelter sichtbarer Mund ist ein kosmetischer Stilfehler.
+        const score = (v.heroes_ok ? 2 : 0) + (v.mouths_ok ? 1 : 0);
+        if(score > bestScore){ bestScore = score; best = cand; }
+      }
+    }
+
+    s.img = best.url;
+    if(best.seed != null) s.seed = best.seed;
+    s.drafts = s.drafts || [];
+    candidates.forEach(c => s.drafts.push({url:c.url, seed:c.seed, verify:c.verify}));
   }catch(e){
     s.imgError = e.message;
   }
