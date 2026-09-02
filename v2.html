@@ -1103,13 +1103,13 @@ async function generateImage(prompt, kind, seed, editImageUrl, styleRefUrl, extr
 // verschlucken – nur so kann withTechnicalRetry() in composeSceneImage() tatsächlich einen zweiten
 // Versuch starten. "Kein Proxy erreichbar" bleibt weiterhin ein regulärer null-Rückgabewert (kein
 // Fehler, sondern ein bewusst deaktivierter Verify-Schritt, z.B. im lokalen Direktmodus).
-async function verifySceneImage(imageUrl, verifyPrompt){
+async function verifySceneImage(imageUrl, verifyPrompt, verifyModel){
   const proxy = proxyUrl();
   if(!proxy || !imageUrl) return null;
   const resp = await fetch(proxy, {
     method: "POST",
     headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({ mode: "verify", imageUrls: [imageUrl], verifyPrompt })
+    body: JSON.stringify({ mode: "verify", imageUrls: [imageUrl], verifyPrompt, ...(verifyModel ? {verifyModel} : {}) })
   });
   let data;
   try{ data = await resp.json(); }catch(e){ throw new Error("Verify-Antwort war kein gültiges JSON."); }

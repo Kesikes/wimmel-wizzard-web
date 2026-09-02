@@ -43,6 +43,15 @@ module.exports = async (req, res) => {
       res.status(400).json({ error: "Verify: imageUrls und verifyPrompt erforderlich." });
       return;
     }
+    // EXPERIMENTAL (Live-Test: gemini-2.5-flash liefert bei identischem Bild/Prompt/temperature:0
+    // widersprüchliche Ergebnisse zwischen zwei Aufrufen bei feinen Details wie einem "ganz leichten
+    // Strich und Punkt" als Mund – Vermutung: Detailverlust beim internen Downscaling eines 4K-Bilds
+    // bei diesem kleineren Modell). Optionaler Pass-Through auf ein stärkeres Vision-Modell zum
+    // Vergleich, NUR für gezielte manuelle Testaufrufe (Client setzt body.verifyModel nie im
+    // regulären Produktpfad) – nur bekannte, per Whitelist erlaubte Modell-IDs, damit hier keine
+    // beliebigen/kaputten Modellnamen an fal.ai durchgereicht werden.
+    const ALLOWED_VERIFY_MODELS = ["google/gemini-2.5-flash", "google/gemini-2.5-pro", "anthropic/claude-sonnet-4.5"];
+    const verifyModel = ALLOWED_VERIFY_MODELS.includes(body.verifyModel) ? body.verifyModel : "google/gemini-2.5-flash";
     try {
       const resp = await fetch("https://fal.run/openrouter/router/vision", {
         method: "POST",
@@ -66,7 +75,7 @@ module.exports = async (req, res) => {
           // Begründung "heroes_ok: alle vorhanden" sagte. Jetzt: Begründung ausdrücklich auf STICHWORTE
           // beschränkt (nicht eine volle Zeile pro Figur) UND großzügigerer Tokenrahmen als Sicherheitsnetz.
           system_prompt: "You are a meticulous visual QA checker for a children's illustration style guide. Carefully scan the ENTIRE image before answering - every single character, including small or partially visible background figures, not just the most prominent ones in the foreground. You may add reasoning before the JSON, but keep it to brief keywords or short phrases only, not a full sentence per character - the JSON object itself must always fit within your response and be the very last thing in your answer, with no markdown formatting.",
-          model: "google/gemini-2.5-flash",
+          model: verifyModel,
           // temperature 0: für einen Ja/Nein-Check soll dasselbe Bild bei jedem Aufruf dieselbe
           // Antwort liefern (deterministisch), nicht kreativ variieren.
           temperature: 0,
