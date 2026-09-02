@@ -718,8 +718,16 @@ function noNeckClause(){
 // Komposition schlug fehl). Deutlich eingekürzt auf das Wesentliche (Verbot bleibt hart/konkret, aber
 // ohne die längeren Erklär-Nebensätze) UND die separate Primacy-Kopie in sceneComposeInstruction
 // wieder entfernt, damit der Satz nur noch zweimal statt dreimal im Prompt steht.
+// Verschärfung (Live-Test Wintercamp-Szene, Verify-Check jetzt zuverlässig via gemini-2.5-pro):
+// trotz "no mouth ever" hat nano-banana-pro einem älteren Charakter (Opa) einen deutlichen grauen
+// SCHNURRBART gemalt – kein Mund im engen Sinne, aber genau die Art von unerwünschter Markierung
+// auf der unteren Gesichtshälfte, die der Stil ausschließen soll. "no mouth" allein deckt das nicht
+// ab, das Modell interpretiert es offenbar eng. Jetzt explizit als "GAR NICHTS auf der unteren
+// Gesichtshälfte" formuliert, mit Bart/Schnurrbart/Stoppeln als konkret genannten Negativbeispielen
+// (nach demselben erfolgreichen Muster wie beim Nase-Feintuning: konkrete Negativbeispiele wirken
+// zuverlässiger als eine abstrakte Verneinung allein).
 function faceSimplicityClause(){
-  return "no character ever has a mouth (show expression only via eyes/pose) or ears, no exceptions; " + noNeckClause() + "; every head (even tiny background ones) must show colored hair or headwear, never a bare bald scalp, unless that character's own hair is explicitly described as bald/shaved head";
+  return "absolutely nothing is ever drawn on the lower half of any character's face, hero or background, no exceptions: no mouth, no lips, no smile line, no mustache, no beard, no facial hair or stubble of any kind, no chin marking of any kind - the skin below the nose is always completely blank; also no ears, no exceptions; expression is shown only via the eyes and body pose, never via the face itself; " + noNeckClause() + "; every head (even tiny background ones) must show colored hair or headwear, never a bare bald scalp, unless that character's own hair is explicitly described as bald/shaved head";
 }
 function charPrompt(c){
   // Baut den Bildgenerierungs-Prompt AUSSCHLIESSLICH aus dem kanonischen CharacterSpec (c.spec) –
@@ -728,7 +736,10 @@ function charPrompt(c){
   const spec = c.spec;
   const parts = ["wmlstil", ageRole(spec), translate(spec.identityCore.hairColor), translate(spec.defaultOutfit.top)];
   if(spec.identityCore.signatureMarker) parts.push(twoColorBoost(translate(spec.identityCore.signatureMarker)));
-  parts.push("round head, minimal face, dot eyes, single vertical line nose, no ears ever under any circumstances, no mouth ever under any circumstances, standing, " + noNeckClause() + ", " + bodySimplicityClause() + ", " + colorStyleClause() + ", thick black marker outline, graphic recording sketchnote style, white background, full body, front view");
+  // Verschärfung (siehe faceSimplicityClause-Kommentar): "no mouth ever" allein hat einen
+  // Schnurrbart nicht verhindert – jetzt "gar nichts unterhalb der Nase" mit Bart/Schnurrbart als
+  // genannten Negativbeispielen, konsistent mit faceSimplicityClause() für Szenen.
+  parts.push("round head, minimal face, dot eyes, single vertical line nose, absolutely nothing else drawn on the face - no ears ever under any circumstances, no mouth/lips/smile line ever, no mustache, no beard, no facial hair or stubble of any kind, the skin below the nose always completely blank, standing, " + noNeckClause() + ", " + bodySimplicityClause() + ", " + colorStyleClause() + ", thick black marker outline, graphic recording sketchnote style, white background, full body, front view");
   return parts.filter(Boolean).join(", ");
 }
 // Stilkonsistenz-Architektur-Überarbeitung, Versuch 1 (Nutzer-Feedback mit 5 Referenzbildern: "der
