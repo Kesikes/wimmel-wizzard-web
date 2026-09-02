@@ -1131,10 +1131,13 @@ async function verifySceneImage(imageUrl, verifyPrompt){
 function parseVerifyResult(output){
   const fail = {heroes_ok:false, mouths_ok:false, ears_ok:false, nose_ok:false, raw:output||""};
   if(!output) return fail;
-  const match = String(output).match(/\{[^{}]*\}/);
-  if(!match) return fail;
+  // Letzten {...}-Block statt ersten nehmen: system_prompt (fal-proxy.js) verlangt jetzt "JSON muss
+  // das ALLERLETZTE sein" – falls die Begründung davor je selbst geschweifte Klammern enthält, greift
+  // sonst versehentlich die falsche Stelle.
+  const matches = String(output).match(/\{[^{}]*\}/g);
+  if(!matches || !matches.length) return fail;
   try{
-    const obj = JSON.parse(match[0]);
+    const obj = JSON.parse(matches[matches.length - 1]);
     return {
       heroes_ok: obj.heroes_ok === true,
       mouths_ok: obj.mouths_ok === true,

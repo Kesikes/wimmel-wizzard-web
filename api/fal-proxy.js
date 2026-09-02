@@ -50,7 +50,7 @@ module.exports = async (req, res) => {
         body: JSON.stringify({
           image_urls: verifyImageUrls,
           prompt: verifyPrompt,
-          // Nutzer-Feedback (Live-Test Wintercamp-Szene): erste Version dieses system_prompt
+          // Nutzer-Feedback Runde 1 (Live-Test Wintercamp-Szene): erste Version dieses system_prompt
           // ("only answer the question, no additional information") hat das Modell offenbar dazu
           // gebracht, oberflächlich/optimistisch zu urteilen ("mouths_ok: true" bei einem Bild, das
           // bei genauerem Hinsehen sichtbare Münder, Nasen und Ohren hatte). Jetzt ausdrücklich zum
@@ -59,16 +59,23 @@ module.exports = async (req, res) => {
           // extrahiert ohnehin nur den ersten {...}-Block, egal was davor/danach steht), weil das
           // Modell beim "erst hinschauen, dann urteilen" nachweislich gründlicher prüft als bei einer
           // reinen Direktantwort ohne jede Zwischenüberlegung.
-          system_prompt: "You are a meticulous visual QA checker for a children's illustration style guide. Carefully scan the ENTIRE image before answering - every single character, including small or partially visible background figures, not just the most prominent ones in the foreground. Then respond with your final answer as a single strict JSON object, with no markdown formatting. You may add brief reasoning before the JSON, but the JSON object itself must be the very last thing in your answer.",
+          // Bugfix Runde 2 (Live-Test): bei max_tokens 600 hat das Modell bei einer dicht bevölkerten
+          // Szene eine so lange Begründung geschrieben (eine Zeile PRO Figur), dass die Antwort MITTEN
+          // im JSON abgeschnitten wurde – parseVerifyResult fand dadurch gar kein gültiges {...} mehr
+          // und hat den Kandidaten fälschlich komplett als "false" gewertet, obwohl die (abgeschnittene)
+          // Begründung "heroes_ok: alle vorhanden" sagte. Jetzt: Begründung ausdrücklich auf STICHWORTE
+          // beschränkt (nicht eine volle Zeile pro Figur) UND großzügigerer Tokenrahmen als Sicherheitsnetz.
+          system_prompt: "You are a meticulous visual QA checker for a children's illustration style guide. Carefully scan the ENTIRE image before answering - every single character, including small or partially visible background figures, not just the most prominent ones in the foreground. You may add reasoning before the JSON, but keep it to brief keywords or short phrases only, not a full sentence per character - the JSON object itself must always fit within your response and be the very last thing in your answer, with no markdown formatting.",
           model: "google/gemini-2.5-flash",
           // temperature 0: für einen Ja/Nein-Check soll dasselbe Bild bei jedem Aufruf dieselbe
           // Antwort liefern (deterministisch), nicht kreativ variieren.
           temperature: 0,
           // reasoning: true + höheres max_tokens, damit das Modell vor der JSON-Antwort tatsächlich
           // Platz hat, das Bild systematisch durchzugehen (siehe system_prompt oben), statt sofort zu
-          // antworten.
+          // antworten. max_tokens von 600 auf 1200 erhöht (siehe Bugfix-Kommentar oben) – auch bei
+          // ausführlicherer Begründung bleibt so garantiert Platz für das abschließende JSON.
           reasoning: true,
-          max_tokens: 600,
+          max_tokens: 1200,
         }),
       });
       if (!resp.ok) {
