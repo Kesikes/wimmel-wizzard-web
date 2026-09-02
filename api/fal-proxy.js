@@ -50,8 +50,14 @@ module.exports = async (req, res) => {
     // Vergleich, NUR für gezielte manuelle Testaufrufe (Client setzt body.verifyModel nie im
     // regulären Produktpfad) – nur bekannte, per Whitelist erlaubte Modell-IDs, damit hier keine
     // beliebigen/kaputten Modellnamen an fal.ai durchgereicht werden.
+    // Live-Vergleichstest (dieselben 2 Wintercamp-Kandidaten, identischer Prompt, 3 Modelle):
+    // gemini-2.5-flash war nicht deterministisch (ein Aufruf "alles ok", der nächste "alles Verstoß"
+    // am selben Bild). claude-sonnet-4.5 schreibt eine so lange Begründung vor der JSON-Antwort, dass
+    // sie trotz max_tokens 1200 teils mitten im JSON abgeschnitten wurde. gemini-2.5-pro war beidfach
+    // konsistent, knapp genug für das Tokenbudget UND hat den vom Nutzer visuell bestätigten
+    // Mund-Verstoß korrekt erkannt (mouths_ok: false bei beiden Kandidaten) – daher jetzt neuer Default.
     const ALLOWED_VERIFY_MODELS = ["google/gemini-2.5-flash", "google/gemini-2.5-pro", "anthropic/claude-sonnet-4.5"];
-    const verifyModel = ALLOWED_VERIFY_MODELS.includes(body.verifyModel) ? body.verifyModel : "google/gemini-2.5-flash";
+    const verifyModel = ALLOWED_VERIFY_MODELS.includes(body.verifyModel) ? body.verifyModel : "google/gemini-2.5-pro";
     try {
       const resp = await fetch("https://fal.run/openrouter/router/vision", {
         method: "POST",
