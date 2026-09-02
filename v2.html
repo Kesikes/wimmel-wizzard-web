@@ -2283,12 +2283,18 @@ async function composeSceneImage(s, opts){
     let best = candidates[0];
     if(charRefs.length && candidates.length > 1){
       const heroList = state.characters.map(c => `${c.name} (${charInScene(c)})`).join("; ");
-      // Nutzer-Feedback (Live-Test Wintercamp-Szene): "die haben immer noch Münder... auch eine
-      // Nase... auch Ohren" – das ausgewählte Bild wurde trotz "mouths_ok: true" fälschlich
-      // durchgewunken. Jetzt drei getrennte, einzeln strenger formulierte Kriterien statt einem
-      // groben "mouths_ok", UND die Anweisung, wirklich jede einzelne Figur zu prüfen statt nur
-      // die auffälligsten (siehe auch system_prompt in fal-proxy.js).
-      const verifyPrompt = `This is an illustration meant to contain these named characters: ${heroList}. Examine EVERY character in the image individually and carefully, including small or background characters, not just the most prominent ones. Then answer strictly as JSON with four boolean fields: {"heroes_ok": true or false, "mouths_ok": true or false, "ears_ok": true or false, "nose_ok": true or false}. "heroes_ok" is true only if ALL of the named characters above appear at least once, each clearly identifiable by their described features. "mouths_ok" is true only if there is NO character anywhere in the image, named or background, however small, that has any kind of visible mouth, lips, or smile line. "ears_ok" is true only if there is NO character anywhere in the image that has a visible ear. "nose_ok" is true only if EVERY character's nose in the entire image is nothing more than a single short straight vertical line - false if even one character has a rounded, curved, shaded, or otherwise realistic-looking nose with nostrils. Be strict: if you are unsure about any single character, answer false for that field.`;
+      // Nutzer-Feedback Runde 1 (Live-Test Wintercamp-Szene): "die haben immer noch Münder... auch
+      // eine Nase... auch Ohren" – das ausgewählte Bild wurde trotz "mouths_ok: true" fälschlich
+      // durchgewunken. Erste Härtung: drei getrennte Kriterien statt einem groben "mouths_ok".
+      // Nutzer-Feedback Runde 2 (nach Härtung, gleicher Bildausschnitt erneut angeschaut): der Mund
+      // ist oft nur "ein ganz leichter Strich und ein Punkt" – so subtil, dass das Vision-Modell ihn
+      // trotz "any kind of visible mouth" weiterhin durchgehen ließ. Die Nase ist "eigentlich ein
+      // langer Strich" – die bisherige Formulierung hat nur curved/realistic/shaded als Verstoß
+      // gezählt, nicht schlicht "zu lang" bei sonst gerader Linie. Beide Kriterien jetzt so formuliert,
+      // dass JEDE zusätzliche Markierung/jede über die erlaubte Kürze hinausgehende Linie als Verstoß
+      // zählt, im Zweifel IMMER false ("lieber zu streng als zu lasch", da bisher stets in die andere
+      // Richtung – zu lasch – daneben lag).
+      const verifyPrompt = `This is an illustration meant to contain these named characters: ${heroList}. Examine EVERY character in the image individually and carefully, including small or background characters, not just the most prominent ones. Zoom in mentally on each face one at a time. Then answer strictly as JSON with four boolean fields: {"heroes_ok": true or false, "mouths_ok": true or false, "ears_ok": true or false, "nose_ok": true or false}. "heroes_ok" is true only if ALL of the named characters above appear at least once, each clearly identifiable by their described features. "mouths_ok" is true only if there is ABSOLUTELY NOTHING drawn on the lower half of any character's face anywhere in the image, named or background, however small or faint - the only marks allowed on the whole face are exactly two dot eyes and one short vertical nose line, nothing else at all. Even a very faint, thin, tiny, or subtle extra line, dash, curve, or dot near or below the nose counts as a mouth and makes this false - these subtle marks are the most commonly missed violation, so look very carefully for them specifically. "ears_ok" is true only if there is NO character anywhere in the image that has any visible ear shape on the side of their head. "nose_ok" is true only if EVERY character's nose in the entire image is a SHORT straight vertical line no longer than roughly the gap between that character's two eyes - false if even one character has a nose that is long, elongated, rounded, curved, shaded, wide, or otherwise realistic-looking with nostrils. A long straight line is still a violation, not just a curved one. For all four fields: when in doubt about any single character, answer false rather than true.`;
       let bestScore = -1;
       for(const cand of candidates){
         // Verify ist ein Auswahlhelfer, kein kritischer Pfad (siehe verifySceneImage-Kommentar):
