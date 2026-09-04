@@ -6,24 +6,22 @@
 
 const STORAGE_KEY = "wimmelwizard.v3.state";
 
-// Echter Nullzustand: eine neue Nutzerin startet bei 0/6 Personen und 0/5
-// Wimmelbildern. Die Namen (Mia, Papa, Oma Rosi, Bruno, Mama, Hund) bleiben
-// als vorgegebene Haushalts-Roster-Namen aus der Referenz bestehen — das ist
-// keine "fertige Demo", sondern die Liste der Personen, die die Nutzerin noch
-// zeichnen lassen kann. Nichts davon ist als "done" vorbelegt.
+// Echter Nullzustand (Korrektur nach Nutzer-Rückfrage): Die sechs Namen
+// Mia/Papa/Oma Rosi/Bruno/Mama/Hund waren KEINE echten, festgelegten
+// Produkt-Charaktere, sondern Demo-Daten aus dem Referenz-Prototyp selbst
+// (App-Flow-v4-OatlyWimmel.dc.html, PEOPLE-Array Zeile 419-422), die dort nur
+// den interaktiven Klick-Demo befüllen. Eine echte Nutzerin legt ihre eigenen
+// Personen selbst an (Name + Rolle + optional Alter, siehe addPersonForm() in
+// charakter.js) — daher startet people jetzt als LEERES Array, nicht mit
+// sechs vorbenannten Plätzen.
 const DEFAULT_STATE = {
-  household: "Familie Kern",
-  // Personen: Status "done" (fertig gezeichnet) oder "open" (fehlt noch)
-  people: [
-    { id: "mia", name: "Mia", status: "open" },
-    { id: "papa", name: "Papa", status: "open" },
-    { id: "oma", name: "Oma Rosi", status: "open" },
-    { id: "bruno", name: "Bruno", status: "open" },
-    { id: "mama", name: "Mama", status: "open" },
-    { id: "hund", name: "Hund", status: "open" }
-  ],
-  // Aktuell bearbeitete Person im Charakter-Flow (null = noch keine gewaehlt,
-  // Screen "charakter" faellt dann automatisch auf die erste offene Person zurueck)
+  household: "",
+  // Personen: {id, name, role, age, status}. Status "done" (fertig gezeichnet)
+  // oder "open" (angelegt, aber Merkmale/Foto noch nicht bestätigt). Leer im
+  // Nullzustand — wird ausschließlich durch AppState.addPerson() befüllt.
+  people: [],
+  // Aktuell bearbeitete Person im Charakter-Flow (null = keine gewaehlt bzw.
+  // noch niemand angelegt)
   currentPersonId: null,
   charMode: null, // "foto" | "chips"
   charChips: [], // keine Merkmale vorbelegt
@@ -128,8 +126,48 @@ const AppState = {
   nextOpenPerson() {
     return this.data.people.find((p) => p.status === "open") || null;
   },
+  // Gibt null zurueck, wenn es (noch) niemanden zum Weiterbearbeiten gibt —
+  // das ist das Signal fuer den Charakter-Screen, das "Person hinzufuegen"-
+  // Formular statt des Foto/Merkmale-Bausteins zu zeigen. Kein Fallback auf
+  // people[0] mehr (fruehere Version zeigte sonst faelschlich eine bereits
+  // fertige Person an, wenn explizit "neue Person" angestossen wurde).
   currentPerson() {
-    return this.data.people.find((p) => p.id === this.data.currentPersonId) || this.nextOpenPerson() || this.data.people[0];
+    const explicit = this.data.people.find((p) => p.id === this.data.currentPersonId);
+    if (explicit) return explicit;
+    return this.nextOpenPerson();
+  },
+  // Legt eine neue, von der Nutzerin selbst benannte Person an (Status "open"),
+  // macht sie zur aktuell bearbeiteten Person und gibt sie zurueck.
+  addPerson({ name, role, age }) {
+    const base = String(name || "").trim().toLowerCase().replace(/[^a-z0-9äöüß]+/g, "-").replace(/^-+|-+$/g, "") || "person";
+    let id = base, n = 2;
+    while (this.data.people.some((p) => p.id === id)) { id = base + "-" + n; n++; }
+    const person = { id, name: String(name || "").trim(), role: role || null, age: age != null ? age : null, status: "open" };
+    const people = this.data.people.concat([person]);
+    this.update({ people, currentPersonId: id });
+    return person;
+  },
+  // NEU (Pipeline-Anbindung): generischer Patch auf eine einzelne Person, z.B. um nach echter
+  // Bildgenerierung imageUrl/sceneDescription zu speichern, ohne dass jede Aufrufstelle das
+  // people-Array selbst zusammenbauen muss.
+  updatePerson(id, patch) {
+    const people = this.data.people.map((p) => (p.id === id ? Object.assign({}, p, patch) : p));
+    this.update({ people });
+    return people.find((p) => p.id === id);
+  },
+  // NEU (Pipeline-Anbindung): legt ein neues, fertig generiertes Wimmelbild an (composeSceneImage()
+  // liefert bereits das beste von zwei geprueften Kandidaten, siehe pipeline.js) und macht es zum
+  // aktuellen Bild. Es gibt (anders als bei Personen) kein "offen"-Zwischenstadium fuer Bilder in
+  // v3 -- ein Bild entsteht erst, wenn die Generierung fertig ist.
+  addImage({ title, src, promptText, instruction, violations, verify, candidates }) {
+    const id = "img-" + (this.data.images.length + 1) + "-" + Date.now().toString(36);
+    const image = { id, title: title || "", src, status: "done", promptText, instruction, violations, verify, candidates };
+    const images = this.data.images.concat([image]);
+    this.update({ images, currentImageId: id });
+    return image;
+  },
+  currentImage() {
+    return this.data.images.find((i) => i.id === this.data.currentImageId) || this.data.images[this.data.images.length - 1] || null;
   }
 };
 
