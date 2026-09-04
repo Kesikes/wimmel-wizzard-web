@@ -1,0 +1,165 @@
+/* ==========================================================================
+   Wimmel Wizard v3 — Design System
+   Quelle: referenz/Landingpage-v4-OatlyWimmel.dc.html,
+           referenz/App-Flow-v4-OatlyWimmel.dc.html,
+           referenz/Desktop-v4-OatlyWimmel.dc.html
+   Sechs Farben, drei Fonts, sechs Keyframes, keine border-radius
+   (Ausnahme: Fortschrittsringe / runde Buttons), keine Gradients
+   (Ausnahme: Lesbarkeitsverlauf über dem Hero). Kein Framework, kein Build-Step.
+   ========================================================================== */
+
+:root {
+  --paper: #F2EDE1;
+  --ink: #1A1A18;
+  --red: #E4442A;
+  --yellow: #FFD400;
+  --blue: #9BC6D8;
+  --desk: #D9D2C2;
+
+  --ink-a75: rgba(26, 26, 24, .75);
+  --ink-a70: rgba(26, 26, 24, .7);
+  --ink-a62: rgba(26, 26, 24, .62);
+  --ink-a55: rgba(26, 26, 24, .55);
+  --ink-a45: rgba(26, 26, 24, .45);
+  --ink-a40: rgba(26, 26, 24, .4);
+  --ink-a15: rgba(26, 26, 24, .15);
+  --ink-a06: rgba(26, 26, 24, .06);
+  --ink-a05: rgba(26, 26, 24, .05);
+  --paper-a90: rgba(242, 237, 225, .9);
+  --paper-a80: rgba(242, 237, 225, .8);
+  --paper-a75: rgba(242, 237, 225, .75);
+  --paper-a65: rgba(242, 237, 225, .65);
+  --paper-a60: rgba(242, 237, 225, .6);
+  --paper-a45: rgba(242, 237, 225, .45);
+  --paper-a38: rgba(242, 237, 225, .38);
+
+  --container-max: 430px;
+  --desktop-max: 1360px;
+  --bottom-bar-space: 96px;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--desk);
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+body {
+  font-family: 'Archivo', system-ui, sans-serif;
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--ink); text-decoration: none; }
+a:hover { color: var(--red); }
+
+img { max-width: 100%; display: block; }
+
+button { font: inherit; cursor: pointer; }
+
+textarea, input {
+  font-family: 'Archivo', system-ui, sans-serif;
+  outline: none;
+}
+textarea:focus-visible, input:focus-visible, button:focus-visible, a:focus-visible {
+  outline: 3px solid var(--yellow);
+  outline-offset: 2px;
+}
+
+::-webkit-scrollbar { height: 0; width: 0; }
+
+.hidden { display: none !important; }
+
+/* ---- Typografie ---- */
+.h-black {
+  font-family: 'Archivo Black', sans-serif;
+  text-transform: uppercase;
+  margin: 0;
+}
+.caveat {
+  font-family: 'Caveat', cursive;
+  font-weight: 600;
+  text-transform: none;
+  margin: 0;
+}
+p, .body-text { font-size: 14px; line-height: 1.5; margin: 0; }
+
+/* ---- Container ---- */
+.app-shell {
+  max-width: var(--container-max);
+  margin: 0 auto;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'Archivo', system-ui, sans-serif;
+  overflow-x: hidden;
+  min-height: 100vh;
+  position: relative;
+  box-shadow: 0 0 0 1px var(--ink-a15);
+}
+.app-shell.with-bottom-bar { padding-bottom: var(--bottom-bar-space); }
+
+/* ---- Keyframes (sechs verbindliche + Ergaenzungen fuer Bottom-Sheet) ---- */
+@keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@keyframes tickerReverse { from { transform: translateX(-50%); } to { transform: translateX(0); } }
+@keyframes wob { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+@keyframes nudge { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(8px); } }
+@keyframes pulse {
+  0%, 100% { box-shadow: 3px 3px 0 var(--ink), 0 0 0 0 rgba(228, 68, 42, .6); }
+  70% { box-shadow: 3px 3px 0 var(--ink), 0 0 0 13px rgba(228, 68, 42, 0); }
+}
+@keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+@keyframes wave { 0%, 100% { transform: scaleY(.25); } 50% { transform: scaleY(1); } }
+@keyframes sheetRise { from { transform: translate(-50%, 100%); } to { transform: translate(-50%, 0); } }
+
+/* ---- Buttons ---- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: 'Archivo Black', sans-serif;
+  text-transform: uppercase;
+  border: 3px solid var(--ink);
+  cursor: pointer;
+  min-height: 44px;
+}
+.btn-primary { background: var(--red); color: var(--paper); }
+.btn-ink { background: var(--ink); color: var(--paper); }
+.btn-paper { background: var(--paper); color: var(--ink); }
+.btn-yellow { background: var(--yellow); color: var(--ink); }
+
+/* ---- Ticker (Laufband) ---- */
+.ticker-wrap {
+  overflow: hidden;
+  position: relative;
+  z-index: 5;
+}
+.ticker-track {
+  display: flex;
+  width: max-content;
+  font-family: 'Archivo Black', sans-serif;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.ticker-red { animation: ticker 22s linear infinite; }
+.ticker-yellow-rev { animation: tickerReverse 19s linear infinite; }
+
+/* ---- Fokus / Accessibility Helfer ---- */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+}
+
+/* ==========================================================================
+   Desktop (Schritt 7) — Breakpoint ab 1024px, Content max. 1360px, 32px Innenabstand
+   ========================================================================== */
+@media (min-width: 1024px) {
+  .app-shell { max-width: none; box-shadow: none; }
+  .desktop-wrap { max-width: var(--desktop-max); margin: 0 auto; padding-left: 32px; padding-right: 32px; }
+  .mobile-only { display: none !important; }
+}
+@media (max-width: 1023.98px) {
+  .desktop-only { display: none !important; }
+}

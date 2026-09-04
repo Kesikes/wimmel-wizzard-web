@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;500;600;700&family=Caveat:wght@600&display=swap" rel="stylesheet" />
+<style>
+  html, body { margin: 0; padding: 0; background: #D9D2C2; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  a { color: #1A1A18; }
+  a:hover { color: #E4442A; }
+  @keyframes v4ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  @keyframes v4tickerR { from { transform: translateX(-50%); } to { transform: translateX(0); } }
+  @keyframes v4wob { 0%,100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+  @keyframes v4pulse { 0%,100% { box-shadow: 3px 3px 0 #1A1A18, 0 0 0 0 rgba(228,68,42,.6); } 70% { box-shadow: 3px 3px 0 #1A1A18, 0 0 0 13px rgba(228,68,42,0); } }
+  @keyframes v4rise { from { transform: translate(-50%, 100%); } to { transform: translate(-50%, 0); } }
+  @keyframes v4nudge { 0%,100% { transform: translateX(0); } 50% { transform: translateX(8px); } }
+  ::-webkit-scrollbar { height: 0; width: 0; }
+</style>
+</helmet>
+
+<div style="max-width: 430px; margin: 0 auto; background: #F2EDE1; color: #1A1A18; font-family: 'Archivo', system-ui, sans-serif; overflow-x: hidden; min-height: 100vh; position: relative; box-shadow: 0 0 0 1px rgba(26,26,24,.15);">
+
+  <header style="position: sticky; top: 0; z-index: 60; display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #1A1A18; color: #F2EDE1;">
+    <img src="uploads/wizard-badge.png" alt="" style="width: 32px; height: 32px; flex: none; transform: rotate(-6deg);" />
+    <span style="font-family: 'Archivo Black', sans-serif; font-size: 13px; letter-spacing: -.01em; text-transform: uppercase; margin-right: auto;">Wimmel&nbsp;Wizard<sup style="font-size: 8px; vertical-align: super;">™</sup></span>
+    <span style="{{ counterStyle }}">{{ counterLabel }}</span>
+    <a href="#start" style="flex: none; background: #E4442A; color: #F2EDE1; font-family: 'Archivo Black', sans-serif; font-size: 12px; text-transform: uppercase; padding: 10px 13px; border: 3px solid #F2EDE1; text-decoration: none; transform: rotate(-2deg); min-height: 40px; display: flex; align-items: center;">Los!</a>
+  </header>
+
+  <section style="position: relative; background: #1A1A18; border-bottom: 4px solid #1A1A18;">
+    <div style="position: relative; height: 72vh; min-height: 540px; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch;">
+      <div style="position: relative; width: 294%; height: 100%;">
+        <img src="uploads/hero-wimmelhaus.png" alt="Wimmelbild: Haus, Erzählmaschine und Post – tippe die Punkte an" style="width: 100%; height: 100%; object-fit: cover; display: block;" />
+        <sc-for list="{{ pins }}" as="p" hint-placeholder-count="5">
+          <button type="button" onClick="{{ p.open }}" aria-label="{{ p.rowTitle }}" style="{{ p.pinStyle }}">{{ p.mark }}</button>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="position: absolute; top: 12px; left: 12px; right: 12px; pointer-events: none;">
+      <p style="margin: 0 0 7px; display: inline-block; background: #FFD400; border: 3px solid #1A1A18; font-family: 'Archivo Black', sans-serif; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; padding: 5px 9px; transform: rotate(-2deg);">Wimmelbücher aus eurem Leben</p>
+      <h1 style="margin: 0; font-family: 'Archivo Black', sans-serif; font-size: 40px; line-height: .88; letter-spacing: -.045em; text-transform: uppercase; text-align: left; max-width: 94%; color: #F2EDE1; text-shadow: 3px 3px 0 #1A1A18, -2px -2px 0 #1A1A18, 2px -2px 0 #1A1A18, -2px 2px 0 #1A1A18;">Euer Alltag<br />hat mehr verdient<br />als <span style="color: #FFD400;">noch ein<br />Fotobuch.</span></h1>
+      <p style="margin: 14px 0 0; max-width: 94%; font-family: 'Caveat', cursive; font-size: 22px; line-height: 1.12; color: #F2EDE1; text-shadow: 2px 2px 0 #1A1A18, -1px -1px 0 #1A1A18, 1px -1px 0 #1A1A18, -1px 1px 0 #1A1A18;">Finde die fünf Punkte im Bild<br />und erfahre wie es funktioniert.</p>
+      <p style="margin: 10px 0 0; display: inline-flex; align-items: center; gap: 9px; background: #1A1A18; padding: 6px 10px; font-family: 'Archivo Black', sans-serif; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: #FFD400;"><span style="animation: v4nudge 1.8s ease-in-out infinite; display: inline-block;">→</span> antippen &amp; wischen</p>
+    </div>
+  </section>
+
+  <sc-if value="{{ sheetOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position: fixed; inset: 0; z-index: 80; background: rgba(26,26,24,.55);" onClick="{{ closeSheet }}"></div>
+    <div style="position: fixed; z-index: 90; left: 50%; bottom: 0; width: 100%; max-width: 430px; transform: translateX(-50%); animation: v4rise .26s cubic-bezier(.2,.8,.3,1) both; background: #F2EDE1; color: #1A1A18; border-top: 5px solid #1A1A18; padding: 14px 16px 24px;">
+      <div style="width: 46px; height: 5px; background: #1A1A18; margin: 0 auto 14px;"></div>
+      <p style="margin: 0 0 6px; display: inline-block; background: #1A1A18; color: #F2EDE1; font-family: 'Archivo Black', sans-serif; font-size: 9px; letter-spacing: .12em; text-transform: uppercase; padding: 4px 8px;">{{ sheetKicker }}</p>
+      <h2 style="margin: 4px 0 8px; font-family: 'Archivo Black', sans-serif; font-size: 25px; line-height: .98; letter-spacing: -.03em; text-transform: uppercase;">{{ sheetTitle }}</h2>
+      <p style="margin: 0; font-size: 15px; line-height: 1.5;">{{ sheetBody }}</p>
+      <div style="display: flex; gap: 10px; margin-top: 18px;">
+        <button type="button" onClick="{{ closeSheet }}" style="flex: 1; min-height: 48px; background: #F2EDE1; border: 3px solid #1A1A18; font-family: 'Archivo Black', sans-serif; font-size: 13px; text-transform: uppercase; color: #1A1A18; cursor: pointer;">Weitersuchen</button>
+        <button type="button" onClick="{{ nextPin }}" style="{{ nextBtnStyle }}">{{ nextBtnLabel }}</button>
+      </div>
+    </div>
+  </sc-if>
+
+  <div style="background: #E4442A; color: #F2EDE1; border-top: 4px solid #1A1A18; border-bottom: 4px solid #1A1A18; overflow: hidden; padding: 8px 0; transform: rotate(-1.6deg) scale(1.07); position: relative; z-index: 5; margin: 6px 0 12px;">
+    <div style="display: flex; width: max-content; animation: v4ticker 22s linear infinite; font-family: 'Archivo Black', sans-serif; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap;">
+      <span>Kein Stockfoto ✦ Kein Template ✦ Keine Cloud in Nevada ✦ Kein „Family Memories Deluxe“ ✦ Kein Stockfoto ✦ Kein Template ✦ Keine Cloud in Nevada ✦ Kein „Family Memories Deluxe“ ✦&nbsp;</span>
+    </div>
+  </div>
+
+  <section style="padding: 22px 14px 0;">
+    <h2 style="margin: 0 0 10px; font-family: 'Archivo Black', sans-serif; font-size: 22px; line-height: .95; letter-spacing: -.03em; text-transform: uppercase; transform: rotate(-1deg); transform-origin: left;">Dein Suchprotokoll</h2>
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      <sc-for list="{{ pins }}" as="p" hint-placeholder-count="5">
+        <button type="button" onClick="{{ p.open }}" style="{{ p.rowStyle }}">
+          <span style="{{ p.rowMarkStyle }}">{{ p.mark }}</span>
+          <span style="{{ p.rowTitleStyle }}">{{ p.rowTitle }}</span>
+          <span style="{{ p.rowStateStyle }}">{{ p.rowState }}</span>
+        </button>
+      </sc-for>
+    </div>
+  </section>
+
+  <section style="padding: 28px 14px 0;">
+    <h2 style="margin: 0 0 12px; font-family: 'Archivo Black', sans-serif; font-size: 26px; line-height: .92; letter-spacing: -.035em; text-transform: uppercase; transform: rotate(-1deg); transform-origin: left;">Wofür?<br /><span style="color: #E4442A;">Such dir was aus.</span></h2>
+    <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+      <sc-for list="{{ occasions }}" as="o" hint-placeholder-count="5">
+        <button type="button" onClick="{{ o.pick }}" style="{{ o.chipStyle }}">{{ o.label }}</button>
+      </sc-for>
+    </div>
+    <div style="margin-top: 16px; position: relative; background: #FFD400; border: 4px solid #1A1A18; padding: 16px 16px 16px 54px; transform: rotate(-.8deg); box-shadow: 5px 6px 0 #1A1A18;">
+      <img src="uploads/wizard-badge.png" alt="" style="position: absolute; left: -18px; top: -16px; width: 46px; transform: rotate(-12deg);" />
+      <p style="margin: 0; font-family: 'Caveat', cursive; font-size: 22px; line-height: 1.15;">{{ occasionLine }}</p>
+    </div>
+  </section>
+
+  <section style="margin-top: 32px; background: #1A1A18; color: #F2EDE1; padding: 26px 14px 30px;">
+    <h2 style="margin: 0; font-family: 'Archivo Black', sans-serif; font-size: 27px; line-height: .92; letter-spacing: -.035em; text-transform: uppercase;">Drei Schritte.<br /><span style="color: #FFD400;">Kein Studium nötig.</span></h2>
+    <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 18px;">
+      <sc-for list="{{ steps }}" as="s" hint-placeholder-count="3">
+        <div style="{{ s.rowStyle }}">
+          <span style="{{ s.numStyle }}">{{ s.n }}</span>
+          <div style="flex: 1;">
+            <h3 style="margin: 0 0 4px; font-family: 'Archivo Black', sans-serif; font-size: 16px; text-transform: uppercase; letter-spacing: -.02em;">{{ s.title }}</h3>
+            <p style="margin: 0; font-size: 14px; line-height: 1.45; color: rgba(242,237,225,.75);">{{ s.body }}</p>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <div style="background: #FFD400; border-top: 4px solid #1A1A18; border-bottom: 4px solid #1A1A18; overflow: hidden; padding: 7px 0; transform: rotate(1.4deg) scale(1.07); position: relative; z-index: 5; margin: 10px 0 14px;">
+    <div style="display: flex; width: max-content; animation: v4tickerR 19s linear infinite; font-family: 'Archivo Black', sans-serif; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; white-space: nowrap; color: #1A1A18;">
+      <span>gedruckt in Deutschland ✦ Server in Deutschland ✦ Fotos freiwillig ✦ Hund inklusive ✦ gedruckt in Deutschland ✦ Server in Deutschland ✦ Fotos freiwillig ✦ Hund inklusive ✦&nbsp;</span>
+    </div>
+  </div>
+
+  <section style="padding: 26px 14px 0;">
+    <div style="position: relative; border: 4px solid #1A1A18; background: #F2EDE1; padding: 18px 16px; transform: rotate(.7deg); box-shadow: -6px 7px 0 #E4442A;">
+      <span style="position: absolute; top: -13px; left: 12px; background: #1A1A18; color: #F2EDE1; font-family: 'Archivo Black', sans-serif; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; padding: 4px 9px;">Abteilung für unbequeme Ehrlichkeit</span>
+      <p style="margin: 6px 0 0; font-family: 'Archivo Black', sans-serif; font-size: 22px; line-height: 1; letter-spacing: -.03em; text-transform: uppercase;">Das dauert länger als 3 Minuten.</p>
+      <p style="margin: 10px 0 0; font-size: 14px; line-height: 1.5;">Ehrlich. Ein Wimmelbild ist ein kleines Kunstwerk. Jeder Schritt kostet nur ein paar Minuten – aber es sind halt mehrere. Du kannst jederzeit aufhören und später weitermachen. Wir speichern automatisch, weil wir keine Monster sind.</p>
+      <img src="uploads/wizard-on-book.png" alt="" style="display: block; width: 88px; margin: 10px 0 -30px auto; transform: rotate(5deg);" />
+    </div>
+  </section>
+
+  <section style="padding: 44px 14px 0;">
+    <h2 style="margin: 0 0 14px; font-family: 'Archivo Black', sans-serif; font-size: 26px; line-height: .92; letter-spacing: -.035em; text-transform: uppercase; transform: rotate(-1deg); transform-origin: left;">Noch mehr<br />Beweismaterial.</h2>
+    <div style="display: flex; flex-direction: column; gap: 22px;">
+      <sc-for list="{{ gallery }}" as="g" hint-placeholder-count="3">
+        <figure style="{{ g.figStyle }}">
+          <div style="{{ g.frameStyle }}">
+            <sc-if value="{{ g.src }}" hint-placeholder-val="{{ false }}">
+              <img src="{{ g.src }}" alt="{{ g.alt }}" style="display: block; width: 100%;" />
+            </sc-if>
+          </div>
+          <figcaption style="{{ g.capStyle }}">{{ g.cap }}</figcaption>
+        </figure>
+      </sc-for>
+    </div>
+  </section>
+
+  <sc-if value="{{ showPrices }}" hint-placeholder-val="{{ true }}">
+    <section style="margin-top: 40px; background: #9BC6D8; border-top: 4px solid #1A1A18; border-bottom: 4px solid #1A1A18; padding: 26px 14px 28px;">
+      <h2 style="margin: 0 0 4px; font-family: 'Archivo Black', sans-serif; font-size: 28px; line-height: .9; letter-spacing: -.04em; text-transform: uppercase;">Was kostet<br />der Spaß?</h2>
+      <p style="margin: 0 0 18px; font-family: 'Caveat', cursive; font-size: 20px; line-height: 1.1;">entscheiden musst du erst, wenn du dein erstes Bild gesehen hast. wirklich.</p>
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <sc-for list="{{ tiers }}" as="t" hint-placeholder-count="3">
+          <div style="{{ t.cardStyle }}">
+            <div style="flex: 1; min-width: 0;">
+              <h3 style="margin: 0 0 3px; font-family: 'Archivo Black', sans-serif; font-size: 17px; text-transform: uppercase; letter-spacing: -.02em;">{{ t.name }}</h3>
+              <p style="margin: 0; font-size: 13px; line-height: 1.4; font-weight: 500;">{{ t.what }}</p>
+            </div>
+            <span style="{{ t.priceStyle }}">{{ t.price }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+  </sc-if>
+
+  <section style="padding: 26px 14px 0;">
+    <h2 style="margin: 0 0 10px; font-family: 'Archivo Black', sans-serif; font-size: 25px; line-height: .92; letter-spacing: -.035em; text-transform: uppercase;">Fragen. Antworten.<br /><span style="color: #E4442A;">Kein Marketing.</span></h2>
+    <div style="display: flex; flex-direction: column;">
+      <sc-for list="{{ faqs }}" as="f" hint-placeholder-count="5">
+        <div style="border-bottom: 3px solid #1A1A18;">
+          <button type="button" onClick="{{ f.toggle }}" style="width: 100%; display: flex; gap: 12px; align-items: center; justify-content: space-between; text-align: left; background: none; border: 0; padding: 15px 0; font-family: 'Archivo', sans-serif; font-size: 15px; font-weight: 700; color: #1A1A18; cursor: pointer; min-height: 48px;">
+            <span>{{ f.q }}</span>
+            <span style="{{ f.signStyle }}">+</span>
+          </button>
+          <p style="{{ f.answerStyle }}">{{ f.a }}</p>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <section style="padding: 28px 14px 0;">
+    <div style="border: 4px dashed #1A1A18; padding: 18px; text-align: center; transform: rotate(-.8deg);">
+      <p style="margin: 0 0 6px; font-family: 'Archivo Black', sans-serif; font-size: 24px; letter-spacing: .1em;">★★★★★</p>
+      <p style="margin: 0; font-family: 'Caveat', cursive; font-size: 19px; line-height: 1.2;">hier kommen echte Zitate von echten Familien hin.<br />sobald die ersten Bücher angekommen sind.<br />wir erfinden keine.</p>
+    </div>
+  </section>
+
+  <section id="start" style="margin-top: 34px; background: #E4442A; color: #F2EDE1; border-top: 4px solid #1A1A18; padding: 26px 14px 28px; text-align: center;">
+    <div style="position: relative; width: 100%; max-width: 320px; margin: 0 auto 10px; transform: rotate(-2deg);">
+      <img src="uploads/wizard-speechbubble.png" alt="WizzelWim" style="width: 100%; display: block;" />
+      <p style="position: absolute; left: 45%; top: 8%; width: 52%; height: 52%; margin: 0; font-family: 'Archivo Black', sans-serif; font-size: 20px; line-height: .95; letter-spacing: -.03em; text-transform: uppercase; color: #1A1A18; display: flex; align-items: center; justify-content: center; text-align: center;">Also. Erzähl.</p>
+    </div>
+    <a href="App-Flow-v4-OatlyWimmel.dc.html" style="display: block; background: #FFD400; color: #1A1A18; font-family: 'Archivo Black', sans-serif; font-size: 20px; text-transform: uppercase; padding: 18px; border: 4px solid #1A1A18; text-decoration: none; box-shadow: 5px 6px 0 #1A1A18; transform: rotate(1.2deg);">Jetzt loswimmeln</a>
+    <p style="margin: 18px 0 0; font-family: 'Caveat', cursive; font-size: 19px; line-height: 1.15;">kein Konto. kein Preis, bevor du weißt, was du kriegst.</p>
+    <a id="verschenken" href="#verschenken" style="display: inline-block; margin-top: 10px; font-size: 14px; font-weight: 600; color: #F2EDE1;">Lieber verschenken? Gutschein →</a>
+  </section>
+
+  <footer style="padding: 20px 14px 40px; background: #1A1A18; color: rgba(242,237,225,.6); font-size: 12px; line-height: 1.7;">
+    <div style="display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 12px;">
+      <a href="#impressum" style="color: #F2EDE1;">Impressum</a>
+      <a href="#datenschutz" style="color: #F2EDE1;">Datenschutz</a>
+      <a href="#agb" style="color: #F2EDE1;">AGB</a>
+      <a href="#kontakt" style="color: #F2EDE1;">Kontakt</a>
+    </div>
+    <p style="margin: 0;">Wimmel Wizard · gedruckt in Deutschland · Hund inklusive</p>
+  </footer>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:430,&quot;height&quot;:900},&quot;accentColor&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#E4442A&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;#E4442A&quot;,&quot;#5B3FA8&quot;,&quot;#1F6F5C&quot;,&quot;#1A1A18&quot;],&quot;section&quot;:&quot;Look&quot;},&quot;showPrices&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Inhalt&quot;}}">
+class Component extends DCLogic {
+  state = { occasion: "einfachso", openFaq: 0, found: [], active: -1 };
+
+  PINS = [
+    { x: 16, y: 68, mark: "1", kicker: "Punkt 1 von 5", title: "Erzählen statt ausfüllen.", rowTitle: "Wie du deine Geschichte lieferst",
+      body: "Kein Formular mit siebzehn Feldern. Du wählst ein Thema, tippst ein paar Sätze – oder lässt abends beim Erzählen einfach das Mikro mitlaufen. Ich mache daraus eine Szene, du sagst, was noch fehlt." },
+    { x: 38, y: 47, mark: "2", kicker: "Punkt 2 von 5", title: "Das da bist du.", rowTitle: "Die Familie im Bild",
+      body: "Jede Figur in dieser Szene ist eine echte Person. Du lädst ein Foto hoch oder tippst Merkmale an – Haare, Größe, Lieblingspulli – und ich zeichne daraus eine Figur im Wimmelstil. Auch für den Hund. Vor allem für den Hund." },
+    { x: 59, y: 72, mark: "3", kicker: "Punkt 3 von 5", title: "40 Situationen.", rowTitle: "Was in einer Szene steckt",
+      body: "Eine Wimmelseite ist kein Bild, sondern vierzig Geschichten nebeneinander. Der umgekippte Eimer. Das Kind, das nicht ins Wasser will. Ihr sucht Minuten daran – und findet jedes Mal etwas Neues." },
+    { x: 63, y: 46, mark: "4", kicker: "Punkt 4 von 5", title: "Nachbessern erlaubt.", rowTitle: "Wenn etwas nicht passt",
+      body: "Mit dem Stift direkt im Bild markieren, was weg soll. Einzelne Situationen neu zaubern, Details ändern – der Rest der Szene bleibt genau, wie er ist. So oft du magst." },
+    { x: 88, y: 32, mark: "5", kicker: "Punkt 5 von 5", title: "Und dann kommt Post.", rowTitle: "Vom Bildschirm ins Regal",
+      body: "Gedruckt und gebunden in Deutschland, mit eurer Widmung vorne drin. Ab da liegt es auf dem Couchtisch und jemand sucht eine halbe Stunde die Katze." }
+  ];
+
+  open(i) {
+    this.setState(s => ({
+      active: i,
+      found: s.found.indexOf(i) === -1 ? s.found.concat([i]) : s.found
+    }));
+  }
+
+  renderVals() {
+    const accent = this.props.accentColor ?? "#E4442A";
+    const rot = i => [-2.2, 1.6, -1.2, 2.4, -1.8, 1.2][i % 6];
+    const P = this.PINS;
+    const found = this.state.found;
+    const active = this.state.active;
+    const done = found.length >= P.length;
+
+    const pins = P.map((p, i) => {
+      const isFound = found.indexOf(i) !== -1;
+      return {
+        mark: p.mark,
+        rowTitle: p.rowTitle,
+        open: () => this.open(i),
+        pinStyle: "position:absolute;left:" + p.x + "%;top:" + p.y + "%;transform:translate(-50%,-50%) rotate(" + rot(i) + "deg);"
+          + "width:44px;height:44px;cursor:pointer;display:flex;align-items:center;justify-content:center;border:3px solid #1A1A18;"
+          + "font-family:'Archivo Black',sans-serif;font-size:16px;"
+          + (isFound
+            ? "background:#1A1A18;color:#FFD400;box-shadow:3px 3px 0 #F2EDE1;"
+            : "background:#FFD400;color:#1A1A18;animation:v4pulse 2.2s ease-out infinite;"),
+        rowStyle: "display:flex;align-items:center;gap:11px;width:100%;min-height:52px;padding:11px 13px;cursor:pointer;text-align:left;"
+          + "border:3px solid #1A1A18;font-family:'Archivo',sans-serif;transform:rotate(" + rot(i) * .35 + "deg);"
+          + (isFound ? "background:#FFD400;box-shadow:3px 3px 0 #1A1A18;" : "background:#F2EDE1;box-shadow:none;"),
+        rowMarkStyle: "flex:none;width:26px;height:26px;display:flex;align-items:center;justify-content:center;border:2px solid #1A1A18;"
+          + "font-family:'Archivo Black',sans-serif;font-size:12px;"
+          + (isFound ? "background:#1A1A18;color:#FFD400;" : "background:#F2EDE1;color:#1A1A18;"),
+        rowTitleStyle: "flex:1;min-width:0;font-size:14px;font-weight:700;color:" + (isFound ? "#1A1A18" : "rgba(26,26,24,.55)") + ";",
+        rowState: isFound ? "gefunden" : "offen",
+        rowStateStyle: "flex:none;font-family:'Archivo Black',sans-serif;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:"
+          + (isFound ? "#1A1A18" : "rgba(26,26,24,.4)") + ";"
+      };
+    });
+
+    const cur = active >= 0 ? P[active] : null;
+    const nextIdx = P.findIndex((p, i) => found.indexOf(i) === -1);
+
+    const OCC = [
+      { key: "geburtstag", label: "Geburtstag", line: "Geburtstag, okay. Garten voller Kinder, ein Kuchen, ein Hund der damit abhaut. Ich fange schon mal an." },
+      { key: "weihnachten", label: "Weihnachten", line: "Weihnachten. Baum leicht schief, alle glücklich, Katze im Geschenkpapier. Kenne ich." },
+      { key: "ostern", label: "Ostern", line: "Ostern: Eiersuche im Nieselregen, Gummistiefel, ein Ei bis heute verschollen." },
+      { key: "einschulung", label: "Einschulung", line: "Einschulung. Schultüte größer als das Kind, Oma weint, alle gucken in andere Kameras." },
+      { key: "einfachso", label: "Einfach so", line: "Einfach so. Mein Favorit. Ein Samstag wie jeder andere – genau deshalb lohnt er sich als Buch." }
+    ];
+    const activeOcc = this.state.occasion;
+    const occasions = OCC.map((o, i) => {
+      const on = o.key === activeOcc;
+      return {
+        label: o.label,
+        pick: () => this.setState({ occasion: o.key }),
+        chipStyle: "min-height:44px;padding:11px 15px;border:3px solid #1A1A18;cursor:pointer;font-family:'Archivo Black',sans-serif;"
+          + "font-size:13px;text-transform:uppercase;letter-spacing:-.01em;transform:rotate(" + rot(i) + "deg);"
+          + (on ? "background:" + accent + ";color:#F2EDE1;box-shadow:4px 4px 0 #1A1A18;"
+                : "background:#F2EDE1;color:#1A1A18;box-shadow:2px 2px 0 #1A1A18;")
+      };
+    });
+
+    const FAQ = [
+      { q: "Sieht mein Kind wirklich aus wie mein Kind?", a: "Mit Foto am ehesten: Ich mache zwei bis drei Vorschläge, du tippst den besten an. Ohne Foto geht auch – dann wählst du Haare, Frisur, Kleidung. Passt es nicht, zaubern wir neu. So oft du willst." },
+      { q: "Muss ich Fotos hochladen?", a: "Nein. Fotos sind der schnellste Weg, aber nie Pflicht. Was du hochlädst, wird nur für dein Bild benutzt und danach gelöscht. Kein Training, kein Weiterverkauf, kein Kleingedrucktes." },
+      { q: "Wie lange dauert ein Bild?", a: "Deine Eingaben: ein paar Minuten. Das Zeichnen: zwei bis vier. Ich probiere mehrere Varianten und zeige dir nur die, die was geworden ist. Handy weglegen ist erlaubt, es ist gespeichert." },
+      { q: "Kann ich am fertigen Bild noch was ändern?", a: "Ja. Mit dem Stift im Bild markieren, was weg soll. Einzelne Situationen neu zaubern. Der Rest der Szene bleibt genau so." },
+      { q: "Was, wenn mir ein Bild schon reicht?", a: "Dann nimmst du das Poster und bist fertig. Völlig richtige Entscheidung. Wir schicken dir dann keine sieben Mails." }
+    ];
+    const faqs = FAQ.map((f, i) => {
+      const open = this.state.openFaq === i;
+      return {
+        q: f.q, a: f.a,
+        toggle: () => this.setState(s => ({ openFaq: s.openFaq === i ? -1 : i })),
+        signStyle: "flex:none;font-family:'Archivo Black',sans-serif;font-size:22px;line-height:1;color:" + accent
+          + ";transition:transform .2s ease;transform:rotate(" + (open ? 45 : 0) + "deg);",
+        answerStyle: "overflow:hidden;padding-right:28px;font-size:14px;line-height:1.5;"
+          + "transition:max-height .22s ease,opacity .18s ease,margin .22s ease;"
+          + (open ? "max-height:420px;opacity:1;margin:-4px 0 16px;" : "max-height:0;opacity:0;margin:0;")
+      };
+    });
+
+    const STEPS = [
+      { n: "01", title: "Familie zeichnen lassen", body: "Foto hochladen oder Merkmale antippen. Für jeden, der mitspielen soll. Auch für den Hund. Vor allem für den Hund." },
+      { n: "02", title: "Geschichte erzählen", body: "Thema wählen, tippen – oder abends beim Erzählen einfach das Mikro mitlaufen lassen." },
+      { n: "03", title: "Buch kommt an", body: "Gedruckt in Deutschland, mit Widmung. Und dann sucht jemand eine halbe Stunde die Katze." }
+    ];
+    const steps = STEPS.map((s, i) => ({
+      n: s.n, title: s.title, body: s.body,
+      rowStyle: "display:flex;gap:12px;align-items:flex-start;padding:16px 0;border-top:3px solid rgba(242,237,225,.28);",
+      numStyle: "font-family:'Archivo Black',sans-serif;font-size:36px;line-height:.8;color:#FFD400;flex:none;width:52px;"
+        + "display:inline-block;transform:rotate(" + rot(i + 1) + "deg);"
+    }));
+
+    const GAL = [
+      { src: "uploads/example_gardasee.png", alt: "Wimmelbild: Nachmittag am See", cap: "„Nachmittag am See“ — inkl. Kind, das nicht ins Wasser will.", rot: -1.4, sh: "6px 7px 0 #1A1A18", bg: "#9BC6D8" },
+      { src: "uploads/example-weihnachten.png", alt: "Wimmelbild: Weihnachtsabend", cap: "„Weihnachten, kurz vor der Bescherung“ — Katze bereits im Baum.", rot: 1.6, sh: "-6px 7px 0 #E4442A", bg: "#FFD400" },
+      { src: "uploads/wizzelwim-family-hero.png", alt: "Charakterseite", cap: "Die Charakterseite: alle, die mitspielen, versammelt.", rot: -.9, sh: "6px 7px 0 #1A1A18", bg: "#F2EDE1" }
+    ];
+    const gallery = GAL.map((g, i) => ({
+      src: g.src, alt: g.alt, cap: g.cap,
+      figStyle: "margin:0;transform:rotate(" + g.rot + "deg);",
+      frameStyle: "border:4px solid #1A1A18;overflow:hidden;background:" + g.bg + ";box-shadow:" + g.sh + ";",
+      capStyle: "margin:10px 2px 0;font-family:'Caveat',cursive;font-size:19px;line-height:1.15;"
+        + (i % 2 ? "text-align:right;" : "text-align:left;")
+    }));
+
+    const TIERS = [
+      { name: "Poster", what: "1 Wimmelbild, DIN A2", price: "ab 24 €" },
+      { name: "Mini-Wimmelbuch", what: "2 Bilder + Charakterseite, 8 Seiten", price: "ab 44 €" },
+      { name: "Wimmelbuch", what: "5 Wimmelbilder, gebunden", price: "ab 79 €" }
+    ];
+    const tiers = TIERS.map((t, i) => ({
+      name: t.name, what: t.what, price: t.price,
+      cardStyle: "display:flex;gap:12px;align-items:center;border:4px solid #1A1A18;padding:14px;background:#F2EDE1;"
+        + "transform:rotate(" + rot(i) * .6 + "deg);box-shadow:" + (i % 2 ? "-4px" : "4px") + " 5px 0 #1A1A18;",
+      priceStyle: "flex:none;font-family:'Archivo Black',sans-serif;font-size:18px;background:#1A1A18;color:#F2EDE1;"
+        + "padding:6px 9px;transform:rotate(" + -rot(i) + "deg);"
+    }));
+
+    return {
+      pins, occasions, faqs, steps, gallery, tiers,
+      counterLabel: found.length + "/" + P.length,
+      counterStyle: "flex:none;font-family:'Archivo Black',sans-serif;font-size:11px;letter-spacing:.06em;padding:7px 9px;border:2px solid "
+        + (done ? "#FFD400" : "rgba(242,237,225,.45)") + ";color:" + (done ? "#FFD400" : "rgba(242,237,225,.8)") + ";",
+      sheetOpen: active >= 0,
+      sheetKicker: cur ? cur.kicker : "",
+      sheetTitle: cur ? cur.title : "",
+      sheetBody: cur ? cur.body : "",
+      closeSheet: () => this.setState({ active: -1 }),
+      nextPin: () => (nextIdx === -1 ? this.setState({ active: -1 }) : this.open(nextIdx)),
+      nextBtnLabel: nextIdx === -1 ? "Loswimmeln" : "Nächster Punkt",
+      nextBtnStyle: "flex:1;min-height:48px;border:3px solid #1A1A18;cursor:pointer;font-family:'Archivo Black',sans-serif;"
+        + "font-size:13px;text-transform:uppercase;box-shadow:3px 3px 0 #1A1A18;background:"
+        + (nextIdx === -1 ? "#FFD400" : accent) + ";color:" + (nextIdx === -1 ? "#1A1A18" : "#F2EDE1") + ";",
+      occasionLine: (OCC.find(o => o.key === activeOcc) || OCC[4]).line,
+      showPrices: this.props.showPrices ?? true
+    };
+  }
+}
+
+</script>
+</body>
+</html>

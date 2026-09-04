@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Wimmel Wizard — Euer Wimmelbuch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;500;600;700&family=Caveat:wght@600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="css/main.css" />
+<link rel="stylesheet" href="css/app.css" />
+</head>
+<body>
+<div class="app-shell with-bottom-bar" id="app">
+
+  <header class="app-header" id="app-header">
+    <div class="app-header-inner" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px;">
+      <a href="/" style="display: flex; align-items: center; gap: 8px; margin-right: auto; text-decoration: none; color: var(--paper);">
+        <img src="assets/wizard-badge.png" alt="" style="width: 30px; height: 30px; flex: none; transform: rotate(-6deg);" />
+        <span class="h-black" style="font-size: 12px; letter-spacing: -.01em;">Wimmel&nbsp;Wizard<sup style="font-size: 7px; vertical-align: super;">™</sup></span>
+      </a>
+      <nav id="desktop-nav" style="display: none;" aria-label="Fortschritt"></nav>
+      <span id="app-saved-label" style="display: none; margin-left: auto; font-family: 'Archivo', sans-serif; font-size: 12px; letter-spacing: .05em; text-transform: uppercase; color: var(--paper-a65);">alles gespeichert</span>
+      <span id="price-label" class="h-black" style="flex: none; font-size: 10px; letter-spacing: .06em; color: var(--yellow); border: 2px solid var(--yellow); padding: 6px 8px;"></span>
+      <button type="button" id="save-hint" style="flex: none; background: none; border: 2px solid var(--paper-a40); color: var(--paper); font-family: 'Archivo', sans-serif; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; padding: 6px 8px; min-height: 32px;">gespeichert</button>
+      <button type="button" id="btn-weitermachen" class="h-black" style="display: none; background: var(--red); color: var(--paper); font-size: 13px; padding: 12px 16px; border: 3px solid var(--paper); transform: rotate(-2deg); cursor: pointer;">Weitermachen</button>
+    </div>
+    <div id="app-header-mobile-row2">
+      <nav id="rail" style="display: flex; gap: 6px; padding: 0 12px 9px; overflow-x: auto;" aria-label="Fortschritt"></nav>
+    </div>
+  </header>
+
+  <main id="screen-root" role="main"></main>
+
+  <div class="bottom-bar" id="bottom-bar">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <button type="button" id="btn-back" class="h-black" style="flex: none; width: 52px; min-height: 52px; background: var(--paper); border: 3px solid var(--ink); font-size: 17px; color: inherit;">←</button>
+      <button type="button" id="btn-next" class="h-black" style="flex: 1; min-width: 0; min-height: 52px; font-size: 15px; border: 3px solid var(--ink); box-shadow: 4px 4px 0 var(--ink);"></button>
+    </div>
+    <p id="soft-line" class="caveat" style="margin: 7px 0 0; text-align: center; font-size: 17px; line-height: 1;"></p>
+  </div>
+</div>
+
+<script src="js/state.js"></script>
+<script src="js/helpers.js"></script>
+<script src="js/router.js"></script>
+<script src="js/screens/dashboard.js"></script>
+<script src="js/screens/charakter.js"></script>
+<script src="js/screens/szene.js"></script>
+<script src="js/screens/entscheidung.js"></script>
+<script src="js/screens/checkout.js"></script>
+<script src="js/app-shell.js"></script>
+</body>
+</html>

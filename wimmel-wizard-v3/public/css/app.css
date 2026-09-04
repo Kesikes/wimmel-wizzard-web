@@ -1,0 +1,80 @@
+/* ==========================================================================
+   Wimmel Wizard v3 — App-Shell (Schritt 2) und wiederkehrende Screen-Atome
+   Quelle: referenz/App-Flow-v4-OatlyWimmel.dc.html
+   ========================================================================== */
+
+.app-header { position: sticky; top: 0; z-index: 60; background: var(--ink); color: var(--paper); }
+
+.rail-btn {
+  flex: none; cursor: pointer; font-family: 'Archivo Black', sans-serif; font-size: 9px;
+  letter-spacing: .06em; text-transform: uppercase; padding: 7px 9px; min-height: 30px;
+  border: 2px solid var(--paper-a38); background: none; color: var(--paper-a80);
+}
+.rail-btn.active { border-color: var(--yellow); background: var(--yellow); color: var(--ink); }
+
+.bottom-bar {
+  position: fixed; left: 50%; bottom: 0; z-index: 70; width: 100%; max-width: var(--container-max);
+  transform: translateX(-50%); background: var(--paper); border-top: 4px solid var(--ink); padding: 10px 14px 12px;
+}
+@media (min-width: 1024px) { .bottom-bar { display: none; } }
+
+/* ---- Wiederkehrende Screen-Atome ---- */
+.scr-pad { padding: 18px 14px 0; }
+.kicker {
+  margin: 0 0 8px; display: inline-block; border: 3px solid var(--ink); font-family: 'Archivo Black', sans-serif;
+  font-size: 9px; letter-spacing: .1em; text-transform: uppercase; padding: 5px 8px;
+}
+.kicker-yellow { background: var(--yellow); color: var(--ink); }
+.kicker-red { background: var(--red); color: var(--paper); }
+.kicker-blue { background: var(--blue); color: var(--ink); }
+
+.h1-scr {
+  margin: 0; font-family: 'Archivo Black', sans-serif; font-size: 31px; line-height: .88;
+  letter-spacing: -.04em; text-transform: uppercase;
+}
+.caveat-sub { margin: 8px 0 18px; font-family: 'Caveat', cursive; font-size: 20px; line-height: 1.12; }
+
+.card-plain {
+  border: 4px solid var(--ink); background: var(--paper); padding: 16px;
+}
+.chip-toggle {
+  cursor: pointer; font-family: 'Archivo', sans-serif; font-size: 12px; font-weight: 700; padding: 8px 10px;
+  border: 3px solid var(--ink); background: #FFF; color: var(--ink);
+}
+.chip-toggle.on { background: var(--red); color: var(--paper); }
+
+.field {
+  width: 100%; min-height: 50px; border: 3px solid var(--ink); background: #FFF; padding: 0 12px;
+  font-family: 'Archivo', sans-serif; font-size: 15px;
+}
+textarea.field { min-height: 108px; resize: none; padding: 11px; line-height: 1.45; }
+
+.pay-btn {
+  cursor: pointer; font-family: 'Archivo Black', sans-serif; font-size: 12px; text-transform: uppercase;
+  padding: 12px 13px; min-height: 46px; border: 3px solid var(--ink); background: var(--paper); color: var(--ink);
+}
+.pay-btn.on { background: var(--ink); color: var(--paper); }
+
+#save-hint.flash { border-color: var(--yellow); color: var(--yellow); transition: border-color .15s ease, color .15s ease; }
+
+/* ==========================================================================
+   Desktop (Schritt 7) — Breakpoint ab 1024px
+   Quelle: referenz/Desktop-v4-OatlyWimmel.dc.html
+   ========================================================================== */
+@media (min-width: 1024px) {
+  #app-header-mobile-row2 { display: none; }
+  #app-header .app-header-inner { max-width: var(--desktop-max); margin: 0 auto; padding: 12px 32px; gap: 26px; }
+  #desktop-nav { display: flex; gap: 8px; margin-left: 18px; }
+  #desktop-nav .rail-btn { min-height: 36px; font-size: 11px; padding: 9px 12px; }
+  #app-saved-label { display: inline; }
+  #btn-weitermachen { display: inline-flex; }
+
+  main#screen-root { max-width: var(--desktop-max); margin: 0 auto; }
+  .scr-pad { max-width: 430px; }
+
+  .dash-desktop-grid { display: grid !important; grid-template-columns: 360px 1fr; gap: 44px; align-items: start; max-width: var(--desktop-max); margin: 0 auto; padding: 40px 32px 70px; }
+  .edit-desktop-grid { display: grid !important; grid-template-columns: 1fr 400px; min-height: calc(100vh - 66px); }
+}
+@media (max-width: 1023.98px) {
+  .dash-desktop-grid, .edit-desktop-grid { display: none !important; }
+}

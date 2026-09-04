@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;500;600;700&family=Caveat:wght@600&display=swap" rel="stylesheet" />
+<style>
+  html, body { margin: 0; padding: 0; background: #D9D2C2; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  a { color: #1A1A18; }
+  a:hover { color: #E4442A; }
+  @keyframes v4ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  @keyframes v4wob { 0%,100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+  @keyframes v4nudge { 0%,100% { transform: translateX(0); } 50% { transform: translateX(8px); } }
+  @keyframes v4pulse { 0%,100% { box-shadow: 4px 4px 0 #1A1A18, 0 0 0 0 rgba(228,68,42,.6); } 70% { box-shadow: 4px 4px 0 #1A1A18, 0 0 0 15px rgba(228,68,42,0); } }
+  @keyframes v4spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+  @keyframes v4wave { 0%,100% { transform: scaleY(.25); } 50% { transform: scaleY(1); } }
+  ::-webkit-scrollbar { height: 0; width: 0; }
+</style>
+</helmet>
+
+<div style="max-width: 430px; margin: 0 auto; background: #F2EDE1; color: #1A1A18; font-family: 'Archivo', system-ui, sans-serif; min-height: 100vh; overflow-x: hidden; position: relative; padding-bottom: 96px; box-shadow: 0 0 0 1px rgba(26,26,24,.15);">
+
+  <header style="position: sticky; top: 0; z-index: 60; background: #1A1A18; color: #F2EDE1;">
+    <div style="display: flex; align-items: center; gap: 8px; padding: 8px 12px;">
+      <a href="Landingpage-v4-OatlyWimmel.dc.html" title="Zur Startseite" style="display: flex; align-items: center; gap: 8px; margin-right: auto; text-decoration: none; color: #F2EDE1;">
+        <img src="uploads/wizard-badge.png" alt="" style="width: 30px; height: 30px; flex: none; transform: rotate(-6deg);" />
+        <span style="font-family: 'Archivo Black', sans-serif; font-size: 12px; letter-spacing: -.01em; text-transform: uppercase;">Wimmel&nbsp;Wizard<sup style="font-size: 7px; vertical-align: super;">™</sup></span>
+      </a>
+      <span style="flex: none; font-family: 'Archivo Black', sans-serif; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: #FFD400; border: 2px solid #FFD400; padding: 6px 8px;">{{ priceLabel }}</span>
+      <button type="button" onClick="{{ saveHint }}" style="flex: none; background: none; border: 2px solid rgba(242,237,225,.4); color: #F2EDE1; font-family: 'Archivo', sans-serif; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; padding: 6px 8px; min-height: 32px;">gespeichert</button>
+    </div>
+    <div style="display: flex; gap: 6px; padding: 0 12px 9px; overflow-x: auto;">
+      <sc-for list="{{ rail }}" as="r" hint-placeholder-count="9">
+        <button type="button" onClick="{{ r.go }}" style="{{ r.style }}">{{ r.label }}</button>
+      </sc-for>
+    </div>
+  </header>
+
+  <sc-if value="{{ isDash }}" hint-placeholder-val="{{ true }}">
+    <section style="padding: 18px 14px 0;">
+      <div style="position: relative; background: #FFD400; border: 4px solid #1A1A18; box-shadow: 6px 7px 0 #1A1A18; padding: 16px 16px 16px 78px; transform: rotate(-1deg);">
+        <img src="uploads/wizard-badge.png" alt="WizzelWim" style="position: absolute; left: -14px; bottom: -6px; width: 82px; animation: v4wob 4s ease-in-out infinite;" />
+        <p style="margin: 0; font-family: 'Archivo Black', sans-serif; font-size: 17px; line-height: 1; letter-spacing: -.03em; text-transform: uppercase;">Moin, Familie&nbsp;Kern.</p>
+        <p style="margin: 6px 0 0; font-family: 'Caveat', cursive; font-size: 20px; line-height: 1.1;">wir bauen das Stück für Stück. du entscheidest, wie viel Liebe zum Detail reingeht.</p>
+      </div>
+
+      <h1 style="margin: 26px 0 3px; font-family: 'Archivo Black', sans-serif; font-size: 30px; line-height: .9; letter-spacing: -.04em; text-transform: uppercase;">Eure<br />Bausteine.</h1>
+      <p style="margin: 0 0 16px; font-family: 'Caveat', cursive; font-size: 19px;">in beliebiger Reihenfolge. pausieren jederzeit.</p>
+
+      <div style="display: flex; flex-direction: column; gap: 14px;">
+        <button type="button" onClick="{{ goChar }}" style="position: relative; display: flex; align-items: center; gap: 14px; text-align: left; width: 100%; background: #F2EDE1; border: 4px solid #1A1A18; box-shadow: 5px 6px 0 #E4442A; padding: 16px; cursor: pointer; font: inherit; color: inherit;">
+          <span style="position: absolute; top: -13px; left: 12px; background: #E4442A; color: #F2EDE1; font-family: 'Archivo Black', sans-serif; font-size: 9px; letter-spacing: .1em; text-transform: uppercase; padding: 4px 7px; transform: rotate(-2deg);">hier starten</span>
+          <span style="flex: none; width: 58px; height: 58px; border-radius: 50%; background: conic-gradient(#1A1A18 0 40%, rgba(26,26,24,.14) 40% 100%); display: flex; align-items: center; justify-content: center;"><span style="width: 44px; height: 44px; border-radius: 50%; background: #F2EDE1; display: flex; align-items: center; justify-content: center; font-family: 'Archivo Black', sans-serif; font-size: 12px;">2/5</span></span>
+          <span style="flex: 1; min-width: 0;">
+            <span style="display: block; font-family: 'Archivo Black', sans-serif; font-size: 19px; line-height: 1; letter-spacing: -.03em; text-transform: uppercase;">Charaktere</span>
+            <span style="display: block; margin-top: 5px; font-size: 13px; line-height: 1.4;">Mia und Papa sind schon gezeichnet. Oma fehlt noch.</span>
+          </span>
+          <span style="flex: none; font-family: 'Archivo Black', sans-serif; font-size: 20px;">→</span>
+        </button>
+
+        <button type="button" onClick="{{ goScene }}" style="display: flex; align-items: center; gap: 14px; text-align: left; width: 100%; background: #F2EDE1; border: 4px solid #1A1A18; box-shadow: 5px 6px 0 #1A1A18; padding: 16px; cursor: pointer; font: inherit; color: inherit;">
+          <span style="flex: none; width: 58px; height: 58px; border-radius: 50%; background: conic-gradient(#1A1A18 0 20%, rgba(26,26,24,.14) 20% 100%); display: flex; align-items: center; justify-content: center;"><span style="width: 44px; height: 44px; border-radius: 50%; background: #F2EDE1; display: flex; align-items: center; justify-content: center; font-family: 'Archivo Black', sans-serif; font-size: 12px;">1/5</span></span>
+          <span style="flex: 1; min-width: 0;">
+            <span style="display: block; font-family: 'Archivo Black', sans-serif; font-size: 19px; line-height: 1; letter-spacing: -.03em; text-transform: uppercase;">Wimmelbilder</span>
+            <span style="display: block; margin-top: 5px; font-size: 13px; line-height: 1.4;">„Nachmittag am See“ ist fertig. Nächste Szene wartet.</span>
+          </span>
+          <span style="flex: none; font-family: 'Archivo Black', sans-serif; font-size: 20px;">→</span>
+        </button>
+
+        <button type="button" onClick="{{ goPreview }}" style="display: flex; align-items: center; gap: 14px; text-align: left; width: 100%; background: rgba(26,26,24,.06); border: 4px dashed rgba(26,26,24,.45); padding: 16px; cursor: pointer; font: inherit; color: rgba(26,26,24,.62);">
+          <span style="flex: none; width: 58px; height: 58px; border-radius: 50%; border: 3px dashed rgba(26,26,24,.35); display: flex; align-items: center; justify-content: center; font-family: 'Archivo Black', sans-serif; font-size: 20px;">?</span>
+          <span style="flex: 1; min-width: 0;">
+            <span style="display: block; font-family: 'Archivo Black', sans-serif; font-size: 19px; line-height: 1; letter-spacing: -.03em; text-transform: uppercase;">Gesamt-Vorschau</span>
+            <span style="display: block; margin-top: 5px; font-size: 13px; line-height: 1.4;">öffnet sich, sobald zwei Bilder fertig sind.</span>
+          </span>
+        </button>
+      </div>
+    </section>
+
+    <div style="margin-top: 26px; background: #9BC6D8; border-top: 4px solid #1A1A18; border-bottom: 4px solid #1A1A18; overflow: hidden; padding: 7px 0; transform: rotate(-1.4deg) scale(1.07);">
+      <div style="display: flex; width: max-content; animation: v4ticker 24s linear infinite; font-family: 'Archivo Black', sans-serif; font-size: 12px; text-transform: uppercase; letter-spacing: .05em;">
+        <span>alles gespeichert ✦ nichts entschieden ✦ jederzeit pausieren ✦ alles gespeichert ✦ nichts entschieden ✦ jederzeit pausieren ✦&nbsp;</span>
+        <span>alles gespeichert ✦ nichts entschieden ✦ jederzeit pausieren ✦ alles gespeichert ✦ nichts entschieden ✦ jederzeit pausieren ✦&nbsp;</span>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isChar }}" hint-placeholder-val="{{ false }}">
+    <section style="padding: 18px 14px 0;">
+      <p style="margin: 0 0 8px; display: inline-block; background: #FFD400; border: 3px solid #1A1A18; font-family: 'Archivo Black', sans-serif; font-size: 9px; letter-spacing: .1em; text-transform: uppercase; padding: 5px 8px; transform: rotate(-2deg);">Person 3 von 5 · Oma</p>
+      <h1 style="margin: 0; font-family: 'Archivo Black', sans-serif; font-size: 31px; line-height: .88; letter-spacing: -.04em; text-transform: uppercase;">Wie soll<br />ich sie<br /><span style="color: #E4442A;">zeichnen?</span></h1>
+      <p style="margin: 8px 0 18px; font-family: 'Caveat', cursive; font-size: 20px; line-height: 1.12;">beides führt zum gleichen schönen Ergebnis. nimm, was dir lieber ist.</p>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+        <button type="button" onClick="{{ pickFoto }}" style="{{ fotoCardStyle }}">
+          <span style="display: block; font-family: 'Archivo Black', sans-serif; font-size: 15px; line-height: 1; letter-spacing: -.02em; text-transform: uppercase;">Foto<br />hochladen</span>
+          <span style="display: block; margin-top: 8px; font-size: 12px; line-height: 1.35;">wird nur für dein Bild benutzt und danach gelöscht.</span>
+        </button>
+        <button type="button" onClick="{{ pickChips }}" style="{{ chipsCardStyle }}">
+          <span style="display: block; font-family: 'Archivo Black', sans-serif; font-size: 15px; line-height: 1; letter-spacing: -.02em; text-transform: uppercase;">Merkmale<br />antippen</span>
+          <span style="display: block; margin-top: 8px; font-size: 12px; line-height: 1.35;">ohne Foto, ohne Upload. dauert zwei Minuten.</span>
+        </button>
+      </div>
+
+      <sc-if value="{{ modeChips }}" hint-placeholder-val="{{ false }}">
+        <div style="margin-top: 22px; border: 4px solid #1A1A18; background: #F2EDE1; box-shadow: 6px 7px 0 #1A1A18; padding: 16px;">
+          <div style="display: flex; gap: 14px; align-items: flex-start;">
+            <div style="flex: none; width: 96px; border: 3px solid #1A1A18; background: #9BC6D8; padding: 6px; transform: rotate(-2deg);">
+              <img src="uploads/wizzelwim-family-hero.png" alt="Live-Vorschau der Figur" style="display: block; width: 100%;" />
+              <span style="display: block; margin-top: 5px; font-family: 'Archivo Black', sans-serif; font-size: 8px; letter-spacing: .08em; text-transform: uppercase; text-align: center;">live</span>
+            </div>
+            <div style="flex: 1; min-width: 0;">
+              <p style="margin: 0 0 10px; font-family: 'Archivo Black', sans-serif; font-size: 13px; letter-spacing: -.01em; text-transform: uppercase;">Was fällt zuerst auf?</p>
+              <div style="display: flex; flex-wrap: wrap; gap: 7px;">
+                <sc-for list="{{ chips }}" as="c" hint-placeholder-count="10">
+                  <button type="button" onClick="{{ c.toggle }}" style="{{ c.style }}">{{ c.label }}</button>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+          <label style="display: block; margin-top: 16px;">
+            <span style="display: block; font-family: 'Archivo Black', sans-serif; font-size: 11px; letter-spacing: .06em; text-transform: uppercase;">Was ist noch besonders an ihr? <span style="color: rgba(26,26,24,.5);">optional</span></span>
+            <textarea placeholder="strickt immer beim Fernsehen und hat immer Bonbons in der Tasche" style="margin-top: 7px; width: 100%; min-height: 76px; resize: none; border: 3px solid #1A1A18; background: #FFF; padding: 10px; font-family: 'Archivo', sans-serif; font-size: 14px; line-height: 1.4;"></textarea>
+          </label>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ modeFoto }}" hint-placeholder-val="{{ false }}">
+        <div style="margin-top: 22px; border: 4px dashed #1A1A18; background: rgba(155,198,216,.35); padding: 26px 16px; text-align: center;">
+          <p style="margin: 0; font-family: 'Archivo Black', sans-serif; font-size: 17px; line-height: 1; letter-spacing: -.02em; text-transform: uppercase;">Foto hier ablegen</p>
+          <p style="margin: 8px 0 14px; font-family: 'Caveat', cursive; font-size: 19px;">ein Gesicht reicht. Handyfoto ist völlig okay.</p>
+          <span style="display: inline-block; background: #1A1A18; color: #F2EDE1; font-family: 'Archivo Black', sans-serif; font-size: 13px; text-transform: uppercase; padding: 13px 18px; border: 3px solid #1A1A18;">Kamera oder Galerie</span>
+          <p style="margin: 14px 0 0; font-size: 12px; line-height: 1.4; color: rgba(26,26,24,.7);">Wir zeigen dir danach drei Vorschläge im Wimmelstil. Das Original löschen wir sofort danach.</p>
+        </div>
+      </sc-if>
+    </section>
+  </sc-if>
+
+  <sc-if value="{{ isSheet }}" hint-placeholder-val="{{ false }}">
+    <section style="padding: 18px 14px 0;">
+      <p style="margin: 0 0 8px; display: inline-block; background: #E4442A; color: #F2EDE1; border: 3px solid #1A1A18; font-family: 'Archivo Black', sans-serif; font-size: 9px; letter-spacing: .1em; text-transform: uppercase; padding: 5px 8px; transform: rotate(1.5deg);">Charakterblatt · Oma Rosi</p>
+      <h1 style="margin: 0 0 14px; font-family: 'Archivo Black', sans-serif; font-size: 31px; line-height: .88; letter-spacing: -.04em; text-transform: uppercase;">Erkennst<br />du sie?</h1>
+
+      <div style="border: 4px solid #1A1A18; background: #FFD400; box-shadow: 7px 8px 0 #1A1A18; padding: 12px; transform: rotate(-1deg);">
+        <img src="uploads/wizzelwim-family-hero.png" alt="Oma Rosi in drei Ansichten im Wimmelstil" style="display: block; width: 100%; border: 3px solid #1A1A18; background: #F2EDE1;" />
+        <p style="margin: 10px 0 0; font-family: 'Caveat', cursive; font-size: 19px; line-height: 1.1;">drei Ansichten – so taucht sie später in jeder Szene auf.</p>
+      </div>
+
+      <div style="display: flex; gap: 10px; margin-top: 18px;">
+        <button type="button" onClick="{{ goChar }}" style="flex: 1; min-height: 50px; background: #F2EDE1; border: 3px solid #1A1A18; font-family: 'Archivo Black', sans-serif; font-size: 13px; text-transform: uppercase; cursor: pointer; color: inherit;">Nachschärfen</button>
+        <button type="button" onClick="{{ addPerson }}" style="flex: 1; min-height: 50px; background: #1A1A18; color: #F2EDE1; border: 3px solid #1A1A18; font-family: 'Archivo Black', sans-serif; font-size: 13px; text-transform: uppercase; cursor: pointer;">Passt so</button>
+      </div>
+
+      <h2 style="margin: 28px 0 3px; font-family: 'Archivo Black', sans-serif; font-size: 21px; line-height: .95; letter-spacing: -.03em; text-transform: uppercase;">Wer spielt mit?</h2>
+      <p style="margin: 0 0 14px; font-family: 'Caveat', cursive; font-size: 19px;">drei sind fertig. der Hund fehlt noch – der Hund fehlt immer.</p>
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+        <sc-for list="{{ people }}" as="p" hint-placeholder-count="6">
+          <button type="button" onClick="{{ p.go }}" style="{{ p.style }}">
+            <span style="display: block; font-family: 'Archivo Black', sans-serif; font-size: 22px; line-height: 1;">{{ p.mark }}</span>
+            <span style="display: block; margin-top: 5px; font-family: 'Archivo', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;">{{ p.name }}</span>
+          </button>
+        </sc-for>
+      </div>
+    </section>
+  </sc-if>
+
+  <sc-if value="{{ isScene }}" hint-placeholder-val="{{ false }}">
+    <section style="padding: 18px 14px 0;">
+      <p style="margin: 0 0 8px; display: inline-block; background: #FFD400; border: 3px solid #1A1A18; font-family: 'Archivo Black', sans-serif; font-size: 9px; letter-spacing: .1em; text-transform: uppercase; padding: 5px 8px; transform: rotate(-2deg);">Bild 2 von 5</p>
+      <h1 style="margin: 0; font-family: 'Archivo Black', sans-serif; font-size: 31px; line-height: .88; letter-spacing: -.04em; text-transform: uppercase;">Woraus soll<br />ich die Szene<br /><span style="color: #E4442A;">bauen?</span></h1>
+      <p style="margin: 8px 0 18px; font-family: 'Caveat', cursive; font-size: 20px; line-height: 1.12;">alle drei Wege sind gleich gut. das dritte kostet dich abends null Aufwand.</p>
+
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <sc-for list="{{ ways }}" as="w" hint-placeholder-count="3">
+          <button type="button" onClick="{{ w.pick }}" style="{{ w.style }}">
+            <span style="flex: none; font-family: 'Archivo Black', sans-serif; font-size: 26px; line-height: .8; width: 34px;">{{ w.n }}</span>
+            <span style="flex: 1; min-width: 0; text-align: left;">
+              <span style="display: block; font-family: 'Archivo Black', sans-serif; font-size: 17px; line-height: 1; letter-spacing: -.03em; text-transform: uppercase;">{{ w.title }}</span>
+              <span style="display: block; margin-top: 5px; font-size: 13px; line-height: 1.4;">{{ w.body }}</span>
+            </span>
+          </button>
+        </sc-for>
+      </div>
+
+      <sc-if value="{{ wayRec }}" hint-placeholder-val="{{ false }}">
+        <div style="margin-top: 20px; border: 4px solid #1A1A18; background: #1A1A18; color: #F2EDE1; padding: 20px 16px; text-align: center; box-shadow: 6px 7px 0 #E4442A;">
+          <p style="margin: 0 0 16px; font-family: 'Caveat', cursive; font-size: 21px; line-height: 1.15; color: #FFD400;">erzähl heute Abend eine Geschichte wie sonst auch. ich hör einfach mit.</p>
+          <div style="display: flex; align-items: flex-end; justify-content: center; gap: 4px; height: 54px; margin-bottom: 16px;">
+            <sc-for list="{{ bars }}" as="b" hint-placeholder-count="17">
+              <span style="{{ b.style }}"></span>
+            </sc-for>
+          </div>
+          <button type="button" onClick="{{ goLoad }}" style="width: 100%; min-height: 58px; background: #E4442A; color: #F2EDE1; border: 4px solid #F2EDE1; font-family: 'Archivo Black', sans-serif; font-size: 16px; text-transform: uppercase; cursor: pointer; animation: v4pulse 2.4s ease-out infinite;">Aufnahme stoppen · 04:12</button>
+          <p style="margin: 12px 0 0; font-size: 12px; line-height: 1.45; color: rgba(242,237,225,.75);">Danach zeige ich dir, was ich herausgehört habe – als antippbare Stichworte, die du korrigieren kannst.</p>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ wayTheme }}" hint-placeholder-val="{{ false }}">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px;">
+          <sc-for list="{{ themes }}" as="t" hint-placeholder-count="6">
+            <button type="button" onClick="{{ t.go }}" style="{{ t.style }}">{{ t.label }}</button>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ wayText }}" hint-placeholder-val="{{ false }}">
+        <div style="margin-top: 20px; border: 4px solid #1A1A18; background: #F2EDE1; box-shadow: 6px 7px 0 #1A1A18; padding: 16px;">
+          <textarea placeholder="Wir waren im Herbst auf dem Bauernhof, Mia wollte nicht in den Stall und Papa hat den Traktor kaputt gemacht …" style="width: 100%; min-height: 120px; resize: none; border: 3px solid #1A1A18; background: #FFF; padding: 11px; font-family: 'Archivo', sans-serif; font-size: 14px; line-height: 1.45;"></textarea>
+          <p style="margin: 12px 0 8px; font-family: 'Archivo Black', sans-serif; font-size: 11px; letter-spacing: .06em; text-transform: uppercase;">oder eine Starthilfe antippen</p>
+          <div style="display: flex; flex-wrap: wrap; gap: 7px;">
+            <span style="border: 3px solid #1A1A18; background: #FFD400; font-family: 'Archivo', sans-serif; font-size: 12px; font-weight: 700; padding: 8px 10px;">Ein ganz normaler Morgen</span>
+            <span style="border: 3px solid #1A1A18; background: #FFF; font-family: 'Archivo', sans-serif; font-size: 12px; font-weight: 700; padding: 8px 10px;">Der Tag, an dem alles schiefging</span>
+            <span style="border: 3px solid #1A1A18; background: #FFF; font-family: 'Archivo', sans-serif; font-size: 12px; font-weight: 700; padding: 8px 10px;">Unser Lieblingsplatz</span>
+          </div>
+        </div>
+      </sc-if>
+    </section>
+  </sc-if>
+
+  <sc-if value="{{ isLoad }}" hint-placeholder-val="{{ false }}">
+    <section style="background: #1A1A18; color: #F2EDE1; padding: 26px 14px 30px; min-height: 74vh;">
+      <p style="margin: 0 0 8px; display: inline-block; background: #FFD400; color: #1A1A18; border: 3px solid #F2EDE1; font-family: 'Archivo Black', sans-serif; font-size: 9px; letter-spacing: .1em; text-transform: uppercase; padding: 5px 8px; transform: rotate(-2deg);">Ich zaubere · noch ca. 3 Minuten</p>
+      <h1 style="margin: 0; font-family: 'Archivo Black', sans-serif; font-size: 30px; line-height: .88; letter-spacing: -.04em; text-transform: uppercase;">Ich mache<br />das nicht<br /><span style="color: #FFD400;">schnell.</span></h1>
+      <p style="margin: 8px 0 0; font-family: 'Caveat', cursive; font-size: 20px; line-height: 1.12; color: rgba(242,237,225,.9);">ich zeichne drei Varianten und behalte die beste. das dauert – dafür sitzt es dann.</p>
+
+      <div style="position: relative; margin: 22px 0 0; display: flex; justify-content: center;">
+        <span style="position: absolute; top: 50%; left: 50%; width: 168px; height: 168px; margin: -84px 0 0 -84px; border: 4px dashed rgba(242,237,225,.32); border-radius: 50%; animation: v4spin 22s linear infinite;"></span>
+        <img src="uploads/wizard-on-book.png" alt="WizzelWim zaubert" style="position: relative; width: 128px; animation: v4wob 3.6s ease-in-out infinite;" />
+      </div>
+
+      <div style="margin-top: 22px; display: flex; flex-direction: column; gap: 5px;">
+        <sc-for list="{{ loadSteps }}" as="l" hint-placeholder-count="4">
+          <div style="{{ l.style }}"><span style="flex: none; width: 22px; font-family: 'Archivo Black', sans-serif; font-size: 13px;">{{ l.mark }}</span><span style="flex: 1; min-width: 0;">{{ l.label }}</span></div>
+        </sc-for>
+      </div>
+
+      <div style="margin-top: 24px; border: 4px solid #F2EDE1; background: #E4442A; padding: 16px; transform: rotate(.8deg);">
+        <p style="margin: 0; font-family: 'Archivo Black', sans-serif; font-size: 15px; line-height: 1.05; letter-spacing: -.02em; text-transform: uppercase;">Willst du hierbleiben?</p>
+        <p style="margin: 7px 0 12px; font-family: 'Caveat', cursive; font-size: 20px; line-height: 1.12;">du kannst auch was anderes machen – ich schreib dir, wenn's fertig ist. oder ich erzähl dir Witze.</p>
+        <sc-if value="{{ jokesOff }}" hint-placeholder-val="{{ true }}">
+          <div style="display: flex; gap: 9px;">
+            <button type="button" onClick="{{ tellJoke }}" style="flex: 1; min-height: 48px; background: #FFD400; border: 3px solid #1A1A18; font-family: 'Archivo Black', sans-serif; font-size: 13px; text-transform: uppercase; cursor: pointer; color: #1A1A18;">Witz, bitte</button>
+            <button type="button" onClick="{{ goResult }}" style="flex: 1; min-height: 48px; background: rgba(26,26,24,.15); border: 3px solid #F2EDE1; font-family: 'Archivo Black', sans-serif; font-size: 13px; text-transform: uppercase; cursor: pointer; color: #F2EDE1;">Ich geh kurz weg</button>
+          </div>
+        </sc-if>
+        <sc-if value="{{ jokesOn }}" hint-placeholder-val="{{ false }}">
+          <div style="border: 3px solid #1A1A18; background: #F2EDE1; color: #1A1A18; padding: 14px;">
+            <p style="margin: 0; font-size: 15px; line-height: 1.45; font-weight: 600;">{{ jokeText }}</p>
+            <button type="button" onClick="{{ tellJoke }}" style="margin-top: 12px; min-height: 44px; width: 100%; background: #1A1A18; color: #F2EDE1; border: 3px solid #1A1A18; font-family: 'Archivo Black', sans-serif; font-size: 12px; text-transform: uppercase; cursor: pointer;">Noch einen</button>
+          </div>
+        </sc-if>
+      </div>
+    </section>
+  </sc-if>
+
+  <sc-if value="{{ isResult }}" hint-placeholder-val="{{ false }}">
+    <section style="padding: 18px 0 0;">
+      <div style="padding: 0 14px;">
+        <p style="margin: 0 0 8px; display: inline-block; background: #FFD400; border: 3px solid #1A1A18; font-family: 'Archivo Black', sans-serif; font-size: 9px; letter-spacing: .1em; text-transform: uppercase; padding: 5px 8px; transform: rotate(-2deg);">Bild 2 · Bauernhof im Herbst</p>
+        <h1 style="margin: 0 0 14px; font-family: 'Archivo Black', sans-serif; font-size: 31px; line-height: .88; letter-spacing: -.04em; text-transform: uppercase;">Da ist<br />es.</h1>
+      </div>
+
+      <div style="position: relative; border-top: 4px solid #1A1A18; border-bottom: 4px solid #1A1A18; background: #1A1A18;">
+        <img src="uploads/hero-wimmelhaus.png" alt="Fertiges Wimmelbild" style="display: block; width: 100%;" />
+        <sc-if value="{{ penOn }}" hint-placeholder-val="{{ false }}">
+          <span style="position: absolute; left: 22%; top: 34%; width: 92px; height: 62px; border: 5px solid #E4442A; border-radius: 50%; transform: rotate(-9deg); pointer-events: none;"></span>
+          <span style="position: absolute; left: 22%; top: 34%; margin: -30px 0 0 74px; background: #E4442A; color: #F2EDE1; font-family: 'Archivo Black', sans-serif; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; padding: 5px 7px; transform: rotate(-3deg); pointer-events: none;">das da weg</span>
+        </sc-if>
+      </div>
+
+      <div style="display: flex; gap: 8px; padding: 12px 14px 0;">
+        <button type="button" onClick="{{ togglePen }}" style="{{ penBtnStyle }}">Stift</button>
+        <button type="button" onClick="{{ noop }}" style="flex: 1; min-height: 48px; background: #F2EDE1; border: 3px solid #1A1A18; font-family: 'Archivo Black', sans-serif; font-size: 12px; text-transform: uppercase; cursor: pointer; color: inherit;">Detail antippen</button>
+        <button type="button" onClick="{{ noop }}" style="flex: 1; min-height: 48px; background: #F2EDE1; border: 3px solid #1A1A18; font-family: 'Archivo Black', sans-serif; font-size: 12px; text-transform: uppercase; cursor: pointer; color: inherit;">Nochmal zaubern</button>
+      </div>
+
+      <div style="margin: 16px 14px 0; position: relative; background: #9BC6D8; border: 4px solid #1A1A18; padding: 15px 15px 15px 54px; box-shadow: 5px 6px 0 #1A1A18; transform: rotate(-.8deg);">
+        <img src="uploads/wizard-magnifier.png" alt="" style="position: absolute; left: -18px; top: -14px; width: 46px; transform: rotate(-10deg);" />
+        <p style="margin: 0; font-family: 'Caveat', cursive; font-size: 20px; line-height: 1.12;">{{ penHint }}</p>
+      </div>
+    </section>
+  </sc-if>
+
+  <sc-if value="{{ isChoice }}" hint-placeholder-val="{{ false }}">
+    <section style="padding: 18px 14px 0;">
+      <p style="margin: 0 0 8px; display: inline-block; background: #E4442A; color: #F2EDE1; border: 3px solid #1A1A18; font-family: 'Archivo Black', sans-serif; font-size: 9px; letter-spacing: .1em; text-transform: uppercase; padding: 5px 8px; transform: rotate(1.5deg);">Zwei Bilder fertig</p>
+      <h1 style="margin: 0; font-family: 'Archivo Black', sans-serif; font-size: 31px; line-height: .88; letter-spacing: -.04em; text-transform: uppercase;">Und jetzt?</h1>
+      <p style="margin: 8px 0 18px; font-family: 'Caveat', cursive; font-size: 20px; line-height: 1.12;">alle drei Wege sind richtig. auch der kurze.</p>
+
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <sc-for list="{{ tiers }}" as="t" hint-placeholder-count="3">
+          <button type="button" onClick="{{ t.pick }}" style="{{ t.style }}">
+            <span style="display: flex; align-items: baseline; gap: 8px;">
+              <span style="font-family: 'Archivo Black', sans-serif; font-size: 18px; line-height: 1; letter-spacing: -.03em; text-transform: uppercase;">{{ t.name }}</span>
+              <span style="margin-left: auto; font-family: 'Archivo Black', sans-serif; font-size: 18px;">{{ t.price }}</span>
+            </span>
+            <span style="display: block; margin-top: 7px; text-align: left; font-size: 13px; line-height: 1.4;">{{ t.body }}</span>
+            <span style="{{ t.tagStyle }}">{{ t.tag }}</span>
+          </button>
+        </sc-for>
+      </div>
+
+      <p style="margin: 18px 0 0; font-family: 'Caveat', cursive; font-size: 20px; line-height: 1.15; text-align: center;">wenn du hier aufhörst, ist das völlig okay. wirklich.</p>
+    </section>
+  </sc-if>
+
+  <sc-if value="{{ isDed }}" hint-placeholder-val="{{ false }}">
+    <section style="padding: 18px 14px 0;">
+      <p style="margin: 0 0 8px; display: inline-block; background: #FFD400; border: 3px solid #1A1A18; font-family: 'Archivo Black', sans-serif; font-size: 9px; letter-spacing: .1em; text-transform: uppercase; padding: 5px 8px; transform: rotate(-2deg);">Letzter Schritt · Widmung</p>
+      <h1 style="margin: 0; font-family: 'Archivo Black', sans-serif; font-size: 31px; line-height: .88; letter-spacing: -.04em; text-transform: uppercase;">Was steht<br />vorne<br /><span style="color: #E4442A;">drin?</span></h1>
+      <p style="margin: 8px 0 18px; font-family: 'Caveat', cursive; font-size: 20px; line-height: 1.12;">der Satz, den sie in zwanzig Jahren nochmal lesen.</p>
+
+      <div style="border: 4px solid #1A1A18; background: #FFF; box-shadow: 6px 7px 0 #FFD400; padding: 16px;">
+        <textarea placeholder="Für Mia. Weil kein Tag mit dir langweilig war." style="width: 100%; min-height: 108px; resize: none; border: none; outline: none; font-family: 'Caveat', cursive; font-size: 24px; line-height: 1.25; background: transparent; color: #1A1A18;"></textarea>
+        <div style="display: flex; align-items: center; gap: 9px; border-top: 3px solid #1A1A18; padding-top: 12px;">
+          <button type="button" onClick="{{ noop }}" style="flex: none; width: 46px; height: 46px; border: 3px solid #1A1A18; background: #E4442A; color: #F2EDE1; font-family: 'Archivo Black', sans-serif; font-size: 15px; cursor: pointer;">●</button>
+          <span style="font-size: 13px; line-height: 1.35;">Lieber einsprechen? Deine Stimme kommt als QR-Code hinten ins Buch.</span>
+        </div>
+      </div>
+
+      <p style="margin: 18px 0 8px; font-family: 'Archivo Black', sans-serif; font-size: 11px; letter-spacing: .06em; text-transform: uppercase;">oder eine Vorlage antippen</p>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <span style="border: 3px solid #1A1A18; background: #F2EDE1; font-family: 'Caveat', cursive; font-size: 19px; padding: 11px 13px;">„Für Mia, die alles findet.“</span>
+        <span style="border: 3px solid #1A1A18; background: #F2EDE1; font-family: 'Caveat', cursive; font-size: 19px; padding: 11px 13px;">„Damit du dich später erinnerst, wie laut es bei uns war.“</span>
+        <span style="border: 3px solid #1A1A18; background: #F2EDE1; font-family: 'Caveat', cursive; font-size: 19px; padding: 11px 13px;">„Von Oma Rosi, die immer Bonbons dabei hatte.“</span>
+      </div>
+    </section>
+  </sc-if>
+
+  <sc-if value="{{ isCheck }}" hint-placeholder-val="{{ false }}">
+    <section style="padding: 18px 14px 0;">
+      <p style="margin: 0 0 8px; display: inline-block; background: #9BC6D8; border: 3px solid #1A1A18; font-family: 'Archivo Black', sans-serif; font-size: 9px; letter-spacing: .1em; text-transform: uppercase; padding: 5px 8px; transform: rotate(-2deg);">Bestellung · nichts Verstecktes</p>
+      <h1 style="margin: 0 0 16px; font-family: 'Archivo Black', sans-serif; font-size: 31px; line-height: .88; letter-spacing: -.04em; text-transform: uppercase;">Ab in<br />den Druck.</h1>
+
+      <div style="display: flex; gap: 12px; border: 4px solid #1A1A18; background: #F2EDE1; box-shadow: 6px 7px 0 #1A1A18; padding: 14px;">
+        <img src="uploads/example_gardasee.png" alt="Euer Wimmelbuch" style="flex: none; width: 96px; border: 3px solid #1A1A18; align-self: flex-start;" />
+        <div style="flex: 1; min-width: 0;">
+          <p style="margin: 0; font-family: 'Archivo Black', sans-serif; font-size: 16px; line-height: 1; letter-spacing: -.02em; text-transform: uppercase;">Mini-Wimmelbuch</p>
+          <p style="margin: 6px 0 0; font-size: 13px; line-height: 1.4;">2 Wimmelbilder + Charakterseite, 8 Seiten, Hardcover, mit Widmung.</p>
+          <p style="margin: 8px 0 0; font-family: 'Archivo Black', sans-serif; font-size: 20px;">49 €</p>
+        </div>
+      </div>
+
+      <div style="margin-top: 14px; border: 4px solid #1A1A18; background: #FFD400; padding: 14px; transform: rotate(-.6deg);">
+        <p style="margin: 0; font-family: 'Archivo Black', sans-serif; font-size: 14px; line-height: 1.1; letter-spacing: -.02em; text-transform: uppercase;">Kommt sicher an bis Fr, 18. Dezember</p>
+        <p style="margin: 5px 0 0; font-family: 'Caveat', cursive; font-size: 19px;">also vor Weihnachten. mit Puffer.</p>
+      </div>
+
+      <div style="margin-top: 16px; display: flex; flex-direction: column; gap: 10px;">
+        <input placeholder="Vor- und Nachname" style="width: 100%; min-height: 50px; border: 3px solid #1A1A18; background: #FFF; padding: 0 12px; font-family: 'Archivo', sans-serif; font-size: 15px;" />
+        <input placeholder="Straße und Hausnummer" style="width: 100%; min-height: 50px; border: 3px solid #1A1A18; background: #FFF; padding: 0 12px; font-family: 'Archivo', sans-serif; font-size: 15px;" />
+        <div style="display: flex; gap: 10px;">
+          <input placeholder="PLZ" style="flex: none; width: 110px; min-height: 50px; border: 3px solid #1A1A18; background: #FFF; padding: 0 12px; font-family: 'Archivo', sans-serif; font-size: 15px;" />
+          <input placeholder="Ort" style="flex: 1; min-width: 0; min-height: 50px; border: 3px solid #1A1A18; background: #FFF; padding: 0 12px; font-family: 'Archivo', sans-serif; font-size: 15px;" />
+        </div>
+      </div>
+
+      <p style="margin: 18px 0 8px; font-family: 'Archivo Black', sans-serif; font-size: 11px; letter-spacing: .06em; text-transform: uppercase;">Bezahlen mit</p>
+      <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+        <sc-for list="{{ pays }}" as="p" hint-placeholder-count="4">
+          <button type="button" onClick="{{ p.pick }}" style="{{ p.style }}">{{ p.label }}</button>
+        </sc-for>
+      </div>
+      <p style="margin: 14px 0 0; font-size: 12px; line-height: 1.45; color: rgba(26,26,24,.7);">Gedruckt und gebunden in Deutschland. Deine Daten bleiben auf deutschen Servern. Fotos sind längst gelöscht.</p>
+    </section>
+  </sc-if>
+
+  <sc-if value="{{ isDone }}" hint-placeholder-val="{{ false }}">
+    <section style="background: #E4442A; color: #F2EDE1; padding: 24px 14px 30px; min-height: 74vh; text-align: center;">
+      <div style="position: relative; width: 100%; max-width: 320px; margin: 0 auto 14px; transform: rotate(-2deg);">
+        <img src="uploads/wizard-speechbubble.png" alt="WizzelWim" style="width: 100%; display: block;" />
+        <p style="position: absolute; left: 45%; top: 8%; width: 52%; height: 52%; margin: 0; display: flex; align-items: center; font-family: 'Archivo Black', sans-serif; font-size: 18px; line-height: .98; letter-spacing: -.03em; text-transform: uppercase; color: #1A1A18; text-align: left;">Ich fange sofort an!</p>
+      </div>
+      <h1 style="margin: 0; font-family: 'Archivo Black', sans-serif; font-size: 32px; line-height: .88; letter-spacing: -.04em; text-transform: uppercase;">Euer Buch<br />ist unterwegs<br /><span style="color: #FFD400;">zu euch.</span></h1>
+      <p style="margin: 12px 0 20px; font-family: 'Caveat', cursive; font-size: 21px; line-height: 1.12;">in zehn Tagen liegt es auf dem Couchtisch und jemand sucht eine halbe Stunde die Katze.</p>
+      <div style="border: 4px solid #F2EDE1; background: rgba(26,26,24,.22); padding: 16px; text-align: left;">
+        <p style="margin: 0; display: flex; gap: 10px; font-size: 14px; line-height: 1.5;"><span style="font-family: 'Archivo Black', sans-serif; letter-spacing: .06em; text-transform: uppercase; font-size: 11px; width: 108px; flex: none; padding-top: 3px;">Bestellung</span><span>WW-2026-04817</span></p>
+        <p style="margin: 10px 0 0; display: flex; gap: 10px; font-size: 14px; line-height: 1.5;"><span style="font-family: 'Archivo Black', sans-serif; letter-spacing: .06em; text-transform: uppercase; font-size: 11px; width: 108px; flex: none; padding-top: 3px;">Da bis</span><span>Fr, 18. Dezember</span></p>
+        <p style="margin: 10px 0 0; display: flex; gap: 10px; font-size: 14px; line-height: 1.5;"><span style="font-family: 'Archivo Black', sans-serif; letter-spacing: .06em; text-transform: uppercase; font-size: 11px; width: 108px; flex: none; padding-top: 3px;">Widmung</span><span>„Für Mia, die alles findet.“</span></p>
+      </div>
+      <button type="button" onClick="{{ goDash }}" style="margin-top: 18px; width: 100%; min-height: 56px; background: #FFD400; color: #1A1A18; border: 4px solid #1A1A18; font-family: 'Archivo Black', sans-serif; font-size: 15px; text-transform: uppercase; cursor: pointer;">Noch ein Bild machen</button>
+    </section>
+  </sc-if>
+
+  <div style="position: fixed; left: 50%; bottom: 0; z-index: 70; width: 100%; max-width: 430px; transform: translateX(-50%); background: #F2EDE1; border-top: 4px solid #1A1A18; padding: 10px 14px 12px;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <button type="button" onClick="{{ back }}" style="flex: none; width: 52px; min-height: 52px; background: #F2EDE1; border: 3px solid #1A1A18; font-family: 'Archivo Black', sans-serif; font-size: 17px; cursor: pointer; color: inherit;">←</button>
+      <button type="button" onClick="{{ next }}" style="{{ nextStyle }}">{{ nextLabel }}</button>
+    </div>
+    <p style="margin: 7px 0 0; text-align: center; font-family: 'Caveat', cursive; font-size: 17px; line-height: 1;">{{ softLine }}</p>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:430,&quot;height&quot;:932}}">
+class Component extends DCLogic {
+  state = { screen: 0, mode: null, chips: [1, 4], way: null, jokes: false, joke: 0, pen: false, tier: 1, pay: 0 };
+
+  SCREENS = ["Dashboard", "Charakter", "Charakterblatt", "Szene", "Zaubern", "Ergebnis", "Und jetzt?", "Widmung", "Bestellen", "Fertig"];
+  CHIPS = ["kurze weiße Locken", "silberner Zopf", "Strickjacke", "Blümchenbluse", "Brille an der Kette", "Gehstock", "Perlenkette", "Gummistiefel", "immer eine Tasche dabei", "lacht viel"];
+  JOKES = [
+    "Warum nehmen Kühe nie den Aufzug? Weil sie schon oben ganz gut muhen können.",
+    "Was sagt ein Traktor auf dem Bauernhof zum Heuballen? „Nichts, Traktoren reden nicht. Das war die Oma.“",
+    "Warum hat der Bauer sein Huhn zum Schreiner geschickt? Es wollte unbedingt ein Ei-genheim."
+  ];
+  WAYS = [
+    { n: "1", title: "Thema wählen", body: "Fertige Welten: Bauernhof, Weltraum, Weihnachtsabend, Ritterburg." },
+    { n: "2", title: "Geschichte aufnehmen", body: "Abends beim Erzählen das Mikro mitlaufen lassen. Null Extra-Aufwand." },
+    { n: "3", title: "Selbst eintippen", body: "Ein paar Sätze reichen. Ich frage nach, wenn etwas fehlt." }
+  ];
+  THEMES = ["Bauernhof im Herbst", "Weihnachtsabend", "Weltraum", "Ritterburg", "Unterwasser", "Zirkus"];
+  PEOPLE = [
+    { name: "Mia", mark: "✓", done: true }, { name: "Papa", mark: "✓", done: true }, { name: "Oma Rosi", mark: "✓", done: true },
+    { name: "Bruno", mark: "+", done: false }, { name: "Mama", mark: "+", done: false }, { name: "Hund", mark: "+", done: false }
+  ];
+  TIERS = [
+    { name: "Poster", price: "29 €", body: "Ein Bild, groß gedruckt. Fertig – keine weiteren Schritte.", tag: "sofort fertig" },
+    { name: "Mini-Wimmelbuch", price: "49 €", body: "2 Bilder + Charakterseite, 8 Seiten. Du hast alles schon zusammen.", tag: "alles da" },
+    { name: "Wimmelbuch", price: "89 €", body: "5 Bilder. Vier Abende Erzählen – oder vier Wochen, wie du magst.", tag: "noch 3 Bilder" }
+  ];
+  PAYS = ["PayPal", "Kreditkarte", "Klarna", "Rechnung"];
+  LOAD = [
+    { mark: "✓", label: "Figuren aus euren Charakterblättern gesetzt" },
+    { mark: "✓", label: "Bauernhof gebaut, 41 Situationen verteilt" },
+    { mark: "◐", label: "Variante 2 von 3 wird gezeichnet" },
+    { mark: "○", label: "Qualitätsprüfung, dann zeige ich dir die beste" }
+  ];
+  NEXT = [
+    { l: "Charaktere weitermachen", s: "nichts davon ist verbindlich" },
+    { l: "Figur zeichnen lassen", s: "wir speichern nach jeder Eingabe" },
+    { l: "Weiter zur Geschichte", s: "Personen kannst du später ergänzen" },
+    { l: "Los, zaubern", s: "dauert 2–4 Minuten, du kannst weggehen" },
+    { l: "Bild ansehen", s: "ich melde mich, wenn es fertig ist" },
+    { l: "Bild ist fertig!", s: "nachbessern geht jederzeit noch" },
+    { l: "Mini-Wimmelbuch nehmen", s: "aufhören ist auch eine gute Wahl" },
+    { l: "Weiter zur Bestellung", s: "Widmung ist freiwillig" },
+    { l: "Jetzt bestellen · 49 €", s: "Endpreis inkl. Versand, keine Extras" },
+    { l: "Zurück zum Dashboard", s: "wir haben alles gespeichert" }
+  ];
+
+  go(i) { this.setState({ screen: i, jokes: false }); if (typeof window !== "undefined") window.scrollTo(0, 0); }
+
+  renderVals() {
+    const s = this.state, sc = s.screen;
+    const rot = i => [-1.6, 1.4, -1, 1.8, -1.4, 1.1][i % 6];
+    const railBtn = on => "flex:none;cursor:pointer;font-family:'Archivo Black',sans-serif;font-size:9px;letter-spacing:.06em;text-transform:uppercase;padding:7px 9px;min-height:30px;border:2px solid "
+      + (on ? "#FFD400;background:#FFD400;color:#1A1A18;" : "rgba(242,237,225,.38);background:none;color:rgba(242,237,225,.8);");
+    const card = (on, shadow) => "width:100%;text-align:left;cursor:pointer;font:inherit;color:inherit;padding:15px;border:4px solid #1A1A18;background:"
+      + (on ? "#FFD400" : "#F2EDE1") + ";box-shadow:" + (on ? "6px 7px 0 #1A1A18" : shadow) + ";transform:rotate(" + (on ? -1 : 0) + "deg);";
+
+    return {
+      rail: this.SCREENS.map((l, i) => ({ label: l, go: () => this.go(i), style: railBtn(i === sc) })),
+      priceLabel: (s.tier === 0 ? "29 €" : s.tier === 2 ? "89 €" : "49 €") + " · Stand jetzt",
+      saveHint: () => {},
+      noop: () => {},
+
+      isDash: sc === 0, isChar: sc === 1, isSheet: sc === 2, isScene: sc === 3, isLoad: sc === 4,
+      isResult: sc === 5, isChoice: sc === 6, isDed: sc === 7, isCheck: sc === 8, isDone: sc === 9,
+
+      goDash: () => this.go(0), goChar: () => this.go(1), goScene: () => this.go(3),
+      goLoad: () => this.go(4), goResult: () => this.go(5), goPreview: () => {},
+      addPerson: () => this.setState({ screen: 1, mode: null }),
+
+      pickFoto: () => this.setState({ mode: "foto" }),
+      pickChips: () => this.setState({ mode: "chips" }),
+      modeFoto: s.mode === "foto", modeChips: s.mode === "chips",
+      fotoCardStyle: card(s.mode === "foto", "5px 6px 0 #1A1A18") + "min-height:132px;",
+      chipsCardStyle: card(s.mode === "chips", "5px 6px 0 #E4442A") + "min-height:132px;",
+      chips: this.CHIPS.map((label, i) => {
+        const on = s.chips.indexOf(i) !== -1;
+        return {
+          label,
+          toggle: () => this.setState(st => ({ chips: on ? st.chips.filter(x => x !== i) : st.chips.concat([i]) })),
+          style: "cursor:pointer;font-family:'Archivo',sans-serif;font-size:12px;font-weight:700;padding:8px 10px;border:3px solid #1A1A18;transform:rotate(" + rot(i) + "deg);"
+            + (on ? "background:#E4442A;color:#F2EDE1;" : "background:#FFF;color:#1A1A18;")
+        };
+      }),
+
+      people: this.PEOPLE.map((p, i) => ({
+        name: p.name, mark: p.mark, go: () => this.go(p.done ? 2 : 1),
+        style: "cursor:pointer;font:inherit;padding:14px 6px;text-align:center;transform:rotate(" + rot(i) + "deg);"
+          + (p.done ? "border:4px solid #1A1A18;background:#9BC6D8;color:#1A1A18;box-shadow:4px 5px 0 #1A1A18;"
+                    : "border:4px dashed rgba(26,26,24,.45);background:rgba(26,26,24,.05);color:rgba(26,26,24,.62);")
+      })),
+
+      ways: this.WAYS.map((w, i) => ({
+        n: w.n, title: w.title, body: w.body,
+        pick: () => this.setState({ way: i }),
+        style: "display:flex;gap:8px;align-items:flex-start;width:100%;cursor:pointer;font:inherit;color:inherit;padding:15px;border:4px solid #1A1A18;"
+          + (s.way === i ? "background:#FFD400;box-shadow:6px 7px 0 #1A1A18;" : "background:#F2EDE1;box-shadow:4px 5px 0 #1A1A18;")
+      })),
+      wayTheme: s.way === 0, wayRec: s.way === 1, wayText: s.way === 2,
+      themes: this.THEMES.map((label, i) => ({
+        label, go: () => this.go(4),
+        style: "cursor:pointer;font-family:'Archivo Black',sans-serif;font-size:13px;line-height:1.05;letter-spacing:-.02em;text-transform:uppercase;text-align:left;padding:16px 12px;min-height:84px;border:4px solid #1A1A18;color:#1A1A18;transform:rotate(" + rot(i) + "deg);"
+          + "background:" + ["#9BC6D8", "#FFD400", "#F2EDE1", "#FFD400", "#9BC6D8", "#F2EDE1"][i % 6] + ";box-shadow:4px 5px 0 #1A1A18;"
+      })),
+      bars: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16].map(i => ({
+        style: "display:block;width:6px;height:100%;background:" + (i % 3 === 0 ? "#FFD400" : "#F2EDE1")
+          + ";animation:v4wave " + (0.7 + (i % 5) * 0.18).toFixed(2) + "s ease-in-out infinite;animation-delay:" + (i * 0.07).toFixed(2) + "s;"
+      })),
+
+      loadSteps: this.LOAD.map((l, i) => ({
+        mark: l.mark, label: l.label,
+        style: "display:flex;gap:10px;align-items:flex-start;font-size:13px;line-height:1.4;padding:11px 0;border-top:2px solid rgba(242,237,225,.25);"
+          + (i > 2 ? "color:rgba(242,237,225,.5);" : "color:#F2EDE1;")
+      })),
+      jokesOn: s.jokes, jokesOff: !s.jokes,
+      jokeText: this.JOKES[s.joke % this.JOKES.length],
+      tellJoke: () => this.setState(st => ({ jokes: true, joke: st.jokes ? st.joke + 1 : st.joke })),
+
+      penOn: s.pen,
+      togglePen: () => this.setState(st => ({ pen: !st.pen })),
+      penBtnStyle: "flex:1;min-height:48px;cursor:pointer;font-family:'Archivo Black',sans-serif;font-size:12px;text-transform:uppercase;border:3px solid #1A1A18;"
+        + (s.pen ? "background:#E4442A;color:#F2EDE1;" : "background:#F2EDE1;color:#1A1A18;"),
+      penHint: s.pen ? "kringel einfach drüber. ich muss nicht genau wissen, wo das Ding anfängt – ich verstehe, was du meinst."
+        : "irgendwas störend? nimm den Stift und mal es durch. der Rest der Szene bleibt genau so.",
+
+      tiers: this.TIERS.map((t, i) => ({
+        name: t.name, price: t.price, body: t.body, tag: t.tag,
+        pick: () => this.setState({ tier: i }),
+        style: "position:relative;display:block;width:100%;cursor:pointer;font:inherit;color:inherit;padding:16px;border:4px solid #1A1A18;transform:rotate(" + rot(i) + "deg);"
+          + (s.tier === i ? "background:#FFD400;box-shadow:6px 7px 0 #1A1A18;" : "background:#F2EDE1;box-shadow:4px 5px 0 #1A1A18;"),
+        tagStyle: "position:absolute;top:-13px;right:12px;font-family:'Archivo Black',sans-serif;font-size:9px;letter-spacing:.08em;text-transform:uppercase;padding:4px 7px;border:3px solid #1A1A18;"
+          + (s.tier === i ? "background:#E4442A;color:#F2EDE1;" : "background:#9BC6D8;color:#1A1A18;")
+      })),
+
+      pays: this.PAYS.map((label, i) => ({
+        label, pick: () => this.setState({ pay: i }),
+        style: "cursor:pointer;font-family:'Archivo Black',sans-serif;font-size:12px;text-transform:uppercase;padding:12px 13px;min-height:46px;border:3px solid #1A1A18;"
+          + (s.pay === i ? "background:#1A1A18;color:#F2EDE1;" : "background:#F2EDE1;color:#1A1A18;")
+      })),
+
+      back: () => this.go(sc === 0 ? 0 : sc - 1),
+      next: () => this.go(sc >= 9 ? 0 : sc + 1),
+      nextLabel: this.NEXT[sc].l,
+      softLine: this.NEXT[sc].s,
+      nextStyle: "flex:1;min-width:0;min-height:52px;cursor:pointer;font-family:'Archivo Black',sans-serif;font-size:15px;text-transform:uppercase;border:3px solid #1A1A18;box-shadow:4px 4px 0 #1A1A18;"
+        + (sc === 9 ? "background:#9BC6D8;color:#1A1A18;" : "background:#E4442A;color:#F2EDE1;")
+    };
+  }
+}
+</script>
+</body>
+</html>
