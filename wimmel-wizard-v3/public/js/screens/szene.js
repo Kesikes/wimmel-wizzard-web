@@ -132,7 +132,10 @@ Screens.zaubern = {
     const s = AppState.data;
     const wrap = h("section", { style: { background: "var(--ink)", color: "var(--paper)", padding: "26px 14px 30px", minHeight: "74vh" } });
 
-    wrap.appendChild(h("p", { class: "h-black", style: { margin: "0 0 8px", display: "inline-block", background: "var(--yellow)", color: "var(--ink)", border: "3px solid var(--paper)", fontSize: "9px", letterSpacing: ".1em", padding: "5px 8px", transform: "rotate(-2deg)" } }, "Ich zaubere · dauert 2–4 Minuten"));
+    // "2-5" statt "2-4" Minuten (NEU): composeSceneImage() kann jetzt einen dritten Kandidaten
+    // nachschieben, wenn beide ersten durchfallen (siehe pipeline.js-Kommentar dort, live bestaetigt
+    // am 04.09.2026) -- das kann laenger dauern als die urspruengliche Spezifikations-Schaetzung.
+    wrap.appendChild(h("p", { class: "h-black", style: { margin: "0 0 8px", display: "inline-block", background: "var(--yellow)", color: "var(--ink)", border: "3px solid var(--paper)", fontSize: "9px", letterSpacing: ".1em", padding: "5px 8px", transform: "rotate(-2deg)" } }, "Ich zaubere · dauert 2–5 Minuten"));
     wrap.appendChild(h("h1", { class: "h-black", style: { fontSize: "30px", lineHeight: ".88", letterSpacing: "-.04em" } }, [
       document.createTextNode("Ich mache"), h("br"), document.createTextNode("das nicht"), h("br"),
       h("span", { style: { color: "var(--yellow)" } }, "schnell.")

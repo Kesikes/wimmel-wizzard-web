@@ -160,26 +160,57 @@ function charInScene(spec) {
 // auf das Feld auf, und ein zweiter translate()-Durchlauf auf bereits-englischem Text ist riskant
 // (DICT enthaelt z.B. ["hat",""] und ["an","at"] -- beides wuerde ganz normale englische Woerter in
 // einem schon uebersetzten Satz kaputt uebersetzen, z.B. "an umbrella" -> "at umbrella").
-function charPromptFromChips({ role, age, chipLabels, note }) {
+// GEAENDERT (Live-Test 04.09.2026): nimmt jetzt "noteEn" (bereits uebersetzt, siehe
+// translateFreeText() unten) statt "note" (rohes Deutsch). Vorher rief diese Funktion intern
+// translate(note) auf -- die reine Woerterbuch-Uebersetzung liess im Live-Test unbekannte Woerter
+// ("trägt", "Loch") unuebersetzt stehen und landete so als deutscher Wortfetzen im Bild-Prompt.
+// Aufrufer (charakter.js) muss jetzt VORHER Pipeline.translateFreeText(charNote) aufrufen und das
+// Ergebnis hier als noteEn hereinreichen.
+function charPromptFromChips({ role, age, chipLabels, noteEn }) {
   const roleBit = ageRole({ role, identityCore: { age } });
   const parts = ["wmlstil", roleBit];
   (chipLabels || []).forEach((label) => {
     const en = twoColorBoost(translateChip(label));
     if (en) parts.push(en);
   });
-  if (note) parts.push(translate(note));
+  if (noteEn) parts.push(noteEn);
   parts.push("round head, minimal face, dot eyes, single vertical line nose, no ears, no mouth, no visible neck, standing, flat color fill, thick black marker outline, graphic recording sketchnote style, white background, full body, front view");
   return parts.filter(Boolean).join(", ");
 }
-function charInSceneFromChips({ role, age, chipLabels, note }) {
+function charInSceneFromChips({ role, age, chipLabels, noteEn }) {
   const roleBit = ageRole({ role, identityCore: { age } });
   const bits = [roleBit];
   (chipLabels || []).forEach((label) => {
     const en = twoColorBoost(translateChip(label));
     if (en) bits.push(en);
   });
-  if (note) { const t = translate(note).split(",")[0]; if (t) bits.push(t); }
+  if (noteEn) { const t = noteEn.split(",")[0]; if (t) bits.push(t); }
   return bits.filter(Boolean).join(", ");
+}
+
+// NEU (Live-Test 04.09.2026, schliesst die Freitext-Uebersetzungsluecke): ruft den neuen
+// claude-proxy-Modus "translate" auf (siehe api/claude-proxy.js) fuer beliebigen deutschen Freitext
+// (aktuell: charNote). Faellt bei Netzwerk-/API-Fehler auf die alte, schwaechere translate()
+// zurueck, damit ein einzelner fehlgeschlagener API-Aufruf die Charakter-Generierung nicht komplett
+// blockiert -- liefert dann zwar potenziell wieder unuebersetzte Wortfetzen (bekannte Schwaeche),
+// ist aber besser als ein harter Fehler mitten im Zeichnen-Vorgang.
+async function translateFreeText(text) {
+  const trimmed = String(text || "").trim();
+  if (!trimmed) return "";
+  try {
+    const resp = await fetch("/api/claude-proxy", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: "translate", text: trimmed }),
+    });
+    let data;
+    try { data = await resp.json(); } catch (e) { throw new Error("Antwort war kein gültiges JSON."); }
+    if (!resp.ok || data.error) throw new Error(data.error || ("Übersetzungs-Fehler " + resp.status));
+    if (!data.text) throw new Error("Keine Übersetzung erhalten.");
+    return data.text;
+  } catch (e) {
+    return translate(trimmed);
+  }
 }
 
 // NEU: von imageRefMapping()/scenePrompt() benutzt, um pro Held entweder eine vorab (ueber
@@ -608,14 +639,24 @@ function buildVerifyPrompt(heroSpecs) {
   return "Sind alle " + n + " benannten Charaktere (" + names + ") je genau einmal erkennbar vorhanden? Hat irgendeine Figur im ganzen Bild einen sichtbaren Mund? Antworte NUR als JSON-Objekt mit genau diesen zwei Feldern: {\"heroes_ok\": true/false, \"mouths_ok\": true/false} — heroes_ok ist nur dann true, wenn wirklich alle " + n + " genannten Charaktere je genau einmal zu erkennen sind; mouths_ok ist nur dann true, wenn KEINE Figur im ganzen Bild einen sichtbaren Mund hat.";
 }
 
-// composeSceneImage(): NEU, implementiert Spezifikation Abschnitt 3 ("bereits gebaut und
-// bestätigt"): 2 Kandidaten (gleicher Prompt, neue Seeds), je ein Verify-Call, bestes Ergebnis
-// (Fallback: wenigste Verstoesse) auswaehlen. heroSpecs[i].imageUrl muss das bereits bestaetigte
-// Frontbild dieser Person sein (Reihenfolge = image_urls-Reihenfolge, siehe imageRefMapping()).
-// Auf max. 5 Referenzbilder gedeckelt (Spezifikation Abschnitt 2: "NUR die Charakterbilder
-// (max. 4-5)") -- bei mehr als 5 fertigen Personen werden nur die ersten 5 als Referenz mitgeschickt;
-// das ist noch nicht live gestestet und sollte im Blick behalten werden, falls Familien mit > 5
-// Personen typisch werden.
+// composeSceneImage(): implementiert Spezifikation Abschnitt 3: 2 Kandidaten (gleicher Prompt,
+// neue Seeds), je ein Verify-Call, bestes Ergebnis (Fallback: wenigste Verstoesse) auswaehlen.
+// heroSpecs[i].imageUrl muss das bereits bestaetigte Frontbild dieser Person sein (Reihenfolge =
+// image_urls-Reihenfolge, siehe imageRefMapping()). Auf max. 5 Referenzbilder gedeckelt
+// (Spezifikation Abschnitt 2: "NUR die Charakterbilder (max. 4-5)") -- bei mehr als 5 fertigen
+// Personen werden nur die ersten 5 als Referenz mitgeschickt; das ist noch nicht live getestet und
+// sollte im Blick behalten werden, falls Familien mit > 5 Personen typisch werden.
+//
+// DRITTER VERSUCH (NEU, nicht mehr nur die in der Spezifikation als "bekannte Restfrage" offen
+// gelassene Moeglichkeit): im Live-Test am 04.09.2026 ist genau der Fall eingetreten, den die
+// Spezifikation als ungeklaert benannt hatte -- BEIDE Kandidaten sind gleichzeitig durchgefallen
+// (heroes_ok:false, mouths_ok:false bei beiden). Kein theoretischer Fall mehr. Faellt keiner der
+// ersten beiden Kandidaten perfekt aus (violations === 0), wird jetzt automatisch ein dritter
+// Kandidat mit neuem Seed generiert und geprueft, danach das insgesamt beste Ergebnis (wenigste
+// Verstoesse) aus allen vorhandenen Kandidaten gewaehlt. Bewusst NICHT immer 3 Kandidaten generieren
+// -- das wuerde die ohnehin schon lange Wartezeit (2-4 Minuten laut Spezifikation) routinemaessig
+// weiter verlaengern, obwohl der Normalfall (mind. ein Kandidat perfekt) laut Live-Test durchaus
+// vorkommt.
 async function composeSceneImage({ heroSpecs, theme, situations }) {
   const refHeroes = heroSpecs.slice(0, 5);
   const refUrls = refHeroes.map((s) => s.imageUrl).filter(Boolean);
@@ -623,32 +664,27 @@ async function composeSceneImage({ heroSpecs, theme, situations }) {
   const styleRefUrls = refUrls.slice(1);
   const promptText = scenePrompt({ heroSpecs: refHeroes, theme, situations });
   const instruction = sceneComposeInstruction(promptText);
+  const verifyPrompt = buildVerifyPrompt(refHeroes);
+
+  async function generateAndVerify(seed) {
+    const cand = await generateImage(instruction, "scene", { seed, editImageUrl, styleRefUrls });
+    const verifyOut = await verifyImage(cand.url, verifyPrompt);
+    const scored = countViolations(verifyOut);
+    return Object.assign({}, cand, { violations: scored.violations, verify: scored.parsed });
+  }
 
   const seedA = Math.floor(Math.random() * 1e9);
   const seedB = Math.floor(Math.random() * 1e9);
-  const [candA, candB] = await Promise.all([
-    generateImage(instruction, "scene", { seed: seedA, editImageUrl, styleRefUrls }),
-    generateImage(instruction, "scene", { seed: seedB, editImageUrl, styleRefUrls }),
-  ]);
+  let candidates = await Promise.all([generateAndVerify(seedA), generateAndVerify(seedB)]);
 
-  const verifyPrompt = buildVerifyPrompt(refHeroes);
-  const [verifyA, verifyB] = await Promise.all([
-    verifyImage(candA.url, verifyPrompt),
-    verifyImage(candB.url, verifyPrompt),
-  ]);
-  const scoredA = countViolations(verifyA);
-  const scoredB = countViolations(verifyB);
-  const pickA = scoredA.violations <= scoredB.violations;
-  const best = Object.assign({}, pickA ? candA : candB, { violations: pickA ? scoredA.violations : scoredB.violations, verify: pickA ? scoredA.parsed : scoredB.parsed });
-  return {
-    best,
-    promptText,
-    instruction,
-    candidates: [
-      Object.assign({}, candA, { violations: scoredA.violations, verify: scoredA.parsed }),
-      Object.assign({}, candB, { violations: scoredB.violations, verify: scoredB.parsed }),
-    ],
-  };
+  if (!candidates.some((c) => c.violations === 0)) {
+    const seedC = Math.floor(Math.random() * 1e9);
+    const candC = await generateAndVerify(seedC);
+    candidates = candidates.concat([candC]);
+  }
+
+  const best = candidates.reduce((a, b) => (b.violations < a.violations ? b : a));
+  return { best, promptText, instruction, candidates };
 }
 
 /* ---------------- Bild-Upload ---------------- */
@@ -742,7 +778,7 @@ async function fetchJokes(theme, count) {
 
 window.Pipeline = {
   translate, translateChip, ageRole, twoColorBoost, makeCharacterSpec,
-  charPrompt, charInScene, charPromptFromChips, charInSceneFromChips, describeHero,
+  charPrompt, charInScene, charPromptFromChips, charInSceneFromChips, describeHero, translateFreeText,
   charSheetViewPrompt, threeQuarterEditInstruction,
   kontextInstruction, photoStyleInstruction,
   PEN_INSTRUCTION_REMOVE, PEN_INSTRUCTION_REDO,

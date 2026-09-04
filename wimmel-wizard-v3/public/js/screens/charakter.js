@@ -131,6 +131,11 @@ function buildChipsPanel(person) {
   // charInSceneFromChips() (siehe pipeline.js-Kommentar dort, warum nicht ueber charPrompt()
   // direkt) und speichert Ergebnis-URL + Szenenbeschreibung an der Person (state.js
   // AppState.updatePerson()), damit composeSceneImage() spaeter ein echtes Referenzbild hat.
+  // Live-Test 04.09.2026: charNote wird jetzt VOR dem Prompt-Bau ueber Pipeline.translateFreeText()
+  // uebersetzt (echter API-Aufruf, mit translate()-Fallback) statt die schwache Woerterbuch-
+  // Uebersetzung direkt in charPromptFromChips() laufen zu lassen -- schliesst die Luecke, die der
+  // Live-Test bei Papas Notiz ("trägt immer eine karierte Jacke" -> unuebersetztes "trägt" im
+  // Prompt) aufgedeckt hat.
   const errorP = h("p", { style: { margin: "12px 0 0", fontSize: "12px", color: "var(--red)", display: "none" } }, "");
   const genBtn = h("button", {
     type: "button", class: "h-black",
@@ -147,8 +152,9 @@ function buildChipsPanel(person) {
       genBtn.textContent = "Ich zeichne …";
       genBtn.style.opacity = "0.75";
       try {
-        const prompt = Pipeline.charPromptFromChips({ role: person.role, age: person.age, chipLabels, note: s.charNote });
-        const sceneDescription = Pipeline.charInSceneFromChips({ role: person.role, age: person.age, chipLabels, note: s.charNote });
+        const noteEn = await Pipeline.translateFreeText(s.charNote);
+        const prompt = Pipeline.charPromptFromChips({ role: person.role, age: person.age, chipLabels, noteEn });
+        const sceneDescription = Pipeline.charInSceneFromChips({ role: person.role, age: person.age, chipLabels, noteEn });
         const result = await Pipeline.generateImage(prompt, "char");
         AppState.updatePerson(person.id, { imageUrl: result.url, imageSeed: result.seed, sceneDescription });
         Router.goScreen("charakterblatt");

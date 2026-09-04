@@ -216,6 +216,51 @@ module.exports = async (req, res) => {
     return;
   }
 
+  // ---- Modus (NEU, Live-Test 04.09.2026): Uebersetzung fuer das freie Notizfeld ----
+  // Grund: Pipeline.translate() (Client, pipeline.js) ist ein reines Woerterbuch (DICT), das nur
+  // fuer die 10 festen CHIPS-Labels (dort ueber CHIP_TRANSLATIONS abgesichert) verlaesslich ist.
+  // Fuer das freie "Was ist noch besonders an ihr?"-Notizfeld (beliebiger Text) hat der Live-Test
+  // bestaetigt, dass unbekannte Woerter (z.B. "trägt", "Loch") unuebersetzt im Bild-Prompt landen --
+  // genau das historische Risiko aus dem fal-proxy.js-Kommentar (deutsche Wortfetzen koennen vom
+  // Bildmodell woertlich als Text ins Bild geschrieben werden). Gleiche Absicherung wie bei den 10
+  // CHIPS (dort per fester Tabelle), hier per echtem Uebersetzungsaufruf, da eine feste Tabelle bei
+  // freiem Text nicht funktioniert. Einzelner, zustandsloser Aufruf, kein Tool-Calling, knapp
+  // gehalten (wie ein Prompt-Fragment, kein vollstaendiger Satz).
+  if (body.mode === "translate") {
+    const text = String(body.text || "").slice(0, 300).trim();
+    if (!text) {
+      res.status(200).json({ text: "" });
+      return;
+    }
+    try {
+      const resp = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+        body: JSON.stringify({
+          model: MODEL,
+          max_tokens: 120,
+          system: "Du übersetzt ein kurzes deutsches Beschreibungsfragment für einen Bildgenerierungs-Prompt ins Englische. Antworte AUSSCHLIESSLICH mit der Übersetzung selbst, als knappes Prompt-Fragment (kein vollständiger Satz, keine Anführungszeichen, kein Markdown, keine Erklärung, kein Text davor oder danach). Beispiel: Eingabe 'trägt immer eine karierte Jacke' -> Ausgabe 'always wearing a plaid jacket'. Beispiel: Eingabe 'hat ein Loch in der Hose vom Klettern' -> Ausgabe 'has a hole in the pants from climbing'.",
+          messages: [{ role: "user", content: text }],
+        }),
+      });
+      if (!resp.ok) {
+        const txt = await resp.text().catch(() => "");
+        res.status(502).json({ error: "Anthropic-Fehler " + resp.status + ": " + txt.slice(0, 200) });
+        return;
+      }
+      const data = await resp.json();
+      const translated = ((data.content && data.content[0] && data.content[0].text) || "").trim().replace(/^["']|["']$/g, "");
+      if (!translated) {
+        res.status(502).json({ error: "Keine Übersetzung erhalten." });
+        return;
+      }
+      res.status(200).json({ text: translated });
+    } catch (e) {
+      res.status(502).json({ error: "Verbindung zu Anthropic fehlgeschlagen: " + String(e) });
+    }
+    return;
+  }
+
   // ---- Modus 1: Foto-Merkmalsextraktion (kein Chatverlauf, ein einzelner Vision-Aufruf) ----
   if (body.mode === "extract_traits") {
     const imageDataUri = String(body.imageDataUri || "");
