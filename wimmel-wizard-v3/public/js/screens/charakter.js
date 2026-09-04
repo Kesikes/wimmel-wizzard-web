@@ -10,7 +10,12 @@ Screens.charakter = {
     const s = AppState.data;
     const wrap = h("section", { class: "scr-pad" });
 
-    wrap.appendChild(h("p", { class: "kicker kicker-yellow", style: { transform: "rotate(-2deg)" } }, "Person 3 von 5 · Oma"));
+    // Person, die gerade bearbeitet wird: die zuletzt gewaehlte, sonst die
+    // erste noch offene (Nullzustand: startet bei Person 1).
+    const person = AppState.currentPerson();
+    const personIndex = s.people.findIndex((p) => p.id === person.id);
+    if (s.currentPersonId !== person.id) AppState.update({ currentPersonId: person.id });
+    wrap.appendChild(h("p", { class: "kicker kicker-yellow", style: { transform: "rotate(-2deg)" } }, "Person " + (personIndex + 1) + " von " + s.people.length + " · " + person.name));
     wrap.appendChild(h("h1", { class: "h1-scr", style: { fontSize: "31px" } }, [
       document.createTextNode("Wie soll"), h("br"), document.createTextNode("ich sie"), h("br"),
       h("span", { style: { color: "var(--red)" } }, "zeichnen?")
@@ -113,38 +118,57 @@ function buildFotoPanel() {
 }
 
 // ---- Charakterblatt ----
+// PEOPLE_GRID kam frueher als fest eingetragene Demo-Liste (3 fertig / 3 offen).
+// Jetzt live aus AppState.data.people gelesen (siehe peopleBody() unten) —
+// PEOPLE_GRID bleibt als Name exportiert, falls andere Screens ihn referenzieren,
+// zeigt aber immer den aktuellen State.
+function currentPeopleGrid() {
+  return AppState.data.people.map((p) => ({ key: p.id, name: p.name, mark: p.status === "done" ? "✓" : "+", done: p.status === "done" }));
+}
 
-const PEOPLE_GRID = [
-  { key: "mia", name: "Mia", mark: "✓", done: true },
-  { key: "papa", name: "Papa", mark: "✓", done: true },
-  { key: "oma", name: "Oma Rosi", mark: "✓", done: true },
-  { key: "bruno", name: "Bruno", mark: "+", done: false },
-  { key: "mama", name: "Mama", mark: "+", done: false },
-  { key: "hund", name: "Hund", mark: "+", done: false }
-];
+function peopleBody(people) {
+  const done = people.filter((p) => p.done);
+  if (done.length === 0) return "noch niemand ist fertig. leg los, wann du willst.";
+  if (done.length === people.length) return "alle sind fertig.";
+  const open = people.filter((p) => !p.done);
+  return done.length + " von " + people.length + " sind fertig. " + (open.length === 1 ? open[0].name + " fehlt noch." : open.length + " fehlen noch.");
+}
 
 Screens.charakterblatt = {
   render(root) {
     const wrap = h("section", { class: "scr-pad" });
+    const person = AppState.currentPerson();
 
-    wrap.appendChild(h("p", { class: "kicker kicker-red", style: { transform: "rotate(1.5deg)" } }, "Charakterblatt · Oma Rosi"));
+    wrap.appendChild(h("p", { class: "kicker kicker-red", style: { transform: "rotate(1.5deg)" } }, "Charakterblatt · " + person.name));
     wrap.appendChild(h("h1", { class: "h1-scr", style: { fontSize: "31px", marginBottom: "14px" } }, [document.createTextNode("Erkennst"), h("br"), document.createTextNode("du sie?")]));
 
     const card = h("div", { style: { border: "4px solid var(--ink)", background: "var(--yellow)", boxShadow: "7px 8px 0 var(--ink)", padding: "12px", transform: "rotate(-1deg)" } });
-    card.appendChild(h("img", { src: "assets/wizzelwim-family-hero.png", alt: "Oma Rosi in drei Ansichten im Wimmelstil", style: { display: "block", width: "100%", border: "3px solid var(--ink)", background: "var(--paper)" } }));
+    card.appendChild(h("img", { src: "assets/wizzelwim-family-hero.png", alt: person.name + " in drei Ansichten im Wimmelstil", style: { display: "block", width: "100%", border: "3px solid var(--ink)", background: "var(--paper)" } }));
     card.appendChild(h("p", { class: "caveat", style: { margin: "10px 0 0", fontSize: "19px", lineHeight: "1.1" } }, "drei Ansichten – so taucht sie später in jeder Szene auf."));
     wrap.appendChild(card);
 
     const btnRow = h("div", { style: { display: "flex", gap: "10px", marginTop: "18px" } });
     btnRow.appendChild(h("button", { type: "button", class: "h-black", style: { flex: "1", minHeight: "50px", background: "var(--paper)", border: "3px solid var(--ink)", fontSize: "13px", color: "inherit" }, onClick: () => Router.goScreen("charakter") }, "Nachschärfen"));
-    btnRow.appendChild(h("button", { type: "button", class: "h-black", style: { flex: "1", minHeight: "50px", background: "var(--ink)", color: "var(--paper)", border: "3px solid var(--ink)", fontSize: "13px" }, onClick: () => { AppState.update({ charMode: null }); Router.goScreen("charakter"); } }, "Passt so"));
+    btnRow.appendChild(h("button", {
+      type: "button", class: "h-black", style: { flex: "1", minHeight: "50px", background: "var(--ink)", color: "var(--paper)", border: "3px solid var(--ink)", fontSize: "13px" },
+      onClick: () => {
+        // Bestaetigung markiert die Person als fertig — das war vorher nirgends
+        // verdrahtet (siehe Status-Hinweis: Fortschritt ist ohne echte Pipeline
+        // nur eine lokale State-Markierung, kein generiertes Bild).
+        const people = AppState.data.people.map((p) => (p.id === person.id ? { ...p, status: "done" } : p));
+        const next = people.find((p) => p.status === "open");
+        AppState.update({ people, charMode: null, currentPersonId: next ? next.id : null });
+        Router.goScreen(next ? "charakter" : "dashboard");
+      }
+    }, "Passt so"));
     wrap.appendChild(btnRow);
 
+    const peopleGrid = currentPeopleGrid();
     wrap.appendChild(h("h2", { class: "h-black", style: { margin: "28px 0 3px", fontSize: "21px", lineHeight: ".95", letterSpacing: "-.03em" } }, "Wer spielt mit?"));
-    wrap.appendChild(h("p", { class: "caveat", style: { margin: "0 0 14px", fontSize: "19px" } }, "drei sind fertig. der Hund fehlt noch – der Hund fehlt immer."));
+    wrap.appendChild(h("p", { class: "caveat", style: { margin: "0 0 14px", fontSize: "19px" } }, peopleBody(peopleGrid)));
 
     const grid = h("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px" } });
-    PEOPLE_GRID.forEach((p, i) => {
+    peopleGrid.forEach((p, i) => {
       const tile = h("button", {
         type: "button",
         style: {
@@ -153,7 +177,7 @@ Screens.charakterblatt = {
           background: p.done ? "var(--blue)" : "rgba(26,26,24,.05)",
           boxShadow: p.done ? "4px 5px 0 var(--ink)" : "none"
         },
-        onClick: () => Router.goScreen(p.done ? "charakterblatt" : "charakter")
+        onClick: () => { AppState.update({ currentPersonId: p.key }); Router.goScreen(p.done ? "charakterblatt" : "charakter"); }
       });
       tile.appendChild(h("span", { class: "h-black", style: { display: "block", fontSize: "22px", lineHeight: "1" } }, p.mark));
       tile.appendChild(h("span", { style: { display: "block", marginTop: "5px", fontFamily: "'Archivo',sans-serif", fontSize: "11px", fontWeight: "700", letterSpacing: ".04em", textTransform: "uppercase" } }, p.name));
