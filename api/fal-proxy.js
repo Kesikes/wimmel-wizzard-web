@@ -149,6 +149,23 @@ module.exports = async (req, res) => {
   const testLoraUrl = typeof body.testLoraUrl === "string" && /^https:\/\/[a-z0-9.-]*fal\.media\//.test(body.testLoraUrl)
     ? body.testLoraUrl
     : undefined;
+  // EXPERIMENTAL (Website-Header-Illustration, Cowork-Chat "wide horizontal illustration for a
+  // website header"): optionaler image_size-Override, NUR für den Text-zu-Bild-Pfad (flux-lora, kein
+  // imageUrl gesetzt). Das bisherige image_size war für diesen Pfad fest auf 1024x576 (kind:"scene")
+  // bzw. 768x1024 (kind:"char") codiert – zu schmal für ein echtes Panorama-Bannerformat. Kein Teil
+  // des regulären Produktpfads (der Client setzt body.imageWidth/body.imageHeight nie) – nur für
+  // gezielte manuelle Testaufrufe über generateImage(..., extra). Werte auf ein sinnvolles Fenster
+  // begrenzt und auf Vielfache von 64 gerundet (übliche Anforderung von Diffusionsmodellen wie FLUX),
+  // damit hier keine beliebigen/kaputten Maße an fal.ai durchgereicht werden. Ohne diese Felder bleibt
+  // das bisherige Verhalten unverändert.
+  const clampImageDim = (v) => {
+    const n = Math.trunc(Number(v));
+    if (!Number.isFinite(n)) return undefined;
+    const clamped = Math.min(1600, Math.max(256, n));
+    return clamped - (clamped % 64);
+  };
+  const testImageWidth = !imageUrl ? clampImageDim(body.imageWidth) : undefined;
+  const testImageHeight = !imageUrl ? clampImageDim(body.imageHeight) : undefined;
   // EXPERIMENTAL (Testlauf 16-Vignetten-Wimmelbild, 2K/21:9-Anfrage): optionaler Pass-Through für
   // resolution/aspect_ratio, NUR für den Bild-Edit-Pfad (imageUrl gesetzt). Kein Teil des regulären
   // Produktpfads (der Client setzt body.resolution/body.aspectRatio nie) – nur für gezielte manuelle
@@ -216,7 +233,9 @@ module.exports = async (req, res) => {
         enable_safety_checker: true,
         // PNG statt JPEG: verlustfrei, wichtig für die dünnen schwarzen Outlines im Stil (JPEG-Kompression macht sie weich/unscharf).
         output_format: "png",
-        image_size: kind === "char" ? { width: 768, height: 1024 } : { width: 1024, height: 576 },
+        image_size: kind === "char"
+          ? { width: 768, height: 1024 }
+          : (testImageWidth && testImageHeight ? { width: testImageWidth, height: testImageHeight } : { width: 1024, height: 576 }),
         ...(seed !== undefined ? { seed } : {}),
       };
   const falEndpoint = imageUrl
