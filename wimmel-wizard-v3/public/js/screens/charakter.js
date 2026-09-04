@@ -5,14 +5,35 @@
 
 const CHIPS = ["kurze weiße Locken", "silberner Zopf", "Strickjacke", "Blümchenbluse", "Brille an der Kette", "Gehstock", "Perlenkette", "Gummistiefel", "immer eine Tasche dabei", "lacht viel"];
 
+// Rollen-Auswahl fuer das "Person hinzufuegen"-Formular. value ist bereits
+// der von Pipeline.ageRole()/charPrompt() erwartete Wert (siehe pipeline.js
+// Kommentar "role muss vom Aufrufer kommen: girl/boy/woman/man/grandmother/
+// grandfather/..."). "Tier" fragt zusaetzlich die Tierart ab und uebersetzt
+// sie ueber Pipeline.translate() (z. B. "Hund" -> "dog").
+const ROLE_CHIPS = [
+  { label: "Mädchen", value: "girl" },
+  { label: "Junge", value: "boy" },
+  { label: "Frau", value: "woman" },
+  { label: "Mann", value: "man" },
+  { label: "Oma", value: "grandmother" },
+  { label: "Opa", value: "grandfather" },
+  { label: "Haustier", value: "pet" }
+];
+
 Screens.charakter = {
   render(root) {
     const s = AppState.data;
     const wrap = h("section", { class: "scr-pad" });
 
-    // Person, die gerade bearbeitet wird: die zuletzt gewaehlte, sonst die
-    // erste noch offene (Nullzustand: startet bei Person 1).
+    // Person, die gerade bearbeitet wird: die explizit gewaehlte, sonst die
+    // erste noch offene. Gibt es keine (Nullzustand oder alle fertig), zeigen
+    // wir das "Person hinzufuegen"-Formular statt des Foto/Merkmale-Bausteins.
     const person = AppState.currentPerson();
+    if (!person) {
+      wrap.appendChild(buildAddPersonForm(s));
+      root.appendChild(wrap);
+      return;
+    }
     const personIndex = s.people.findIndex((p) => p.id === person.id);
     if (s.currentPersonId !== person.id) AppState.update({ currentPersonId: person.id });
     wrap.appendChild(h("p", { class: "kicker kicker-yellow", style: { transform: "rotate(-2deg)" } }, "Person " + (personIndex + 1) + " von " + s.people.length + " · " + person.name));
@@ -47,7 +68,7 @@ Screens.charakter = {
     grid.appendChild(chipsCard);
     wrap.appendChild(grid);
 
-    if (chipsOn) wrap.appendChild(buildChipsPanel());
+    if (chipsOn) wrap.appendChild(buildChipsPanel(person));
     if (fotoOn) wrap.appendChild(buildFotoPanel());
 
     root.appendChild(wrap);
@@ -66,14 +87,14 @@ function cardStyle(on, shadow) {
   };
 }
 
-function buildChipsPanel() {
+function buildChipsPanel(person) {
   const s = AppState.data;
   const panel = h("div", { style: { marginTop: "22px", border: "4px solid var(--ink)", background: "var(--paper)", boxShadow: "6px 7px 0 var(--ink)", padding: "16px" } });
   const row = h("div", { style: { display: "flex", gap: "14px", alignItems: "flex-start" } });
 
   const preview = h("div", { style: { flex: "none", width: "96px", border: "3px solid var(--ink)", background: "var(--blue)", padding: "6px", transform: "rotate(-2deg)" } });
-  preview.appendChild(h("img", { src: "assets/wizzelwim-family-hero.png", alt: "Live-Vorschau der Figur", style: { display: "block", width: "100%" } }));
-  preview.appendChild(h("span", { class: "h-black", style: { display: "block", marginTop: "5px", fontSize: "8px", letterSpacing: ".08em", textAlign: "center" } }, "live"));
+  preview.appendChild(h("img", { src: person.imageUrl || "assets/wizzelwim-family-hero.png", alt: "Live-Vorschau der Figur", style: { display: "block", width: "100%" } }));
+  preview.appendChild(h("span", { class: "h-black", style: { display: "block", marginTop: "5px", fontSize: "8px", letterSpacing: ".08em", textAlign: "center" } }, person.imageUrl ? "zuletzt gezeichnet" : "noch kein Bild"));
   row.appendChild(preview);
 
   const right = h("div", { style: { flex: "1", minWidth: "0" } });
@@ -105,16 +126,160 @@ function buildChipsPanel() {
   label.appendChild(ta);
   panel.appendChild(label);
 
+  // NEU (Pipeline-Anbindung): tatsaechlicher Aufruf von Pipeline.generateImage() statt nur
+  // Merkmale im State zu sammeln. Baut den Prompt ueber charPromptFromChips()/
+  // charInSceneFromChips() (siehe pipeline.js-Kommentar dort, warum nicht ueber charPrompt()
+  // direkt) und speichert Ergebnis-URL + Szenenbeschreibung an der Person (state.js
+  // AppState.updatePerson()), damit composeSceneImage() spaeter ein echtes Referenzbild hat.
+  const errorP = h("p", { style: { margin: "12px 0 0", fontSize: "12px", color: "var(--red)", display: "none" } }, "");
+  const genBtn = h("button", {
+    type: "button", class: "h-black",
+    style: { marginTop: "16px", width: "100%", minHeight: "52px", background: "var(--red)", color: "var(--paper)", border: "3px solid var(--ink)", fontSize: "13px", cursor: "pointer" },
+    onClick: async () => {
+      const chipLabels = (s.charChips || []).map((i) => CHIPS[i]);
+      if (!chipLabels.length && !(s.charNote || "").trim()) {
+        errorP.textContent = "Bitte mindestens ein Merkmal antippen oder etwas dazuschreiben.";
+        errorP.style.display = "block";
+        return;
+      }
+      errorP.style.display = "none";
+      genBtn.disabled = true;
+      genBtn.textContent = "Ich zeichne …";
+      genBtn.style.opacity = "0.75";
+      try {
+        const prompt = Pipeline.charPromptFromChips({ role: person.role, age: person.age, chipLabels, note: s.charNote });
+        const sceneDescription = Pipeline.charInSceneFromChips({ role: person.role, age: person.age, chipLabels, note: s.charNote });
+        const result = await Pipeline.generateImage(prompt, "char");
+        AppState.updatePerson(person.id, { imageUrl: result.url, imageSeed: result.seed, sceneDescription });
+        Router.goScreen("charakterblatt");
+      } catch (e) {
+        errorP.textContent = "Zeichnen hat nicht geklappt: " + (e && e.message ? e.message : String(e)) + " — nochmal versuchen?";
+        errorP.style.display = "block";
+        genBtn.disabled = false;
+        genBtn.textContent = "Diese Figur zeichnen";
+        genBtn.style.opacity = "1";
+      }
+    }
+  }, "Diese Figur zeichnen");
+  panel.appendChild(genBtn);
+  panel.appendChild(errorP);
+
   return panel;
 }
 
+// EHRLICHER STATUS (nicht Teil dieses Testlaufs): der Foto-Weg hat bisher kein echtes
+// Datei-Upload-Feld (nur diese dekorative Vorschau) und ist nicht an Pipeline.generateImage()
+// mit editImageUrl/Pipeline.photoStyleInstruction() angeschlossen. Statt das stillschweigend so
+// zu lassen (sieht funktionsfaehig aus, ist es aber nicht), ein sichtbarer Hinweis + deaktivierter
+// Button, bis der echte Upload gebaut ist.
 function buildFotoPanel() {
   const panel = h("div", { style: { marginTop: "22px", border: "4px dashed var(--ink)", background: "rgba(155,198,216,.35)", padding: "26px 16px", textAlign: "center" } });
   panel.appendChild(h("p", { class: "h-black", style: { fontSize: "17px", lineHeight: "1", letterSpacing: "-.02em" } }, "Foto hier ablegen"));
   panel.appendChild(h("p", { class: "caveat", style: { margin: "8px 0 14px", fontSize: "19px" } }, "ein Gesicht reicht. Handyfoto ist völlig okay."));
-  panel.appendChild(h("span", { class: "h-black", style: { display: "inline-block", background: "var(--ink)", color: "var(--paper)", fontSize: "13px", padding: "13px 18px", border: "3px solid var(--ink)" } }, "Kamera oder Galerie"));
+  panel.appendChild(h("span", { class: "h-black", style: { display: "inline-block", background: "rgba(26,26,24,.3)", color: "var(--paper)", fontSize: "13px", padding: "13px 18px", border: "3px solid var(--ink)" } }, "Kamera oder Galerie"));
   panel.appendChild(h("p", { style: { margin: "14px 0 0", fontSize: "12px", lineHeight: "1.4", color: "rgba(26,26,24,.7)" } }, "Wir zeigen dir danach drei Vorschläge im Wimmelstil. Das Original löschen wir sofort danach."));
+  panel.appendChild(h("p", { class: "h-black", style: { margin: "16px 0 0", fontSize: "11px", lineHeight: "1.4", color: "var(--red)" } }, "Dieser Weg ist in diesem Testlauf noch nicht angeschlossen — bitte „Merkmale antippen“ verwenden."));
   return panel;
+}
+
+// ---- "Person hinzufuegen": echter Nullzustand statt fester Sechser-Liste ----
+// Ersetzt die frueher fest im Code stehenden sechs Demo-Namen (Mia/Papa/Oma
+// Rosi/Bruno/Mama/Hund, siehe state.js-Kommentar). Nutzerinnen legen hier
+// jede Person selbst an: Name (Pflicht), Rolle (Pflicht, als Chip), Alter
+// (optional). Wird gezeigt, sobald AppState.currentPerson() null liefert.
+function buildAddPersonForm(s) {
+  const wrap = h("div", {});
+  const isFirst = s.people.length === 0;
+
+  wrap.appendChild(h("p", { class: "kicker kicker-yellow", style: { transform: "rotate(-2deg)" } }, isFirst ? "Erste Person" : "Person " + (s.people.length + 1)));
+  wrap.appendChild(h("h1", { class: "h1-scr", style: { fontSize: "31px" } }, [
+    document.createTextNode(isFirst ? "Wer soll" : "Wer soll"), h("br"), document.createTextNode("noch"), h("br"),
+    h("span", { style: { color: "var(--red)" } }, "mitspielen?")
+  ]));
+  wrap.appendChild(h("p", { class: "caveat-sub" }, "Name reicht zum Start. Rolle hilft uns später beim Zeichnen."));
+
+  let name = "", role = null, petLabel = "", age = "";
+
+  const panel = h("div", { style: { marginTop: "18px", border: "4px solid var(--ink)", background: "var(--paper)", boxShadow: "6px 7px 0 var(--ink)", padding: "16px" } });
+
+  const nameLabel = h("label", { style: { display: "block" } });
+  nameLabel.appendChild(h("span", { class: "h-black", style: { display: "block", fontSize: "11px", letterSpacing: ".06em" } }, "Name"));
+  const nameInput = h("input", { type: "text", class: "field", style: { marginTop: "7px" }, placeholder: "z. B. Lena", maxlength: "40" });
+  nameInput.addEventListener("input", () => { name = nameInput.value; });
+  nameLabel.appendChild(nameInput);
+  panel.appendChild(nameLabel);
+
+  const roleWrap = h("div", { style: { marginTop: "16px" } });
+  roleWrap.appendChild(h("span", { class: "h-black", style: { display: "block", fontSize: "11px", letterSpacing: ".06em" } }, "Rolle"));
+  const roleChipRow = h("div", { style: { display: "flex", flexWrap: "wrap", gap: "7px", marginTop: "7px" } });
+  panel.appendChild(roleWrap);
+  roleWrap.appendChild(roleChipRow);
+
+  const petField = h("label", { style: { display: "none", marginTop: "12px" } });
+  petField.appendChild(h("span", { class: "h-black", style: { display: "block", fontSize: "11px", letterSpacing: ".06em" } }, "Welches Tier?"));
+  const petInput = h("input", { type: "text", class: "field", style: { marginTop: "7px" }, placeholder: "z. B. Hund" });
+  petInput.addEventListener("input", () => { petLabel = petInput.value; });
+  petField.appendChild(petInput);
+  panel.appendChild(petField);
+
+  const roleButtons = [];
+  ROLE_CHIPS.forEach((r, i) => {
+    const btn = h("button", {
+      type: "button",
+      style: { cursor: "pointer", fontFamily: "'Archivo',sans-serif", fontSize: "12px", fontWeight: "700", padding: "8px 10px", border: "3px solid var(--ink)", transform: "rotate(" + rot(i) + "deg)", background: "#FFF", color: "var(--ink)" },
+      onClick: () => {
+        role = r.value;
+        roleButtons.forEach((b) => {
+          const on = b.r.value === role;
+          b.btn.style.background = on ? "var(--red)" : "#FFF";
+          b.btn.style.color = on ? "var(--paper)" : "var(--ink)";
+        });
+        petField.style.display = role === "pet" ? "block" : "none";
+      }
+    }, r.label);
+    roleButtons.push({ btn, r });
+    roleChipRow.appendChild(btn);
+  });
+
+  const ageLabel = h("label", { style: { display: "block", marginTop: "12px" } });
+  ageLabel.appendChild(h("span", { class: "h-black", style: { display: "block", fontSize: "11px", letterSpacing: ".06em" } }, ["Alter ", h("span", { style: { color: "rgba(26,26,24,.5)" } }, "optional")]));
+  const ageInput = h("input", { type: "number", class: "field", style: { marginTop: "7px" }, placeholder: "z. B. 6", min: "0", max: "110" });
+  ageInput.addEventListener("input", () => { age = ageInput.value; });
+  ageLabel.appendChild(ageInput);
+  panel.appendChild(ageLabel);
+
+  const errorP = h("p", { style: { margin: "12px 0 0", fontSize: "12px", color: "var(--red)", display: "none" } }, "");
+  panel.appendChild(errorP);
+
+  panel.appendChild(h("button", {
+    type: "button", class: "h-black",
+    style: { marginTop: "16px", width: "100%", minHeight: "50px", background: "var(--ink)", color: "var(--paper)", border: "3px solid var(--ink)", fontSize: "13px", cursor: "pointer" },
+    onClick: () => {
+      const trimmedName = name.trim();
+      if (!trimmedName) { errorP.textContent = "Bitte einen Namen eintragen."; errorP.style.display = "block"; return; }
+      if (!role) { errorP.textContent = "Bitte eine Rolle auswählen."; errorP.style.display = "block"; return; }
+      let finalRole = role;
+      if (role === "pet") {
+        const petTrim = petLabel.trim();
+        finalRole = petTrim ? (window.Pipeline && Pipeline.translate ? Pipeline.translate(petTrim) : petTrim) : "pet";
+      }
+      const ageNum = age !== "" && !isNaN(Number(age)) ? Number(age) : null;
+      AppState.addPerson({ name: trimmedName, role: finalRole, age: ageNum });
+      Router.goScreen("charakter");
+    }
+  }, "Person anlegen"));
+
+  wrap.appendChild(panel);
+
+  if (s.people.length > 0) {
+    wrap.appendChild(h("button", {
+      type: "button",
+      style: { display: "inline-block", marginTop: "14px", background: "none", border: "none", padding: "4px 2px", cursor: "pointer", fontFamily: "'Archivo',sans-serif", fontSize: "12px", fontWeight: "700", letterSpacing: ".03em", textDecoration: "underline", color: "var(--ink-a55)" },
+      onClick: () => Router.goScreen("dashboard")
+    }, "erstmal zurück zum Dashboard"));
+  }
+
+  return wrap;
 }
 
 // ---- Charakterblatt ----
@@ -138,13 +303,24 @@ Screens.charakterblatt = {
   render(root) {
     const wrap = h("section", { class: "scr-pad" });
     const person = AppState.currentPerson();
+    // Kein Fallback mehr auf people[0] (siehe state.js) — ohne aktuelle
+    // Person gibt es hier nichts zu zeigen, zurueck zum Anlege-Formular.
+    if (!person) { Router.goScreen("charakter"); return; }
 
     wrap.appendChild(h("p", { class: "kicker kicker-red", style: { transform: "rotate(1.5deg)" } }, "Charakterblatt · " + person.name));
     wrap.appendChild(h("h1", { class: "h1-scr", style: { fontSize: "31px", marginBottom: "14px" } }, [document.createTextNode("Erkennst"), h("br"), document.createTextNode("du sie?")]));
 
+    // NEU (Pipeline-Anbindung): zeigt das tatsaechlich generierte Bild (person.imageUrl), falls
+    // vorhanden. Fehlt es (z.B. direkter Aufruf ohne vorherige Generierung), Platzhalter +
+    // ehrlicher Hinweis statt so zu tun, als waere das schon das echte Ergebnis. WICHTIG: aktuell
+    // nur die Frontansicht, KEIN echtes Drei-Ansichten-Sheet (Seite/Rueck/3-4) — das ist noch
+    // nicht angeschlossen (charSheetViewPrompt() existiert in pipeline.js, wird hier noch nicht
+    // aufgerufen), Text unten entsprechend angepasst statt die alte "drei Ansichten"-Behauptung
+    // stehen zu lassen.
     const card = h("div", { style: { border: "4px solid var(--ink)", background: "var(--yellow)", boxShadow: "7px 8px 0 var(--ink)", padding: "12px", transform: "rotate(-1deg)" } });
-    card.appendChild(h("img", { src: "assets/wizzelwim-family-hero.png", alt: person.name + " in drei Ansichten im Wimmelstil", style: { display: "block", width: "100%", border: "3px solid var(--ink)", background: "var(--paper)" } }));
-    card.appendChild(h("p", { class: "caveat", style: { margin: "10px 0 0", fontSize: "19px", lineHeight: "1.1" } }, "drei Ansichten – so taucht sie später in jeder Szene auf."));
+    card.appendChild(h("img", { src: person.imageUrl || "assets/wizzelwim-family-hero.png", alt: person.name + " im Wimmelstil", style: { display: "block", width: "100%", border: "3px solid var(--ink)", background: "var(--paper)" } }));
+    card.appendChild(h("p", { class: "caveat", style: { margin: "10px 0 0", fontSize: "19px", lineHeight: "1.1" } },
+      person.imageUrl ? "so taucht sie später in jeder Szene auf." : "noch kein Bild — bitte erst „Diese Figur zeichnen“ auf dem vorigen Schritt."));
     wrap.appendChild(card);
 
     const btnRow = h("div", { style: { display: "flex", gap: "10px", marginTop: "18px" } });
@@ -183,6 +359,20 @@ Screens.charakterblatt = {
       tile.appendChild(h("span", { style: { display: "block", marginTop: "5px", fontFamily: "'Archivo',sans-serif", fontSize: "11px", fontWeight: "700", letterSpacing: ".04em", textTransform: "uppercase" } }, p.name));
       grid.appendChild(tile);
     });
+    // Es gibt kein festes Roster mehr — statt leerer, vorbenannter Plaetze
+    // ("+"-Kacheln fuer Mama/Bruno/Hund) ein expliziter Einstiegspunkt, um
+    // eine weitere, selbst benannte Person anzulegen.
+    const addTile = h("button", {
+      type: "button",
+      style: {
+        cursor: "pointer", padding: "14px 6px", textAlign: "center", color: "inherit",
+        border: "4px dashed rgba(26,26,24,.45)", background: "rgba(26,26,24,.05)"
+      },
+      onClick: () => { AppState.update({ currentPersonId: null }); Router.goScreen("charakter"); }
+    });
+    addTile.appendChild(h("span", { class: "h-black", style: { display: "block", fontSize: "22px", lineHeight: "1" } }, "+"));
+    addTile.appendChild(h("span", { style: { display: "block", marginTop: "5px", fontFamily: "'Archivo',sans-serif", fontSize: "11px", fontWeight: "700", letterSpacing: ".04em", textTransform: "uppercase" } }, "Person"));
+    grid.appendChild(addTile);
     wrap.appendChild(grid);
 
     root.appendChild(wrap);

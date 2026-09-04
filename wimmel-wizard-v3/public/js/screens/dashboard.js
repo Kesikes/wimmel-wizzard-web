@@ -55,7 +55,7 @@ Screens.dashboard = {
     cards.appendChild(buildBlockCard({
       badge: doneChars === 0 ? "hier starten" : null, badgeBg: "var(--red)",
       ring: totalChars ? Math.round((doneChars / totalChars) * 100) : 0,
-      ringLabel: doneChars + "/" + totalChars,
+      ringLabel: totalChars === 0 ? "+" : doneChars + "/" + totalChars,
       shadow: "var(--red)",
       title: "Charaktere",
       body: charakterBody(s, doneChars, totalChars),

@@ -110,38 +110,124 @@ const JOKES = [
   "Was sagt ein Traktor auf dem Bauernhof zum Heuballen? „Nichts, Traktoren reden nicht. Das war die Oma.“",
   "Warum hat der Bauer sein Huhn zum Schreiner geschickt? Es wollte unbedingt ein Ei-genheim."
 ];
-const LOAD_STEPS = [
-  { mark: "✓", label: "Figuren aus euren Charakterblättern gesetzt" },
-  { mark: "✓", label: "Bauernhof gebaut, 41 Situationen verteilt" },
-  { mark: "◐", label: "Variante 2 von 3 wird gezeichnet" },
-  { mark: "○", label: "Qualitätsprüfung, dann zeige ich dir die beste" }
-];
+// NEU (Pipeline-Anbindung): LOAD_STEPS war vorher eine feste Demo-Anzeige (immer "Variante 2 von 3",
+// immer "41 Situationen") unabhaengig vom echten Fortschritt. Jetzt ein Phasen-Array, dessen "mark"
+// live per updateSteps() (siehe render()) gesetzt wird -- "✓" abgeschlossen, "◐" laeuft gerade,
+// "○" noch nicht dran. composeSceneImage() liefert selbst keine Zwischen-Fortschritts-Events (die
+// zwei Promise.all()-Bloecke dort laufen jeweils parallel, nicht sequentiell meldbar) -- die Phasen
+// hier sind daher grobe, aber ehrliche Naeherungen an den tatsaechlichen Ablauf in pipeline.js
+// composeSceneImage(), nicht Fake-Prozentzahlen wie vorher.
+function zauberSteps() {
+  return [
+    { key: "refs", label: "Figuren aus euren Charakterblättern als Referenz geladen" },
+    { key: "gen", label: "Zwei Varianten der Szene werden gezeichnet" },
+    { key: "verify", label: "Qualitätsprüfung beider Varianten (alle Figuren da? kein Mund sichtbar?)" },
+    { key: "done", label: "Beste Variante ausgewählt" }
+  ];
+}
+let zauberBusy = false;
 
 Screens.zaubern = {
   render(root) {
     const s = AppState.data;
     const wrap = h("section", { style: { background: "var(--ink)", color: "var(--paper)", padding: "26px 14px 30px", minHeight: "74vh" } });
 
-    wrap.appendChild(h("p", { class: "h-black", style: { margin: "0 0 8px", display: "inline-block", background: "var(--yellow)", color: "var(--ink)", border: "3px solid var(--paper)", fontSize: "9px", letterSpacing: ".1em", padding: "5px 8px", transform: "rotate(-2deg)" } }, "Ich zaubere · noch ca. 3 Minuten"));
+    wrap.appendChild(h("p", { class: "h-black", style: { margin: "0 0 8px", display: "inline-block", background: "var(--yellow)", color: "var(--ink)", border: "3px solid var(--paper)", fontSize: "9px", letterSpacing: ".1em", padding: "5px 8px", transform: "rotate(-2deg)" } }, "Ich zaubere · dauert 2–4 Minuten"));
     wrap.appendChild(h("h1", { class: "h-black", style: { fontSize: "30px", lineHeight: ".88", letterSpacing: "-.04em" } }, [
       document.createTextNode("Ich mache"), h("br"), document.createTextNode("das nicht"), h("br"),
       h("span", { style: { color: "var(--yellow)" } }, "schnell.")
     ]));
-    wrap.appendChild(h("p", { class: "caveat", style: { margin: "8px 0 0", fontSize: "20px", lineHeight: "1.12", color: "var(--paper-a90)" } }, "ich zeichne drei Varianten und behalte die beste. das dauert – dafür sitzt es dann."));
+    wrap.appendChild(h("p", { class: "caveat", style: { margin: "8px 0 0", fontSize: "20px", lineHeight: "1.12", color: "var(--paper-a90)" } }, "ich zeichne zwei Varianten, prüfe beide und behalte die beste. das dauert – dafür sitzt es dann."));
 
     const spinWrap = h("div", { style: { position: "relative", margin: "22px 0 0", display: "flex", justifyContent: "center" } });
     spinWrap.appendChild(h("span", { style: { position: "absolute", top: "50%", left: "50%", width: "168px", height: "168px", margin: "-84px 0 0 -84px", border: "4px dashed var(--paper-a38)", borderRadius: "50%", animation: "spin 22s linear infinite" } }));
     spinWrap.appendChild(h("img", { src: "assets/wizard-on-book.png", alt: "WizzelWim zaubert", style: { position: "relative", width: "128px", animation: "wob 3.6s ease-in-out infinite" } }));
     wrap.appendChild(spinWrap);
 
+    const stepRows = {};
     const stepsWrap = h("div", { style: { marginTop: "22px", display: "flex", flexDirection: "column", gap: "5px" } });
-    LOAD_STEPS.forEach((l, i) => {
-      const row = h("div", { style: { display: "flex", gap: "10px", alignItems: "flex-start", fontSize: "13px", lineHeight: "1.4", padding: "11px 0", borderTop: "2px solid var(--paper-a45)", color: i > 2 ? "var(--paper-a45)" : "var(--paper)" } });
-      row.appendChild(h("span", { class: "h-black", style: { flex: "none", width: "22px", fontSize: "13px" } }, l.mark));
+    zauberSteps().forEach((l) => {
+      const row = h("div", { style: { display: "flex", gap: "10px", alignItems: "flex-start", fontSize: "13px", lineHeight: "1.4", padding: "11px 0", borderTop: "2px solid var(--paper-a45)", color: "var(--paper-a45)" } });
+      const mark = h("span", { class: "h-black", style: { flex: "none", width: "22px", fontSize: "13px" } }, "○");
+      row.appendChild(mark);
       row.appendChild(h("span", { style: { flex: "1", minWidth: "0" } }, l.label));
+      stepRows[l.key] = { row, mark };
       stepsWrap.appendChild(row);
     });
     wrap.appendChild(stepsWrap);
+
+    function setPhase(key) {
+      const order = ["refs", "gen", "verify", "done"];
+      const idx = order.indexOf(key);
+      order.forEach((k, i) => {
+        const { row, mark } = stepRows[k];
+        if (i < idx) { mark.textContent = "✓"; row.style.color = "var(--paper)"; }
+        else if (i === idx) { mark.textContent = "◐"; row.style.color = "var(--paper)"; }
+        else { mark.textContent = "○"; row.style.color = "var(--paper-a45)"; }
+      });
+    }
+
+    // Fehler-/Hinweis-Box: wird nur befuellt, wenn runGeneration() (unten) nicht starten kann
+    // oder fehlschlaegt -- z.B. keine fertige Person, kein Thema gewaehlt, Netzwerk-/API-Fehler.
+    const errorBox = h("div", { style: { display: "none", marginTop: "22px", border: "3px solid var(--yellow)", background: "rgba(0,0,0,.25)", padding: "16px" } });
+    const errorText = h("p", { style: { margin: "0 0 12px", fontSize: "14px", lineHeight: "1.5" } }, "");
+    errorBox.appendChild(errorText);
+    const retryBtn = h("button", { type: "button", class: "h-black", style: { minHeight: "44px", width: "100%", background: "var(--yellow)", color: "var(--ink)", border: "3px solid var(--paper)", fontSize: "13px", cursor: "pointer" }, onClick: () => { zauberBusy = false; Router.navigate("/app/bild/zaubern", { replace: true }); } }, "Nochmal versuchen");
+    errorBox.appendChild(retryBtn);
+    wrap.appendChild(errorBox);
+    function showError(msg) {
+      errorText.textContent = msg;
+      errorBox.style.display = "block";
+    }
+
+    // NEU (Pipeline-Anbindung): tatsaechlicher Aufruf von Pipeline.composeSceneImage() statt der
+    // vorherigen rein statischen Anzeige. heroSpecs kommen aus den bereits ECHT generierten
+    // Charakterbildern (person.imageUrl, siehe charakter.js buildChipsPanel) -- Personen ohne
+    // Bild werden nicht mitgeschickt (composeSceneImage() braucht ein editImageUrl je Referenz).
+    async function runGeneration() {
+      if (zauberBusy) return;
+      const heroSpecs = s.people.filter((p) => p.status === "done" && p.imageUrl).map((p) => {
+        const spec = Pipeline.makeCharacterSpec({ id: p.id, name: p.name, role: p.role, sourceType: "chips" });
+        spec.identityCore.age = p.age;
+        spec.sceneDescription = p.sceneDescription || null;
+        spec.imageUrl = p.imageUrl;
+        return spec;
+      });
+      if (!heroSpecs.length) {
+        showError("Es gibt noch keine fertig gezeichnete Person mit echtem Bild — bitte erst mindestens eine Figur im Charakter-Baustein zeichnen lassen.");
+        return;
+      }
+      const theme = Pipeline.THEME_META[s.sceneTheme];
+      if (!theme) {
+        showError("Kein Thema ausgewählt (nur der Weg „Thema wählen“ ist in diesem Testlauf angeschlossen — Aufnahme/Text noch nicht). Bitte zurück zur Szene-Auswahl.");
+        return;
+      }
+      zauberBusy = true;
+      try {
+        setPhase("refs");
+        const situations = Pipeline.autoSituations(theme, [], 16);
+        setPhase("gen");
+        // composeSceneImage() generiert intern beide Kandidaten UND prueft beide (siehe
+        // pipeline.js) -- aus Sicht dieses Screens ist das ein einzelner Aufruf, daher springt
+        // die Phasenanzeige hier direkt von "gen" zu "verify" kurz bevor das Ergebnis da ist statt
+        // waehrenddessen live mitzulaufen (composeSceneImage() liefert keine Zwischen-Events).
+        const genPromise = Pipeline.composeSceneImage({ heroSpecs, theme, situations });
+        setTimeout(() => { if (zauberBusy) setPhase("verify"); }, 20000);
+        const result = await genPromise;
+        setPhase("done");
+        AppState.addImage({
+          title: s.sceneTheme, src: result.best.url,
+          promptText: result.promptText, instruction: result.instruction,
+          violations: result.best.violations, verify: result.best.verify, candidates: result.candidates
+        });
+        zauberBusy = false;
+        Router.goScreen("ergebnis");
+      } catch (e) {
+        zauberBusy = false;
+        showError("Zaubern hat nicht geklappt: " + (e && e.message ? e.message : String(e)));
+      }
+    }
+    runGeneration();
 
     const stayCard = h("div", { style: { marginTop: "24px", border: "4px solid var(--paper)", background: "var(--red)", padding: "16px", transform: "rotate(.8deg)" } });
     stayCard.appendChild(h("p", { class: "h-black", style: { fontSize: "15px", lineHeight: "1.05", letterSpacing: "-.02em" } }, "Willst du hierbleiben?"));
@@ -175,15 +261,29 @@ Screens.zaubern = {
 Screens.ergebnis = {
   render(root) {
     const s = AppState.data;
+    // NEU (Pipeline-Anbindung): zeigt das tatsaechlich generierte Bild (AppState.currentImage()),
+    // statt immer "assets/hero-wimmelhaus.png"/"Bauernhof im Herbst" zu behaupten. Wird die Ergebnis-
+    // Seite erreicht, BEVOR die Generierung fertig ist (z.B. "Ich geh kurz weg" auf dem Zaubern-
+    // Screen), gibt es noch kein Bild -- ehrlicher Wartehinweis statt Platzhalterbild.
+    const image = AppState.currentImage();
+    if (!image) {
+      const wait = h("section", { class: "scr-pad" });
+      wait.appendChild(h("p", { class: "kicker kicker-yellow" }, "Noch kein Bild"));
+      wait.appendChild(h("h1", { class: "h1-scr", style: { fontSize: "28px" } }, "Das dauert noch."));
+      wait.appendChild(h("p", { class: "caveat-sub" }, "die Szene wird gerade noch gezaubert (2–4 Minuten) — sobald sie fertig ist, taucht sie hier auf."));
+      wait.appendChild(h("button", { type: "button", class: "h-black", style: { marginTop: "16px", minHeight: "48px", width: "100%", background: "var(--ink)", color: "var(--paper)", border: "3px solid var(--ink)", fontSize: "13px", cursor: "pointer" }, onClick: () => Router.goScreen("zaubern") }, "Zurück zum Zaubern"));
+      root.appendChild(wait);
+      return;
+    }
     const wrap = h("section", { class: "mobile-only", style: { padding: "18px 0 0" } });
 
     const head = h("div", { style: { padding: "0 14px" } });
-    head.appendChild(h("p", { class: "kicker kicker-yellow", style: { transform: "rotate(-2deg)" } }, "Bild 2 · Bauernhof im Herbst"));
+    head.appendChild(h("p", { class: "kicker kicker-yellow", style: { transform: "rotate(-2deg)" } }, "Bild " + s.images.length + " · " + (image.title || "Wimmelbild")));
     head.appendChild(h("h1", { class: "h1-scr", style: { fontSize: "31px", marginBottom: "14px" } }, [document.createTextNode("Da ist"), h("br"), document.createTextNode("es.")]));
     wrap.appendChild(head);
 
     const imgWrap = h("div", { style: { position: "relative", borderTop: "4px solid var(--ink)", borderBottom: "4px solid var(--ink)", background: "var(--ink)" } });
-    const img = h("img", { src: "assets/hero-wimmelhaus.png", alt: "Fertiges Wimmelbild", style: { display: "block", width: "100%" } });
+    const img = h("img", { src: image.src, alt: "Fertiges Wimmelbild", style: { display: "block", width: "100%" } });
     imgWrap.appendChild(img);
 
     const canvas = h("canvas", { style: { position: "absolute", inset: "0", width: "100%", height: "100%", touchAction: "none" } });
@@ -224,16 +324,41 @@ Screens.ergebnis = {
     wrap.appendChild(hintBox);
 
     root.appendChild(wrap);
-    root.appendChild(buildDesktopErgebnis(s));
+    root.appendChild(buildDesktopErgebnis(s, image));
+    root.appendChild(buildDebugDetails(image));
   }
 };
 
-function buildDesktopErgebnis(s) {
+// NEU (nur fuer diesen Testlauf, auf ausdruecklichen Wunsch): macht promptText/instruction/
+// Verify-Ergebnis sichtbar, damit man die zwei konkreten Pruef-Fragen beantworten kann
+// ("lesen sich die von stripEmotionWords() gefilterten Vignetten noch sinnvoll?", "wirken die
+// regionalen Zahlen bei einem Nicht-Bauernhof-Thema plausibel dicht?"), ohne die Konsole/Netzwerk-
+// Tab bemuehen zu muessen. Klar als Test-/Debug-Panel gekennzeichnet, nicht Teil des eigentlichen
+// Produkt-Screens -- sollte vor einem echten Nutzertest wieder raus oder hinter ein Dev-Flag.
+function buildDebugDetails(image) {
+  const wrap = h("section", { class: "scr-pad", style: { borderTop: "4px dashed rgba(26,26,24,.3)", marginTop: "18px" } });
+  const toggle = h("button", { type: "button", class: "h-black", style: { minHeight: "44px", width: "100%", background: "rgba(26,26,24,.08)", border: "3px dashed rgba(26,26,24,.4)", fontSize: "12px", cursor: "pointer" } }, "🔧 Test-Details anzeigen (Prompt, Vignetten, Verify-Ergebnis)");
+  const box = h("div", { style: { display: "none", marginTop: "12px", fontSize: "12px", lineHeight: "1.5", whiteSpace: "pre-wrap", background: "#fff", border: "2px solid rgba(26,26,24,.3)", padding: "12px" } });
+  const verifyText = image.verify ? JSON.stringify(image.verify) : "(kein Verify-Ergebnis)";
+  box.textContent =
+    "Verstöße im gewählten Kandidaten: " + (image.violations != null ? image.violations : "?") + "\n" +
+    "Verify-JSON: " + verifyText + "\n\n" +
+    "--- Kandidaten ---\n" +
+    (image.candidates || []).map((c, i) => "Kandidat " + (i + 1) + " (" + c.url + "): " + (c.violations != null ? c.violations + " Verstöße" : "?") + " — " + JSON.stringify(c.verify)).join("\n") +
+    "\n\n--- scenePrompt() ---\n" + (image.promptText || "(kein Prompt gespeichert)") +
+    "\n\n--- sceneComposeInstruction() (tatsächlich an fal.ai gesendet) ---\n" + (image.instruction || "(keine Instruction gespeichert)");
+  toggle.addEventListener("click", () => { box.style.display = box.style.display === "none" ? "block" : "none"; });
+  wrap.appendChild(toggle);
+  wrap.appendChild(box);
+  return wrap;
+}
+
+function buildDesktopErgebnis(s, image) {
   const grid = h("section", { class: "edit-desktop-grid desktop-only" });
 
   const left = h("div", { style: { position: "relative", background: "var(--ink)", padding: "26px 0 26px 32px", display: "flex", alignItems: "center" } });
   const imgBox = h("div", { style: { position: "relative", width: "100%", border: "4px solid var(--paper)" } });
-  const dImg = h("img", { src: "assets/hero-wimmelhaus.png", alt: "Fertiges Wimmelbild", style: { display: "block", width: "100%" } });
+  const dImg = h("img", { src: image.src, alt: "Fertiges Wimmelbild", style: { display: "block", width: "100%" } });
   imgBox.appendChild(dImg);
   const dCanvas = h("canvas", { style: { position: "absolute", inset: "0", width: "100%", height: "100%", touchAction: "none" } });
   dCanvas.classList.toggle("hidden", !s.penOn);
@@ -248,9 +373,9 @@ function buildDesktopErgebnis(s) {
   const aside = h("aside", { style: { background: "var(--paper)", borderLeft: "4px solid var(--ink)", padding: "26px 28px 26px 26px", display: "flex", flexDirection: "column", gap: "18px" } });
 
   const top = h("div", {});
-  top.appendChild(h("p", { class: "kicker kicker-yellow", style: { transform: "rotate(-2deg)" } }, "Bild 2 · Bauernhof im Herbst"));
+  top.appendChild(h("p", { class: "kicker kicker-yellow", style: { transform: "rotate(-2deg)" } }, "Bild " + s.images.length + " · " + (image.title || "Wimmelbild")));
   top.appendChild(h("h1", { class: "h-black", style: { fontSize: "44px", lineHeight: ".88", letterSpacing: "-.045em" } }, "Da ist es."));
-  top.appendChild(h("p", { class: "caveat", style: { margin: "8px 0 0", fontSize: "23px", lineHeight: "1.1" } }, "41 Situationen drin. schau erst mal in Ruhe."));
+  top.appendChild(h("p", { class: "caveat", style: { margin: "8px 0 0", fontSize: "23px", lineHeight: "1.1" } }, "schau erst mal in Ruhe."));
   aside.appendChild(top);
 
   const toolCol = h("div", { style: { display: "flex", flexDirection: "column", gap: "10px" } });
