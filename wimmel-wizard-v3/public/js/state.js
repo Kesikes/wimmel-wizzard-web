@@ -6,29 +6,32 @@
 
 const STORAGE_KEY = "wimmelwizard.v3.state";
 
+// Echter Nullzustand: eine neue Nutzerin startet bei 0/6 Personen und 0/5
+// Wimmelbildern. Die Namen (Mia, Papa, Oma Rosi, Bruno, Mama, Hund) bleiben
+// als vorgegebene Haushalts-Roster-Namen aus der Referenz bestehen — das ist
+// keine "fertige Demo", sondern die Liste der Personen, die die Nutzerin noch
+// zeichnen lassen kann. Nichts davon ist als "done" vorbelegt.
 const DEFAULT_STATE = {
   household: "Familie Kern",
   // Personen: Status "done" (fertig gezeichnet) oder "open" (fehlt noch)
   people: [
-    { id: "mia", name: "Mia", status: "done" },
-    { id: "papa", name: "Papa", status: "done" },
-    { id: "oma", name: "Oma Rosi", status: "done" },
+    { id: "mia", name: "Mia", status: "open" },
+    { id: "papa", name: "Papa", status: "open" },
+    { id: "oma", name: "Oma Rosi", status: "open" },
     { id: "bruno", name: "Bruno", status: "open" },
     { id: "mama", name: "Mama", status: "open" },
     { id: "hund", name: "Hund", status: "open" }
   ],
-  // Aktuell bearbeitete Person im Charakter-Flow
-  currentPersonId: "oma",
+  // Aktuell bearbeitete Person im Charakter-Flow (null = noch keine gewaehlt,
+  // Screen "charakter" faellt dann automatisch auf die erste offene Person zurueck)
+  currentPersonId: null,
   charMode: null, // "foto" | "chips"
-  charChips: [1, 4], // Indizes in CHIPS-Liste, vorbelegt exakt wie Referenz-Default (silberner Zopf, Brille an der Kette)
+  charChips: [], // keine Merkmale vorbelegt
   charNote: "",
 
-  // Wimmelbilder
-  images: [
-    { id: "1", title: "Nachmittag am See", status: "done", src: "assets/example_gardasee.png" },
-    { id: "2", title: "Bauernhof im Herbst", status: "open", src: "assets/hero-wimmelhaus.png" }
-  ],
-  currentImageId: "2",
+  // Wimmelbilder: leer, bis die Nutzerin selbst eines anlegt (ueber Szene -> Zaubern)
+  images: [],
+  currentImageId: null,
   sceneWay: null, // "theme" | "record" | "text"
   sceneTheme: null,
   sceneText: "",
@@ -120,6 +123,13 @@ const AppState = {
   },
   previewUnlocked() {
     return this.doneImagesCount() >= 2;
+  },
+  // Erste noch offene Person (fuer den Charakter-Screen, wenn keine explizit gewaehlt ist)
+  nextOpenPerson() {
+    return this.data.people.find((p) => p.status === "open") || null;
+  },
+  currentPerson() {
+    return this.data.people.find((p) => p.id === this.data.currentPersonId) || this.nextOpenPerson() || this.data.people[0];
   }
 };
 
