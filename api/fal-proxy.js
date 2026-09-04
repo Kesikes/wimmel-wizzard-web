@@ -158,10 +158,13 @@ module.exports = async (req, res) => {
   // begrenzt und auf Vielfache von 64 gerundet (übliche Anforderung von Diffusionsmodellen wie FLUX),
   // damit hier keine beliebigen/kaputten Maße an fal.ai durchgereicht werden. Ohne diese Felder bleibt
   // das bisherige Verhalten unverändert.
+  // Cap-Erhöhung (Live-Test): 1600 angefragt lieferte nur 1536x608 zurück (fal.ai/FLUX scheint intern
+  // auf ~1536px längste Kante zu deckeln) – Cap probehalber auf 2200 angehoben, um zu prüfen, ob ein
+  // höherer Anfragewert tatsächlich mehr Breite bringt oder ob 1536 die harte fal.ai-Grenze ist.
   const clampImageDim = (v) => {
     const n = Math.trunc(Number(v));
     if (!Number.isFinite(n)) return undefined;
-    const clamped = Math.min(1600, Math.max(256, n));
+    const clamped = Math.min(2200, Math.max(256, n));
     return clamped - (clamped % 64);
   };
   const testImageWidth = !imageUrl ? clampImageDim(body.imageWidth) : undefined;
