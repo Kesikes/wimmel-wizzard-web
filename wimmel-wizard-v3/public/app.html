@@ -7,8 +7,12 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;500;600;700&family=Caveat:wght@600&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="css/main.css" />
-<link rel="stylesheet" href="css/app.css" />
+<!-- BUGFIX (Live-Test 05.09.2026): root-absolute statt relative Pfade -- siehe
+     ausführlicher Kommentar bei assetPath() in js/helpers.js. Betrifft hier
+     sowohl die <link>/<script>-Tags dieser Seite als auch das Logo-<img> unten,
+     das denselben Bug hatte, bevor helpers.js/assetPath() zum Einsatz kam. -->
+<link rel="stylesheet" href="/css/main.css" />
+<link rel="stylesheet" href="/css/app.css" />
 </head>
 <body>
 <div class="app-shell with-bottom-bar" id="app">
@@ -16,7 +20,7 @@
   <header class="app-header" id="app-header">
     <div class="app-header-inner" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px;">
       <a href="/" style="display: flex; align-items: center; gap: 8px; margin-right: auto; text-decoration: none; color: var(--paper);">
-        <img src="assets/wizard-badge.png" alt="" style="width: 30px; height: 30px; flex: none; transform: rotate(-6deg);" />
+        <img src="/assets/wizard-badge.png" alt="" style="width: 30px; height: 30px; flex: none; transform: rotate(-6deg);" />
         <span class="h-black" style="font-size: 12px; letter-spacing: -.01em;">Wimmel&nbsp;Wizard<sup style="font-size: 7px; vertical-align: super;">™</sup></span>
       </a>
       <nav id="desktop-nav" style="display: none;" aria-label="Fortschritt"></nav>
@@ -41,15 +45,15 @@
   </div>
 </div>
 
-<script src="js/state.js"></script>
-<script src="js/helpers.js"></script>
-<script src="js/pipeline.js"></script>
-<script src="js/router.js"></script>
-<script src="js/screens/dashboard.js"></script>
-<script src="js/screens/charakter.js"></script>
-<script src="js/screens/szene.js"></script>
-<script src="js/screens/entscheidung.js"></script>
-<script src="js/screens/checkout.js"></script>
-<script src="js/app-shell.js"></script>
+<script src="/js/state.js"></script>
+<script src="/js/helpers.js"></script>
+<script src="/js/pipeline.js"></script>
+<script src="/js/router.js"></script>
+<script src="/js/screens/dashboard.js"></script>
+<script src="/js/screens/charakter.js"></script>
+<script src="/js/screens/szene.js"></script>
+<script src="/js/screens/entscheidung.js"></script>
+<script src="/js/screens/checkout.js"></script>
+<script src="/js/app-shell.js"></script>
 </body>
 </html>

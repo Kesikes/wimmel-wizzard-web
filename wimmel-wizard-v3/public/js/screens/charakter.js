@@ -3,7 +3,23 @@
    Texte wörtlich aus referenz/App-Flow-v4-OatlyWimmel.dc.html.
    ========================================================================== */
 
-const CHIPS = ["kurze weiße Locken", "silberner Zopf", "Strickjacke", "Blümchenbluse", "Brille an der Kette", "Gehstock", "Perlenkette", "Gummistiefel", "immer eine Tasche dabei", "lacht viel"];
+// UMGEBAUT (Design-Feedback 05.09.2026: "Merkmale-Beschreibung strukturierter aufbauen: erst
+// Haare (Haarfarbe mit Vorgaben, Locken/glatt, kurz/mittel/lang), dann eine Besonderheit"). Vorher
+// eine flache Liste aus 10 frei mehrfach-waehlbaren Chips (Haar- UND Accessoire-Merkmale gemischt).
+// Jetzt drei einzeln waehlbare Haar-Gruppen (Farbe/Form/Laenge) + eine einzeln waehlbare
+// Besonderheit. "en" ist bereits fertig uebersetzter, getesteter Prompt-Text (bewusst NICHT ueber
+// translate()/translateChip() geroutet -- das sind feste, bekannte Werte, keine freie Eingabe,
+// siehe CHIP_TRANSLATIONS-Kommentar in pipeline.js zum selben Prinzip).
+const HAIR_COLORS = [
+  { label: "Blond", en: "blonde" }, { label: "Braun", en: "brown" }, { label: "Schwarz", en: "black" },
+  { label: "Rot", en: "red" }, { label: "Grau/Weiß", en: "gray/white" }, { label: "Bunt", en: "colorful, dyed" }
+];
+const HAIR_TEXTURE = [{ label: "Locken", en: "curly" }, { label: "Glatt", en: "straight" }];
+const HAIR_LENGTH = [{ label: "Kurz", en: "short" }, { label: "Mittel", en: "medium-length" }, { label: "Lang", en: "long" }];
+// Besonderheit: bleibt eine EINZELNE Auswahl (statt vorher mehrfach waehlbar) aus den alten
+// Accessoire-Chips -- "kurze weiße Locken"/"silberner Zopf" sind raus, weil das jetzt strukturiert
+// ueber die Haar-Gruppen oben abgefragt wird (sonst doppelt/widerspruechlich).
+const CHIPS = ["Strickjacke", "Blümchenbluse", "Brille an der Kette", "Gehstock", "Perlenkette", "Gummistiefel", "immer eine Tasche dabei", "lacht viel"];
 
 // Rollen-Auswahl fuer das "Person hinzufuegen"-Formular. value ist bereits
 // der von Pipeline.ageRole()/charPrompt() erwartete Wert (siehe pipeline.js
@@ -87,36 +103,76 @@ function cardStyle(on, shadow) {
   };
 }
 
+function chipStyle(on, i) {
+  return { cursor: "pointer", fontFamily: "'Archivo',sans-serif", fontSize: "12px", fontWeight: "700", padding: "8px 10px", border: "3px solid var(--ink)", transform: "rotate(" + rot(i) + "deg)", background: on ? "var(--red)" : "#FFF", color: on ? "var(--paper)" : "var(--ink)" };
+}
+function applyChipStyle(el, on) {
+  el.style.background = on ? "var(--red)" : "#FFF";
+  el.style.color = on ? "var(--paper)" : "var(--ink)";
+}
+
+// Eine Reihe EINZELN (nicht mehrfach) waehlbarer Chips, die einen Index in AppState.data[stateKey]
+// speichern -- Radio-Verhalten innerhalb der Gruppe, erneutes Antippen waehlt ab. Wiederverwendet
+// fuer die drei Haar-Gruppen (Farbe/Form/Laenge), siehe buildChipsPanel().
+function buildSingleSelectGroup(stateKey, options, hint) {
+  const wrap = h("div", { style: { marginTop: "6px" } });
+  if (hint) wrap.appendChild(h("span", { style: { display: "block", marginBottom: "5px", fontSize: "10px", color: "rgba(26,26,24,.5)" } }, hint));
+  const row = h("div", { style: { display: "flex", flexWrap: "wrap", gap: "7px", marginBottom: "8px" } });
+  options.forEach((opt, i) => {
+    const chip = h("button", {
+      type: "button",
+      style: chipStyle(AppState.data[stateKey] === i, i),
+      onClick: () => {
+        const nowSelected = AppState.data[stateKey] === i;
+        AppState.update({ [stateKey]: nowSelected ? null : i });
+        [...row.children].forEach((sib, si) => applyChipStyle(sib, !nowSelected && si === i));
+      }
+    }, opt.label);
+    row.appendChild(chip);
+  });
+  wrap.appendChild(row);
+  return wrap;
+}
+
 function buildChipsPanel(person) {
   const s = AppState.data;
   const panel = h("div", { style: { marginTop: "22px", border: "4px solid var(--ink)", background: "var(--paper)", boxShadow: "6px 7px 0 var(--ink)", padding: "16px" } });
   const row = h("div", { style: { display: "flex", gap: "14px", alignItems: "flex-start" } });
 
   const preview = h("div", { style: { flex: "none", width: "96px", border: "3px solid var(--ink)", background: "var(--blue)", padding: "6px", transform: "rotate(-2deg)" } });
-  preview.appendChild(h("img", { src: person.imageUrl || "assets/wizzelwim-family-hero.png", alt: "Live-Vorschau der Figur", style: { display: "block", width: "100%" } }));
+  preview.appendChild(h("img", { src: person.imageUrl || assetPath("wizzelwim-family-hero.png"), alt: "Live-Vorschau der Figur", style: { display: "block", width: "100%" } }));
   preview.appendChild(h("span", { class: "h-black", style: { display: "block", marginTop: "5px", fontSize: "8px", letterSpacing: ".08em", textAlign: "center" } }, person.imageUrl ? "zuletzt gezeichnet" : "noch kein Bild"));
   row.appendChild(preview);
 
   const right = h("div", { style: { flex: "1", minWidth: "0" } });
-  right.appendChild(h("p", { class: "h-black", style: { margin: "0 0 10px", fontSize: "13px", letterSpacing: "-.01em" } }, "Was fällt zuerst auf?"));
-  const chipWrap = h("div", { style: { display: "flex", flexWrap: "wrap", gap: "7px" } });
-  CHIPS.forEach((label, i) => {
-    const on = s.charChips.includes(i);
-    const chip = h("button", {
-      type: "button",
-      style: { cursor: "pointer", fontFamily: "'Archivo',sans-serif", fontSize: "12px", fontWeight: "700", padding: "8px 10px", border: "3px solid var(--ink)", transform: "rotate(" + rot(i) + "deg)", background: on ? "var(--red)" : "#FFF", color: on ? "var(--paper)" : "var(--ink)" },
-      onClick: () => {
-        const list = on ? s.charChips.filter((x) => x !== i) : s.charChips.concat([i]);
-        AppState.update({ charChips: list });
-        chip.style.background = on ? "#FFF" : "var(--red)";
-        chip.style.color = on ? "var(--ink)" : "var(--paper)";
-      }
-    }, label);
-    chipWrap.appendChild(chip);
-  });
-  right.appendChild(chipWrap);
+  right.appendChild(h("p", { class: "h-black", style: { margin: "0 0 10px", fontSize: "13px", letterSpacing: "-.01em" } }, "Haare"));
+  right.appendChild(buildSingleSelectGroup("charHairColor", HAIR_COLORS, "z. B. Farbe wählen"));
+  right.appendChild(buildSingleSelectGroup("charHairTexture", HAIR_TEXTURE, null));
+  right.appendChild(buildSingleSelectGroup("charHairLength", HAIR_LENGTH, null));
   row.appendChild(right);
   panel.appendChild(row);
+
+  const besWrap = h("div", { style: { marginTop: "16px" } });
+  besWrap.appendChild(h("p", { class: "h-black", style: { margin: "0 0 8px", fontSize: "13px", letterSpacing: "-.01em" } }, ["Eine Besonderheit ", h("span", { style: { color: "rgba(26,26,24,.5)" } }, "optional")]));
+  // Besonderheit ist bewusst eine EINZELNE Auswahl (Radio-Verhalten): erneutes Antippen des
+  // bereits gewählten Chips waehlt ihn wieder ab, ein anderer Chip ersetzt die Auswahl.
+  const besChipWrap = h("div", { style: { display: "flex", flexWrap: "wrap", gap: "7px" } });
+  CHIPS.forEach((label, i) => {
+    const chip = h("button", {
+      type: "button",
+      style: chipStyle(s.charBesonderheit === label, i),
+      onClick: () => {
+        const nowSelected = AppState.data.charBesonderheit === label;
+        AppState.update({ charBesonderheit: nowSelected ? null : label });
+        applyChipStyle(chip, !nowSelected, i);
+        // Geschwister-Chips zuruecksetzen (nur einer aktiv)
+        [...besChipWrap.children].forEach((sib) => { if (sib !== chip) applyChipStyle(sib, false, [...besChipWrap.children].indexOf(sib)); });
+      }
+    }, label);
+    besChipWrap.appendChild(chip);
+  });
+  besWrap.appendChild(besChipWrap);
+  panel.appendChild(besWrap);
 
   const label = h("label", { style: { display: "block", marginTop: "16px" } });
   label.appendChild(h("span", { class: "h-black", style: { display: "block", fontSize: "11px", letterSpacing: ".06em" } }, ["Was ist noch besonders an ihr? ", h("span", { style: { color: "rgba(26,26,24,.5)" } }, "optional")]));
@@ -136,42 +192,96 @@ function buildChipsPanel(person) {
   // Uebersetzung direkt in charPromptFromChips() laufen zu lassen -- schliesst die Luecke, die der
   // Live-Test bei Papas Notiz ("trägt immer eine karierte Jacke" -> unuebersetztes "trägt" im
   // Prompt) aufgedeckt hat.
-  const errorP = h("p", { style: { margin: "12px 0 0", fontSize: "12px", color: "var(--red)", display: "none" } }, "");
-  const genBtn = h("button", {
-    type: "button", class: "h-black",
-    style: { marginTop: "16px", width: "100%", minHeight: "52px", background: "var(--red)", color: "var(--paper)", border: "3px solid var(--ink)", fontSize: "13px", cursor: "pointer" },
-    onClick: async () => {
-      const chipLabels = (s.charChips || []).map((i) => CHIPS[i]);
-      if (!chipLabels.length && !(s.charNote || "").trim()) {
-        errorP.textContent = "Bitte mindestens ein Merkmal antippen oder etwas dazuschreiben.";
-        errorP.style.display = "block";
-        return;
-      }
-      errorP.style.display = "none";
-      genBtn.disabled = true;
-      genBtn.textContent = "Ich zeichne …";
-      genBtn.style.opacity = "0.75";
-      try {
-        const noteEn = await Pipeline.translateFreeText(s.charNote);
-        const prompt = Pipeline.charPromptFromChips({ role: person.role, age: person.age, chipLabels, noteEn });
-        const sceneDescription = Pipeline.charInSceneFromChips({ role: person.role, age: person.age, chipLabels, noteEn });
-        const result = await Pipeline.generateImage(prompt, "char");
-        AppState.updatePerson(person.id, { imageUrl: result.url, imageSeed: result.seed, sceneDescription });
-        Router.goScreen("charakterblatt");
-      } catch (e) {
-        errorP.textContent = "Zeichnen hat nicht geklappt: " + (e && e.message ? e.message : String(e)) + " — nochmal versuchen?";
-        errorP.style.display = "block";
-        genBtn.disabled = false;
-        genBtn.textContent = "Diese Figur zeichnen";
-        genBtn.style.opacity = "1";
-      }
-    }
-  }, "Diese Figur zeichnen");
-  panel.appendChild(genBtn);
+  // BUGFIX (Live-Test 05.09.2026): dieser eigene "Diese Figur zeichnen"-Button lief PARALLEL zum
+  // Bottom-Nav-Button "Figur zeichnen lassen", der nur weiternavigiert hat OHNE zu generieren --
+  // je nachdem, welchen die Nutzerin antippte, gab es (mal) ein Bild oder (mal) keins. Jetzt macht
+  // der Bottom-Nav-Button (app-shell.js renderBottomBar() -> Screens.charakter.onNext(), siehe unten)
+  // dieselbe Generierung; dieser Panel-Button entfaellt, damit es nur noch EINEN eindeutigen
+  // "weiter"-Button pro Screen gibt (Muster wie auf jedem anderen Screen auch).
+  const errorP = h("p", { id: "char-gen-error", style: { margin: "12px 0 0", fontSize: "12px", color: "var(--red)", display: "none" } }, "");
   panel.appendChild(errorP);
 
   return panel;
 }
+
+// Von Screens.charakter.onNext() (siehe unten) UND nirgendwo sonst aufgerufen -- einziger
+// verbleibender Weg, eine Figur zu generieren, statt zweier Buttons mit unterschiedlichem
+// Verhalten (siehe Bugfix-Kommentar oben in buildChipsPanel()).
+// Baut den fertigen, bereits englischen Haar-Satzteil aus den drei Haar-Gruppen (Farbe/Form/
+// Laenge), z.B. "short curly blonde hair". Bewusst NICHT ueber translateChip()/translate() geroutet
+// (siehe Konstanten-Kommentar oben bei HAIR_COLORS) -- feste, getestete Werte statt freier Eingabe.
+function hairPhraseEn(s) {
+  const color = s.charHairColor != null ? HAIR_COLORS[s.charHairColor] : null;
+  const texture = s.charHairTexture != null ? HAIR_TEXTURE[s.charHairTexture] : null;
+  const length = s.charHairLength != null ? HAIR_LENGTH[s.charHairLength] : null;
+  if (!color && !texture && !length) return "";
+  return [length && length.en, texture && texture.en, color && color.en, "hair"].filter(Boolean).join(" ");
+}
+
+async function generateCharacterImage(person, buttons) {
+  const s = AppState.data;
+  const errorP = document.getElementById("char-gen-error");
+  const hairEn = hairPhraseEn(s);
+  const chipLabels = s.charBesonderheit ? [s.charBesonderheit] : [];
+  // Validierung (umgebaut 05.09.2026): Haare sind jetzt die primäre, strukturierte Eingabe --
+  // erst wenn dort NICHTS gewählt ist, zählt ersatzweise die freie Notiz (z.B. bei einem Tier ohne
+  // "Haare" im menschlichen Sinn).
+  if (!hairEn && !(s.charNote || "").trim()) {
+    if (errorP) {
+      errorP.textContent = "Bitte mindestens Haarfarbe, -form und -länge auswählen oder etwas dazuschreiben.";
+      errorP.style.display = "block";
+    }
+    return;
+  }
+  if (errorP) errorP.style.display = "none";
+  const activeButtons = (buttons || []).filter(Boolean);
+  activeButtons.forEach((b) => { b.dataset.prevText = b.textContent; b.disabled = true; b.textContent = "Ich zeichne …"; b.style.opacity = "0.75"; });
+  try {
+    const noteEn = await Pipeline.translateFreeText(s.charNote);
+    const extraEnParts = hairEn ? [hairEn] : [];
+    const prompt = Pipeline.charPromptFromChips({ role: person.role, age: person.age, chipLabels, extraEnParts, noteEn });
+    const sceneDescription = Pipeline.charInSceneFromChips({ role: person.role, age: person.age, chipLabels, extraEnParts, noteEn });
+    const result = await Pipeline.generateImage(prompt, "char");
+    // NEU (Feature-Ergänzung 05.09.2026: "Charakterblatt zeigt nur eine Ansicht" — jetzt bewusst
+    // mitgebaut): nach der Frontansicht zusätzlich Seite + Rücken (Text-zu-Bild, kein Referenzbild
+    // nötig laut LoRA-v5-Testnotiz in fal-proxy.js) parallel zur Dreiviertel-Ansicht (Edit-Pfad mit
+    // der gerade fertigen Frontansicht als Referenz — laut derselben Testnotiz der zuverlässigere
+    // Weg für genau diese Ansicht). Läuft NACH der Frontansicht (Edit-Pfad braucht deren URL), aber
+    // untereinander parallel, um die Wartezeit nicht zu vervierfachen. Best-effort: schlägt eine
+    // einzelne Zusatz-Ansicht fehl, blockiert das nicht die anderen — Charakterblatt zeigt dann
+    // ehrlich nur die Ansichten, die tatsächlich da sind (siehe dort).
+    const viewArgs = { role: person.role, age: person.age, chipLabels, extraEnParts, noteEn };
+    const [sideR, backR, threeQR] = await Promise.allSettled([
+      Pipeline.generateImage(Pipeline.charSheetViewPromptFromChips({ ...viewArgs, view: "side" }), "char"),
+      Pipeline.generateImage(Pipeline.charSheetViewPromptFromChips({ ...viewArgs, view: "back" }), "char"),
+      Pipeline.generateImage(Pipeline.threeQuarterEditInstruction(), "char", { editImageUrl: result.url }),
+    ]);
+    AppState.updatePerson(person.id, {
+      imageUrl: result.url, imageSeed: result.seed, sceneDescription,
+      imageUrlSide: sideR.status === "fulfilled" ? sideR.value.url : null,
+      imageUrlBack: backR.status === "fulfilled" ? backR.value.url : null,
+      imageUrlThreeQuarter: threeQR.status === "fulfilled" ? threeQR.value.url : null,
+    });
+    Router.goScreen("charakterblatt");
+  } catch (e) {
+    if (errorP) {
+      errorP.textContent = "Zeichnen hat nicht geklappt: " + (e && e.message ? e.message : String(e)) + " — nochmal versuchen?";
+      errorP.style.display = "block";
+    }
+    activeButtons.forEach((b) => { b.disabled = false; b.textContent = b.dataset.prevText || b.textContent; b.style.opacity = "1"; });
+  }
+}
+
+// Wird von app-shell.js renderBottomBar() aufgerufen, wenn vorhanden (statt der
+// Standard-"einfach weiternavigieren"-Aktion) -- siehe Kommentar dort.
+Screens.charakter.onNext = ({ nextBtn, weiterBtn, defaultGoNext }) => {
+  const s = AppState.data;
+  const person = AppState.currentPerson();
+  if (!person || s.charMode !== "chips") { defaultGoNext(); return; }
+  // Rueckgabewert durchreichen (statt fire-and-forget): app-shell.js wartet zwar nicht darauf
+  // (onclick braucht das nicht), aber so bleibt die Funktion sauber awaitbar/testbar.
+  return generateCharacterImage(person, [nextBtn, weiterBtn]);
+};
 
 // EHRLICHER STATUS (nicht Teil dieses Testlaufs): der Foto-Weg hat bisher kein echtes
 // Datei-Upload-Feld (nur diese dekorative Vorschau) und ist nicht an Pipeline.generateImage()
@@ -248,7 +358,7 @@ function buildAddPersonForm(s) {
   });
 
   const ageLabel = h("label", { style: { display: "block", marginTop: "12px" } });
-  ageLabel.appendChild(h("span", { class: "h-black", style: { display: "block", fontSize: "11px", letterSpacing: ".06em" } }, ["Alter ", h("span", { style: { color: "rgba(26,26,24,.5)" } }, "optional")]));
+  ageLabel.appendChild(h("span", { class: "h-black", style: { display: "block", fontSize: "11px", letterSpacing: ".06em" } }, "Alter"));
   const ageInput = h("input", { type: "number", class: "field", style: { marginTop: "7px" }, placeholder: "z. B. 6", min: "0", max: "110" });
   ageInput.addEventListener("input", () => { age = ageInput.value; });
   ageLabel.appendChild(ageInput);
@@ -318,16 +428,39 @@ Screens.charakterblatt = {
 
     // NEU (Pipeline-Anbindung): zeigt das tatsaechlich generierte Bild (person.imageUrl), falls
     // vorhanden. Fehlt es (z.B. direkter Aufruf ohne vorherige Generierung), Platzhalter +
-    // ehrlicher Hinweis statt so zu tun, als waere das schon das echte Ergebnis. WICHTIG: aktuell
-    // nur die Frontansicht, KEIN echtes Drei-Ansichten-Sheet (Seite/Rueck/3-4) — das ist noch
-    // nicht angeschlossen (charSheetViewPrompt() existiert in pipeline.js, wird hier noch nicht
-    // aufgerufen), Text unten entsprechend angepasst statt die alte "drei Ansichten"-Behauptung
-    // stehen zu lassen.
+    // ehrlicher Hinweis statt so zu tun, als waere das schon das echte Ergebnis.
+    // ERWEITERT (Feature-Ergänzung 05.09.2026): zusätzlich zur Frontansicht jetzt echtes
+    // Mehrfach-Ansichten-Sheet (Seite/Rücken/3-4, siehe generateCharacterImage() oben). Best-effort:
+    // jede Zusatz-Ansicht kann unabhängig fehlgeschlagen sein (Promise.allSettled) -- Thumbnail-Reihe
+    // zeigt nur die Ansichten, die tatsächlich da sind, statt so zu tun, als gäbe es alle vier.
     const card = h("div", { style: { border: "4px solid var(--ink)", background: "var(--yellow)", boxShadow: "7px 8px 0 var(--ink)", padding: "12px", transform: "rotate(-1deg)" } });
-    card.appendChild(h("img", { src: person.imageUrl || "assets/wizzelwim-family-hero.png", alt: person.name + " im Wimmelstil", style: { display: "block", width: "100%", border: "3px solid var(--ink)", background: "var(--paper)" } }));
+    card.appendChild(h("img", { src: person.imageUrl || assetPath("wizzelwim-family-hero.png"), alt: person.name + " im Wimmelstil", style: { display: "block", width: "100%", border: "3px solid var(--ink)", background: "var(--paper)" } }));
     card.appendChild(h("p", { class: "caveat", style: { margin: "10px 0 0", fontSize: "19px", lineHeight: "1.1" } },
       person.imageUrl ? "so taucht sie später in jeder Szene auf." : "noch kein Bild — bitte erst „Diese Figur zeichnen“ auf dem vorigen Schritt."));
     wrap.appendChild(card);
+
+    if (person.imageUrl) {
+      const extraViews = [
+        { label: "Seite", url: person.imageUrlSide },
+        { label: "Rücken", url: person.imageUrlBack },
+        { label: "3/4", url: person.imageUrlThreeQuarter },
+      ];
+      if (extraViews.some((v) => v.url)) {
+        const viewsRow = h("div", { style: { display: "flex", gap: "8px", marginTop: "10px" } });
+        extraViews.forEach((v) => {
+          if (!v.url) return;
+          const thumb = h("div", { style: { flex: "1", minWidth: "0", border: "3px solid var(--ink)", background: "var(--paper)", padding: "4px" } });
+          thumb.appendChild(h("img", { src: v.url, alt: person.name + " – " + v.label, style: { display: "block", width: "100%" } }));
+          thumb.appendChild(h("span", { class: "h-black", style: { display: "block", marginTop: "3px", fontSize: "9px", letterSpacing: ".06em", textAlign: "center" } }, v.label));
+          viewsRow.appendChild(thumb);
+        });
+        wrap.appendChild(viewsRow);
+        if (extraViews.some((v) => !v.url)) {
+          wrap.appendChild(h("p", { style: { margin: "6px 2px 0", fontSize: "11px", lineHeight: "1.4", color: "rgba(26,26,24,.6)" } },
+            "eine oder mehrere Zusatz-Ansichten sind diesmal nicht geglückt — beim Nachschärfen nochmal versuchen."));
+        }
+      }
+    }
 
     const btnRow = h("div", { style: { display: "flex", gap: "10px", marginTop: "18px" } });
     btnRow.appendChild(h("button", { type: "button", class: "h-black", style: { flex: "1", minHeight: "50px", background: "var(--paper)", border: "3px solid var(--ink)", fontSize: "13px", color: "inherit" }, onClick: () => Router.goScreen("charakter") }, "Nachschärfen"));

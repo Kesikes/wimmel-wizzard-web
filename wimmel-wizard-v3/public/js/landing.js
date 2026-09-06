@@ -4,17 +4,23 @@
    Texte wörtlich aus referenz/Landingpage-v4-OatlyWimmel.dc.html.
    ========================================================================== */
 
+// Inhalte 05.09.2026 neu ausgerichtet (Nutzer-Rückmeldung): sollen jetzt den tatsächlichen Ablauf
+// zeigen (1 Charaktere beschreiben, 2 Szenen erzählen, 3 zaubern + nachbessern, 4 Produktion,
+// 5 Versand) statt der vorherigen, anders sortierten Reihenfolge. x/y-Positionen unverändert
+// gelassen (unverändert aus der Referenz übernommen, nicht neu gegen das Hero-Bild abgeglichen) --
+// bei Bedarf gegen das tatsächliche Artwork nachjustieren, falls ein Punkt optisch nicht mehr zum
+// dort gezeichneten Motiv passt.
 const PINS = [
-  { x: 16, y: 68, mark: "1", kicker: "Punkt 1 von 5", title: "Erzählen statt ausfüllen.", rowTitle: "Wie du deine Geschichte lieferst",
-    body: "Kein Formular mit siebzehn Feldern. Du wählst ein Thema, tippst ein paar Sätze – oder lässt abends beim Erzählen einfach das Mikro mitlaufen. Ich mache daraus eine Szene, du sagst, was noch fehlt." },
-  { x: 38, y: 47, mark: "2", kicker: "Punkt 2 von 5", title: "Das da bist du.", rowTitle: "Die Familie im Bild",
-    body: "Jede Figur in dieser Szene ist eine echte Person. Du lädst ein Foto hoch oder tippst Merkmale an – Haare, Größe, Lieblingspulli – und ich zeichne daraus eine Figur im Wimmelstil. Auch für den Hund. Vor allem für den Hund." },
-  { x: 59, y: 72, mark: "3", kicker: "Punkt 3 von 5", title: "40 Situationen.", rowTitle: "Was in einer Szene steckt",
-    body: "Eine Wimmelseite ist kein Bild, sondern vierzig Geschichten nebeneinander. Der umgekippte Eimer. Das Kind, das nicht ins Wasser will. Ihr sucht Minuten daran – und findet jedes Mal etwas Neues." },
-  { x: 63, y: 46, mark: "4", kicker: "Punkt 4 von 5", title: "Nachbessern erlaubt.", rowTitle: "Wenn etwas nicht passt",
-    body: "Mit dem Stift direkt im Bild markieren, was weg soll. Einzelne Situationen neu zaubern, Details ändern – der Rest der Szene bleibt genau, wie er ist. So oft du magst." },
-  { x: 88, y: 32, mark: "5", kicker: "Punkt 5 von 5", title: "Und dann kommt Post.", rowTitle: "Vom Bildschirm ins Regal",
-    body: "Gedruckt und gebunden in Deutschland, mit eurer Widmung vorne drin. Ab da liegt es auf dem Couchtisch und jemand sucht eine halbe Stunde die Katze." }
+  { x: 16, y: 68, mark: "1", kicker: "Punkt 1 von 5", title: "Erst kommt ihr.", rowTitle: "Wer mitspielen darf",
+    body: "Foto hochladen oder Merkmale antippen – Haare, Größe, Lieblingspulli. Jede Person wird eine echte Figur im Wimmelstil. Auch der Hund. Vor allem der Hund." },
+  { x: 38, y: 47, mark: "2", kicker: "Punkt 2 von 5", title: "Dann eure Geschichte.", rowTitle: "Wie du sie mir lieferst",
+    body: "Kein Formular mit siebzehn Feldern. Thema wählen, ein paar Sätze tippen – oder abends beim Erzählen einfach das Mikro mitlaufen lassen. Ich mache eine Szene draus." },
+  { x: 59, y: 72, mark: "3", kicker: "Punkt 3 von 5", title: "Ich zeichne. Ihr meckert.", rowTitle: "Zaubern und Nachbessern",
+    body: "Ich probiere mehrere Varianten, ihr wählt die beste. Passt noch was nicht? Mit dem Stift markieren, neu zaubern – der Rest bleibt genau, wie er ist." },
+  { x: 63, y: 46, mark: "4", kicker: "Punkt 4 von 5", title: "Dann geht's in den Druck.", rowTitle: "Wie das Buch entsteht",
+    body: "Gedruckt und gebunden in Deutschland, mit eurer Widmung vorne drin. Kein Copy-Shop-Charme – echtes Hardcover." },
+  { x: 88, y: 32, mark: "5", kicker: "Punkt 5 von 5", title: "Und dann kommt Post.", rowTitle: "Vom Drucker zu euch",
+    body: "Ab da liegt es auf dem Couchtisch, und jemand sucht eine halbe Stunde die Katze." }
 ];
 
 // Desktop-Positionen exakt aus referenz/Desktop-v4-OatlyWimmel.dc.html (PINS-Array) —
@@ -60,6 +66,9 @@ const FAQS = [
     });
   }
 
+  // Stil (05.09.2026) vom entfernten "Drei Schritte"-Block übernommen: große gelbe Nummer +
+  // Titel/Beschreibung auf dunklem Grund, statt der vorherigen kompakten Icon-Zeile. "gefunden"/
+  // "offen"-Unterscheidung bleibt (kleines Tag rechts), damit der Hunt-Charakter erhalten bleibt.
   function renderPinsLog() {
     const wrap = document.getElementById("pins-log");
     wrap.innerHTML = "";
@@ -67,13 +76,13 @@ const FAQS = [
       const found = S.data.foundPins.includes(i);
       const btn = document.createElement("button");
       btn.type = "button";
-      btn.className = "lp-row" + (found ? " found" : "");
-      btn.style.transform = "rotate(" + (pinRot(i) * 0.35).toFixed(2) + "deg)";
+      btn.style.cssText = "display:flex;gap:12px;align-items:flex-start;width:100%;text-align:left;background:none;border:0;border-top:3px solid var(--paper-a80);padding:16px 0;cursor:pointer;color:var(--paper);";
       btn.innerHTML =
-        '<span style="flex:none;width:26px;height:26px;display:flex;align-items:center;justify-content:center;border:2px solid var(--ink);font-family:\'Archivo Black\',sans-serif;font-size:12px;' +
-        (found ? "background:var(--ink);color:var(--yellow);" : "background:var(--paper);color:var(--ink);") + '">' + p.mark + "</span>" +
-        '<span style="flex:1;min-width:0;font-size:14px;font-weight:700;color:' + (found ? "var(--ink)" : "rgba(26,26,24,.55)") + ';">' + p.rowTitle + "</span>" +
-        '<span class="h-black" style="flex:none;font-size:9px;letter-spacing:.1em;color:' + (found ? "var(--ink)" : "rgba(26,26,24,.4)") + ';">' + (found ? "gefunden" : "offen") + "</span>";
+        '<span class="h-black" style="font-size:36px;line-height:.8;flex:none;width:44px;color:' + (found ? "var(--yellow)" : "var(--paper-a45)") + ';">' + (found ? "✓" : String(i + 1).padStart(2, "0")) + "</span>" +
+        '<span style="flex:1;min-width:0;">' +
+          '<span class="h-black" style="display:block;font-size:16px;letter-spacing:-.02em;margin:0 0 4px;color:' + (found ? "var(--paper)" : "var(--paper-a75)") + ';">' + p.rowTitle + "</span>" +
+          '<span class="h-black" style="display:inline-block;font-size:9px;letter-spacing:.1em;color:' + (found ? "var(--yellow)" : "var(--paper-a45)") + ';">' + (found ? "gefunden" : "noch offen") + "</span>" +
+        "</span>";
       btn.addEventListener("click", () => openPin(i));
       wrap.appendChild(btn);
     });
@@ -117,8 +126,12 @@ const FAQS = [
     });
   }
 
+  // Der "n/5"-Zähler im Header ist raus (Nutzer-Rückmeldung: wirkt vor Beginn verwirrend, wie ein
+  // Fortschritt, den man noch gar nicht angefangen hat). Funktion bleibt als No-Op-Guard stehen,
+  // falls sie irgendwo noch aufgerufen wird -- kein harter Fehler, falls das Element fehlt.
   function renderCounter() {
     const el = document.getElementById("pin-counter");
+    if (!el) return;
     const n = S.data.foundPins.length;
     const done = n >= PINS.length;
     el.textContent = n + "/" + PINS.length;

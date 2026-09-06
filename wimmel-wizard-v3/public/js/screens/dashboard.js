@@ -24,7 +24,7 @@ Screens.dashboard = {
       }
     });
     greet.appendChild(h("img", {
-      src: "assets/wizard-badge.png", alt: "WizzelWim",
+      src: assetPath("wizard-badge.png"), alt: "WizzelWim",
       style: { position: "absolute", left: "-14px", bottom: "-6px", width: "82px", animation: "wob 4s ease-in-out infinite" }
     }));
     greet.appendChild(h("p", { class: "h-black", style: { fontSize: "17px", lineHeight: "1", letterSpacing: "-.03em" } }, "Moin, Familie Kern."));
@@ -81,7 +81,11 @@ Screens.dashboard = {
       },
       onClick: () => announce("Die Gesamt-Vorschau öffnet sich, sobald zwei Bilder fertig sind.")
     });
-    locked.appendChild(h("span", { style: { flex: "none", width: "58px", height: "58px", borderRadius: "50%", border: "3px dashed rgba(26,26,24,.35)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Archivo Black',sans-serif", fontSize: "20px" } }, "?"));
+    // Design-Feedback (05.09.2026): Fragezeichen-Icon wirkte kalt/fehlerhaft -- freundlicheres
+    // WizzelWim-Icon statt "?" im "gesperrt"-Kreis.
+    const lockedIcon = h("span", { style: { flex: "none", width: "58px", height: "58px", borderRadius: "50%", border: "3px dashed rgba(26,26,24,.35)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" } });
+    lockedIcon.appendChild(h("img", { src: assetPath("wizard-badge.png"), alt: "", style: { width: "38px", height: "38px", opacity: "0.55" } }));
+    locked.appendChild(lockedIcon);
     const lockedText = h("span", { style: { flex: "1", minWidth: "0" } });
     lockedText.appendChild(h("span", { class: "h-black", style: { display: "block", fontSize: "19px", lineHeight: "1", letterSpacing: "-.03em" } }, "Gesamt-Vorschau"));
     lockedText.appendChild(h("span", { style: { display: "block", marginTop: "5px", fontSize: "13px", lineHeight: "1.4" } }, "öffnet sich, sobald zwei Bilder fertig sind."));
@@ -107,8 +111,8 @@ function buildDesktopDashboard(s) {
 
   const aside = h("aside", { style: { position: "sticky", top: "108px", display: "flex", flexDirection: "column", gap: "20px" } });
   const greet = h("div", { style: { position: "relative", background: "var(--yellow)", border: "4px solid var(--ink)", boxShadow: "7px 8px 0 var(--ink)", padding: "22px 22px 22px 96px", transform: "rotate(-1deg)" } });
-  greet.appendChild(h("img", { src: "assets/wizard-badge.png", alt: "WizzelWim", style: { position: "absolute", left: "-18px", bottom: "-8px", width: "104px", animation: "wob 4s ease-in-out infinite" } }));
-  greet.appendChild(h("p", { class: "h-black", style: { fontSize: "20px", lineHeight: "1", letterSpacing: "-.03em" } }, "Moin, Familie Kern."));
+  greet.appendChild(h("img", { src: assetPath("wizard-badge.png"), alt: "WizzelWim", style: { position: "absolute", left: "-18px", bottom: "-8px", width: "104px", animation: "wob 4s ease-in-out infinite" } }));
+  greet.appendChild(h("p", { class: "h-black", style: { fontSize: "20px", lineHeight: "1", letterSpacing: "-.03em" } }, "Moin,"));
   greet.appendChild(h("p", { class: "caveat", style: { margin: "8px 0 0", fontSize: "23px", lineHeight: "1.1" } }, "wir bauen das Stück für Stück. du entscheidest, wie viel Liebe zum Detail reingeht."));
   aside.appendChild(greet);
 
@@ -161,7 +165,9 @@ function buildDesktopDashboard(s) {
   const lockedWide = h("div", {
     style: { marginTop: "20px", border: "4px dashed rgba(26,26,24,.45)", background: "rgba(26,26,24,.05)", color: "rgba(26,26,24,.62)", padding: "24px", display: "flex", alignItems: "center", gap: "18px" }
   });
-  lockedWide.appendChild(h("span", { style: { flex: "none", width: "62px", height: "62px", borderRadius: "50%", border: "3px dashed rgba(26,26,24,.35)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Archivo Black',sans-serif", fontSize: "22px" } }, "?"));
+  const lockedWideIcon = h("span", { style: { flex: "none", width: "62px", height: "62px", borderRadius: "50%", border: "3px dashed rgba(26,26,24,.35)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" } });
+  lockedWideIcon.appendChild(h("img", { src: assetPath("wizard-badge.png"), alt: "", style: { width: "40px", height: "40px", opacity: "0.55" } }));
+  lockedWide.appendChild(lockedWideIcon);
   const lockedText = h("span", {});
   lockedText.appendChild(h("span", { class: "h-black", style: { display: "block", fontSize: "22px", lineHeight: "1", letterSpacing: "-.03em" } }, "Gesamt-Vorschau"));
   lockedText.appendChild(h("span", { style: { display: "block", marginTop: "6px", fontSize: "15px", lineHeight: "1.5" } }, "öffnet sich, sobald zwei Bilder fertig sind. Dann blätterst du durch das ganze Buch."));

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Wimmel Wizard — Wimmelbücher aus eurem Leben</title>
+<title>Wimmel Wizard — Wimmelbilder aus eurem Leben</title>
 <meta name="description" content="Personalisierte Wimmelbücher aus euren Familiengeschichten und Fotos. Finde die fünf Punkte im Bild und erfahre, wie es funktioniert." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -13,7 +13,9 @@
   /* Landingpage-spezifische Layoutregeln, ergaenzend zu css/main.css */
   .lp-hero-scroll { position: relative; height: 72vh; min-height: 540px; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; }
   .lp-hero-track { position: relative; width: 294%; height: 100%; }
-  .lp-pin { position: absolute; transform: translate(-50%, -50%); width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 3px solid var(--ink); font-family: 'Archivo Black', sans-serif; font-size: 16px; cursor: pointer; }
+  /* Design-Feedback (05.09.2026): "nummerierte Quadrate im Hero doppelt so groß" -- 44px -> 88px,
+     Schrift/Rahmen mitskaliert. */
+  .lp-pin { position: absolute; transform: translate(-50%, -50%); width: 88px; height: 88px; display: flex; align-items: center; justify-content: center; border: 4px solid var(--ink); font-family: 'Archivo Black', sans-serif; font-size: 32px; cursor: pointer; }
   .lp-pin.open { background: var(--yellow); color: var(--ink); animation: pulse 2.2s ease-out infinite; }
   .lp-pin.found { background: var(--ink); color: var(--yellow); box-shadow: 3px 3px 0 var(--paper); }
   .lp-sheet-backdrop { position: fixed; inset: 0; z-index: 80; background: rgba(26,26,24,.55); }
@@ -37,7 +39,6 @@
       <img src="assets/wizard-badge.png" alt="" style="width: 32px; height: 32px; flex: none; transform: rotate(-6deg);" />
       <span class="h-black" style="font-size: 13px; letter-spacing: -.01em;">Wimmel&nbsp;Wizard<sup style="font-size: 8px; vertical-align: super;">™</sup></span>
     </a>
-    <span id="pin-counter" class="h-black" style="flex: none; font-size: 11px; letter-spacing: .06em; padding: 7px 9px; border: 2px solid var(--paper-a45); color: var(--paper-a80);">0/5</span>
     <a href="/app" class="h-black" style="flex: none; background: var(--red); color: var(--paper); font-size: 12px; padding: 10px 13px; border: 3px solid var(--paper); transform: rotate(-2deg); min-height: 40px; display: flex; align-items: center;">Los!</a>
   </header>
 
@@ -51,10 +52,15 @@
     </div>
 
     <div style="position: absolute; top: 12px; left: 12px; right: 12px; pointer-events: none;">
-      <p class="h-black" style="margin: 0 0 7px; display: inline-block; background: var(--yellow); border: 3px solid var(--ink); font-size: 10px; letter-spacing: .08em; padding: 5px 9px; transform: rotate(-2deg);">Wimmelbücher aus eurem Leben</p>
+      <p class="h-black" style="margin: 0 0 7px; display: inline-block; background: var(--yellow); border: 3px solid var(--ink); font-size: 10px; letter-spacing: .08em; padding: 5px 9px; transform: rotate(-2deg);">Wimmelbilder aus eurem Leben</p>
       <h1 class="h-black" style="font-size: 40px; line-height: .88; letter-spacing: -.045em; text-align: left; max-width: 94%; color: var(--paper); text-shadow: 3px 3px 0 var(--ink), -2px -2px 0 var(--ink), 2px -2px 0 var(--ink), -2px 2px 0 var(--ink);">Euer Alltag<br />hat mehr verdient<br /><span style="color: var(--yellow);">als<br />noch ein<br />Fotobuch.</span></h1>
       <p class="caveat" style="margin: 14px 0 0; max-width: 94%; font-size: 22px; line-height: 1.12; color: var(--paper); text-shadow: 2px 2px 0 var(--ink), -1px -1px 0 var(--ink), 1px -1px 0 var(--ink), -1px 1px 0 var(--ink);">Finde die fünf Punkte im Bild<br />und erfahre wie es funktioniert.</p>
-      <p class="h-black" style="margin: 10px 0 0; display: inline-flex; align-items: center; gap: 9px; background: var(--ink); padding: 6px 10px; font-size: 10px; letter-spacing: .12em; color: var(--yellow);"><span style="animation: nudge 1.8s ease-in-out infinite; display: inline-block;">→</span> antippen &amp; wischen</p>
+    </div>
+    <!-- BUGFIX/Design (Nutzer-Rückmeldung): der "antippen & wischen"-Button wirkte wie ein
+         eigenständiges UI-Element statt einem Hinweis. Jetzt ein reiner, pulsierender Pfeil am
+         rechten Rand als Swipe-Hinweis, ohne Button-Optik. -->
+    <div style="position: absolute; right: 10px; top: 50%; margin-top: -17px; pointer-events: none; animation: nudge 1.4s ease-in-out infinite;">
+      <span class="h-black" style="display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; background: var(--yellow); color: var(--ink); border: 3px solid var(--ink); font-size: 15px; line-height: 1;">▶</span>
     </div>
   </section>
 
@@ -65,7 +71,7 @@
       <div id="pins-hero-desktop"></div>
       <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 60%; background: linear-gradient(to right, rgba(26,26,24,.74), rgba(26,26,24,.3) 66%, rgba(26,26,24,0)); pointer-events: none;"></div>
       <div style="position: absolute; left: 0; top: 0; width: 56%; padding: 46px 0 0 44px; pointer-events: none;">
-        <p class="h-black" style="margin: 0 0 14px; display: inline-block; background: var(--yellow); border: 3px solid var(--ink); font-size: 12px; letter-spacing: .08em; padding: 7px 11px; transform: rotate(-2deg);">Wimmelbücher aus eurem Leben</p>
+        <p class="h-black" style="margin: 0 0 14px; display: inline-block; background: var(--yellow); border: 3px solid var(--ink); font-size: 12px; letter-spacing: .08em; padding: 7px 11px; transform: rotate(-2deg);">Wimmelbilder aus eurem Leben</p>
         <h1 class="h-black" style="font-size: 64px; line-height: .88; white-space: nowrap; letter-spacing: -.045em; color: var(--paper); text-shadow: 4px 4px 0 var(--ink), -2px -2px 0 var(--ink), 2px -2px 0 var(--ink), -2px 2px 0 var(--ink);">Euer Alltag<br />hat mehr verdient<br />als <span style="color: var(--yellow);">noch ein<br />Fotobuch.</span></h1>
         <p class="caveat" style="margin: 22px 0 0; max-width: 460px; font-size: 30px; line-height: 1.1; color: var(--paper); text-shadow: 2px 2px 0 var(--ink);">Finde die fünf Punkte im Bild<br />und erfahre wie es funktioniert.</p>
         <p class="h-black" style="margin: 20px 0 0; display: inline-flex; align-items: center; gap: 10px; background: var(--ink); padding: 9px 13px; font-size: 11px; letter-spacing: .12em; color: var(--yellow);"><span>↗</span> anklicken, in beliebiger Reihenfolge</p>
@@ -73,8 +79,8 @@
     </div>
     <div class="ticker-wrap" style="background: var(--red); color: var(--paper); border-top: 4px solid var(--ink); border-bottom: 4px solid var(--ink); padding: 10px 0;">
       <div class="ticker-track ticker-red" style="font-size: 15px; letter-spacing: .04em; animation-duration: 30s;">
-        <span>Kein Stockfoto ✦ Kein Template ✦ Keine Cloud in Nevada ✦ Kein „Family Memories Deluxe“ ✦&nbsp;</span>
-        <span>Kein Stockfoto ✦ Kein Template ✦ Keine Cloud in Nevada ✦ Kein „Family Memories Deluxe“ ✦&nbsp;</span>
+        <span>Kein Stockfoto ✦ Kein Template ✦ Hundert Prozent individualisiert ✦ Der erste KI-unterstützte Wimmelbuch-Generator ✦&nbsp;</span>
+        <span>Kein Stockfoto ✦ Kein Template ✦ Hundert Prozent individualisiert ✦ Der erste KI-unterstützte Wimmelbuch-Generator ✦&nbsp;</span>
       </div>
     </div>
   </section>
@@ -106,16 +112,18 @@
   </div>
 
   <!-- Roter Ticker -->
-  <div class="ticker-wrap mobile-only" style="background: var(--red); color: var(--paper); border-top: 4px solid var(--ink); border-bottom: 4px solid var(--ink); padding: 8px 0; transform: rotate(-1.6deg) scale(1.07); margin: 6px 0 12px;">
+  <div class="ticker-wrap mobile-only" style="background: var(--red); color: var(--paper); border-top: 4px solid var(--ink); border-bottom: 4px solid var(--ink); padding: 15px 0; transform: rotate(-1.6deg) scale(1.07); margin: -2px 0 12px;">
     <div class="ticker-track ticker-red" style="font-size: 13px; letter-spacing: .04em;">
-      <span>Kein Stockfoto ✦ Kein Template ✦ Keine Cloud in Nevada ✦ Kein „Family Memories Deluxe“ ✦ Kein Stockfoto ✦ Kein Template ✦ Keine Cloud in Nevada ✦ Kein „Family Memories Deluxe“ ✦&nbsp;</span>
+      <span>Kein Stockfoto ✦ Kein Template ✦ Hundert Prozent individualisiert ✦ Der erste KI-unterstützte Wimmelbuch-Generator ✦ Kein Stockfoto ✦ Kein Template ✦ Hundert Prozent individualisiert ✦ Der erste KI-unterstützte Wimmelbuch-Generator ✦&nbsp;</span>
     </div>
   </div>
 
-  <!-- Suchprotokoll (mobil) -->
-  <section class="mobile-only" style="padding: 22px 14px 0;">
-    <h2 class="h-black" style="margin: 0 0 10px; font-size: 22px; line-height: .95; letter-spacing: -.03em; transform: rotate(-1deg); transform-origin: left;">Dein Suchprotokoll</h2>
-    <div id="pins-log" style="display: flex; flex-direction: column; gap: 8px;"></div>
+  <!-- Suchprotokoll (mobil) -- übernimmt jetzt den Stil des entfernten "Drei Schritte"-Blocks
+       (schwarzer Hintergrund, große gelbe Zahlen-Typografie), siehe Kommentar dort. -->
+  <section class="mobile-only" style="margin-top: 12px; background: var(--ink); color: var(--paper); padding: 26px 14px 30px;">
+    <h2 class="h-black" style="margin: 0 0 4px; font-size: 22px; line-height: .95; letter-spacing: -.03em;">Dein Suchprotokoll</h2>
+    <p class="caveat" style="margin: 0 0 6px; font-size: 19px; line-height: 1.15; color: var(--paper-a75);">so läuft's ab, in fünf Schritten.</p>
+    <div id="pins-log" style="display: flex; flex-direction: column; gap: 4px;"></div>
   </section>
 
   <!-- Wofuer? Occasions -->
@@ -128,24 +136,10 @@
     </div>
   </section>
 
-  <!-- Drei Schritte -->
-  <section style="margin-top: 32px; background: var(--ink); color: var(--paper); padding: 26px 14px 30px;">
-    <h2 class="h-black" style="font-size: 27px; line-height: .92; letter-spacing: -.035em;">Drei Schritte.<br /><span style="color: var(--yellow);">Kein Studium nötig.</span></h2>
-    <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 18px;">
-      <div class="lp-step-row">
-        <span class="h-black" style="font-size: 36px; line-height: .8; color: var(--yellow); flex: none; width: 52px; transform: rotate(1.4deg);">01</span>
-        <div style="flex:1;"><h3 class="h-black" style="font-size: 16px; letter-spacing: -.02em; margin: 0 0 4px;">Familie zeichnen lassen</h3><p style="font-size: 14px; line-height: 1.45; color: var(--paper-a75);">Foto hochladen oder Merkmale antippen. Für jeden, der mitspielen soll. Auch für den Hund. Vor allem für den Hund.</p></div>
-      </div>
-      <div class="lp-step-row">
-        <span class="h-black" style="font-size: 36px; line-height: .8; color: var(--yellow); flex: none; width: 52px; transform: rotate(-1deg);">02</span>
-        <div style="flex:1;"><h3 class="h-black" style="font-size: 16px; letter-spacing: -.02em; margin: 0 0 4px;">Geschichte erzählen</h3><p style="font-size: 14px; line-height: 1.45; color: var(--paper-a75);">Thema wählen, tippen – oder abends beim Erzählen einfach das Mikro mitlaufen lassen.</p></div>
-      </div>
-      <div class="lp-step-row">
-        <span class="h-black" style="font-size: 36px; line-height: .8; color: var(--yellow); flex: none; width: 52px; transform: rotate(1.8deg);">03</span>
-        <div style="flex:1;"><h3 class="h-black" style="font-size: 16px; letter-spacing: -.02em; margin: 0 0 4px;">Buch kommt an</h3><p style="font-size: 14px; line-height: 1.45; color: var(--paper-a75);">Gedruckt in Deutschland, mit Widmung. Und dann sucht jemand eine halbe Stunde die Katze.</p></div>
-      </div>
-    </div>
-  </section>
+  <!-- "Drei Schritte"-Block entfernt (Nutzer-Rückmeldung: redundant zum 5-Schritte-Hero-Bild,
+       widersprüchliche Zahl 3 vs. 5). Der visuelle Stil (schwarzer Hintergrund, große
+       Zahlen-Typografie, .lp-step-row) lebt jetzt im "Dein Suchprotokoll"-Block weiter, der
+       ohnehin die 5 Schritte listet -- siehe dort. -->
 
   <!-- Gelber Ticker -->
   <div class="ticker-wrap" style="background: var(--yellow); border-top: 4px solid var(--ink); border-bottom: 4px solid var(--ink); padding: 7px 0; transform: rotate(1.4deg) scale(1.07); margin: 10px 0 14px;">

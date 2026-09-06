@@ -24,19 +24,36 @@ const DEFAULT_STATE = {
   // noch niemand angelegt)
   currentPersonId: null,
   charMode: null, // "foto" | "chips"
-  charChips: [], // keine Merkmale vorbelegt
+  charChips: [], // ungenutzt seit dem Haare-zuerst-Umbau (05.09.2026), bleibt für alte
+  // localStorage-Stände unschädlich stehen (siehe charakter.js: charHairColor/charHairTexture/
+  // charHairLength/charBesonderheit ersetzen die alte Mehrfach-Chip-Auswahl).
+  charHairColor: null, // Index in HAIR_COLORS (charakter.js)
+  charHairTexture: null, // Index in HAIR_TEXTURE
+  charHairLength: null, // Index in HAIR_LENGTH
+  charBesonderheit: null, // Label-String aus CHIPS, oder null
   charNote: "",
 
   // Wimmelbilder: leer, bis die Nutzerin selbst eines anlegt (ueber Szene -> Zaubern)
   images: [],
   currentImageId: null,
-  sceneWay: null, // "theme" | "record" | "text"
+  sceneWay: null, // Index in WAYS (szene.js): 0 "Thema wählen", 1 "Geschichte aufnehmen", 2 "Selbst eintippen"
   sceneTheme: null,
-  sceneText: "",
+  sceneText: "", // ungenutzt seit dem Chat-Interview-Umbau (06.09.2026), bleibt für alte
+  // localStorage-Stände unschädlich stehen (siehe szene.js: sceneBeat1/sceneBeat2/
+  // sceneInterviewStep/sceneUserSituations ersetzen das alte freie Textfeld).
+  sceneInterviewStep: 0, // 0 Thema, 1 erste Szene, 2 optionale Kleinigkeit (siehe szene.js buildInterviewPanel)
+  sceneBeat1: "",
+  sceneBeat2: "",
+  // NEU (06.09.2026): schliesst die bisherige Luecke "freie Geschichte -> Vignetten automatisch"
+  // (siehe Spezifikation Abschnitt 6) -- vom Chat-Interview uebersetzte Situationen, die
+  // Pipeline.autoSituations() als "existing" bekommt (siehe szene.js runGeneration()), statt dass
+  // der Freitext-Weg wie bisher komplett folgenlos blieb (nur "Thema wählen" war angeschlossen).
+  sceneUserSituations: [],
 
   // Zaubern / Ergebnis
   jokesOn: false,
-  jokeIndex: 0,
+  jokeIndex: 0, // ungenutzt seit der kuratierten Witzeliste (06.09.2026, siehe szene.js
+  // JOKE_LIBRARY/pickJoke()) -- Auswahl läuft jetzt zufällig+themenbezogen statt durchgezählt.
   penOn: false,
 
   // Entscheidung / Widmung / Bestellung

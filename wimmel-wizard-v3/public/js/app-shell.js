@@ -46,18 +46,35 @@ function renderBottomBar() {
   const idx = Router.screenIndex();
   const n = NEXT[idx] || NEXT[0];
   const nextBtn = document.getElementById("btn-next");
+  const weiterBtn = document.getElementById("btn-weitermachen");
+  nextBtn.disabled = false;
   nextBtn.textContent = n.l;
+  nextBtn.style.opacity = "1";
   nextBtn.style.background = idx === 9 ? "var(--blue)" : "var(--red)";
   nextBtn.style.color = idx === 9 ? "var(--ink)" : "var(--paper)";
+  weiterBtn.disabled = false;
+  weiterBtn.style.opacity = "1";
   document.getElementById("soft-line").textContent = n.s;
 
-  const goNext = () => {
+  const defaultGoNext = () => {
     if (idx >= SCREEN_ORDER.length - 1) { Router.goScreen("dashboard"); return; }
     Router.goScreen(SCREEN_ORDER[idx + 1]);
   };
+  // BUGFIX (Live-Test 05.09.2026): frueher hat dieser Button IMMER nur defaultGoNext()
+  // ausgefuehrt -- auf dem Charakter-Screen gab es daneben einen zweiten, eigenen Button
+  // ("Diese Figur zeichnen"), der die echte Generierung ausgeloest hat. Je nachdem, welchen
+  // Button die Nutzerin antippte, wurde entweder generiert ODER einfach nur weiternavigiert
+  // (live bestaetigt als Hauptursache fuer "Charakterblatt zeigt manchmal kein Bild"). Jetzt
+  // kann ein Screen-Modul optional Screens.<name>.onNext(...) definieren, das statt der
+  // Standard-Navigation laeuft (siehe charakter.js) -- so gibt es pro Screen nur noch einen
+  // eindeutigen "weiter"-Button, der immer dasselbe tut.
+  const mod = Screens[Router.current];
+  const goNext = (mod && typeof mod.onNext === "function")
+    ? () => mod.onNext({ nextBtn, weiterBtn, defaultGoNext })
+    : defaultGoNext;
   nextBtn.onclick = goNext;
   // Desktop-Header "Weitermachen" uebernimmt die Funktion der (dort ausgeblendeten) Bottom-Bar
-  document.getElementById("btn-weitermachen").onclick = goNext;
+  weiterBtn.onclick = goNext;
 
   document.getElementById("btn-back").onclick = () => {
     if (idx <= 0) { window.location.href = "/"; return; }

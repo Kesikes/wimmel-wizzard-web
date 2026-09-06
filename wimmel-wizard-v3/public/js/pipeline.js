@@ -166,9 +166,18 @@ function charInScene(spec) {
 // ("trägt", "Loch") unuebersetzt stehen und landete so als deutscher Wortfetzen im Bild-Prompt.
 // Aufrufer (charakter.js) muss jetzt VORHER Pipeline.translateFreeText(charNote) aufrufen und das
 // Ergebnis hier als noteEn hereinreichen.
-function charPromptFromChips({ role, age, chipLabels, noteEn }) {
+// GEAENDERT (Design-Feedback 05.09.2026, "Haare zuerst"-Umbau): neues optionales "extraEnParts" --
+// bereits fertig-englische Prompt-Fragmente (aktuell: der strukturierte Haar-Satzteil aus den drei
+// Haar-Chip-Gruppen in charakter.js), die HIER DIREKT eingefuegt werden, OHNE nochmal durch
+// translateChip()/translate() zu laufen. Wichtig: chipLabels bleibt fuer echte deutsche Chip-Labels
+// (jetzt nur noch die einzelne "Besonderheit"), die weiterhin translateChip() brauchen -- waere der
+// bereits-englische Haar-Text stattdessen ueber chipLabels gelaufen, haette translateChip() (Fallback
+// translate()) ihn faelschlich nochmal durch die DICT gejagt, mit demselben Doppel-Uebersetzungs-
+// Risiko wie beim Freitext (siehe translateFreeText()-Kommentar oben).
+function charPromptFromChips({ role, age, chipLabels, extraEnParts, noteEn }) {
   const roleBit = ageRole({ role, identityCore: { age } });
   const parts = ["wmlstil", roleBit];
+  (extraEnParts || []).forEach((en) => { if (en) parts.push(en); });
   (chipLabels || []).forEach((label) => {
     const en = twoColorBoost(translateChip(label));
     if (en) parts.push(en);
@@ -177,9 +186,10 @@ function charPromptFromChips({ role, age, chipLabels, noteEn }) {
   parts.push("round head, minimal face, dot eyes, single vertical line nose, no ears, no mouth, no visible neck, standing, flat color fill, thick black marker outline, graphic recording sketchnote style, white background, full body, front view");
   return parts.filter(Boolean).join(", ");
 }
-function charInSceneFromChips({ role, age, chipLabels, noteEn }) {
+function charInSceneFromChips({ role, age, chipLabels, extraEnParts, noteEn }) {
   const roleBit = ageRole({ role, identityCore: { age } });
   const bits = [roleBit];
+  (extraEnParts || []).forEach((en) => { if (en) bits.push(en); });
   (chipLabels || []).forEach((label) => {
     const en = twoColorBoost(translateChip(label));
     if (en) bits.push(en);
@@ -225,6 +235,34 @@ function describeHero(spec) {
 function charSheetViewPrompt(spec, view) {
   const parts = ["wmlstil", ageRole(spec), translate(spec.identityCore.hairColor), translate(spec.defaultOutfit.top)];
   if (spec.identityCore.signatureMarker) parts.push(twoColorBoost(translate(spec.identityCore.signatureMarker)));
+  if (view === "side") {
+    parts.push("full side profile view facing left, as if seen from the side, round head silhouette with no ears, no mouth and no visible neck, exactly one eye drawn as a clearly visible black dot on the side of the face facing the viewer, absolutely no nose shape of any kind – not a line, not a triangle, not a bump, not a dot – a completely smooth profile silhouette from forehead to chin, standing, full body, flat color fill, thick black marker outline, graphic recording sketchnote style, white background");
+  } else if (view === "back") {
+    parts.push("seen entirely from behind (back view), only the back of the head, hair/headwear and clothing visible, no face at all, no eyes, no nose, no mouth, nothing facial, standing, full body, viewed directly from behind, flat color fill, thick black marker outline, graphic recording sketchnote style, white background");
+  }
+  return parts.filter(Boolean).join(", ");
+}
+
+// NEU (Feature-Ergänzung 05.09.2026, Nutzer-Rückmeldung "Charakterblatt zeigt nur eine
+// Ansicht"): analog zu charPromptFromChips()/charInSceneFromChips() oben -- charSheetViewPrompt()
+// erwartet ein CharacterSpec mit den strukturierten identityCore/defaultOutfit-Feldern, die der
+// Chips-Weg in v3 nicht befuellt. Diese Funktion baut Seiten-/Ruecken-Prompts stattdessen direkt
+// aus chipLabels/noteEn zusammen (gleiches Muster wie charPromptFromChips), haengt aber die
+// view-spezifische Koerperhaltungs-Anweisung an statt der Frontansicht-Anweisung. Text fuer
+// "side"/"back" 1:1 aus charSheetViewPrompt() uebernommen (siehe dort: laut LoRA-v5-Testnotiz in
+// api/fal-proxy.js zuverlaessig direkt aus dem Trigger-Wort, ohne Referenzbild). Die Dreiviertel-
+// Ansicht laeuft bewusst NICHT hierueber, sondern ueber den Edit-Pfad mit dem fertigen
+// Frontbild als Referenz + threeQuarterEditInstruction() (siehe charakter.js) -- laut derselben
+// Testnotiz ist das der zuverlaessigere Weg fuer genau diese Ansicht.
+function charSheetViewPromptFromChips({ role, age, chipLabels, extraEnParts, noteEn, view }) {
+  const roleBit = ageRole({ role, identityCore: { age } });
+  const parts = ["wmlstil", roleBit];
+  (extraEnParts || []).forEach((en) => { if (en) parts.push(en); });
+  (chipLabels || []).forEach((label) => {
+    const en = twoColorBoost(translateChip(label));
+    if (en) parts.push(en);
+  });
+  if (noteEn) parts.push(noteEn);
   if (view === "side") {
     parts.push("full side profile view facing left, as if seen from the side, round head silhouette with no ears, no mouth and no visible neck, exactly one eye drawn as a clearly visible black dot on the side of the face facing the viewer, absolutely no nose shape of any kind – not a line, not a triangle, not a bump, not a dot – a completely smooth profile silhouette from forehead to chin, standing, full body, flat color fill, thick black marker outline, graphic recording sketchnote style, white background");
   } else if (view === "back") {
@@ -763,26 +801,22 @@ function countViolations(verifyOutputText) {
   return { violations, parsed };
 }
 
-/* ---------------- Witze (Ladebildschirm) ---------------- */
-async function fetchJokes(theme, count) {
-  const resp = await fetch("/api/claude-proxy", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ mode: "joke", theme: theme || "", count: count || 2 }),
-  });
-  let data;
-  try { data = await resp.json(); } catch (e) { throw new Error("Witz-Antwort war kein gültiges JSON."); }
-  if (!resp.ok || data.error) throw new Error(data.error || ("Witz-Fehler " + resp.status));
-  return Array.isArray(data.jokes) ? data.jokes : [];
-}
+/* ---------------- Witze (Ladebildschirm) ----------------
+   ENTFERNT (Design-Feedback 05.09.2026: "Strategiewechsel von Live-Generierung zu kuratierter,
+   von Hand geprüfter Liste ... aktuelle Witze ergeben keinen Sinn"). fetchJokes() rief bisher
+   api/claude-proxy.js mode:"joke" auf (dort ebenfalls entfernt) -- wurde aber im v3-Client nirgends
+   tatsächlich aufgerufen, das Ergebnis-Screen zeigte schon vorher nur die statische JOKES-Liste in
+   szene.js. Jetzt bewusst ganz raus (keine Live-Generierung mehr, auch nicht als toter Pfad), damit
+   niemand ihn versehentlich reaktiviert -- Witze kommen ausschließlich aus der kuratierten
+   JOKE_LIBRARY in szene.js. */
 
 window.Pipeline = {
   translate, translateChip, ageRole, twoColorBoost, makeCharacterSpec,
   charPrompt, charInScene, charPromptFromChips, charInSceneFromChips, describeHero, translateFreeText,
-  charSheetViewPrompt, threeQuarterEditInstruction,
+  charSheetViewPrompt, charSheetViewPromptFromChips, threeQuarterEditInstruction,
   kontextInstruction, photoStyleInstruction,
   PEN_INSTRUCTION_REMOVE, PEN_INSTRUCTION_REDO,
-  resizeImageToDataUri, generateImage, verifyImage, countViolations, fetchJokes,
+  resizeImageToDataUri, generateImage, verifyImage, countViolations,
   // Szenen-Komposition (neu, siehe Modul-Abschnitt oben)
   GAG_LIBRARY, THEME_META, pickGagChips, topUpSituations, defaultBubbleLayout,
   sizePx, regionLabel, situationPlacementText, stripEmotionWords, autoSituations,

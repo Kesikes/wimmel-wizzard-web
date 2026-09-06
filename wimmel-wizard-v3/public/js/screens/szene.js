@@ -30,7 +30,15 @@ Screens.szene = {
       const row = h("button", {
         type: "button",
         style: { display: "flex", gap: "8px", alignItems: "flex-start", width: "100%", cursor: "pointer", padding: "15px", border: "4px solid var(--ink)", color: "inherit", background: on ? "var(--yellow)" : "var(--paper)", boxShadow: on ? "6px 7px 0 var(--ink)" : "4px 5px 0 var(--ink)" },
-        onClick: () => { AppState.update({ sceneWay: i }); rerender(); }
+        onClick: () => {
+          const patch = { sceneWay: i };
+          // Frischer Einstieg ins Interview, wenn vorher ein ANDERER Weg aktiv war (nicht bei
+          // erneutem Antippen desselben Wegs -- sonst wuerde ein versehentlicher zweiter Klick
+          // mitten im Interview den Fortschritt zuruecksetzen).
+          if (i === 2 && s.sceneWay !== 2) patch.sceneInterviewStep = 0;
+          AppState.update(patch);
+          rerender();
+        }
       });
       row.appendChild(h("span", { class: "h-black", style: { flex: "none", fontSize: "26px", lineHeight: ".8", width: "34px" } }, w.n));
       const textCol = h("span", { style: { flex: "1", minWidth: "0", textAlign: "left" } });
@@ -43,11 +51,52 @@ Screens.szene = {
 
     if (s.sceneWay === 0) wrap.appendChild(buildThemeGrid());
     if (s.sceneWay === 1) wrap.appendChild(buildRecordPanel());
-    if (s.sceneWay === 2) wrap.appendChild(buildTextPanel());
+    if (s.sceneWay === 2) wrap.appendChild(buildInterviewPanel());
 
     root.appendChild(wrap);
     function rerender() { root.innerHTML = ""; Screens.szene.render(root); }
   }
+};
+
+// Wird von app-shell.js renderBottomBar() aufgerufen, wenn vorhanden (statt der Standard-
+// "einfach weiternavigieren"-Aktion) -- gleiches Muster wie Screens.charakter.onNext (siehe
+// charakter.js). Nur fuer Weg 2 ("Selbst eintippen") relevant: dort ersetzt das geführte
+// Chat-Interview (siehe buildInterviewPanel() unten) die vorherige einzelne Textarea, und die
+// Bottom-Bar-"Los, zaubern"-Taste treibt jetzt die drei Interview-Schritte voran, statt sofort
+// zu "zaubern" zu springen. Wege 0 ("Thema wählen") und 1 ("Geschichte aufnehmen") navigieren
+// bereits selbst direkt weiter (siehe buildThemeGrid()/buildRecordPanel() onClick) -- dort greift
+// weiterhin defaultGoNext, falls die Bottom-Bar-Taste trotzdem angetippt wird, ohne dass etwas
+// ausgewählt wurde (unveraendertes, bereits vorher bestehendes Verhalten).
+Screens.szene.onNext = ({ nextBtn, weiterBtn, defaultGoNext }) => {
+  const s = AppState.data;
+  if (s.sceneWay !== 2) { defaultGoNext(); return; }
+  const errorP = document.getElementById("scene-interview-error");
+  const step = s.sceneInterviewStep || 0;
+  if (step === 0) {
+    if (!s.sceneTheme) {
+      if (errorP) { errorP.textContent = "Bitte zuerst ein Thema auswählen."; errorP.style.display = "block"; }
+      return;
+    }
+    AppState.update({ sceneInterviewStep: 1 });
+    Router.goScreen("szene");
+    return;
+  }
+  if (step === 1) {
+    if (!(s.sceneBeat1 || "").trim()) {
+      if (errorP) { errorP.textContent = "Bitte kurz erzählen, was passiert ist."; errorP.style.display = "block"; }
+      return;
+    }
+    if (errorP) errorP.style.display = "none";
+    AppState.update({ sceneInterviewStep: 2 });
+    Router.goScreen("szene");
+    return;
+  }
+  // Letzter Schritt: uebersetzt beide Beats (Pipeline.translateFreeText(), gleiches Muster wie
+  // charakter.js bei charNote) und speichert sie als sceneUserSituations -- schliesst damit die
+  // bisherige Luecke "freie Geschichte -> Vignetten automatisch" (siehe runGeneration() unten,
+  // das jetzt s.sceneUserSituations statt eines hartcodierten leeren Arrays an
+  // Pipeline.autoSituations() uebergibt). Erst danach echtes Weiternavigieren zu "zaubern".
+  return finalizeSceneInterview([nextBtn, weiterBtn]).then((ok) => { if (ok) defaultGoNext(); });
 };
 
 function buildThemeGrid() {
@@ -83,33 +132,281 @@ function buildRecordPanel() {
   return panel;
 }
 
-function buildTextPanel() {
+// UMGEBAUT (Feature #38, 06.09.2026: "Geführtes Chat-Interview für 'Selbst eintippen'"). Vorher:
+// eine einzelne freie Textarea + drei Starthilfe-Chips, komplett OHNE Anschluss an
+// Pipeline.autoSituations() -- runGeneration() (unten) hat "existing" immer hartcodiert als []
+// uebergeben, egal was hier eingetippt wurde (siehe alter Kommentar dort). Jetzt: drei geführte
+// Schritte (Thema -> Pflicht-Hauptszene -> optionale Kleinigkeit), Fortschritt in
+// AppState.data.sceneInterviewStep (siehe state.js), Vor-/Zurueck ueber Screens.szene.onNext()
+// oben (gleiches Bottom-Nav-Override-Muster wie charakter.js). Jede Text-Frage bekommt zusaetzlich
+// eine Sprechen-statt-Tippen-Option (buildVoiceButton(), Web Speech API mit Feature-Detection).
+function buildInterviewPanel() {
   const s = AppState.data;
+  const step = s.sceneInterviewStep || 0;
   const panel = h("div", { style: { marginTop: "20px", border: "4px solid var(--ink)", background: "var(--paper)", boxShadow: "6px 7px 0 var(--ink)", padding: "16px" } });
-  const ta = h("textarea", { class: "field", style: { minHeight: "120px" }, placeholder: "Wir waren im Herbst auf dem Bauernhof, Mia wollte nicht in den Stall und Papa hat den Traktor kaputt gemacht …", "aria-label": "Eure Geschichte" });
-  ta.value = s.sceneText || "";
-  ta.addEventListener("input", () => AppState.update({ sceneText: ta.value }));
-  panel.appendChild(ta);
-  panel.appendChild(h("p", { class: "h-black", style: { margin: "12px 0 8px", fontSize: "11px", letterSpacing: ".06em" } }, "oder eine Starthilfe antippen"));
-  const chipWrap = h("div", { style: { display: "flex", flexWrap: "wrap", gap: "7px" } });
-  STARTHILFEN.forEach((label, i) => {
-    chipWrap.appendChild(h("button", {
-      type: "button",
-      style: { border: "3px solid var(--ink)", background: i === 0 ? "var(--yellow)" : "#FFF", fontFamily: "'Archivo',sans-serif", fontSize: "12px", fontWeight: "700", padding: "8px 10px", cursor: "pointer", color: "var(--ink)" },
-      onClick: () => { ta.value = label; AppState.update({ sceneText: label }); }
-    }, label));
-  });
-  panel.appendChild(chipWrap);
+
+  // Fortschrittsanzeige: rein informativ (3 Balken, aktueller + abgeschlossene hervorgehoben) --
+  // keine eigene Navigation, "zurueck" laeuft weiterhin ueber die normale Bottom-Bar-Taste.
+  const dots = h("div", { style: { display: "flex", gap: "6px", marginBottom: "14px" } });
+  for (let i = 0; i < 3; i++) {
+    dots.appendChild(h("span", { style: { display: "block", flex: "1", height: "6px", background: i <= step ? "var(--red)" : "rgba(26,26,24,.18)" } }));
+  }
+  panel.appendChild(dots);
+
+  if (step === 0) {
+    panel.appendChild(buildInterviewThemeStep());
+  } else if (step === 1) {
+    panel.appendChild(buildInterviewBeatStep({
+      key: "sceneBeat1", stepNum: 2, title: "Was ist passiert?",
+      placeholder: "Wir waren im Herbst auf dem Bauernhof, Mia wollte nicht in den Stall und Papa hat den Traktor kaputt gemacht …",
+      hint: "ein, zwei Sätze reichen. ich frage nach, wenn was fehlt.", required: true
+    }));
+  } else {
+    panel.appendChild(buildInterviewBeatStep({
+      key: "sceneBeat2", stepNum: 3, title: "Noch eine Kleinigkeit dazu?",
+      placeholder: "z. B. ein Spruch, den jemand ständig sagt, oder ein kleiner Running-Gag …",
+      hint: "optional – kannst du auch leer lassen.", required: false
+    }));
+  }
+
+  panel.appendChild(h("p", { id: "scene-interview-error", style: { margin: "12px 0 0", fontSize: "12px", color: "var(--red)", display: "none" } }, ""));
   return panel;
+}
+
+function buildInterviewThemeStep() {
+  const wrap = h("div", {});
+  wrap.appendChild(h("p", { class: "h-black", style: { margin: "0 0 4px", fontSize: "12px", letterSpacing: ".04em" } }, "Schritt 1 von 3 · Thema"));
+  wrap.appendChild(h("p", { style: { margin: "0 0 12px", fontSize: "13px", lineHeight: "1.4" } }, "wähl die Welt, in der eure Geschichte spielt."));
+  const grid = h("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" } });
+  THEMES.forEach((label, i) => {
+    const on = AppState.data.sceneTheme === label;
+    grid.appendChild(h("button", {
+      type: "button",
+      style: {
+        cursor: "pointer", fontFamily: "'Archivo Black',sans-serif", fontSize: "12px", lineHeight: "1.05", letterSpacing: "-.02em",
+        textTransform: "uppercase", textAlign: "left", padding: "13px 10px", minHeight: "66px", border: "3px solid var(--ink)",
+        color: "var(--ink)", background: on ? "var(--red)" : THEME_BG[i % THEME_BG.length],
+        boxShadow: on ? "4px 5px 0 var(--ink)" : "2px 3px 0 var(--ink)"
+      },
+      onClick: () => {
+        const errorP = document.getElementById("scene-interview-error");
+        if (errorP) errorP.style.display = "none";
+        AppState.update({ sceneTheme: label, sceneInterviewStep: 1 });
+        Router.goScreen("szene");
+      }
+    }, on ? label + " ✓" : label));
+  });
+  wrap.appendChild(grid);
+  return wrap;
+}
+
+function buildInterviewBeatStep({ key, stepNum, title, placeholder, hint, required }) {
+  const s = AppState.data;
+  const wrap = h("div", {});
+  wrap.appendChild(h("p", { class: "h-black", style: { margin: "0 0 4px", fontSize: "12px", letterSpacing: ".04em" } }, "Schritt " + stepNum + " von 3 · " + title));
+  wrap.appendChild(h("p", { style: { margin: "0 0 10px", fontSize: "13px", lineHeight: "1.4" } }, hint));
+  const ta = h("textarea", { class: "field", style: { minHeight: "110px" }, placeholder, "aria-label": title });
+  ta.value = s[key] || "";
+  ta.addEventListener("input", () => AppState.update({ [key]: ta.value }));
+  wrap.appendChild(ta);
+  wrap.appendChild(buildVoiceButton(ta, key));
+  if (key === "sceneBeat1") {
+    wrap.appendChild(h("p", { class: "h-black", style: { margin: "12px 0 8px", fontSize: "11px", letterSpacing: ".06em" } }, "oder eine Starthilfe antippen"));
+    const chipWrap = h("div", { style: { display: "flex", flexWrap: "wrap", gap: "7px" } });
+    STARTHILFEN.forEach((label) => {
+      chipWrap.appendChild(h("button", {
+        type: "button",
+        style: { border: "3px solid var(--ink)", background: "#FFF", fontFamily: "'Archivo',sans-serif", fontSize: "12px", fontWeight: "700", padding: "8px 10px", cursor: "pointer", color: "var(--ink)" },
+        onClick: () => { ta.value = label; AppState.update({ [key]: label }); }
+      }, label));
+    });
+    wrap.appendChild(chipWrap);
+  }
+  return wrap;
+}
+
+// NEU (Feature #38): Sprechen-statt-Tippen fuer jede Interview-Text-Frage, per Web Speech API
+// (window.SpeechRecognition || window.webkitSpeechRecognition) -- rein client-seitig, kein neuer
+// Server-Endpunkt noetig. Feature-Detection mit Fallback: unterstuetzt der Browser die API nicht
+// (z.B. Firefox Desktop), verschwindet nur der Mikro-Button, das normale Tippen bleibt unveraendert
+// nutzbar -- blockiert nirgends den Rest des Interviews.
+function buildVoiceButton(ta, stateKey) {
+  const wrap = h("div", { style: { marginTop: "8px" } });
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    wrap.appendChild(h("p", { style: { margin: "0", fontSize: "11px", color: "rgba(26,26,24,.55)" } }, "Spracheingabe wird von diesem Browser nicht unterstützt — bitte eintippen."));
+    return wrap;
+  }
+  let recognition = null;
+  let listening = false;
+  const idleLabel = "🎤 Sprechen statt tippen";
+  const btn = h("button", {
+    type: "button", class: "h-black",
+    style: { minHeight: "40px", padding: "0 14px", background: "var(--paper)", border: "3px solid var(--ink)", fontSize: "12px", cursor: "pointer" }
+  }, idleLabel);
+  function setIdle() {
+    listening = false;
+    btn.textContent = idleLabel;
+    btn.style.background = "var(--paper)";
+    btn.style.color = "var(--ink)";
+  }
+  btn.addEventListener("click", () => {
+    if (listening) { recognition && recognition.stop(); return; }
+    recognition = new SR();
+    recognition.lang = "de-DE";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognition.onstart = () => {
+      listening = true;
+      btn.textContent = "● höre zu … (antippen zum Stoppen)";
+      btn.style.background = "var(--red)";
+      btn.style.color = "var(--paper)";
+    };
+    recognition.onerror = setIdle;
+    recognition.onend = setIdle;
+    recognition.onresult = (ev) => {
+      const said = ev.results[0][0].transcript;
+      const merged = (ta.value ? ta.value.trim() + " " : "") + said;
+      ta.value = merged;
+      AppState.update({ [stateKey]: merged });
+    };
+    recognition.start();
+  });
+  wrap.appendChild(btn);
+  return wrap;
+}
+
+// Von Screens.szene.onNext() (siehe oben) im letzten Interview-Schritt aufgerufen. Uebersetzt
+// beide Beats (gleiches Pipeline.translateFreeText()-Muster wie charakter.js bei charNote) und
+// speichert sie als sceneUserSituations -- schliesst die bisherige Luecke "freie Geschichte ->
+// Vignetten automatisch" (siehe runGeneration() unten). Gibt true (weiter zu "zaubern"), false/
+// undefined (Validierung/Fehler, nicht weiternavigieren) zurueck -- gleiches Rueckgabe-Muster wie
+// generateCharacterImage() in charakter.js.
+async function finalizeSceneInterview(buttons) {
+  const s = AppState.data;
+  const errorP = document.getElementById("scene-interview-error");
+  const beat1 = (s.sceneBeat1 || "").trim();
+  if (!beat1) {
+    if (errorP) { errorP.textContent = "Bitte kurz erzählen, was passiert ist."; errorP.style.display = "block"; }
+    return false;
+  }
+  if (errorP) errorP.style.display = "none";
+  const activeButtons = (buttons || []).filter(Boolean);
+  activeButtons.forEach((b) => { b.dataset.prevText = b.textContent; b.disabled = true; b.textContent = "Ich übersetze …"; b.style.opacity = "0.75"; });
+  try {
+    const beat2 = (s.sceneBeat2 || "").trim();
+    const [beat1En, beat2En] = await Promise.all([
+      Pipeline.translateFreeText(beat1),
+      beat2 ? Pipeline.translateFreeText(beat2) : Promise.resolve("")
+    ]);
+    const situations = [{ en: beat1En, de: beat1 }];
+    if (beat2En) situations.push({ en: beat2En, de: beat2 });
+    AppState.update({ sceneUserSituations: situations });
+    return true;
+  } catch (e) {
+    if (errorP) { errorP.textContent = "Übersetzen hat nicht geklappt: " + (e && e.message ? e.message : String(e)) + " — nochmal versuchen?"; errorP.style.display = "block"; }
+    activeButtons.forEach((b) => { b.disabled = false; b.textContent = b.dataset.prevText || b.textContent; b.style.opacity = "1"; });
+    return false;
+  }
 }
 
 // ---- Zaubern ----
 
-const JOKES = [
-  "Warum nehmen Kühe nie den Aufzug? Weil sie schon oben ganz gut muhen können.",
-  "Was sagt ein Traktor auf dem Bauernhof zum Heuballen? „Nichts, Traktoren reden nicht. Das war die Oma.“",
-  "Warum hat der Bauer sein Huhn zum Schreiner geschickt? Es wollte unbedingt ein Ei-genheim."
-];
+// UMGEBAUT (Design-Feedback 05.09.2026: "Strategiewechsel von Live-Generierung zu kuratierter,
+// von Hand geprüfter Liste ... aktuelle Witze ergeben keinen Sinn"). Vorher: 3 fest hartcodierte,
+// themenunabhängige Witze (liefen bei JEDEM Szenen-Thema, auch Weltraum/Zirkus/Unterwasser) plus
+// eine nie tatsächlich aufgerufene Live-Generierungsfunktion (Pipeline.fetchJokes() / api/
+// claude-proxy.js mode:"joke", inzwischen entfernt -- siehe pipeline.js-Kommentar dort). Jetzt:
+// von Hand geschriebene und gegengelesene Liste (43 Witze insgesamt), je nach Szenen-Thema
+// gruppiert -- gleiches Muster wie GAG_LIBRARY oben (Themen-Pool zuerst, generischer Pool als
+// Auffüller, siehe pickJoke() unten), damit ein Weltraum-Bild auch Weltraum-Witze bekommt statt
+// immer derselben Bauernhof-Witze.
+const JOKE_LIBRARY = {
+  farm: [
+    "Warum bringt die Kuh so gute Laune mit auf die Weide? Weil bei ihr immer Muh-sik läuft.",
+    "Wie nennt man ein Schaf, das die Treppe runterrollt? Eine Wollmütze mit Schwung.",
+    "Was sagt der Hahn, wenn die Sonne aufgeht? Nichts extra Kompliziertes – nur ziemlich laut.",
+    "Warum hat das Pferd auf dem Hof den Bus verpasst? Weil es lieber im eigenen Trab unterwegs ist.",
+    "Wieso können Hühner so schlecht rechnen? Weil sie beim Zählen immer wieder von vorne gackern.",
+    "Was ist orange, hängt am Feld und wartet auf den Herbst? Ein Kürbis mit sehr viel Geduld.",
+    "Warum ist die Vogelscheuche der entspannteste auf dem Hof? Weil für sie sowieso jeder Tag gleich aussieht."
+  ],
+  christmas: [
+    "Warum hat der Weihnachtsbaum nie kalte Füße? Weil er einen dicken Stamm anhat.",
+    "Was sagt der Schneemann zum anderen? Riechst du das auch – irgendwie nach Karotte?",
+    "Wie merkt man, dass der Weihnachtsmann gut organisiert ist? Er hat für jedes Haus eine eigene Liste.",
+    "Warum flüstern die Rentiere vor Heiligabend? Damit der Schlitten pünktlich einschläft.",
+    "Was macht ein Keks unterm Weihnachtsbaum? Er wartet geduldig, bis ihn jemand entdeckt.",
+    "Wieso ist der Adventskalender nie sauer? Weil für ihn jeder Tag ein kleines Türchen aufgeht."
+  ],
+  space: [
+    "Warum nimmt der Astronaut nie einen Regenschirm mit? Weil es im All höchstens Sternschnuppen regnet.",
+    "Was sagt ein Planet zum anderen? Nicht viel – dafür ist die Umlaufbahn einfach zu lang.",
+    "Wie hält der Mond seine Ordnung? Er geht jede Nacht einmal ganz um die Erde herum.",
+    "Warum ist im Weltraum nie etwas laut? Weil dort niemand da ist, der stören könnte.",
+    "Was macht ein Roboter, wenn ihm langweilig ist? Er zählt seine eigenen Schrauben.",
+    "Wieso sind Sterne so gute Zuhörer? Weil sie die ganze Nacht einfach nur dasitzen und funkeln."
+  ],
+  castle: [
+    "Warum hat der Ritter immer gute Laune? Weil bei ihm alles wie am Schnürchen – also am Kettenhemd – läuft.",
+    "Was sagt der Drache, bevor er frühstückt? Erstmal ordentlich durchpusten.",
+    "Wieso ist die Burgmauer nie einsam? Weil ständig jemand an ihr vorbeiläuft.",
+    "Was macht der Hofnarr, wenn ihm nichts einfällt? Er macht trotzdem einfach weiter.",
+    "Warum klappert die Ritterrüstung beim Gehen? Weil sie sich noch an das Laufen gewöhnen muss.",
+    "Wie nennt man einen Drachen, der nicht mehr fliegen will? Ziemlich bodenständig."
+  ],
+  underwater: [
+    "Was sagt ein Fisch zum anderen? Nicht viel – Fische sind eben wortkarg.",
+    "Warum trägt der Fisch nie eine Uhr? Weil er sowieso im eigenen Tempo schwimmt.",
+    "Wieso können Quallen so gut entspannen? Weil sie sich einfach treiben lassen.",
+    "Was macht eine Krabbe, wenn sie es eilig hat? Sie geht trotzdem seitwärts – nur etwas schneller.",
+    "Warum ist der Oktopus so gut organisiert? Weil er für alles gleich acht Hände frei hat.",
+    "Wie grüßen sich zwei Seepferdchen? Ganz gemütlich, im eigenen Tempo eben."
+  ],
+  circus: [
+    "Warum übt der Clown jeden Tag? Weil auch Quatschmachen eine Menge Training braucht.",
+    "Was sagt der Seiltänzer vor der Vorstellung? Hauptsache, das Gleichgewicht bleibt.",
+    "Wieso hat der Zirkusdirektor immer eine Trillerpfeife dabei? Für den Fall, dass etwas Wichtiges ansteht.",
+    "Was macht der Jongleur, wenn ihm ein Ball runterfällt? Er hebt ihn auf und macht einfach weiter.",
+    "Warum ist das Zirkuszelt nie leise? Weil dort immer irgendwo etwas Spannendes passiert.",
+    "Wie nennt man einen Löwen, der ganz brav sitzen bleibt? Bestens erzogen."
+  ],
+  // Funktioniert bei jedem Thema, unabhängig von der Szene -- Auffüller, falls ein Themen-Pool
+  // erschöpft ist (siehe pickJoke()), und Standard-Pool, solange noch kein Thema feststeht.
+  generic: [
+    "Warum können Geister so schlecht lügen? Weil man immer direkt durch sie hindurchsieht.",
+    "Was sagt eine Ampel, kurz bevor sie duscht? Nicht hinsehen, ich werde jetzt rot.",
+    "Wie nennt man einen Bumerang, der nicht mehr zurückkommt? Einen Stock.",
+    "Warum können Bienen so gut rechnen? Weil sie im Bienenstock zur Schule gehen.",
+    "Wie heißt der Chef aller Vitamine? Vitamin B – weil er der Boss ist.",
+    "Was sagt ein Keks, wenn er traurig ist? Ich fühl mich gerade ziemlich zerbröselt.",
+    "Warum dürfen Bäume nie etwas falsch machen? Weil sie sonst gleich Wurzeln schlagen.",
+    "Wieso können Skelette so schlecht Geheimnisse für sich behalten? Weil man ihnen alles von den Rippen ablesen kann.",
+    "Was ist grün und steht vor der Tür? Ein Klopfsalat.",
+    "Warum sind Uhren nie stolz? Weil sie ständig nur nachschauen, wie spät es ist.",
+    "Was sagt eine Schnecke, die auf dem Rücken eines Igels sitzt? Wiiie schneeeell.",
+    "Wieso nehmen Wolken nie den Bus? Weil sie sowieso überall selbst hinschweben.",
+    "Was macht ein Buch am liebsten am Wochenende? Ausschlafen, mit allen Seiten offen.",
+    "Warum ist der Kühlschrank so ein guter Zuhörer? Weil er alles kühl abwägt, bevor er etwas sagt."
+  ]
+};
+
+// Reihenfolge/Auswahl (statt vorher schlicht "s.jokeIndex % JOKES.length" durchzuzählen): pro
+// Themen-locId zuerst aus dem passenden Pool ziehen, dann bei Bedarf aus dem generischen Pool
+// auffüllen -- gleiches Zweistufen-Muster wie topUpSituations() oben, nur für Witze statt
+// Szenen-Vignetten. "used" verhindert Wiederholungen, solange der kombinierte Pool nicht
+// erschöpft ist.
+function pickJoke(locId, used) {
+  const pools = [];
+  if (locId && JOKE_LIBRARY[locId]) pools.push(JOKE_LIBRARY[locId]);
+  if (locId !== "generic") pools.push(JOKE_LIBRARY.generic);
+  const combined = pools.flat();
+  const fresh = combined.filter((j) => !used.has(j));
+  const pool = fresh.length ? fresh : combined;
+  const pick = pool[Math.floor(Math.random() * pool.length)];
+  used.add(pick);
+  return pick;
+}
 // NEU (Pipeline-Anbindung): LOAD_STEPS war vorher eine feste Demo-Anzeige (immer "Variante 2 von 3",
 // immer "41 Situationen") unabhaengig vom echten Fortschritt. Jetzt ein Phasen-Array, dessen "mark"
 // live per updateSteps() (siehe render()) gesetzt wird -- "✓" abgeschlossen, "◐" laeuft gerade,
@@ -120,8 +417,8 @@ const JOKES = [
 function zauberSteps() {
   return [
     { key: "refs", label: "Figuren aus euren Charakterblättern als Referenz geladen" },
-    { key: "gen", label: "Zwei Varianten der Szene werden gezeichnet" },
-    { key: "verify", label: "Qualitätsprüfung beider Varianten (alle Figuren da? kein Mund sichtbar?)" },
+    { key: "gen", label: "Drei Varianten der Szene werden gezeichnet" },
+    { key: "verify", label: "Qualitätsprüfung: Alle Personen da?" },
     { key: "done", label: "Beste Variante ausgewählt" }
   ];
 }
@@ -140,11 +437,18 @@ Screens.zaubern = {
       document.createTextNode("Ich mache"), h("br"), document.createTextNode("das nicht"), h("br"),
       h("span", { style: { color: "var(--yellow)" } }, "schnell.")
     ]));
-    wrap.appendChild(h("p", { class: "caveat", style: { margin: "8px 0 0", fontSize: "20px", lineHeight: "1.12", color: "var(--paper-a90)" } }, "ich zeichne zwei Varianten, prüfe beide und behalte die beste. das dauert – dafür sitzt es dann."));
+    wrap.appendChild(h("p", { class: "caveat", style: { margin: "8px 0 0", fontSize: "20px", lineHeight: "1.12", color: "var(--paper-a90)" } }, "ich zeichne mehrere Varianten, prüfe sie und behalte die beste. das dauert – dafür sitzt es dann."));
 
+    // Design-Feedback (05.09.2026): der gestrichelte Ring drehte sich zwar schon (animation: spin),
+    // aber bei einem gleichmäßig gestrichelten Kreis sieht eine Drehung optisch aus wie Stillstand
+    // (jeder Frame gleicht dem vorigen) UND 22s pro Umdrehung war ohnehin kaum wahrnehmbar. Jetzt:
+    // schneller (3.2s) UND ein einzelner gelber Marker auf dem Ring, der sichtbar mitläuft -- liest
+    // sich dadurch klar als aktiver Lade-Indikator statt als statisches Deko-Element.
     const spinWrap = h("div", { style: { position: "relative", margin: "22px 0 0", display: "flex", justifyContent: "center" } });
-    spinWrap.appendChild(h("span", { style: { position: "absolute", top: "50%", left: "50%", width: "168px", height: "168px", margin: "-84px 0 0 -84px", border: "4px dashed var(--paper-a38)", borderRadius: "50%", animation: "spin 22s linear infinite" } }));
-    spinWrap.appendChild(h("img", { src: "assets/wizard-on-book.png", alt: "WizzelWim zaubert", style: { position: "relative", width: "128px", animation: "wob 3.6s ease-in-out infinite" } }));
+    const ring = h("span", { style: { position: "absolute", top: "50%", left: "50%", width: "168px", height: "168px", margin: "-84px 0 0 -84px", border: "4px dashed var(--paper-a38)", borderRadius: "50%", animation: "spin 3.2s linear infinite" } });
+    ring.appendChild(h("span", { style: { position: "absolute", top: "-6px", left: "50%", width: "14px", height: "14px", margin: "0 0 0 -7px", background: "var(--yellow)", border: "2px solid var(--ink)", borderRadius: "50%" } }));
+    spinWrap.appendChild(ring);
+    spinWrap.appendChild(h("img", { src: assetPath("wizard-on-book.png"), alt: "WizzelWim zaubert", style: { position: "relative", width: "128px", animation: "wob 3.6s ease-in-out infinite" } }));
     wrap.appendChild(spinWrap);
 
     const stepRows = {};
@@ -202,13 +506,20 @@ Screens.zaubern = {
       }
       const theme = Pipeline.THEME_META[s.sceneTheme];
       if (!theme) {
-        showError("Kein Thema ausgewählt (nur der Weg „Thema wählen“ ist in diesem Testlauf angeschlossen — Aufnahme/Text noch nicht). Bitte zurück zur Szene-Auswahl.");
+        showError("Kein Thema ausgewählt. Bitte zurück zur Szene-Auswahl.");
         return;
       }
       zauberBusy = true;
       try {
         setPhase("refs");
-        const situations = Pipeline.autoSituations(theme, [], 16);
+        // GEAENDERT (Feature #38, schliesst die bisherige Luecke "freie Geschichte -> Vignetten
+        // automatisch"): vorher hier IMMER hartcodiert [] -- nur der Weg "Thema wählen" hatte damit
+        // ueberhaupt einen Effekt auf die generierten Vignetten. s.sceneUserSituations kommt jetzt
+        // vom geführten Chat-Interview (Weg "Selbst eintippen", siehe finalizeSceneInterview() oben),
+        // bereits uebersetzt und im von autoSituations() erwarteten {en/de}-Format. Bleibt fuer die
+        // Wege "Thema wählen"/"Geschichte aufnehmen" (Aufnahme noch nicht transkribiert-angeschlossen)
+        // ein leeres Array, genau wie bisher.
+        const situations = Pipeline.autoSituations(theme, s.sceneUserSituations || [], 16);
         setPhase("gen");
         // composeSceneImage() generiert intern beide Kandidaten UND prueft beide (siehe
         // pipeline.js) -- aus Sicht dieses Screens ist das ein einzelner Aufruf, daher springt
@@ -236,6 +547,12 @@ Screens.zaubern = {
     stayCard.appendChild(h("p", { class: "h-black", style: { fontSize: "15px", lineHeight: "1.05", letterSpacing: "-.02em" } }, "Willst du hierbleiben?"));
     stayCard.appendChild(h("p", { class: "caveat", style: { margin: "7px 0 12px", fontSize: "20px", lineHeight: "1.12" } }, "du kannst auch was anderes machen – ich schreib dir, wenn's fertig ist. oder ich erzähl dir Witze."));
 
+    // GEAENDERT (kuratierte Witzeliste, siehe JOKE_LIBRARY/pickJoke() oben): waehlt passend zum
+    // gerade gewaehlten Szenen-Thema (s.sceneTheme -> locId), faellt ohne Thema auf den
+    // generischen Pool zurueck. "usedJokes" ist bewusst NICHT in AppState (kein Grund, das ueber
+    // einen Reload hinweg zu merken) -- lebt nur, solange dieser Screen offen ist.
+    const usedJokes = new Set();
+    let currentJoke = "";
     const jokeArea = h("div", {});
     function renderJokeArea() {
       jokeArea.innerHTML = "";
@@ -245,9 +562,20 @@ Screens.zaubern = {
         row.appendChild(h("button", { type: "button", class: "h-black", style: { flex: "1", minHeight: "48px", background: "rgba(26,26,24,.15)", border: "3px solid var(--paper)", fontSize: "13px", color: "var(--paper)" }, onClick: () => Router.goScreen("ergebnis") }, "Ich geh kurz weg"));
         jokeArea.appendChild(row);
       } else {
+        if (!currentJoke) {
+          const theme = Pipeline.THEME_META[s.sceneTheme];
+          currentJoke = pickJoke(theme ? theme.locId : "generic", usedJokes);
+        }
         const box = h("div", { style: { border: "3px solid var(--ink)", background: "var(--paper)", color: "var(--ink)", padding: "14px" } });
-        box.appendChild(h("p", { style: { fontSize: "15px", lineHeight: "1.45", fontWeight: "600" } }, JOKES[s.jokeIndex % JOKES.length]));
-        box.appendChild(h("button", { type: "button", class: "h-black", style: { marginTop: "12px", minHeight: "44px", width: "100%", background: "var(--ink)", color: "var(--paper)", border: "3px solid var(--ink)", fontSize: "12px" }, onClick: () => { AppState.update({ jokeIndex: s.jokeIndex + 1 }); renderJokeArea(); } }, "Noch einen"));
+        box.appendChild(h("p", { style: { fontSize: "15px", lineHeight: "1.45", fontWeight: "600" } }, currentJoke));
+        box.appendChild(h("button", {
+          type: "button", class: "h-black", style: { marginTop: "12px", minHeight: "44px", width: "100%", background: "var(--ink)", color: "var(--paper)", border: "3px solid var(--ink)", fontSize: "12px" },
+          onClick: () => {
+            const theme = Pipeline.THEME_META[s.sceneTheme];
+            currentJoke = pickJoke(theme ? theme.locId : "generic", usedJokes);
+            renderJokeArea();
+          }
+        }, "Noch einen"));
         jokeArea.appendChild(box);
       }
     }
@@ -319,7 +647,7 @@ Screens.ergebnis = {
     wrap.appendChild(tools);
 
     const hintBox = h("div", { style: { margin: "16px 14px 0", position: "relative", background: "var(--blue)", border: "4px solid var(--ink)", padding: "15px 15px 15px 54px", boxShadow: "5px 6px 0 var(--ink)", transform: "rotate(-.8deg)" } });
-    hintBox.appendChild(h("img", { src: "assets/wizard-magnifier.png", alt: "", style: { position: "absolute", left: "-18px", top: "-14px", width: "46px", transform: "rotate(-10deg)" } }));
+    hintBox.appendChild(h("img", { src: assetPath("wizard-magnifier.png"), alt: "", style: { position: "absolute", left: "-18px", top: "-14px", width: "46px", transform: "rotate(-10deg)" } }));
     const hint = h("p", { class: "caveat", style: { fontSize: "20px", lineHeight: "1.12" } },
       s.penOn ? "kringel einfach drüber. ich muss nicht genau wissen, wo das Ding anfängt – ich verstehe, was du meinst."
               : "irgendwas störend? nimm den Stift und mal es durch. der Rest der Szene bleibt genau so.");
@@ -400,7 +728,7 @@ function buildDesktopErgebnis(s, image) {
   aside.appendChild(toolCol);
 
   const dHintBox = h("div", { style: { position: "relative", background: "var(--blue)", border: "4px solid var(--ink)", boxShadow: "6px 7px 0 var(--ink)", padding: "18px 18px 18px 62px", transform: "rotate(-.8deg)" } });
-  dHintBox.appendChild(h("img", { src: "assets/wizard-magnifier.png", alt: "", style: { position: "absolute", left: "-20px", top: "-16px", width: "52px", transform: "rotate(-10deg)" } }));
+  dHintBox.appendChild(h("img", { src: assetPath("wizard-magnifier.png"), alt: "", style: { position: "absolute", left: "-20px", top: "-16px", width: "52px", transform: "rotate(-10deg)" } }));
   const dHint = h("p", { class: "caveat", style: { fontSize: "22px", lineHeight: "1.12" } },
     s.penOn ? "kringel einfach drüber. ich muss nicht genau wissen, wo das Ding anfängt – ich verstehe, was du meinst."
             : "irgendwas störend? nimm den Stift und mal es durch. der Rest der Szene bleibt genau so.");

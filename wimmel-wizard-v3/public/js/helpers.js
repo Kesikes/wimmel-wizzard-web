@@ -41,8 +41,21 @@ function scrollToTop() {
   window.scrollTo({ top: 0, behavior: "instant" in window ? "instant" : "auto" });
 }
 
+// BUGFIX (Live-Test 05.09.2026, Priorität 1 der Nutzer-Rückmeldung): relative
+// "assets/..."-Pfade lösen im Browser IMMER relativ zur aktuellen URL auf, nicht
+// relativ zu app.html. Auf /app (Dashboard) ging das zufällig gut (ein einziges
+// Pfadsegment -> Ersetzung landet korrekt bei /assets/...), auf jeder tieferen
+// Route (/app/personen/neu, /app/bild/zaubern, /app/bestellen, /app/fertig, ...)
+// wird daraus z.B. /app/personen/assets/wizzelwim-family-hero.png. Das trifft
+// Vercels eigenen Catch-all-Rewrite "/app/:path*" -> app.html (siehe
+// vercel.json), der Server liefert also HTML statt PNG zurück (Status 200,
+// falscher Inhalt) -- der Browser zeigt das kaputte Bild-Icon. Genau dieselbe
+// Pfadauflösung hat vorher auch die <script src="js/..."> -Tags in app.html
+// getroffen (Blank-Screen-Crash bei Hard-Reload/Deep-Link auf tiefe Routen,
+// siehe Task "Backlog: Routing-Bug"). Fix: root-absolute Pfad statt relativ --
+// funktioniert unabhängig davon, auf welcher Route gerade gerendert wird.
 function assetPath(name) {
-  return "assets/" + name;
+  return "/assets/" + name;
 }
 
 // Fuer Live-Regionen / Statusmeldungen, ohne dass sie visuell auffallen

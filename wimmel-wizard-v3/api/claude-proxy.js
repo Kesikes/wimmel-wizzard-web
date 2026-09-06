@@ -174,47 +174,11 @@ module.exports = async (req, res) => {
 
   const body = req.body || {};
 
-  // ---- Modus (v3, NEU — siehe wimmel-wizard-technische-spezifikation-final.md Abschnitt 5):
-  // Witze fuer den Ladebildschirm. War in der alten Codebasis noch nicht als eigener Modus gebaut
-  // (nur als Anforderung beschrieben) — hier nach demselben Muster wie extract_traits ergaenzt:
-  // einzelner, zustandsloser Anthropic-Aufruf, kein Tool-Calling, live pro Ladevorgang generiert,
-  // NIE von einer externen Quelle oder einer statischen Liste im Produktivbetrieb.
-  if (body.mode === "joke") {
-    const theme = String(body.theme || "").slice(0, 200);
-    const count = Math.min(Math.max(Number(body.count) || 2, 1), 3);
-    try {
-      const resp = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-        body: JSON.stringify({
-          model: MODEL,
-          max_tokens: 300,
-          system: "Du bist Wizzelwim. Antworte AUSSCHLIESSLICH mit einem JSON-Array aus " + count + " kurzen, kindgerechten, deutschen Witzen (je 1-2 Sätze, warmherzig, nie gemein, kein Wortwitz, den nur Erwachsene verstehen) - kein Markdown, kein Text davor oder danach, nur das Array selbst.",
-          messages: [
-            { role: "user", content: theme ? "Passend zu dieser Szene, falls es passt (sonst irgendein kindgerechter Witz): " + theme : "Irgendein kindgerechter Witz." },
-          ],
-        }),
-      });
-      if (!resp.ok) {
-        const txt = await resp.text().catch(() => "");
-        res.status(502).json({ error: "Anthropic-Fehler " + resp.status + ": " + txt.slice(0, 200) });
-        return;
-      }
-      const data = await resp.json();
-      const text = (data.content && data.content[0] && data.content[0].text) || "[]";
-      const jsonMatch = text.match(/\[[\s\S]*\]/);
-      let jokes = [];
-      try { jokes = jsonMatch ? JSON.parse(jsonMatch[0]) : []; } catch (e) { jokes = []; }
-      if (!Array.isArray(jokes) || !jokes.length) {
-        res.status(502).json({ error: "Kein gültiges Witz-Array erhalten." });
-        return;
-      }
-      res.status(200).json({ jokes: jokes.filter((j) => typeof j === "string").slice(0, count) });
-    } catch (e) {
-      res.status(502).json({ error: "Verbindung zu Anthropic fehlgeschlagen: " + String(e) });
-    }
-    return;
-  }
+  // ---- Modus "joke" ENTFERNT (Design-Feedback 05.09.2026: "Strategiewechsel von
+  // Live-Generierung zu kuratierter, von Hand geprüfter Liste ... aktuelle Witze ergeben keinen
+  // Sinn"). Wurde vom Client (Pipeline.fetchJokes(), pipeline.js) ohnehin nirgends aufgerufen --
+  // Witze kommen jetzt ausschließlich aus der kuratierten JOKE_LIBRARY in public/js/screens/
+  // szene.js, kein Live-API-Aufruf mehr nötig.
 
   // ---- Modus (NEU, Live-Test 04.09.2026): Uebersetzung fuer das freie Notizfeld ----
   // Grund: Pipeline.translate() (Client, pipeline.js) ist ein reines Woerterbuch (DICT), das nur

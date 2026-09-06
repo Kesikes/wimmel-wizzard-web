@@ -19,7 +19,7 @@ Screens.bestellen = {
     wrap.appendChild(h("h1", { class: "h1-scr", style: { fontSize: "31px", marginBottom: "16px" } }, [document.createTextNode("Ab in"), h("br"), document.createTextNode("den Druck.")]));
 
     const orderCard = h("div", { style: { display: "flex", gap: "12px", border: "4px solid var(--ink)", background: "var(--paper)", boxShadow: "6px 7px 0 var(--ink)", padding: "14px" } });
-    orderCard.appendChild(h("img", { src: "assets/example_gardasee.png", alt: "Euer Wimmelbuch", style: { flex: "none", width: "96px", border: "3px solid var(--ink)", alignSelf: "flex-start" } }));
+    orderCard.appendChild(h("img", { src: assetPath("example_gardasee.png"), alt: "Euer Wimmelbuch", style: { flex: "none", width: "96px", border: "3px solid var(--ink)", alignSelf: "flex-start" } }));
     const orderText = h("div", { style: { flex: "1", minWidth: "0" } });
     orderText.appendChild(h("p", { class: "h-black", style: { fontSize: "16px", lineHeight: "1", letterSpacing: "-.02em" } }, "Mini-Wimmelbuch"));
     orderText.appendChild(h("p", { style: { margin: "6px 0 0", fontSize: "13px", lineHeight: "1.4" } }, "2 Wimmelbilder + Charakterseite, 8 Seiten, Hardcover, mit Widmung."));
@@ -63,7 +63,7 @@ Screens.fertig = {
     const wrap = h("section", { style: { background: "var(--red)", color: "var(--paper)", padding: "24px 14px 30px", minHeight: "74vh", textAlign: "center" } });
 
     const bubbleWrap = h("div", { style: { position: "relative", width: "100%", maxWidth: "320px", margin: "0 auto 14px", transform: "rotate(-2deg)" } });
-    bubbleWrap.appendChild(h("img", { src: "assets/wizard-speechbubble.png", alt: "WizzelWim", style: { width: "100%" } }));
+    bubbleWrap.appendChild(h("img", { src: assetPath("wizard-speechbubble.png"), alt: "WizzelWim", style: { width: "100%" } }));
     bubbleWrap.appendChild(h("p", { class: "h-black", style: { position: "absolute", left: "45%", top: "8%", width: "52%", height: "52%", display: "flex", alignItems: "center", fontSize: "18px", lineHeight: ".98", letterSpacing: "-.03em", color: "var(--ink)", textAlign: "left" } }, "Ich fange sofort an!"));
     wrap.appendChild(bubbleWrap);
 
