@@ -27,11 +27,30 @@ Screens.dashboard = {
       src: assetPath("wizard-badge.png"), alt: "WizzelWim",
       style: { position: "absolute", left: "-14px", bottom: "-6px", width: "82px", animation: "wob 4s ease-in-out infinite" }
     }));
-    greet.appendChild(h("p", { class: "h-black", style: { fontSize: "17px", lineHeight: "1", letterSpacing: "-.03em" } }, "Moin, Familie Kern."));
+    // BUGFIX (Live-Test 06.09.2026, Nachzieher aus Runde 1: "Demo-Name muss raus"): war hier auf
+    // dem mobilen Dashboard noch stehengeblieben, obwohl die Desktop-Variante (siehe
+    // buildDesktopDashboard() unten) schon laenger nur "Moin," zeigt -- echter Nullzustand hat
+    // keinen Haushaltsnamen (siehe state.js-Kommentar zum Nullzustand).
+    greet.appendChild(h("p", { class: "h-black", style: { fontSize: "17px", lineHeight: "1", letterSpacing: "-.03em" } }, "Moin,"));
     greet.appendChild(h("p", { class: "caveat", style: { marginTop: "6px", fontSize: "20px", lineHeight: "1.1" } }, "wir bauen das Stück für Stück. du entscheidest, wie viel Liebe zum Detail reingeht."));
     wrap.appendChild(greet);
 
-    wrap.appendChild(h("p", { class: "caveat", style: { margin: "10px 2px 0", fontSize: "16px", lineHeight: "1.3", color: "var(--ink-a70)" } }, "du kannst jederzeit unterbrechen – wir merken uns alles, auch ohne Konto."));
+    // NEU (Live-Test 06.09.2026, Nachzieher aus Runde 1: "Mehr-Infos-Link fehlt weiterhin"):
+    // erklaert den Speicher-Mechanismus (Auto-Save in localStorage, kein Konto) in einem Popup statt
+    // nur zu behaupten "wir merken uns alles" -- openInfoSheet() ist ein generischer, kleiner
+    // Bottom-Sheet-Helfer in helpers.js (kein neues DOM-Geruest in app.html noetig, funktioniert auf
+    // jedem Screen).
+    const storageLine = h("p", { class: "caveat", style: { margin: "10px 2px 0", fontSize: "16px", lineHeight: "1.3", color: "var(--ink-a70)" } });
+    storageLine.appendChild(document.createTextNode("du kannst jederzeit unterbrechen – wir merken uns alles, auch ohne Konto. "));
+    storageLine.appendChild(h("button", {
+      type: "button",
+      style: { display: "inline", background: "none", border: "none", padding: "0", margin: "0", cursor: "pointer", font: "inherit", color: "inherit", textDecoration: "underline" },
+      onClick: () => openInfoSheet(
+        "Wie wir speichern",
+        "Wir speichern nach jeder Eingabe automatisch in diesem Browser (kein Konto, kein Login nötig). Machst du später auf demselben Gerät im selben Browser weiter, ist alles noch da. Wechselst du das Gerät oder löschst du deinen Browserverlauf/-speicher, geht der Stand allerdings verloren, weil nichts an einen Account gebunden ist."
+      )
+    }, "Mehr Infos"));
+    wrap.appendChild(storageLine);
 
     const resetRow = h("button", {
       type: "button",

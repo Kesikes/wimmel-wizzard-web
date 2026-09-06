@@ -271,6 +271,24 @@ function charSheetViewPromptFromChips({ role, age, chipLabels, extraEnParts, not
   return parts.filter(Boolean).join(", ");
 }
 
+// NEU (Bugfix 06.09.2026, Live-Test Mehrfach-Ansichten: "Seitenansicht zeigt eine Glatze,
+// obwohl die Frontansicht korrekte Haare hat" / "Rückansicht zeigt eine komplett andere Hose").
+// Vorher liefen Seite/Rücken über charSheetViewPromptFromChips() -- reiner Text-zu-Bild-Weg ohne
+// Referenzbild, der laut einer frueheren LoRA-Testnotiz "zuverlaessig direkt aus dem Trigger-Wort"
+// funktionieren sollte. Der Live-Test widerlegt das: das Modell haelt sich beim reinen Text-Weg
+// nicht zuverlaessig an Haar-/Kleidungs-Details, auch wenn sie im Prompt stehen. Jetzt laufen
+// Seite UND Ruecken ueber denselben Edit-Pfad wie die schon laenger funktionierende Dreiviertel-
+// Ansicht (editImageUrl = fertiges Frontbild als visuelle Referenz) -- das Modell kopiert Haare/
+// Kleidung dann vom tatsaechlichen Bild statt sie nur aus einer Wortbeschreibung zu erraten.
+// charSheetViewPrompt()/charSheetViewPromptFromChips() bleiben unten stehen (nicht geloescht, da
+// sie noch harmlos exportiert sind), werden aber ab jetzt von charakter.js nicht mehr aufgerufen.
+function sideViewEditInstruction() {
+  return "Redraw this exact character in FULL SIDE PROFILE VIEW, facing left, as if seen from the side. Keep the EXACT same hair style, hair color and hair length as the reference image – do not remove, shorten or change the hair in any way, and do NOT make the character bald. Also keep the exact same clothing, colors and any signature accessory as the reference. Round head silhouette with no ears, no mouth and no visible neck. Exactly one eye drawn as a clearly visible black dot on the side of the face facing the viewer. Absolutely no nose shape of any kind – not a line, not a triangle, not a bump, not a dot – a completely smooth profile silhouette from forehead to chin. Standing, full body, plain white background. Match the exact illustration style of the reference image: thick black marker outline, flat colors, graphic recording sketchnote style.";
+}
+function backViewEditInstruction() {
+  return "Redraw this exact character seen entirely FROM BEHIND (back view). Keep the EXACT same hair style, hair color and hair length as the reference image. Keep EXACTLY the same clothing as the reference image – same garment types, same colors, same pants/skirt/shoes – do not invent or substitute different clothing. Only the back of the head, hair/headwear and clothing are visible, no face at all, no eyes, no nose, no mouth, nothing facial. Standing, full body, viewed directly from behind, plain white background. Match the exact illustration style of the reference image: thick black marker outline, flat colors, graphic recording sketchnote style.";
+}
+
 function threeQuarterEditInstruction() {
   return "Redraw this exact character in THREE QUARTER VIEW: the whole body is turned slightly to the right – head, shoulders AND upper body all rotate together as one unit, not just the head on an otherwise front-facing body. Keep the exact same hair style and color, headwear, clothing and all identifying details as the reference. The head is a round shape with no ears, no mouth and no visible neck. The entire facial feature group – both eyes AND the nose together, as one unit – is shifted slightly to the right of the vertical center of the face. Both eyes stay fully visible as small dots, keeping their normal spacing exactly as wide apart as in the reference image (do NOT squeeze them closer together), just shifted as a pair to the right side of the face; the nose is positioned right below the midpoint between the two eyes and moves right together with them. Draw the nose as ONE perfectly straight vertical line segment, like the keyboard character \"|\" – completely straight from top to bottom, with NO curve, NO hook, NO bend, NO foot or serif at the bottom end, NOT shaped like a check mark, a hook, a \"J\", or an upside-down \"L\". Match the exact illustration style of the reference image: thick black marker outline, flat colors, graphic recording sketchnote style. Full body, standing, plain white background.";
 }
@@ -814,6 +832,7 @@ window.Pipeline = {
   translate, translateChip, ageRole, twoColorBoost, makeCharacterSpec,
   charPrompt, charInScene, charPromptFromChips, charInSceneFromChips, describeHero, translateFreeText,
   charSheetViewPrompt, charSheetViewPromptFromChips, threeQuarterEditInstruction,
+  sideViewEditInstruction, backViewEditInstruction,
   kontextInstruction, photoStyleInstruction,
   PEN_INSTRUCTION_REMOVE, PEN_INSTRUCTION_REDO,
   resizeImageToDataUri, generateImage, verifyImage, countViolations,

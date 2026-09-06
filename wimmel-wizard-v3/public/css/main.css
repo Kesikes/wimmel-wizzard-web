@@ -35,7 +35,13 @@
 
   --container-max: 430px;
   --desktop-max: 1360px;
-  --bottom-bar-space: 96px;
+  /* Erhoeht (06.09.2026, Live-Test): der Charakter-Screen (NEXT[1] in app-shell.js) hat jetzt
+     einen zusaetzlichen, laengeren Hinweissatz unter dem Bottom-Nav-Button ('Auch Zauberer
+     machen Fehler...') statt nur der kurzen einzeiligen Notiz -- der faellt auf mehr als eine
+     Zeile um. Bewusst global erhoeht (statt nur fuer diesen einen Screen) statt einer
+     Bildschirm-spezifischen Sonderloesung -- der etwas groessere Leerraum am unteren Rand
+     fällt auf allen anderen Screens mit ihrem kurzen einzeiligen Text kaum auf. */
+  --bottom-bar-space: 148px;
 }
 
 html, body {

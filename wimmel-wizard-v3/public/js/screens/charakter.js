@@ -243,17 +243,22 @@ async function generateCharacterImage(person, buttons) {
     const sceneDescription = Pipeline.charInSceneFromChips({ role: person.role, age: person.age, chipLabels, extraEnParts, noteEn });
     const result = await Pipeline.generateImage(prompt, "char");
     // NEU (Feature-Ergänzung 05.09.2026: "Charakterblatt zeigt nur eine Ansicht" — jetzt bewusst
-    // mitgebaut): nach der Frontansicht zusätzlich Seite + Rücken (Text-zu-Bild, kein Referenzbild
-    // nötig laut LoRA-v5-Testnotiz in fal-proxy.js) parallel zur Dreiviertel-Ansicht (Edit-Pfad mit
-    // der gerade fertigen Frontansicht als Referenz — laut derselben Testnotiz der zuverlässigere
-    // Weg für genau diese Ansicht). Läuft NACH der Frontansicht (Edit-Pfad braucht deren URL), aber
-    // untereinander parallel, um die Wartezeit nicht zu vervierfachen. Best-effort: schlägt eine
-    // einzelne Zusatz-Ansicht fehl, blockiert das nicht die anderen — Charakterblatt zeigt dann
-    // ehrlich nur die Ansichten, die tatsächlich da sind (siehe dort).
-    const viewArgs = { role: person.role, age: person.age, chipLabels, extraEnParts, noteEn };
+    // mitgebaut): nach der Frontansicht zusätzlich Seite + Rücken + Dreiviertel-Ansicht.
+    // BUGFIX (Live-Test 06.09.2026: "Seitenansicht zeigt eine Glatze, obwohl die Frontansicht
+    // korrekte Haare hat" / "Rückansicht zeigt eine komplett andere Hose"): Seite und Rücken liefen
+    // vorher über charSheetViewPromptFromChips() -- reiner Text-zu-Bild-Weg ohne Referenzbild. Das
+    // haelt sich in der Praxis nicht zuverlaessig an Haar-/Kleidungs-Details, auch wenn sie im Prompt
+    // stehen (widerlegt die fruehere LoRA-Testnotiz dazu). Jetzt laufen ALLE DREI Zusatz-Ansichten
+    // ueber denselben Edit-Pfad wie schon die Dreiviertel-Ansicht (editImageUrl = fertiges Frontbild
+    // als visuelle Referenz, siehe sideViewEditInstruction()/backViewEditInstruction() in
+    // pipeline.js) -- das Modell kopiert Haare/Kleidung dann vom tatsaechlichen Bild statt sie nur
+    // aus einer Wortbeschreibung zu erraten. Laufen untereinander parallel, um die Wartezeit nicht
+    // zu verdreifachen. Best-effort: schlägt eine einzelne Zusatz-Ansicht fehl, blockiert das nicht
+    // die anderen — Charakterblatt zeigt dann ehrlich nur die Ansichten, die tatsächlich da sind
+    // (siehe dort).
     const [sideR, backR, threeQR] = await Promise.allSettled([
-      Pipeline.generateImage(Pipeline.charSheetViewPromptFromChips({ ...viewArgs, view: "side" }), "char"),
-      Pipeline.generateImage(Pipeline.charSheetViewPromptFromChips({ ...viewArgs, view: "back" }), "char"),
+      Pipeline.generateImage(Pipeline.sideViewEditInstruction(), "char", { editImageUrl: result.url }),
+      Pipeline.generateImage(Pipeline.backViewEditInstruction(), "char", { editImageUrl: result.url }),
       Pipeline.generateImage(Pipeline.threeQuarterEditInstruction(), "char", { editImageUrl: result.url }),
     ]);
     AppState.updatePerson(person.id, {

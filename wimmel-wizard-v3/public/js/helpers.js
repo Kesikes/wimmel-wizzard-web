@@ -67,3 +67,46 @@ function announce(msg) {
   }
   region.textContent = msg;
 }
+
+// NEU (Live-Test 06.09.2026, Dashboard "Mehr Infos"-Link): generischer, kleiner Bottom-Sheet-
+// Helfer fuer kurze Erklaer-Popups (aktuell: Speicher-Mechanismus). Bewusst NICHT an ein
+// vorgefertigtes DOM-Geruest gebunden (anders als die Landingpage-eigene ".lp-sheet", die nur in
+// index.html existiert) -- baut Backdrop + Sheet direkt per h()/document.body.appendChild(), damit
+// er von JEDEM Screen aus aufrufbar ist. Schliesst per Backdrop-Klick, "Verstanden"-Button oder Esc.
+function openInfoSheet(title, bodyText) {
+  closeInfoSheet();
+  const backdrop = h("div", {
+    id: "info-sheet-backdrop",
+    style: { position: "fixed", inset: "0", zIndex: "300", background: "rgba(26,26,24,.55)" },
+    onClick: closeInfoSheet
+  });
+  const sheet = h("div", {
+    id: "info-sheet", role: "dialog", "aria-modal": "true", "aria-labelledby": "info-sheet-title",
+    style: {
+      position: "fixed", zIndex: "301", left: "50%", bottom: "0", width: "100%", maxWidth: "430px",
+      transform: "translateX(-50%)", background: "var(--paper)", color: "var(--ink)",
+      borderTop: "5px solid var(--ink)", padding: "14px 18px 24px"
+    }
+  });
+  sheet.appendChild(h("div", { style: { width: "46px", height: "5px", background: "var(--ink)", margin: "0 auto 14px" } }));
+  sheet.appendChild(h("h2", { id: "info-sheet-title", class: "h-black", style: { margin: "0 0 10px", fontSize: "20px", lineHeight: "1.05", letterSpacing: "-.03em" } }, title));
+  sheet.appendChild(h("p", { style: { margin: "0", fontSize: "14px", lineHeight: "1.55" } }, bodyText));
+  sheet.appendChild(h("button", {
+    type: "button", class: "h-black",
+    style: { marginTop: "18px", width: "100%", minHeight: "48px", background: "var(--ink)", color: "var(--paper)", border: "3px solid var(--ink)", fontSize: "13px", cursor: "pointer" },
+    onClick: closeInfoSheet
+  }, "Verstanden"));
+  document.body.appendChild(backdrop);
+  document.body.appendChild(sheet);
+  document.addEventListener("keydown", infoSheetEscHandler);
+}
+function infoSheetEscHandler(e) {
+  if (e.key === "Escape") closeInfoSheet();
+}
+function closeInfoSheet() {
+  const b = document.getElementById("info-sheet-backdrop");
+  const s = document.getElementById("info-sheet");
+  if (b) b.remove();
+  if (s) s.remove();
+  document.removeEventListener("keydown", infoSheetEscHandler);
+}

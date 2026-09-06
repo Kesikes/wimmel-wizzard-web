@@ -14,8 +14,11 @@
   .lp-hero-scroll { position: relative; height: 72vh; min-height: 540px; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; }
   .lp-hero-track { position: relative; width: 294%; height: 100%; }
   /* Design-Feedback (05.09.2026): "nummerierte Quadrate im Hero doppelt so groß" -- 44px -> 88px,
-     Schrift/Rahmen mitskaliert. */
-  .lp-pin { position: absolute; transform: translate(-50%, -50%); width: 88px; height: 88px; display: flex; align-items: center; justify-content: center; border: 4px solid var(--ink); font-family: 'Archivo Black', sans-serif; font-size: 32px; cursor: pointer; }
+     Schrift/Rahmen mitskaliert. Design-Korrektur (06.09.2026,
+     Nachzieher: "jetzt etwas zu gross, auf 70% der verdoppelten Groesse reduzieren"):
+     88px*.7=61.6 -> 62px, 32px*.7=22.4 -> 22px. Netto 62/44 = 140% der urspruenglichen
+     Ausgangsgroesse, wie vorgegeben. */
+  .lp-pin { position: absolute; transform: translate(-50%, -50%); width: 62px; height: 62px; display: flex; align-items: center; justify-content: center; border: 4px solid var(--ink); font-family: 'Archivo Black', sans-serif; font-size: 22px; cursor: pointer; }
   .lp-pin.open { background: var(--yellow); color: var(--ink); animation: pulse 2.2s ease-out infinite; }
   .lp-pin.found { background: var(--ink); color: var(--yellow); box-shadow: 3px 3px 0 var(--paper); }
   .lp-sheet-backdrop { position: fixed; inset: 0; z-index: 80; background: rgba(26,26,24,.55); }
@@ -58,10 +61,12 @@
     </div>
     <!-- BUGFIX/Design (Nutzer-Rückmeldung): der "antippen & wischen"-Button wirkte wie ein
          eigenständiges UI-Element statt einem Hinweis. Jetzt ein reiner, pulsierender Pfeil am
-         rechten Rand als Swipe-Hinweis, ohne Button-Optik. -->
-    <div style="position: absolute; right: 10px; top: 50%; margin-top: -17px; pointer-events: none; animation: nudge 1.4s ease-in-out infinite;">
-      <span class="h-black" style="display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; background: var(--yellow); color: var(--ink); border: 3px solid var(--ink); font-size: 15px; line-height: 1;">▶</span>
-    </div>
+         rechten Rand als Swipe-Hinweis, ohne Button-Optik.
+         Design-Korrektur (06.09.2026, Nachzieher): war ein gelber Kasten MIT Pfeil-Icon drin --
+         jetzt ein reines, per CSS-Rahmen gezeichnetes schwarzes Dreieck (kein Hintergrund, kein
+         Icon-Zeichen), Höhe exakt doppelt so lang wie die Breite (18px Breite / 36px Höhe: die
+         beiden 18px-hohen transparenten Rahmen oben/unten ergeben zusammen 36px Gesamthöhe). -->
+    <div style="position: absolute; right: 14px; top: 50%; margin-top: -18px; pointer-events: none; animation: nudge 1.4s ease-in-out infinite; width: 0; height: 0; border-top: 18px solid transparent; border-bottom: 18px solid transparent; border-left: 18px solid var(--ink);"></div>
   </section>
 
   <!-- Hero Desktop (Schritt 7): 740px, vollstaendig sichtbar, kein Scrollen -->
@@ -111,8 +116,14 @@
     </div>
   </div>
 
-  <!-- Roter Ticker -->
-  <div class="ticker-wrap mobile-only" style="background: var(--red); color: var(--paper); border-top: 4px solid var(--ink); border-bottom: 4px solid var(--ink); padding: 15px 0; transform: rotate(-1.6deg) scale(1.07); margin: -2px 0 12px;">
+  <!-- Roter Ticker. Design-Korrektur (06.09.2026, Nachzieher: "noch nicht bis zum Rand gezogen"
+       / "weiter nach oben ziehen, damit er das Headerbild vollständig anschneidet, aktuell links
+       noch ein kleines Dreieck vom Hintergrund sichtbar"): scale von 1.07 auf 1.22 erhöht, damit
+       die rotierten Ecken auch am Rand keine Luecke mehr zur Hero-Sektion darunter/darueber lassen
+       (vorher bei einer 1.6°-Drehung minimal zu knapp bemessen). Negativer Top-Margin von -2px auf
+       -30px erhöht, damit das Band sichtbar in den unteren Rand des Hero-Bilds hineinragt statt nur
+       knapp darunter zu kleben. -->
+  <div class="ticker-wrap mobile-only" style="background: var(--red); color: var(--paper); border-top: 4px solid var(--ink); border-bottom: 4px solid var(--ink); padding: 15px 0; transform: rotate(-1.6deg) scale(1.22); margin: -30px 0 12px; position: relative; z-index: 6;">
     <div class="ticker-track ticker-red" style="font-size: 13px; letter-spacing: .04em;">
       <span>Kein Stockfoto ✦ Kein Template ✦ Hundert Prozent individualisiert ✦ Der erste KI-unterstützte Wimmelbuch-Generator ✦ Kein Stockfoto ✦ Kein Template ✦ Hundert Prozent individualisiert ✦ Der erste KI-unterstützte Wimmelbuch-Generator ✦&nbsp;</span>
     </div>
@@ -124,6 +135,26 @@
     <h2 class="h-black" style="margin: 0 0 4px; font-size: 22px; line-height: .95; letter-spacing: -.03em;">Dein Suchprotokoll</h2>
     <p class="caveat" style="margin: 0 0 6px; font-size: 19px; line-height: 1.15; color: var(--paper-a75);">so läuft's ab, in fünf Schritten.</p>
     <div id="pins-log" style="display: flex; flex-direction: column; gap: 4px;"></div>
+  </section>
+
+  <!-- NEU (Live-Test 06.09.2026, Punkt 5): "WizzelWim stellt sich vor" -- Uebergangs-Abschnitt
+       zwischen Suchprotokoll und "Wofuer", nutzt dasselbe Sprechblasen-Asset wie die Abschluss-CTA
+       weiter unten (wizard-speechbubble.png). Nutzer-Vorgabe: NUR die kurze Begruessung kommt in
+       die Sprechblase selbst, der eigentliche Erklaersatz steht daneben, nicht hineingequetscht.
+       Ueberlagerungs-Position/Schriftgroesse fuer den Blasentext ist proportional von der
+       Abschluss-CTA weiter unten uebernommen (dort 320px Bildbreite / 20px Schrift fuer "Also.
+       Erzähl." -- hier 160px Bildbreite / 10px Schrift fuer den laengeren Begruessungstext,
+       gleiches Seitenverhaeltnis). Bewusst EIN gemeinsamer Abschnitt fuer Mobil+Desktop (kein
+       .mobile-only/.desktop-only-Duplikat wie beim Hero) -- flex-wrap faengt sehr schmale
+       Viewports ab, auf normalen Handy-/Desktop-Breiten steht Blase und Text nebeneinander. -->
+  <section style="padding: 30px 14px 0;">
+    <div style="display: flex; align-items: center; gap: 18px; flex-wrap: wrap;">
+      <div style="position: relative; flex: none; width: 160px; transform: rotate(-2deg);">
+        <img src="assets/wizard-speechbubble.png" alt="WizzelWim" style="width: 100%; display: block;" />
+        <p class="h-black" style="position: absolute; left: 45%; top: 8%; width: 52%; height: 52%; margin: 0; font-size: 10px; line-height: 1.05; letter-spacing: -.02em; color: var(--ink); display: flex; align-items: center; justify-content: center; text-align: center;">Hi, ich bin WizzelWim…</p>
+      </div>
+      <p class="caveat" style="flex: 1; min-width: 200px; margin: 0; font-size: 21px; line-height: 1.18;">…ich bin ein Wimmel Wizard und zaubere aus euren Erzählungen wunderbare Wimmelbilder.</p>
+    </div>
   </section>
 
   <!-- Wofuer? Occasions -->
