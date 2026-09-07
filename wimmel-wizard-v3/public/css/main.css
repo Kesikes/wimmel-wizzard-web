@@ -123,6 +123,10 @@ p, .body-text { font-size: 14px; line-height: 1.5; margin: 0; }
 @keyframes tickerReverse { from { transform: translateX(-50%); } to { transform: translateX(0); } }
 @keyframes wob { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
 @keyframes nudge { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(8px); } }
+/* NEU (07.09.2026, Hero-Swipe-Pfeil "soll pulsieren, ganz leicht größer und kleiner werden"):
+   dezente Skalierung statt (oder zusaetzlich zu) einer Positionsverschiebung -- fuer den
+   Pfeil in index.html verwendet, der jetzt "animation: arrowPulse" statt "nudge" bekommt. */
+@keyframes arrowPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.14); } }
 @keyframes pulse {
   0%, 100% { box-shadow: 3px 3px 0 var(--ink), 0 0 0 0 rgba(228, 68, 42, .6); }
   70% { box-shadow: 3px 3px 0 var(--ink), 0 0 0 13px rgba(228, 68, 42, 0); }

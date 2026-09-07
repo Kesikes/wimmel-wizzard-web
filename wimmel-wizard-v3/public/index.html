@@ -79,9 +79,19 @@
          rechten Rand als Swipe-Hinweis, ohne Button-Optik.
          Design-Korrektur (06.09.2026, Nachzieher): war ein gelber Kasten MIT Pfeil-Icon drin --
          jetzt ein reines, per CSS-Rahmen gezeichnetes schwarzes Dreieck (kein Hintergrund, kein
-         Icon-Zeichen), Höhe exakt doppelt so lang wie die Breite (18px Breite / 36px Höhe: die
-         beiden 18px-hohen transparenten Rahmen oben/unten ergeben zusammen 36px Gesamthöhe). -->
-    <div style="position: absolute; right: 14px; top: 50%; margin-top: -18px; pointer-events: none; animation: nudge 1.4s ease-in-out infinite; width: 0; height: 0; border-top: 18px solid transparent; border-bottom: 18px solid transparent; border-left: 18px solid var(--ink);"></div>
+         Icon-Zeichen), Höhe exakt doppelt so lang wie die Breite.
+         Design-Korrektur (07.09.2026, weiterer Nachzieher: "größer und höher, mit 10px weißer
+         Outline, soll pulsieren statt wackeln"): 18px -> 30px Breite (60px Höhe, gleiches
+         1:2-Seitenverhältnis), weiter oben positioniert (top: 38% statt 50%). Die weiße Outline ist
+         ueber acht gestapelte "filter: drop-shadow()"-Kopien im Kreis um das Dreieck gebaut (Radius
+         10px, diagonale Kopien mit 7px/7px ≈ 10px/√2 fuer gleichmaessigen Abstand in alle
+         Richtungen) -- ein Rahmen-Dreieck hat keine "Umriss"-Eigenschaft wie Text, drop-shadow folgt
+         aber der tatsaechlichen Silhouette (anders als box-shadow, das nur das unsichtbare
+         rechteckige Bounding-Box umrahmen wuerde). Gleiches Grundprinzip wie die gestapelten
+         text-shadow-Kopien fuer die Hero-Überschrift weiter oben, nur ueber Filter statt
+         Text-Schatten. Animation von "nudge" (seitliches Wackeln) auf das neue "arrowPulse"
+         (dezentes Skalieren, siehe main.css) umgestellt. -->
+    <div style="position: absolute; right: 14px; top: 38%; margin-top: -30px; pointer-events: none; animation: arrowPulse 1.6s ease-in-out infinite; width: 0; height: 0; border-top: 30px solid transparent; border-bottom: 30px solid transparent; border-left: 30px solid var(--ink); filter: drop-shadow(10px 0 0 #fff) drop-shadow(-10px 0 0 #fff) drop-shadow(0 10px 0 #fff) drop-shadow(0 -10px 0 #fff) drop-shadow(7px 7px 0 #fff) drop-shadow(-7px 7px 0 #fff) drop-shadow(7px -7px 0 #fff) drop-shadow(-7px -7px 0 #fff);"></div>
   </section>
 
   <!-- Hero Desktop (Schritt 7): 740px, vollstaendig sichtbar, kein Scrollen -->
