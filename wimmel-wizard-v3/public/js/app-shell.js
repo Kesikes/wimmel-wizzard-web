@@ -9,7 +9,7 @@ const RAIL_LABELS = ["Dashboard", "Charakter", "Charakterblatt", "Szene", "Zaube
 // Bottom-Bar-Texte je Screen-Index, wortwoertlich aus der Referenz (NEXT-Array)
 const NEXT = [
   { l: "Charaktere weitermachen", s: "nichts davon ist verbindlich" },
-  { l: "Figur zeichnen lassen", s: "Ich speichere nach jeder Eingabe.<br>Wichtig: Auch Zauberer machen Fehler – und manchmal mache ich mir auch einfach nur einen Spaß. Aber wir können alles wieder ändern." },
+  { l: "Figur zeichnen lassen", s: "Ich speichere nach jeder Eingabe.<br>Wichtig: Auch Zauberer machen Fehler – und manchmal mache ich mir auch einfach nur einen Spaß.<br>Aber wir können alles wieder ändern." },
   { l: "Weiter zur Geschichte", s: "Personen kannst du später ergänzen" },
   { l: "Los, zaubern", s: "dauert 2–4 Minuten, du kannst weggehen" },
   { l: "Bild ansehen", s: "ich melde mich, wenn es fertig ist" },

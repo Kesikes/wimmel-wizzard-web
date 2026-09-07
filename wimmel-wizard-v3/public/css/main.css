@@ -45,7 +45,10 @@
      expliziten Zeilenumbruch ("Ich speichere..." / "Wichtig: ...") zusaetzlich zum eigenen
      Umbruch der langen zweiten Zeile -- braucht etwas mehr Platz als die vorige einzeilige
      Umbruch-Schaetzung. */
-  --bottom-bar-space: 168px;
+  /* Weiter erhoeht (07.09.2026, dritter Zeilenumbruch: "Spaß.<br>Aber wir..."): jetzt drei
+     erzwungene Absaetze statt zwei -- etwas mehr Sicherheitsabstand, falls der mittlere Satz
+     auf schmalen Bildschirmen zusaetzlich selbst umbricht. */
+  --bottom-bar-space: 185px;
 }
 
 html, body {
