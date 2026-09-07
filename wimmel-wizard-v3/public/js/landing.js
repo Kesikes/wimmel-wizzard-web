@@ -229,6 +229,22 @@ const FAQS = [
   document.getElementById("sheet-close").addEventListener("click", closeSheet);
   document.getElementById("sheet-backdrop").addEventListener("click", closeSheet);
 
+  // NEU (07.09.2026, "Header auch auf der Landingpage fixieren"): #lp-header ist jetzt
+  // position:fixed (siehe .lp-header in index.html), faellt also aus dem normalen Fluss raus --
+  // #app (das .app-shell-Wrapper-Div) bekommt den dadurch fehlenden Platz per JS zurueck, aus der
+  // tatsaechlich gerenderten Header-Hoehe berechnet (gleiches Muster wie syncHeaderSpacing() in
+  // app-shell.js fuer die App-Seiten). Bewusst als Inline-Style auf #app statt einer CSS-Regel fuer
+  // die .app-shell-Klasse selbst -- die Klasse wird auch von app.html genutzt, das seinen eigenen,
+  // unabhaengigen Abstand schon auf #screen-root setzt; eine gemeinsame CSS-Regel wuerde dort
+  // doppelt Platz reservieren.
+  function syncLpHeaderSpacing() {
+    const header = document.getElementById("lp-header");
+    const shell = document.getElementById("app");
+    if (header && shell) shell.style.paddingTop = header.offsetHeight + "px";
+  }
+  syncLpHeaderSpacing();
+  window.addEventListener("resize", syncLpHeaderSpacing);
+
   renderAll();
   renderOccasions();
   renderOccasionLine();

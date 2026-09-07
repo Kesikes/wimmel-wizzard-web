@@ -28,19 +28,34 @@
   .lp-chip { min-height: 44px; padding: 11px 15px; border: 3px solid var(--ink); cursor: pointer; font-family: 'Archivo Black', sans-serif; font-size: 13px; text-transform: uppercase; letter-spacing: -.01em; background: var(--paper); color: var(--ink); box-shadow: 2px 2px 0 var(--ink); }
   .lp-chip.on { background: var(--red); color: var(--paper); box-shadow: 4px 4px 0 var(--ink); }
   .lp-step-row { display: flex; gap: 12px; align-items: flex-start; padding: 16px 0; border-top: 3px solid var(--paper-a80); }
+  /* NEU (07.09.2026, "Header auch auf der Landingpage fixieren"): gleiches Prinzip wie
+     #app-header in css/app.css -- position:fixed statt sticky, auf Mobil an die 430px-
+     Zentrierung des .app-shell angeglichen, auf Desktop (siehe @media unten) wieder volle
+     Viewport-Breite, damit sich am bisherigen Erscheinungsbild nichts aendert. Der dadurch
+     fehlende Platz wird in landing.js per JS (syncLpHeaderSpacing(), gemessene Ist-Hoehe) als
+     padding-top auf #app nachgetragen. */
+  .lp-header {
+    position: fixed; top: 0; left: 50%; z-index: 60; width: 100%; max-width: var(--container-max);
+    transform: translateX(-50%); background: var(--ink); color: var(--paper);
+  }
   @media (min-width: 1024px) {
     .lp-hero-scroll { display: none; }
+    .lp-header { left: 0; width: 100%; max-width: none; transform: none; }
   }
 </style>
 </head>
 <body>
 <div class="app-shell" id="app">
 
-  <!-- Sticky Header -->
-  <header style="position: sticky; top: 0; z-index: 60; display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--ink); color: var(--paper);">
+  <!-- Fixierter Header. Design-Korrektur (07.09.2026): war position:sticky, jetzt echtes
+       position:fixed (siehe .lp-header oben) -- bleibt so beim Scrollen zuverlaessig oben, statt
+       sich nur "klebrig" zu verhalten. Logo-Groesse/Schriftgroesse/Sup-Groesse (30px/12px/7px)
+       jetzt exakt identisch zu #app-header in app.html (Dashboard-Seite) uebernommen -- vorher
+       minimal groesser (32px/13px/8px), Nutzer-Vorgabe war exakte Uebereinstimmung. -->
+  <header id="lp-header" class="lp-header" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px;">
     <a href="/" style="display:flex; align-items:center; gap:8px; margin-right:auto; text-decoration:none; color: var(--paper);">
-      <img src="assets/wizard-badge.png" alt="" style="width: 32px; height: 32px; flex: none; transform: rotate(-6deg);" />
-      <span class="h-black" style="font-size: 13px; letter-spacing: -.01em;">Wimmel&nbsp;Wizard<sup style="font-size: 8px; vertical-align: super;">™</sup></span>
+      <img src="assets/wizard-badge.png" alt="" style="width: 30px; height: 30px; flex: none; transform: rotate(-6deg);" />
+      <span class="h-black" style="font-size: 12px; letter-spacing: -.01em;">Wimmel&nbsp;Wizard<sup style="font-size: 7px; vertical-align: super;">™</sup></span>
     </a>
     <a href="/app" class="h-black" style="flex: none; background: var(--red); color: var(--paper); font-size: 12px; padding: 10px 13px; border: 3px solid var(--paper); transform: rotate(-2deg); min-height: 40px; display: flex; align-items: center;">Los!</a>
   </header>
