@@ -3,10 +3,17 @@
    Texte wörtlich aus referenz/App-Flow-v4-OatlyWimmel.dc.html.
    ========================================================================== */
 
+// UMSORTIERT (Live-Test 07.09.2026, "sortiere um: 1. Thema wählen 2. Selbst eintippen oder
+// einsprechen 3. Gute-Nacht Geschichte aufnehmen"): Anzeige-Reihenfolge jetzt Thema -> Interview
+// -> Aufnahme. Der urspruengliche Array-Index diente gleichzeitig als sceneWay-Zustandswert (0 =
+// Thema-Grid, 1 = Aufnahme-Panel, 2 = Interview-Panel unten in render()/onClick) -- ein simples
+// Umsortieren des Arrays haette also die falschen Panels unter den falschen Karten aufgeklappt.
+// Deshalb jetzt ein explizites "way"-Feld (der tatsaechliche, unveraenderte sceneWay-Wert), von der
+// Anzeige-Nummer "n" und der Array-Position entkoppelt.
 const WAYS = [
-  { n: "1", title: "Thema wählen", body: "Fertige Welten: Bauernhof, Weltraum, Weihnachtsabend, Ritterburg." },
-  { n: "2", title: "Geschichte aufnehmen", body: "Abends beim Erzählen das Mikro mitlaufen lassen. Null Extra-Aufwand." },
-  { n: "3", title: "Selbst eintippen", body: "Ein paar Sätze reichen. Ich frage nach, wenn etwas fehlt." }
+  { way: 0, n: "1", title: "Thema wählen", body: "Fertige Welten: Bauernhof, Weltraum, Weihnachtsabend, Ritterburg." },
+  { way: 2, n: "2", title: "Selbst eintippen oder einsprechen", body: "Ein paar Sätze reichen. Ich frage nach, wenn etwas fehlt." },
+  { way: 1, n: "3", title: "Gute-Nacht Geschichte aufnehmen", body: "Abends beim Erzählen das Mikro mitlaufen lassen. Null Extra-Aufwand." }
 ];
 const THEMES = ["Bauernhof im Herbst", "Weihnachtsabend", "Weltraum", "Ritterburg", "Unterwasser", "Zirkus"];
 const THEME_BG = ["var(--blue)", "var(--yellow)", "var(--paper)", "var(--yellow)", "var(--blue)", "var(--paper)"];
@@ -22,20 +29,23 @@ Screens.szene = {
       document.createTextNode("Woraus soll"), h("br"), document.createTextNode("ich die Szene"), h("br"),
       h("span", { style: { color: "var(--red)" } }, "bauen?")
     ]));
-    wrap.appendChild(h("p", { class: "caveat-sub" }, "alle drei Wege sind gleich gut. das dritte kostet dich abends null Aufwand."));
+    wrap.appendChild(h("p", { class: "caveat-sub" }, [
+      document.createTextNode("Alle drei Wege sind gleich gut."), h("br"),
+      document.createTextNode("Die dritte Option kostet Dich abends null Aufwand.")
+    ]));
 
     const list = h("div", { style: { display: "flex", flexDirection: "column", gap: "10px" } });
-    WAYS.forEach((w, i) => {
-      const on = s.sceneWay === i;
+    WAYS.forEach((w) => {
+      const on = s.sceneWay === w.way;
       const row = h("button", {
         type: "button",
         style: { display: "flex", gap: "8px", alignItems: "flex-start", width: "100%", cursor: "pointer", padding: "15px", border: "4px solid var(--ink)", color: "inherit", background: on ? "var(--yellow)" : "var(--paper)", boxShadow: on ? "6px 7px 0 var(--ink)" : "4px 5px 0 var(--ink)" },
         onClick: () => {
-          const patch = { sceneWay: i };
+          const patch = { sceneWay: w.way };
           // Frischer Einstieg ins Interview, wenn vorher ein ANDERER Weg aktiv war (nicht bei
           // erneutem Antippen desselben Wegs -- sonst wuerde ein versehentlicher zweiter Klick
           // mitten im Interview den Fortschritt zuruecksetzen).
-          if (i === 2 && s.sceneWay !== 2) patch.sceneInterviewStep = 0;
+          if (w.way === 2 && s.sceneWay !== 2) patch.sceneInterviewStep = 0;
           AppState.update(patch);
           rerender();
         }
