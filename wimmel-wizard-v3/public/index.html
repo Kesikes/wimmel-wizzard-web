@@ -157,18 +157,21 @@
        weiter unten (wizard-speechbubble.png). Nutzer-Vorgabe: NUR die kurze Begruessung kommt in
        die Sprechblase selbst, der eigentliche Erklaersatz steht daneben, nicht hineingequetscht.
        Ueberlagerungs-Position/Schriftgroesse fuer den Blasentext ist proportional von der
-       Abschluss-CTA weiter unten uebernommen (dort 320px Bildbreite / 20px Schrift fuer "Also.
-       Erzähl." -- hier 160px Bildbreite / 10px Schrift fuer den laengeren Begruessungstext,
-       gleiches Seitenverhaeltnis). Bewusst EIN gemeinsamer Abschnitt fuer Mobil+Desktop (kein
-       .mobile-only/.desktop-only-Duplikat wie beim Hero) -- flex-wrap faengt sehr schmale
-       Viewports ab, auf normalen Handy-/Desktop-Breiten steht Blase und Text nebeneinander. -->
+       Abschluss-CTA weiter unten uebernommen.
+       Design-Korrektur (07.09.2026: "Grafik 140% größer, Text soll aber daneben bleiben"):
+       160px -> 224px Bildbreite, Blasentext-Schrift 10px -> 14px (gleiche Skalierung, damit die
+       Ueberlagerung weiter passt). "flex-wrap: wrap" -> "nowrap" + Text-Spalte "min-width: 200px"
+       entfernt (jetzt "min-width: 0"): vorher haette die groessere Grafik + der alte Mindestwert
+       auf schmalen Handybreiten dazu gefuehrt, dass der Text unter die Grafik rutscht statt
+       daneben zu bleiben -- die Text-Spalte darf jetzt beliebig schmal werden (eigener Zeilenumbruch
+       innerhalb der Spalte), bleibt aber immer AN DER SEITE der Grafik. -->
   <section style="padding: 30px 14px 0;">
-    <div style="display: flex; align-items: center; gap: 18px; flex-wrap: wrap;">
-      <div style="position: relative; flex: none; width: 160px; transform: rotate(-2deg);">
+    <div style="display: flex; align-items: center; gap: 16px; flex-wrap: nowrap;">
+      <div style="position: relative; flex: none; width: 224px; transform: rotate(-2deg);">
         <img src="assets/wizard-speechbubble.png" alt="WizzelWim" style="width: 100%; display: block;" />
-        <p class="h-black" style="position: absolute; left: 45%; top: 8%; width: 52%; height: 52%; margin: 0; font-size: 10px; line-height: 1.05; letter-spacing: -.02em; color: var(--ink); display: flex; align-items: center; justify-content: center; text-align: center;">Hi, ich bin WizzelWim…</p>
+        <p class="h-black" style="position: absolute; left: 45%; top: 8%; width: 52%; height: 52%; margin: 0; font-size: 14px; line-height: 1.05; letter-spacing: -.02em; color: var(--ink); display: flex; align-items: center; justify-content: center; text-align: center;">Hi, ich bin WizzelWim…</p>
       </div>
-      <p class="caveat" style="flex: 1; min-width: 200px; margin: 0; font-size: 21px; line-height: 1.18;">…ich bin ein Wimmel Wizard und zaubere aus euren Erzählungen wunderbare Wimmelbilder.</p>
+      <p class="caveat" style="flex: 1; min-width: 0; margin: 0; font-size: 21px; line-height: 1.18;">…ich bin ein Wimmel Wizard und zaubere aus euren Erzählungen wunderbare Wimmelbilder.</p>
     </div>
   </section>
 
@@ -194,13 +197,24 @@
     </div>
   </div>
 
-  <!-- Ehrlichkeitsblock -->
+  <!-- Ehrlichkeitsblock. Design-Korrektur (07.09.2026: "Grafik 200% größer, Text soll die
+       Mützenspitze umfließen und links neben der Grafik stehen"): vorher stand die Grafik als
+       eigener Block UNTER dem Text (rechtsbündig per auto-Margin). Jetzt: "float: right" +
+       "shape-outside" auf denselben Bild-Alphakanal -- der Absatztext fließt dadurch organisch um
+       die tatsächliche Silhouette des Charakters (inkl. der spitz zulaufenden Zauberer-Mütze)
+       statt nur um ein rechteckiges Kasten. Dafür musste die Grafik VOR den Fließtext im Markup
+       (Floats wirken nur auf nachfolgenden Inline-Inhalt, nicht auf bereits davor gerenderten Text)
+       und die 5°-Rotation ist raus (shape-outside berechnet die Umfluss-Kontur an der
+       UN-rotierten Bildbox -- mit Rotation waere die Kontur sichtbar gegen die tatsächliche
+       gedrehte Grafik versetzt gewesen). "display: flow-root" auf dem Kartenrahmen statt eines
+       manuellen Clearfix-Divs, damit der Rahmen den Float korrekt umschließt, OHNE das nach oben
+       herausragende Eck-Etikett ("Abteilung...") wie ein "overflow: hidden" abzuschneiden. -->
   <section style="padding: 26px 14px 0;">
-    <div style="position: relative; border: 4px solid var(--ink); background: var(--paper); padding: 18px 16px; transform: rotate(.7deg); box-shadow: -6px 7px 0 var(--red);">
+    <div style="position: relative; display: flow-root; border: 4px solid var(--ink); background: var(--paper); padding: 18px 16px; transform: rotate(.7deg); box-shadow: -6px 7px 0 var(--red);">
       <span class="h-black" style="position: absolute; top: -13px; left: 12px; background: var(--ink); color: var(--paper); font-size: 10px; letter-spacing: .1em; padding: 4px 9px;">Abteilung für unbequeme Ehrlichkeit</span>
       <p class="h-black" style="margin: 6px 0 0; font-size: 22px; line-height: 1; letter-spacing: -.03em;">Das dauert länger als 3 Minuten.</p>
+      <img src="assets/wizard-on-book.png" alt="" style="float: right; width: 176px; margin: 4px -6px 6px 16px; shape-outside: url(assets/wizard-on-book.png); shape-margin: 12px;" />
       <p style="margin: 10px 0 0; font-size: 14px; line-height: 1.5;">Ehrlich. Ein Wimmelbild ist ein kleines Kunstwerk. Jeder Schritt kostet nur ein paar Minuten – aber es sind halt mehrere. Du kannst jederzeit aufhören und später weitermachen. Wir speichern automatisch, weil wir keine Monster sind.</p>
-      <img src="assets/wizard-on-book.png" alt="" style="display: block; width: 88px; margin: 10px 0 -30px auto; transform: rotate(5deg);" />
     </div>
   </section>
 
@@ -263,12 +277,9 @@
     </div>
   </section>
 
-  <!-- Abschluss-CTA -->
+  <!-- Abschluss-CTA. Design-Korrektur (07.09.2026: "Grafik vom WizzelWim hier komplett weglassen")
+       -- die Sprechblasen-Grafik samt Overlay-Text ("Also. Erzähl.") ist raus, direkt der Button. -->
   <section id="start" style="margin-top: 34px; background: var(--red); color: var(--paper); border-top: 4px solid var(--ink); padding: 26px 14px 28px; text-align: center;">
-    <div style="position: relative; width: 100%; max-width: 320px; margin: 0 auto 10px; transform: rotate(-2deg);">
-      <img src="assets/wizard-speechbubble.png" alt="WizzelWim" style="width: 100%;" />
-      <p class="h-black" style="position: absolute; left: 45%; top: 8%; width: 52%; height: 52%; margin:0; font-size: 20px; line-height: .95; letter-spacing: -.03em; color: var(--ink); display: flex; align-items: center; justify-content: center; text-align: center;">Also. Erzähl.</p>
-    </div>
     <a href="/app" class="h-black" style="display: block; background: var(--yellow); color: var(--ink); font-size: 20px; padding: 18px; border: 4px solid var(--ink); box-shadow: 5px 6px 0 var(--ink); transform: rotate(1.2deg);">Jetzt loswimmeln</a>
     <p class="caveat" style="margin: 18px 0 0; font-size: 19px; line-height: 1.15;">kein Konto. kein Preis, bevor du weißt, was du kriegst.</p>
     <a href="#verschenken" style="display: inline-block; margin-top: 10px; font-size: 14px; font-weight: 600; color: var(--paper);">Lieber verschenken? Gutschein →</a>

@@ -41,7 +41,11 @@
      Zeile um. Bewusst global erhoeht (statt nur fuer diesen einen Screen) statt einer
      Bildschirm-spezifischen Sonderloesung -- der etwas groessere Leerraum am unteren Rand
      fällt auf allen anderen Screens mit ihrem kurzen einzeiligen Text kaum auf. */
-  --bottom-bar-space: 148px;
+  /* Weiter erhoeht (07.09.2026): der Hinweistext unter 'Figur zeichnen lassen' hat jetzt einen
+     expliziten Zeilenumbruch ("Ich speichere..." / "Wichtig: ...") zusaetzlich zum eigenen
+     Umbruch der langen zweiten Zeile -- braucht etwas mehr Platz als die vorige einzeilige
+     Umbruch-Schaetzung. */
+  --bottom-bar-space: 168px;
 }
 
 html, body {

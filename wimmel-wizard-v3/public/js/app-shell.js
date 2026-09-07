@@ -9,7 +9,7 @@ const RAIL_LABELS = ["Dashboard", "Charakter", "Charakterblatt", "Szene", "Zaube
 // Bottom-Bar-Texte je Screen-Index, wortwoertlich aus der Referenz (NEXT-Array)
 const NEXT = [
   { l: "Charaktere weitermachen", s: "nichts davon ist verbindlich" },
-  { l: "Figur zeichnen lassen", s: "wir speichern nach jeder Eingabe. Auch Zauberer machen Fehler – und manchmal mache ich mir auch einfach nur einen Spaß. Aber wir können alles wieder ändern." },
+  { l: "Figur zeichnen lassen", s: "Ich speichere nach jeder Eingabe.<br>Wichtig: Auch Zauberer machen Fehler – und manchmal mache ich mir auch einfach nur einen Spaß. Aber wir können alles wieder ändern." },
   { l: "Weiter zur Geschichte", s: "Personen kannst du später ergänzen" },
   { l: "Los, zaubern", s: "dauert 2–4 Minuten, du kannst weggehen" },
   { l: "Bild ansehen", s: "ich melde mich, wenn es fertig ist" },
@@ -71,7 +71,11 @@ function renderBottomBar() {
   nextBtn.style.color = idx === 9 ? "var(--ink)" : "var(--paper)";
   weiterBtn.disabled = false;
   weiterBtn.style.opacity = "1";
-  document.getElementById("soft-line").textContent = n.s;
+  // GEAENDERT (Live-Test 07.09.2026): NEXT[1] (Charakter-Screen) hat jetzt einen expliziten
+  // <br>-Zeilenumbruch ("Ich speichere..." / "Wichtig: ..."). textContent wuerde das <br> als
+  // Text anzeigen statt als Umbruch zu wirken -- innerHTML statt textContent, unbedenklich, da
+  // n.s ausschliesslich fest im Code stehende, keine Nutzer-Eingaben enthaltende Strings sind.
+  document.getElementById("soft-line").innerHTML = n.s;
 
   const defaultGoNext = () => {
     if (idx >= SCREEN_ORDER.length - 1) { Router.goScreen("dashboard"); return; }

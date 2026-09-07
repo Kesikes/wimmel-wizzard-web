@@ -16,16 +16,19 @@ Screens.dashboard = {
     const s = AppState.data;
     const wrap = h("section", { class: "scr-pad mobile-only", style: { paddingBottom: "0" } });
 
-    // WizzelWim-Begruessungskarte
+    // WizzelWim-Begruessungskarte. Design-Korrektur (07.09.2026: "Grafik 140% größer"):
+    // 82px -> 115px, Positions-Offsets (left/bottom) und die padding-left-Reserve fuer den Text
+    // proportional mitskaliert (gleiches Verhaeltnis wie vorher: Offset ~-17% der Bildbreite,
+    // padding-left ~95% der Bildbreite als Text-Freiraum).
     const greet = h("div", {
       style: {
         position: "relative", background: "var(--yellow)", border: "4px solid var(--ink)",
-        boxShadow: "6px 7px 0 var(--ink)", padding: "16px 16px 16px 78px", transform: "rotate(-1deg)"
+        boxShadow: "6px 7px 0 var(--ink)", padding: "16px 16px 16px 110px", transform: "rotate(-1deg)"
       }
     });
     greet.appendChild(h("img", {
       src: assetPath("wizard-badge.png"), alt: "WizzelWim",
-      style: { position: "absolute", left: "-14px", bottom: "-6px", width: "82px", animation: "wob 4s ease-in-out infinite" }
+      style: { position: "absolute", left: "-20px", bottom: "-8px", width: "115px", animation: "wob 4s ease-in-out infinite" }
     }));
     // BUGFIX (Live-Test 06.09.2026, Nachzieher aus Runde 1: "Demo-Name muss raus"): war hier auf
     // dem mobilen Dashboard noch stehengeblieben, obwohl die Desktop-Variante (siehe
@@ -41,7 +44,7 @@ Screens.dashboard = {
     // Bottom-Sheet-Helfer in helpers.js (kein neues DOM-Geruest in app.html noetig, funktioniert auf
     // jedem Screen).
     const storageLine = h("p", { class: "caveat", style: { margin: "10px 2px 0", fontSize: "16px", lineHeight: "1.3", color: "var(--ink-a70)" } });
-    storageLine.appendChild(document.createTextNode("du kannst jederzeit unterbrechen – wir merken uns alles, auch ohne Konto. "));
+    storageLine.appendChild(document.createTextNode("Du kannst jederzeit unterbrechen – wir merken uns alles, auch ohne Konto. "));
     storageLine.appendChild(h("button", {
       type: "button",
       style: { display: "inline", background: "none", border: "none", padding: "0", margin: "0", cursor: "pointer", font: "inherit", color: "inherit", textDecoration: "underline" },
@@ -129,8 +132,9 @@ function buildDesktopDashboard(s) {
   const grid = h("section", { class: "dash-desktop-grid desktop-only" });
 
   const aside = h("aside", { style: { position: "sticky", top: "108px", display: "flex", flexDirection: "column", gap: "20px" } });
-  const greet = h("div", { style: { position: "relative", background: "var(--yellow)", border: "4px solid var(--ink)", boxShadow: "7px 8px 0 var(--ink)", padding: "22px 22px 22px 96px", transform: "rotate(-1deg)" } });
-  greet.appendChild(h("img", { src: assetPath("wizard-badge.png"), alt: "WizzelWim", style: { position: "absolute", left: "-18px", bottom: "-8px", width: "104px", animation: "wob 4s ease-in-out infinite" } }));
+  // Design-Korrektur (07.09.2026: "Grafik 140% größer", gleiche Skalierung wie mobil): 104px -> 146px.
+  const greet = h("div", { style: { position: "relative", background: "var(--yellow)", border: "4px solid var(--ink)", boxShadow: "7px 8px 0 var(--ink)", padding: "22px 22px 22px 135px", transform: "rotate(-1deg)" } });
+  greet.appendChild(h("img", { src: assetPath("wizard-badge.png"), alt: "WizzelWim", style: { position: "absolute", left: "-25px", bottom: "-11px", width: "146px", animation: "wob 4s ease-in-out infinite" } }));
   greet.appendChild(h("p", { class: "h-black", style: { fontSize: "20px", lineHeight: "1", letterSpacing: "-.03em" } }, "Moin,"));
   greet.appendChild(h("p", { class: "caveat", style: { margin: "8px 0 0", fontSize: "23px", lineHeight: "1.1" } }, "wir bauen das Stück für Stück. du entscheidest, wie viel Liebe zum Detail reingeht."));
   aside.appendChild(greet);
