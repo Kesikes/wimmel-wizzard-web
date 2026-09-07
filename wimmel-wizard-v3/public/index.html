@@ -78,24 +78,27 @@
          eigenständiges UI-Element statt einem Hinweis. Jetzt ein reiner, pulsierender Pfeil am
          rechten Rand als Swipe-Hinweis, ohne Button-Optik.
          Design-Korrektur (06.09.2026, Nachzieher): war ein gelber Kasten MIT Pfeil-Icon drin --
-         jetzt ein reines, per CSS-Rahmen gezeichnetes schwarzes Dreieck (kein Hintergrund, kein
-         Icon-Zeichen), Höhe exakt doppelt so lang wie die Breite.
-         Design-Korrektur (07.09.2026, weiterer Nachzieher: "größer und höher, mit 10px weißer
-         Outline, soll pulsieren statt wackeln"): 18px -> 30px Breite, weiter oben positioniert
-         (top: 38% statt 50%). Die weiße Outline ist ueber acht gestapelte
-         "filter: drop-shadow()"-Kopien im Kreis um das Dreieck gebaut -- ein Rahmen-Dreieck hat
-         keine "Umriss"-Eigenschaft wie Text, drop-shadow folgt aber der tatsaechlichen Silhouette
-         (anders als box-shadow, das nur das unsichtbare rechteckige Bounding-Box umrahmen wuerde).
-         Gleiches Grundprinzip wie die gestapelten text-shadow-Kopien fuer die Hero-Überschrift
-         weiter oben, nur ueber Filter statt Text-Schatten. Animation von "nudge" (seitliches
-         Wackeln) auf das neue "arrowPulse" (dezentes Skalieren, siehe main.css) umgestellt.
-         Korrektur (07.09.2026, Nachzieher 2: "Outline zu dick, genau so wie bei den gelben
-         Quadraten (4px). Seitenverhältnis nicht 1:2, sondern 1:2,5"): Outline-Radius von 10px auf
-         4px reduziert (diagonale Kopien 2.83px ≈ 4px/√2, gleiche Umrechnung wie beim Radius vorher)
-         -- exakt die Breite von .lp-pin's "border: 4px solid var(--ink)" oben im Style-Block. Höhe
-         von 60px (1:2) auf 75px (1:2,5) gestreckt: Breite bleibt 30px, border-top/-bottom jetzt
-         37.5px statt 30px (2 × 37.5 = 75, Verhältnis 75:30 = 2,5:1). -->
-    <div style="position: absolute; right: 14px; top: 38%; margin-top: -37.5px; pointer-events: none; animation: arrowPulse 1.6s ease-in-out infinite; width: 0; height: 0; border-top: 37.5px solid transparent; border-bottom: 37.5px solid transparent; border-left: 30px solid var(--ink); filter: drop-shadow(4px 0 0 #fff) drop-shadow(-4px 0 0 #fff) drop-shadow(0 4px 0 #fff) drop-shadow(0 -4px 0 #fff) drop-shadow(2.83px 2.83px 0 #fff) drop-shadow(-2.83px 2.83px 0 #fff) drop-shadow(2.83px -2.83px 0 #fff) drop-shadow(-2.83px -2.83px 0 #fff);"></div>
+         jetzt ein Dreieck, größer, höher positioniert, mit weißer Outline, pulsierend statt
+         seitlich wackelnd (Details siehe vorherige Versionen im Git-Verlauf).
+         BUGFIX (07.09.2026, Live-Test: "es sieht so aus, als ob ganz viele Pfeile übereinander
+         sind... sollte nur einer sein, mit einer sauberen Outline"): das reine CSS-Rahmen-Dreieck
+         (border-left/top/bottom-Trick) hatte KEINE echte "Umriss"-Eigenschaft -- die weiße Outline
+         war ueber acht einzeln gestapelte "filter: drop-shadow()"-Kopien im Kreis nachgebaut. Bei
+         einer spitzen Form wie einem Dreieck erzeugen acht einzelne Kopien sichtbare Luecken/
+         Ueberlappungen an den Kanten statt eines glatten Rings -- genau das sah im Live-Test wie
+         "viele Pfeile uebereinander" bzw. eine gezackte Kontur aus. Jetzt durch ein echtes Inline-
+         SVG-Polygon ersetzt: "stroke" ist eine native SVG-Eigenschaft, die dem Pfad exakt und
+         gleichmaessig dick folgt (kein Stapel-Trick mehr noetig) -- stroke-width 4px entspricht
+         exakt der Rahmenbreite von .lp-pin ("border: 4px solid var(--ink)" oben im Style-Block),
+         stroke-linejoin:miter haelt die Ecken spitz/eckig (kein Abrunden, passt zum Rest des
+         randlosen, kantigen Designsystems). Dreieck 30×75px (Seitenverhältnis 1:2,5, Tipp zeigt nach
+         rechts), viewBox mit 4px Rand auf allen Seiten, damit die Outline (2px Bleed je Seite, da
+         SVG-Strokes standardmäßig zur Haelfte nach außen zeichnen) nicht am Rand abgeschnitten wird. -->
+    <div style="position: absolute; right: 14px; top: 38%; margin-top: -41.5px; pointer-events: none; animation: arrowPulse 1.6s ease-in-out infinite;">
+      <svg viewBox="0 0 38 83" width="38" height="83" aria-hidden="true">
+        <polygon points="4,4 4,79 34,41.5" style="fill: var(--ink); stroke: #fff; stroke-width: 4px; stroke-linejoin: miter;" />
+      </svg>
+    </div>
   </section>
 
   <!-- Hero Desktop (Schritt 7): 740px, vollstaendig sichtbar, kein Scrollen -->
