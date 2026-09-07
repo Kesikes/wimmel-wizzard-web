@@ -3,7 +3,17 @@
    Quelle: referenz/App-Flow-v4-OatlyWimmel.dc.html
    ========================================================================== */
 
-.app-header { position: sticky; top: 0; z-index: 60; background: var(--ink); color: var(--paper); }
+/* Design-Korrektur (07.09.2026, "Header fixieren"): war position:sticky, jetzt echtes
+   position:fixed -- bleibt so immer oben, unabhaengig von Scroll-Position (sticky "klebt" nur
+   relativ zum eigenen Elternelement, was auf sehr langen Screens theoretisch Raum fuer Abweichungen
+   liess). Auf Mobil (< 1024px) an die Breite/Zentrierung des 430px-App-Shells angeglichen (gleiches
+   Muster wie .bottom-bar unten); auf Desktop (siehe @media 1024px weiter unten) wieder volle
+   Viewport-Breite wie zuvor, mit intern zentriertem .app-header-inner. #screen-root bekommt den
+   dadurch fehlenden Platz per JS zurueck (app-shell.js: syncHeaderSpacing()). */
+.app-header {
+  position: fixed; top: 0; left: 50%; z-index: 60; width: 100%; max-width: var(--container-max);
+  transform: translateX(-50%); background: var(--ink); color: var(--paper);
+}
 
 .rail-btn {
   flex: none; cursor: pointer; font-family: 'Archivo Black', sans-serif; font-size: 9px;
@@ -62,6 +72,9 @@ textarea.field { min-height: 108px; resize: none; padding: 11px; line-height: 1.
    Quelle: referenz/Desktop-v4-OatlyWimmel.dc.html
    ========================================================================== */
 @media (min-width: 1024px) {
+  /* Fixed-Header auf Desktop wieder volle Viewport-Breite (wie vorher via sticky im dann
+     max-width:none-.app-shell) -- .app-header-inner bleibt separat auf 1360px zentriert. */
+  .app-header { left: 0; width: 100%; max-width: none; transform: none; }
   #app-header-mobile-row2 { display: none; }
   #app-header .app-header-inner { max-width: var(--desktop-max); margin: 0 auto; padding: 12px 32px; gap: 26px; }
   #desktop-nav { display: flex; gap: 8px; margin-left: 18px; }

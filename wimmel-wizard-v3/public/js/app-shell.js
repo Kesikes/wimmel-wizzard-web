@@ -38,8 +38,25 @@ function renderRail() {
   });
 }
 
-function renderPriceLabel() {
-  document.getElementById("price-label").textContent = AppState.currentPrice() + " · Stand jetzt";
+// ENTFERNT (Live-Test 07.09.2026: "'49 € Stand jetzt' bitte weglassen, nur 'gespeichert'
+// stehen lassen"): renderPriceLabel() + das zugehoerige #price-label-Element in app.html sind raus.
+// AppState.currentPrice()/priceForTier() (state.js) bleiben unangetastet -- die werden weiterhin
+// vom Dashboard ("Stand jetzt"-Karte) und beim Bestellen gebraucht, nur die Kopie im Header faellt weg.
+
+// NEU (Live-Test 07.09.2026: "Header fixieren, auf der App-Seite genau so nach unten verlaengert
+// um den Platz der Prozess-Buttons"): #app-header ist jetzt position:fixed statt sticky (siehe
+// app.css) -- damit bleibt er wirklich IMMER oben, unabhaengig von Scroll-Position, statt sich nur
+// "klebrig" zu verhalten. Da fixed-Elemente aus dem normalen Fluss rausfallen, braucht #screen-root
+// einen kompensierenden Top-Abstand in exakter Hoehe des Headers (Logo-Zeile + Rail-Zeile mobil,
+// nur Logo-Zeile auf Desktop, siehe app.css @media 1024px -- #app-header-mobile-row2 wird dort
+// ausgeblendet). Bewusst per JS aus der tatsaechlich gerenderten Hoehe berechnet (offsetHeight)
+// statt eines hartcodierten Pixelwerts pro Breakpoint -- bleibt so auch dann korrekt, wenn sich der
+// Header-Inhalt spaeter nochmal aendert, und faengt den Breakpoint-Wechsel (Rail-Zeile
+// erscheint/verschwindet bei 1024px) per Resize-Listener ab.
+function syncHeaderSpacing() {
+  const header = document.getElementById("app-header");
+  const root = document.getElementById("screen-root");
+  if (header && root) root.style.paddingTop = header.offsetHeight + "px";
 }
 
 function renderBottomBar() {
@@ -101,13 +118,12 @@ function renderScreen() {
     root.appendChild(el('<div class="scr-pad"><p>Screen „' + Router.current + '“ wird noch gebaut.</p></div>'));
   }
   renderRail();
-  renderPriceLabel();
   renderBottomBar();
+  syncHeaderSpacing();
 }
 
 Router.onChange(renderScreen);
 AppState.onChange(() => {
-  renderPriceLabel();
   renderRail();
   renderSaveHint();
 });
@@ -115,3 +131,4 @@ AppState.onChange(() => {
 document.addEventListener("DOMContentLoaded", () => {
   Router.resolve();
 });
+window.addEventListener("resize", syncHeaderSpacing);
