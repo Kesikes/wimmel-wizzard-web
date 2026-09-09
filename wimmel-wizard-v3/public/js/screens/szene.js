@@ -46,6 +46,11 @@ Screens.szene = {
           // erneutem Antippen desselben Wegs -- sonst wuerde ein versehentlicher zweiter Klick
           // mitten im Interview den Fortschritt zuruecksetzen).
           if (w.way === 2 && s.sceneWay !== 2) patch.sceneInterviewStep = 0;
+          // NEU (Feature C18): weg von der Aufnahme-Karte (way 1) zu einer ANDEREN Karte -- eine
+          // evtl. noch laufende Aufnahme (Mikro!) muss dann gestoppt/verworfen werden, sonst bliebe
+          // das Mikrofon unsichtbar im Hintergrund aktiv, obwohl die Nutzerin sichtbar einen anderen
+          // Weg gewaehlt hat.
+          if (s.sceneWay === 1 && w.way !== 1) resetRecState();
           AppState.update(patch);
           rerender();
         }
@@ -125,20 +130,165 @@ function buildThemeGrid() {
   return grid;
 }
 
+// UMGEBAUT (Feature C18, Sammel-Runde 09.09.2026: "echte Audioaufnahme implementieren, daraus ein
+// Transkript erstellen, aus dem Transkript die Vignetten ableiten"). Vorher: reine Attrappe --
+// Wellenform lief nur als CSS-Deko, der Timer-Text "04:12" war hartcodiert, "Aufnahme stoppen"
+// navigierte ohne jede echte Aufnahme direkt zu "zaubern". Jetzt: echtes MediaRecorder-Mikro,
+// echter hochgezaehlter Timer, echter Upload an api/transcribe-proxy.js (OpenAI gpt-4o-transcribe,
+// siehe Kommentar dort), das Transkript wird wie beim Chat-Interview (finalizeSceneInterview() oben)
+// via Pipeline.translateFreeText() uebersetzt und als EIN Eintrag in sceneUserSituations abgelegt --
+// Pipeline.autoSituations() (siehe runGeneration() unten) fuellt von dort aus wie gewohnt auf 16
+// Vignetten auf. Damit landen alle drei Wege (Thema/Chat/Aufnahme) im selben, bereits bestehenden
+// Vignetten-Pipeline-Endpunkt.
+//
+// Aufnahme-Zustand (recState) liegt BEWUSST im Modul-Scope, nicht in AppState/localStorage: eine
+// laufende MediaRecorder-/MediaStream-Instanz laesst sich nicht sinnvoll serialisieren, und ein
+// Reload soll ehrlich wieder bei "nichts aufgenommen" starten statt einen kaputten Zwischenzustand
+// vorzutaeuschen. "recNotify" zeigt IMMER auf die zuletzt gemountete Panel-Instanz (siehe
+// buildRecordPanel() unten) -- die Aufnahme-Logik selbst (startRecording/stopRecording/
+// handleRecordingStopped) ruft ausschliesslich recNotify() auf, nie eine eigene, potenziell laengst
+// vom DOM losgeloeste Closure. Das haelt "Aufnahme stoppen" auch dann korrekt, wenn der Screen
+// zwischendurch (z.B. durch einen Klick auf eine andere Way-Karte) neu gerendert wurde.
+const MAX_RECORD_SECONDS = 5 * 60; // Sicherheitsgrenze, siehe api/transcribe-proxy.js (Vercel-Body-Limit)
+let recState = { phase: "idle", seconds: 0, error: "", mediaRecorder: null, chunks: [], stream: null, timerId: null, mimeType: "" };
+let recNotify = null;
+
+function resetRecState() {
+  if (recState.timerId) clearInterval(recState.timerId);
+  if (recState.stream) recState.stream.getTracks().forEach((t) => t.stop());
+  recState = { phase: "idle", seconds: 0, error: "", mediaRecorder: null, chunks: [], stream: null, timerId: null, mimeType: "" };
+}
+
+function fmtRecTime(sec) {
+  const m = Math.floor(sec / 60), s = sec % 60;
+  return String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+}
+
+function recTick() {
+  recState.seconds += 1;
+  const btn = document.getElementById("rec-stop-btn");
+  if (btn) btn.textContent = "Aufnahme stoppen · " + fmtRecTime(recState.seconds);
+  if (recState.seconds >= MAX_RECORD_SECONDS) stopRecording();
+}
+
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const result = String(reader.result || "");
+      const idx = result.indexOf(",");
+      resolve(idx >= 0 ? result.slice(idx + 1) : result);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function startRecording() {
+  // Bewusst "window.navigator" statt des bloßen globalen "navigator" -- in Node.js gibt es seit
+  // Version 21 ein EIGENES globales "navigator"-Objekt (Teil der fetch()-Kompatibilitaets-Globals),
+  // das in Test-Umgebungen ein bloßes "navigator" verdeckt/ueberschattet und NICHT dasselbe Objekt
+  // wie "window.navigator" im jsdom-Fenster ist -- mit der Kurzform wuerden reale Browser weiterhin
+  // funktionieren, aber jsdom-Tests koennten "navigator.mediaDevices" nie zuverlaessig mocken.
+  if (!window.MediaRecorder || !window.navigator.mediaDevices || !window.navigator.mediaDevices.getUserMedia) {
+    recState = { phase: "error", seconds: 0, error: "Audioaufnahme wird von diesem Browser nicht unterstützt. Bitte stattdessen \u201eSelbst eintippen\u201c nutzen.", mediaRecorder: null, chunks: [], stream: null, timerId: null, mimeType: "" };
+    if (recNotify) recNotify();
+    return;
+  }
+  try {
+    const stream = await window.navigator.mediaDevices.getUserMedia({ audio: true });
+    const preferredType = ["audio/webm", "audio/mp4", "audio/ogg"].find((t) => window.MediaRecorder.isTypeSupported && window.MediaRecorder.isTypeSupported(t));
+    const mediaRecorder = preferredType ? new window.MediaRecorder(stream, { mimeType: preferredType }) : new window.MediaRecorder(stream);
+    const chunks = [];
+    mediaRecorder.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+    mediaRecorder.onstop = () => handleRecordingStopped(chunks, mediaRecorder.mimeType || preferredType || "audio/webm");
+    mediaRecorder.start();
+    recState = { phase: "recording", seconds: 0, error: "", mediaRecorder, chunks, stream, timerId: setInterval(recTick, 1000), mimeType: mediaRecorder.mimeType || preferredType || "audio/webm" };
+    if (recNotify) recNotify();
+  } catch (e) {
+    recState = { phase: "error", seconds: 0, error: "Mikrofon-Zugriff wurde nicht erlaubt oder ist nicht verfügbar.", mediaRecorder: null, chunks: [], stream: null, timerId: null, mimeType: "" };
+    if (recNotify) recNotify();
+  }
+}
+
+function stopRecording() {
+  if (recState.timerId) { clearInterval(recState.timerId); recState.timerId = null; }
+  if (recState.mediaRecorder && recState.mediaRecorder.state !== "inactive") {
+    recState.mediaRecorder.stop(); // triggert onstop -> handleRecordingStopped()
+  }
+  if (recState.stream) recState.stream.getTracks().forEach((t) => t.stop());
+  recState.phase = "transcribing";
+  if (recNotify) recNotify();
+}
+
+async function handleRecordingStopped(chunks, mimeType) {
+  try {
+    const blob = new Blob(chunks, { type: mimeType });
+    if (!blob.size) throw new Error("Die Aufnahme war leer.");
+    const base64 = await blobToBase64(blob);
+    const transcriptDe = await Pipeline.transcribeAudio(base64, mimeType);
+    if (!transcriptDe || !transcriptDe.trim()) throw new Error("Ich konnte in der Aufnahme leider keinen Text erkennen.");
+    const en = await Pipeline.translateFreeText(transcriptDe);
+    AppState.update({ sceneUserSituations: [{ en, de: transcriptDe }] });
+    resetRecState();
+    Router.goScreen("zaubern");
+  } catch (e) {
+    recState = { phase: "error", seconds: 0, error: (e && e.message) ? e.message : String(e), mediaRecorder: null, chunks: [], stream: null, timerId: null, mimeType: "" };
+    if (recNotify) recNotify();
+  }
+}
+
 function buildRecordPanel() {
   const panel = h("div", { style: { marginTop: "20px", border: "4px solid var(--ink)", background: "var(--ink)", color: "var(--paper)", padding: "20px 16px", textAlign: "center", boxShadow: "6px 7px 0 var(--red)" } });
-  panel.appendChild(h("p", { class: "caveat", style: { margin: "0 0 16px", fontSize: "21px", lineHeight: "1.15", color: "var(--yellow)" } }, "erzähl heute Abend eine Geschichte wie sonst auch. ich hör einfach mit."));
-  const bars = h("div", { style: { display: "flex", alignItems: "flex-end", justifyContent: "center", gap: "4px", height: "54px", marginBottom: "16px" } });
-  for (let i = 0; i < 17; i++) {
-    bars.appendChild(h("span", { style: { display: "block", width: "6px", height: "100%", background: i % 3 === 0 ? "var(--yellow)" : "var(--paper)", animation: "wave " + (0.7 + (i % 5) * 0.18).toFixed(2) + "s ease-in-out infinite", animationDelay: (i * 0.07).toFixed(2) + "s" } }));
+
+  function renderInner() {
+    panel.innerHTML = "";
+
+    if (recState.phase === "recording") {
+      panel.appendChild(h("p", { class: "caveat", style: { margin: "0 0 16px", fontSize: "21px", lineHeight: "1.15", color: "var(--yellow)" } }, "ich höre zu – erzähl einfach weiter."));
+      const bars = h("div", { style: { display: "flex", alignItems: "flex-end", justifyContent: "center", gap: "4px", height: "54px", marginBottom: "16px" } });
+      for (let i = 0; i < 17; i++) {
+        bars.appendChild(h("span", { style: { display: "block", width: "6px", height: "100%", background: i % 3 === 0 ? "var(--yellow)" : "var(--paper)", animation: "wave " + (0.7 + (i % 5) * 0.18).toFixed(2) + "s ease-in-out infinite", animationDelay: (i * 0.07).toFixed(2) + "s" } }));
+      }
+      panel.appendChild(bars);
+      panel.appendChild(h("button", {
+        type: "button", class: "h-black", id: "rec-stop-btn",
+        style: { width: "100%", minHeight: "58px", background: "var(--red)", color: "var(--paper)", border: "4px solid var(--paper)", fontSize: "16px", cursor: "pointer", animation: "pulse 2.4s ease-out infinite" },
+        onClick: stopRecording
+      }, "Aufnahme stoppen · " + fmtRecTime(recState.seconds)));
+      panel.appendChild(h("p", { style: { margin: "12px 0 0", fontSize: "12px", lineHeight: "1.45", color: "var(--paper-a75)" } }, "Danach zeige ich dir, was ich herausgehört habe."));
+      return;
+    }
+
+    if (recState.phase === "transcribing") {
+      panel.appendChild(h("p", { class: "caveat", style: { margin: "0 0 16px", fontSize: "21px", lineHeight: "1.15", color: "var(--yellow)" } }, "ich schreibe mit, einen Moment …"));
+      panel.appendChild(h("p", { style: { margin: "0", fontSize: "13px", lineHeight: "1.45", color: "var(--paper-a75)" } }, "Die Aufnahme wird gerade in Text verwandelt."));
+      return;
+    }
+
+    if (recState.phase === "error") {
+      panel.appendChild(h("p", { class: "caveat", style: { margin: "0 0 12px", fontSize: "19px", lineHeight: "1.2", color: "var(--yellow)" } }, "Das hat leider nicht geklappt."));
+      panel.appendChild(h("p", { style: { margin: "0 0 16px", fontSize: "13px", lineHeight: "1.45", color: "var(--paper)" } }, recState.error || "Unbekannter Fehler."));
+      panel.appendChild(h("button", {
+        type: "button", class: "h-black",
+        style: { width: "100%", minHeight: "52px", background: "var(--yellow)", color: "var(--ink)", border: "4px solid var(--paper)", fontSize: "15px", cursor: "pointer" },
+        onClick: () => { resetRecState(); renderInner(); }
+      }, "Nochmal versuchen"));
+      return;
+    }
+
+    // idle (Ausgangszustand, noch nichts gestartet)
+    panel.appendChild(h("p", { class: "caveat", style: { margin: "0 0 16px", fontSize: "21px", lineHeight: "1.15", color: "var(--yellow)" } }, "erzähl heute Abend eine Geschichte wie sonst auch. ich hör einfach mit."));
+    panel.appendChild(h("button", {
+      type: "button", class: "h-black",
+      style: { width: "100%", minHeight: "58px", background: "var(--red)", color: "var(--paper)", border: "4px solid var(--paper)", fontSize: "16px", cursor: "pointer" },
+      onClick: startRecording
+    }, "Aufnahme starten"));
+    panel.appendChild(h("p", { style: { margin: "12px 0 0", fontSize: "12px", lineHeight: "1.45", color: "var(--paper-a75)" } }, "Ich brauche kurz Zugriff aufs Mikrofon. Danach zeige ich dir, was ich herausgehört habe – als Text, den du korrigieren kannst."));
   }
-  panel.appendChild(bars);
-  panel.appendChild(h("button", {
-    type: "button", class: "h-black",
-    style: { width: "100%", minHeight: "58px", background: "var(--red)", color: "var(--paper)", border: "4px solid var(--paper)", fontSize: "16px", cursor: "pointer", animation: "pulse 2.4s ease-out infinite" },
-    onClick: () => Router.goScreen("zaubern")
-  }, "Aufnahme stoppen · 04:12"));
-  panel.appendChild(h("p", { style: { margin: "12px 0 0", fontSize: "12px", lineHeight: "1.45", color: "var(--paper-a75)" } }, "Danach zeige ich dir, was ich herausgehört habe – als antippbare Stichworte, die du korrigieren kannst."));
+
+  recNotify = renderInner;
+  renderInner();
   return panel;
 }
 

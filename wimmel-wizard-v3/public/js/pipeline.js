@@ -223,6 +223,26 @@ async function translateFreeText(text) {
   }
 }
 
+// NEU (Feature C18, Sammel-Runde 09.09.2026: "echte Audioaufnahme implementieren, daraus ein
+// Transkript erstellen"). Analoges Muster zu translateFreeText() oben, nur fuer den neuen
+// api/transcribe-proxy.js-Endpunkt (OpenAI gpt-4o-transcribe, Server-Key). Anders als bei
+// translateFreeText() gibt es hier BEWUSST KEINEN stillen Fallback bei einem Fehler -- ein
+// fehlgeschlagener Transkriptions-Aufruf bedeutet "kein Text vorhanden", da gibt es keine
+// schwaechere Alternative wie die lokale DICT-Uebersetzung. Der Aufrufer (szene.js
+// handleRecordingStopped()) faengt den Fehler ab und zeigt ihn der Nutzerin an, statt eine leere
+// Geschichte stillschweigend weiterzureichen.
+async function transcribeAudio(base64, mimeType) {
+  const resp = await fetch("/api/transcribe-proxy", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ audioBase64: base64, mimeType: mimeType || "audio/webm" }),
+  });
+  let data;
+  try { data = await resp.json(); } catch (e) { throw new Error("Antwort war kein gültiges JSON."); }
+  if (!resp.ok || data.error) throw new Error(data.error || ("Transkriptions-Fehler " + resp.status));
+  return data.text || "";
+}
+
 // NEU: von imageRefMapping()/scenePrompt() benutzt, um pro Held entweder eine vorab (ueber
 // charInSceneFromChips) gebaute Beschreibung zu nehmen -- das ist der Normalfall in v3, siehe
 // charakter.js -- oder, falls keine da ist, wie bisher auf charInScene(spec) zurueckzufallen
@@ -831,6 +851,7 @@ function countViolations(verifyOutputText) {
 window.Pipeline = {
   translate, translateChip, ageRole, twoColorBoost, makeCharacterSpec,
   charPrompt, charInScene, charPromptFromChips, charInSceneFromChips, describeHero, translateFreeText,
+  transcribeAudio,
   charSheetViewPrompt, charSheetViewPromptFromChips, threeQuarterEditInstruction,
   sideViewEditInstruction, backViewEditInstruction,
   kontextInstruction, photoStyleInstruction,
