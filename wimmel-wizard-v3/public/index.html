@@ -171,11 +171,24 @@
        -30px erhöht, damit das Band sichtbar in den unteren Rand des Hero-Bilds hineinragt statt nur
        knapp darunter zu kleben. -->
   <!-- NEU (Sammel-Runde 09.09.2026, Punkt A1): mobile Variante des schwarzen Gegen-Laufbands, siehe
-       ausfuehrlichen Kommentar bei der Desktop-Version oben. Bewusst NICHT wie das rote Band darunter
-       rotiert/hochskaliert (das rote Band "haengt" gestalterisch noch ins Heldenbild hinein, siehe
-       dessen eigener Kommentar -- das neue schwarze Band sitzt normal im Fluss direkt darueber). -->
+       ausfuehrlichen Kommentar bei der Desktop-Version oben.
+       GEAENDERT (Sammel-Runde 10.09.2026, A1-Feinschliff, per Screenshot mit roter Markierung der
+       gewuenschten Oberkante): war zwischenzeitlich bewusst NICHT rotiert/hochskaliert (siehe
+       darunterstehender, jetzt ueberholter Bugfix-Kommentar zum roten Band) -- neue Anforderung ist
+       aber das genaue Gegenteil: "exakt parallel zum orangenen/roten Band geneigt, halb so hoch, aber
+       WEITER ins Bild hineinragend als das orangene". Jetzt bekommt das schwarze Band SELBST die
+       Rotation/Hochskalierung (identischer -1.6deg/1.22-Wert wie das rote Band darunter, fuer
+       dieselbe randlose Kantenueberdeckung, siehe roter Band-Kommentar oben zur Herkunft dieser
+       Werte) UND einen eigenen negativen Top-Margin, der es weiter ins Heldenbild hineinzieht als
+       das rote Band selbst (-34px vs. dessen 0px, siehe dort) -- per Live-Test mit der tatsaechlich
+       deployten Seite (getBoundingClientRect()-Messung gegen die vom Nutzer markierte Ziel-Oberkante)
+       ermittelt, nicht geraten. z-index:7 (hoeher als das rote Band mit z-index:6), damit das
+       schwarze Band in der jetzt bewusst wieder ueberlappenden Zone beide sichtbar bleiben UND nicht
+       erneut vom roten Band verdeckt wird (siehe genau dieser Fehler im vorherigen Bugfix-Kommentar
+       unten). Negativer Bottom-Margin (-6px) haelt den Abstand zum roten Band knapp/nahtlos, statt
+       durch den neuen negativen Top-Margin eine sichtbare Luecke zum roten Band darunter zu reissen. -->
   <a href="#verschenken" class="mobile-only" style="display: block; text-decoration: none;" aria-label="Ideal auch als Geschenk – hier geht es zum Gutschein">
-    <div class="ticker-wrap" style="background: var(--ink); color: var(--paper); border-top: 4px solid var(--ink); border-bottom: 4px solid var(--ink); padding: 7px 0;">
+    <div class="ticker-wrap" style="background: var(--ink); color: var(--paper); border-top: 4px solid var(--ink); border-bottom: 4px solid var(--ink); padding: 7px 0; transform: rotate(-1.6deg) scale(1.22); margin: -34px 0 -6px; position: relative; z-index: 7;">
       <div class="ticker-track ticker-yellow-rev" style="font-size: 10px; letter-spacing: .04em;">
         <span>Ideal auch als Geschenk ✦ Hier geht es zum Gutschein ✦ Ideal auch als Geschenk ✦ Hier geht es zum Gutschein ✦&nbsp;</span>
         <span>Ideal auch als Geschenk ✦ Hier geht es zum Gutschein ✦ Ideal auch als Geschenk ✦ Hier geht es zum Gutschein ✦&nbsp;</span>
