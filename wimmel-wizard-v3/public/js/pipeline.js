@@ -644,41 +644,47 @@ function stripEmotionWords(text) {
   return t.replace(/\s{2,}/g, " ").replace(/\s+,/g, ",").replace(/,\s*,/g, ",").replace(/\s+\./g, ".").trim();
 }
 
-// THEME_META: bildet v3s eigene 6 Szenen-Themen (THEMES-Array in szene.js, wörtlich aus der
-// Referenz übernommen) auf je einen GAG_LIBRARY-Pool und auf regionale Dichte-Angaben ab (siehe
-// Spezifikation Abschnitt 2: "regionale Mindestzahlen statt einer globalen Zahl"). NUR
-// "Bauernhof im Herbst" hat eine inhaltliche Entsprechung in der alten, getesteten
-// SCENE_LOCATIONS/GAG_LIBRARY-Struktur (locId "farm"); das war die Nutzer-Entscheidung
-// "Generic-Pool als Fallback für alle" für die anderen 5 Themen. WICHTIG (bitte im Live-Test
-// gegenlesen): die "en"-Szenenbeschreibung UND die region-Labels für die 5 generic-Themen sind NEU
-// von mir entworfen (nicht Teil der getesteten Spezifikation/Codebasis) – nur die MECHANIK
-// "regionale statt globale Mindestzahl" selbst ist bestätigt, die konkreten Regionen pro Thema
-// nicht. regionMin orientiert sich an der Größenordnung aus dem Spezifikations-Beispiel
-// ("at least 8 people on the street, at least 6 near the lakeshore").
+// THEME_META: bildet v3s eigene 6 Szenen-Themen (THEMES-Array in szene.js) auf je einen
+// GAG_LIBRARY-Pool und auf regionale Dichte-Angaben ab (siehe Spezifikation Abschnitt 2:
+// "regionale Mindestzahlen statt einer globalen Zahl").
+// GEAENDERT (Sammel-Runde 10.09.2026, Nutzer-Rueckmeldung: "das sind noch die alten [Themen] ...
+// Bauernhof, Weihnachten, Urlaub, Berg, Stadt, Spielplatz"): die bisherigen 6 Themen (Weltraum,
+// Ritterburg, Unterwasser, Zirkus, "Bauernhof im Herbst", "Weihnachtsabend") komplett durch die
+// jetzt explizit vorgegebene neue Liste ersetzt -- Labels 1:1 wie vom Nutzer genannt (keine
+// zusaetzlichen Beiworte wie vorher "im Herbst"/"-abend"). Anders als vorher (nur "Bauernhof im
+// Herbst" hatte einen echten GAG_LIBRARY-Pool, der Rest lief auf "generic") passen jetzt VIER der
+// sechs neuen Themen auf bereits vorhandene, bewaehrte Pools: Bauernhof->farm, Urlaub->beach
+// (Strand ist die naheliegendste "Urlaub"-Assoziation und der GAG_LIBRARY-Pool "beach" passt
+// inhaltlich gut), Berg->mountains, Stadt->city, Spielplatz->park (der "park"-Pool ist inhaltlich
+// bereits ein Spielplatz-Pool: Rutsche, Wippe, Drachen im Baum, Eis, Luftballon, Versteckspiel).
+// NUR Weihnachten bleibt (wie zuvor) auf "generic", da GAG_LIBRARY keinen eigenen
+// Weihnachts-Pool hat. en-Szenenbeschreibungen/region-Labels fuer die vier neu angebundenen Themen
+// sind entsprechend neu formuliert, nicht Teil einer frueher bestaetigten Spezifikation -- bitte im
+// Live-Test gegenlesen.
 const THEME_META = {
-  "Bauernhof im Herbst": {
+  "Bauernhof": {
     locId: "farm", type: "landscape", en: "farm in golden autumn light",
     regions: ["in the farmyard", "near the barn", "in the orchard", "by the fields"], regionMin: 6
   },
-  "Weihnachtsabend": {
+  "Weihnachten": {
     locId: "generic", type: "cutaway", en: "cozy living room decorated for Christmas Eve, a lit Christmas tree in the corner",
     regions: ["by the Christmas tree", "in the kitchen", "on the stairs", "by the fireplace"], regionMin: 5
   },
-  "Weltraum": {
-    locId: "generic", type: "cutaway", en: "space station interior with a starry view of space through the windows",
-    regions: ["at the control panel", "in the sleeping pods", "by the airlock", "at the observation window"], regionMin: 5
+  "Urlaub": {
+    locId: "beach", type: "landscape", en: "sunny beach vacation scene with a boardwalk and the sea in the background",
+    regions: ["on the sand", "by the water", "on the boardwalk", "under the beach umbrellas"], regionMin: 6
   },
-  "Ritterburg": {
-    locId: "generic", type: "landscape", en: "medieval knight's castle with towers and a courtyard",
-    regions: ["in the courtyard", "on the castle walls", "in the great hall", "by the stables"], regionMin: 6
+  "Berg": {
+    locId: "mountains", type: "landscape", en: "mountain hiking scene with alpine meadows and peaks in the background",
+    regions: ["on the hiking trail", "by the mountain hut", "in the alpine meadow", "near the summit"], regionMin: 5
   },
-  "Unterwasser": {
-    locId: "generic", type: "landscape", en: "colorful underwater coral reef scene",
-    regions: ["among the coral", "near the shipwreck", "by the seaweed forest", "close to the surface"], regionMin: 6
+  "Stadt": {
+    locId: "city", type: "landscape", en: "lively city street scene with shops and a small market",
+    regions: ["on the sidewalk", "at the market stalls", "outside the shops", "at the street corner"], regionMin: 6
   },
-  "Zirkus": {
-    locId: "generic", type: "cutaway", en: "circus tent scene with a ring and audience stands",
-    regions: ["in the ring", "in the audience stands", "backstage", "near the animal tent"], regionMin: 5
+  "Spielplatz": {
+    locId: "park", type: "landscape", en: "sunny playground scene with swings, a slide and a sandbox",
+    regions: ["on the playground", "by the sandbox", "near the swings", "on the grass"], regionMin: 6
   }
 };
 

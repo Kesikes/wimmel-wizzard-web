@@ -190,8 +190,18 @@
        das durch seinen hoeheren z-index das schwarze Band an der Nahtstelle teilweise ueberdeckt
        hat) -- jetzt per expliziter DOM-Reihenfolge sauber/robust nachgebaut statt sich auf diesen
        eher zufaelligen Ueberlappungs-Nebeneffekt zu verlassen. -->
+  <!-- BUGFIX (Sammel-Runde 10.09.2026, Nachzieher zur 12px-Vereinheitlichung): 12px CSS-font-size
+       ist hier NICHT dasselbe wie 12px optische Groesse -- dieses Band hat "transform: ... scale(1.22)"
+       (siehe Kommentar oben zur Kantenueberdeckung bei der Rotation), das den kompletten Inhalt
+       inkl. Text um 22% vergroessert rendert. getComputedStyle() liefert weiterhin brav "12px"
+       (das ist der Wert VOR dem Transform), das tatsaechlich sichtbare Schriftbild war aber ca.
+       14.6px -- spuerbar groesser als das schwarze Band direkt darunter (kein eigenes Transform
+       mehr, rendert 12px 1:1) und als das gelbe Referenz-Band (nur scale(1.07), rendert ~12.8px).
+       Per Live-Test direkt an der deployten Seite gemessen (getBoundingClientRect() + Screenshot-
+       Vergleich), nicht geraten: 10px CSS-Wert kompensiert das scale(1.22) auf ein zum gelben Band
+       visuell passendes Ergebnis (~12.2px gerendert). -->
   <div class="ticker-wrap mobile-only" style="background: var(--red); color: var(--paper); border-top: 4px solid var(--ink); border-bottom: 4px solid var(--ink); padding: 15px 0; transform: rotate(-1.6deg) scale(1.22); margin: -30px 0 0; position: relative; z-index: 6;">
-    <div class="ticker-track ticker-red" style="font-size: 12px; letter-spacing: .04em;">
+    <div class="ticker-track ticker-red" style="font-size: 10px; letter-spacing: .04em;">
       <span>Kein Stockfoto ✦ Kein Template ✦ Hundert Prozent individualisiert ✦ Der erste KI-unterstützte Wimmelbuch-Generator ✦ Kein Stockfoto ✦ Kein Template ✦ Hundert Prozent individualisiert ✦ Der erste KI-unterstützte Wimmelbuch-Generator ✦&nbsp;</span>
     </div>
   </div>

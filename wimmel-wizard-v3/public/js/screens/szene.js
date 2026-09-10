@@ -10,13 +10,24 @@
 // Umsortieren des Arrays haette also die falschen Panels unter den falschen Karten aufgeklappt.
 // Deshalb jetzt ein explizites "way"-Feld (der tatsaechliche, unveraenderte sceneWay-Wert), von der
 // Anzeige-Nummer "n" und der Array-Position entkoppelt.
+// GEAENDERT (Sammel-Runde 10.09.2026): Aufzaehlung der Fertige-Welten-Themen an die neue THEMES-
+// Liste unten angepasst (war noch die alte Liste, siehe dort).
 const WAYS = [
-  { way: 0, n: "1", title: "Thema wählen", body: "Fertige Welten: Bauernhof, Weltraum, Weihnachtsabend, Ritterburg." },
+  { way: 0, n: "1", title: "Thema wählen", body: "Fertige Welten: Bauernhof, Weihnachten, Urlaub, Berg, Stadt, Spielplatz." },
   { way: 2, n: "2", title: "Selbst eintippen oder einsprechen", body: "Ein paar Sätze reichen. Ich frage nach, wenn etwas fehlt." },
   { way: 1, n: "3", title: "Gute-Nacht Geschichte aufnehmen", body: "Abends beim Erzählen das Mikro mitlaufen lassen. Null Extra-Aufwand." }
 ];
-const THEMES = ["Bauernhof im Herbst", "Weihnachtsabend", "Weltraum", "Ritterburg", "Unterwasser", "Zirkus"];
-const THEME_BG = ["var(--blue)", "var(--yellow)", "var(--paper)", "var(--yellow)", "var(--blue)", "var(--paper)"];
+// GEAENDERT (Sammel-Runde 10.09.2026, Nutzer-Rueckmeldung: "das sind noch die alten [Themen]" +
+// "Bauernhof, Weihnachten, Urlaub, Berg, Stadt, Spielplatz"): komplett neue 6er-Liste, ersetzt die
+// alte (Bauernhof im Herbst/Weihnachtsabend/Weltraum/Ritterburg/Unterwasser/Zirkus). Labels muessen
+// exakt den Keys in Pipeline.THEME_META (pipeline.js) entsprechen -- siehe dortiger Kommentar zur
+// gleichzeitigen Aenderung.
+const THEMES = ["Bauernhof", "Weihnachten", "Urlaub", "Berg", "Stadt", "Spielplatz"];
+// GEAENDERT (Sammel-Runde 10.09.2026, Punkt "alle Kacheln im unausgewaehlten Zustand dieselbe
+// Farbe"): vorher alternierten die Kacheln zwischen blau/gelb/papier -- wirkte laut Nutzer-Feedback,
+// als waere schon etwas ausgewaehlt. Jetzt einheitlich Papier; siehe buildThemeGrid() weiter unten
+// fuer den kurzen blauen "angeklickt"-Blitz beim tatsaechlichen Auswaehlen.
+const THEME_BG = "var(--paper)";
 // ENTFERNT (Punkt C17, Sammel-Runde 09.09.2026): STARTHILFEN gehörte zum alten 3-Schritte-Formular
 // (buildInterviewBeatStep(), jetzt ganz entfernt) -- der echte Chat (buildChatPanel() unten) stellt
 // die Einstiegsfrage jetzt selbst (CHAT_OPENER), keine vorformulierten Chips mehr nötig.
@@ -36,7 +47,18 @@ Screens.szene = {
       document.createTextNode("Die dritte Option kostet Dich abends null Aufwand.")
     ]));
 
+    // UMGEBAUT (Sammel-Runde 10.09.2026, Nutzer-Rueckmeldung: "Die Auswahlmoeglichkeiten sollen
+    // direkt unter dem Kasten von 'Erstes Thema wählen' kommen" + "bei 'Zweites'/'Drittens' soll
+    // man nach unten rutschen, mit einer kleinen Animation"). Vorher wurden IMMER alle drei
+    // WAYS-Karten zuerst komplett gerendert und erst DANACH (falls ueberhaupt) ein einziges Panel
+    // ganz am Ende angehaengt -- das Panel landete so immer unter Karte 3, egal welche Karte man
+    // tatsaechlich angeklickt hatte. Jetzt: die Liste wird Karte fuer Karte aufgebaut, und direkt
+    // NACH der jeweils angeklickten Karte (nicht erst nach allen dreien) wird ihr Panel eingehaengt
+    // -- echtes Akkordeon-Verhalten statt "immer unten". Das neu angehaengte Panel bekommt die
+    // slideDown-Animation (siehe main.css) und wird per scrollIntoView() sichtbar ins Bild gerutscht,
+    // damit das Aufklappen auch tatsaechlich als Bewegung wahrgenommen wird, nicht als Sprung.
     const list = h("div", { style: { display: "flex", flexDirection: "column", gap: "10px" } });
+    let openPanelEl = null;
     WAYS.forEach((w) => {
       const on = s.sceneWay === w.way;
       const row = h("button", {
@@ -59,14 +81,37 @@ Screens.szene = {
       textCol.appendChild(h("span", { style: { display: "block", marginTop: "5px", fontSize: "13px", lineHeight: "1.4" } }, w.body));
       row.appendChild(textCol);
       list.appendChild(row);
+
+      // Panel direkt unter DIESER Karte einhaengen, wenn sie die aktuell ausgewaehlte ist -- nicht
+      // erst nach der Schleife. w.way ist der stabile Zustandswert (0=Thema, 1=Aufnahme, 2=Chat),
+      // unabhaengig von der Anzeige-Reihenfolge im WAYS-Array (siehe Modul-Kommentar oben).
+      if (on) {
+        let panel = null;
+        if (w.way === 0) panel = buildThemeGrid();
+        if (w.way === 1) panel = buildRecordPanel();
+        if (w.way === 2) panel = buildChatPanel();
+        if (panel) {
+          panel.style.animation = "slideDown 220ms ease-out";
+          list.appendChild(panel);
+          openPanelEl = panel;
+        }
+      }
     });
     wrap.appendChild(list);
 
-    if (s.sceneWay === 0) wrap.appendChild(buildThemeGrid());
-    if (s.sceneWay === 1) wrap.appendChild(buildRecordPanel());
-    if (s.sceneWay === 2) wrap.appendChild(buildChatPanel());
-
     root.appendChild(wrap);
+    // Neu aufgeklapptes Panel sichtbar ins Bild rutschen -- "block: nearest" statt "center", damit
+    // ein bereits am oberen Rand sichtbares Panel nicht unnoetig zusaetzlich verschoben wird.
+    // Bewusst OHNE requestAnimationFrame-Verzoegerung: root.appendChild(wrap) direkt darueber ist
+    // bereits synchron erfolgt, das Panel steckt also schon im echten DOM, ein zusaetzlicher Frame
+    // wuerde hier nichts gewinnen -- und window.requestAnimationFrame existiert in der jsdom-
+    // Testumgebung (test_scene_reorder_0907.js, test_interview.js) nicht, waere also ein rein
+    // browserseitiges, in Tests kaputtes Detail ohne echten Nutzen gewesen. scrollIntoView() selbst
+    // ist in jsdom nur ein no-op-Stub ("not implemented"-Warnung, kein Fehler) -- laeuft daher in
+    // Tests gefahrlos mit.
+    if (openPanelEl && typeof openPanelEl.scrollIntoView === "function") {
+      openPanelEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
     function rerender() { root.innerHTML = ""; Screens.szene.render(root); }
   }
 };
@@ -99,10 +144,17 @@ Screens.szene.onNext = ({ nextBtn, weiterBtn, defaultGoNext }) => {
 // Muster wie Screens.charakter.nextLabel(), siehe app-shell.js/charakter.js) -- "Los, zaubern"
 // (NEXT[3]) trifft waehrend eines laufenden Gespraechs nicht zu, hier passiert ja gerade noch
 // nichts Magisches. Wege 0/1 behalten den Standard-Eintrag (null = kein Override).
+// GEAENDERT (Sammel-Runde 10.09.2026, Nutzer-Vorschlag: "Bei allen Eingabemöglichkeiten für die
+// Szenen würde ich vorschlagen, dass man so lange eingibt, wie man möchte, und dann auf 'Los,
+// zaubern' klickt"): Beschriftung an den Standard-Text (NEXT[3] in app-shell.js) angeglichen, statt
+// eines eigenen "Fertig, weiter zaubern" -- derselbe Button-Text in allen drei Wegen macht deutlich,
+// dass es ueberall dasselbe Muster ist (beliebig lange eingeben/erzaehlen, dann EIN einheitlicher
+// Button). Der Hinweistext bleibt weg-2-spezifisch (verweist weiterhin aufs Gespraech, nicht auf die
+// generische 2-4-Minuten-Wartezeit, die hier ja noch gar nicht begonnen hat).
 Screens.szene.nextLabel = () => {
   const s = AppState.data;
   if (s.sceneWay !== 2) return null;
-  return { l: "Fertig, weiter zaubern", s: "sag mir gern noch mehr, bevor du weitermachst" };
+  return { l: "Los, zaubern", s: "sag mir gern noch mehr, bevor du weitermachst" };
 };
 
 function buildThemeGrid() {
@@ -113,7 +165,7 @@ function buildThemeGrid() {
       style: {
         cursor: "pointer", fontFamily: "'Archivo Black',sans-serif", fontSize: "13px", lineHeight: "1.05", letterSpacing: "-.02em",
         textTransform: "uppercase", textAlign: "left", padding: "16px 12px", minHeight: "84px", border: "4px solid var(--ink)",
-        color: "var(--ink)", transform: "rotate(" + rot(i, ROT6_APP) + "deg)", background: THEME_BG[i % THEME_BG.length], boxShadow: "4px 5px 0 var(--ink)"
+        color: "var(--ink)", transform: "rotate(" + rot(i, ROT6_APP) + "deg)", background: THEME_BG, boxShadow: "4px 5px 0 var(--ink)"
       },
       // GEAENDERT (Punkt C17, Sammel-Runde 09.09.2026): raeumt sceneChatTheme/sceneUserSituations
       // auf, falls vorher (in einer fruehen Sitzung) schon mal Weg 2 (Chat) probiert wurde --
@@ -324,7 +376,11 @@ function buildChatPanel() {
 
   const panel = h("div", { style: { marginTop: "20px", border: "4px solid var(--ink)", background: "var(--paper)", boxShadow: "6px 7px 0 var(--ink)", padding: "16px" } });
 
-  const thread = h("div", { id: "scene-chat-thread", style: { display: "flex", flexDirection: "column", gap: "10px", maxHeight: "340px", overflowY: "auto" } });
+  // Hoehe erhoeht (Sammel-Runde 10.09.2026, Nutzer-Rueckmeldung "bei 'Drittens' bräuchten wir,
+  // glaube ich, ein bisschen mehr Platz für den Chat"): 340px -> 460px. Kein fester px-Wert relativ
+  // zur Viewport-Hoehe (z.B. vh), damit auf sehr kleinen Bildschirmen nicht doch wieder zu wenig
+  // Rest-Platz fuer Eingabefeld/Senden-Button/Bottom-Bar uebrig bleibt.
+  const thread = h("div", { id: "scene-chat-thread", style: { display: "flex", flexDirection: "column", gap: "10px", maxHeight: "460px", overflowY: "auto" } });
   function renderThread() {
     thread.innerHTML = "";
     (AppState.data.sceneChatMessages || []).forEach((m) => {
@@ -346,7 +402,10 @@ function buildChatPanel() {
   panel.appendChild(typingHint);
 
   const inputRow = h("div", { style: { marginTop: "12px" } });
-  const ta = h("textarea", { class: "field", id: "scene-chat-input", style: { minHeight: "70px" }, placeholder: "hier tippen …", "aria-label": "Nachricht an WizzelWim" });
+  // Hoehe erhoeht (gleicher Nutzer-Wunsch wie beim Thread oben: "mehr Platz für den Chat"):
+  // 70px -> 100px, damit auch laengere Nachrichten ohne staendiges Hoch-/Runterscrollen im
+  // Eingabefeld selbst getippt werden koennen.
+  const ta = h("textarea", { class: "field", id: "scene-chat-input", style: { minHeight: "100px" }, placeholder: "hier tippen …", "aria-label": "Nachricht an WizzelWim" });
   ta.value = s.sceneChatDraft || "";
   ta.addEventListener("input", () => AppState.update({ sceneChatDraft: ta.value }));
   inputRow.appendChild(ta);

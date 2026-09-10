@@ -143,6 +143,12 @@ p, .body-text { font-size: 14px; line-height: 1.5; margin: 0; }
 @keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
 @keyframes wave { 0%, 100% { transform: scaleY(.25); } 50% { transform: scaleY(1); } }
 @keyframes sheetRise { from { transform: translate(-50%, 100%); } to { transform: translate(-50%, 0); } }
+/* NEU (Sammel-Runde 10.09.2026, Szene-Screen-Feinschliff): kleine "rutscht rein"-Animation fuer die
+   Weg-2/Weg-3-Panels (Chat/Aufnahme) im Szene-Screen, die jetzt direkt unter der angeklickten
+   Way-Karte aufklappen (siehe szene.js) -- macht das Aufklappen sichtbar statt eines abrupten
+   Sprungs. Bewusst dezent (12px/180ms), passt zum Rest der eher ruhigen, nicht verspielten
+   Bewegungen im Design-System (siehe z.B. sheetRise oben). */
+@keyframes slideDown { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: translateY(0); } }
 
 /* ---- Buttons ---- */
 .btn {
