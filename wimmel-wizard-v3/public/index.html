@@ -182,7 +182,15 @@
       </div>
     </div>
   </a>
-  <div class="ticker-wrap mobile-only" style="background: var(--red); color: var(--paper); border-top: 4px solid var(--ink); border-bottom: 4px solid var(--ink); padding: 15px 0; transform: rotate(-1.6deg) scale(1.22); margin: -30px 0 12px; position: relative; z-index: 6;">
+  <!-- BUGFIX (Sammel-Runde 09.09.2026, Punkt A1 Nachzieher): der negative Top-Margin von -30px war
+       vom 06.09.2026-Fix (siehe Kommentar oben) noch aus der Zeit, als dieses rote Band DIREKT unter
+       dem Heldenbild lag und bewusst in dessen unteren Rand hineinragen sollte. Seit dem neuen
+       schwarzen Band direkt darueber (Punkt A1) zieht dieser Minus-30px-Margin das rote Band aber
+       ueber die volle Hoehe des schwarzen Bands nach oben -- kombiniert mit z-index:6 (hoeher als
+       der von .ticker-wrap geerbte z-index:5 des schwarzen Bands) hat das rote Band das schwarze
+       Band komplett uebermalt, obwohl dessen Markup ganz normal im DOM stand ("im Seitencode da,
+       aber nicht sichtbar"). Margin auf 0 gesetzt, damit beide Baender sauber uebereinander stehen. -->
+  <div class="ticker-wrap mobile-only" style="background: var(--red); color: var(--paper); border-top: 4px solid var(--ink); border-bottom: 4px solid var(--ink); padding: 15px 0; transform: rotate(-1.6deg) scale(1.22); margin: 0 0 12px; position: relative; z-index: 6;">
     <div class="ticker-track ticker-red" style="font-size: 13px; letter-spacing: .04em;">
       <span>Kein Stockfoto ✦ Kein Template ✦ Hundert Prozent individualisiert ✦ Der erste KI-unterstützte Wimmelbuch-Generator ✦ Kein Stockfoto ✦ Kein Template ✦ Hundert Prozent individualisiert ✦ Der erste KI-unterstützte Wimmelbuch-Generator ✦&nbsp;</span>
     </div>
