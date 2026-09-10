@@ -119,21 +119,26 @@
          Klassenname beschreibt nur die Animationsrichtung/-farbe des gelben Bands weiter unten, ist
          selbst aber farbneutral, siehe main.css: nur "animation: tickerReverse" ist gesetzt,
          Hintergrund/Textfarbe kommen wie ueberall hier inline).
-         GEAENDERT (Sammel-Runde 10.09.2026): Schriftgroesse jetzt 15px statt 11px -- exakt identisch
-         zum roten Band darunter (Nutzer-Vorgabe: "Schriftgröße im schwarzen Banner genau so groß wie
-         die im roten"), obwohl das Band selbst weiterhin halb so hoch bleibt (5px statt 10px
-         Padding). Ausserdem jetzt klickbar zur echten Gutschein-Seite (gutschein.html) statt des
-         bisherigen "#verschenken"-Platzhalterankers -- siehe dort, Punkt "Gutschein-Seite". -->
+         GEAENDERT (Sammel-Runde 10.09.2026, Runde 1): Schriftgroesse zunaechst auf 15px gesetzt --
+         exakt identisch zum roten Band darunter (Nutzer-Vorgabe: "Schriftgröße im schwarzen Banner
+         genau so groß wie die im roten").
+         GEAENDERT (Runde 2, direkter Nachzieher): 15px/13px wirkten in beiden Baendern zu groß --
+         jetzt einheitlich 12px, exakt wie das gelbe "gedruckt in Deutschland ✦ Fotos freiwillig..."-
+         Band weiter unten (siehe dortiger Kommentar). Gilt jetzt fuer ALLE vier
+         Desktop-/Mobile-Instanzen von rotem UND schwarzem Band. Band selbst bleibt weiterhin halb so
+         hoch wie das rote (5px statt 10px Padding). Ausserdem jetzt klickbar zur echten
+         Gutschein-Seite (gutschein.html) statt des bisherigen "#verschenken"-Platzhalterankers --
+         siehe dort, Punkt "Gutschein-Seite". -->
     <a href="gutschein.html" style="display: block; text-decoration: none;" aria-label="Ideal auch als Geschenk – hier geht es zum Gutschein">
       <div class="ticker-wrap" style="background: var(--ink); color: var(--paper); border-top: 4px solid var(--ink); border-bottom: 4px solid var(--ink); padding: 5px 0;">
-        <div class="ticker-track ticker-yellow-rev" style="font-size: 15px; letter-spacing: .04em;">
+        <div class="ticker-track ticker-yellow-rev" style="font-size: 12px; letter-spacing: .04em;">
           <span>Ideal auch als Geschenk ✦ Hier geht es zum Gutschein ✦ Ideal auch als Geschenk ✦ Hier geht es zum Gutschein ✦&nbsp;</span>
           <span>Ideal auch als Geschenk ✦ Hier geht es zum Gutschein ✦ Ideal auch als Geschenk ✦ Hier geht es zum Gutschein ✦&nbsp;</span>
         </div>
       </div>
     </a>
     <div class="ticker-wrap" style="background: var(--red); color: var(--paper); border-top: 4px solid var(--ink); border-bottom: 4px solid var(--ink); padding: 10px 0;">
-      <div class="ticker-track ticker-red" style="font-size: 15px; letter-spacing: .04em; animation-duration: 30s;">
+      <div class="ticker-track ticker-red" style="font-size: 12px; letter-spacing: .04em; animation-duration: 30s;">
         <span>Kein Stockfoto ✦ Kein Template ✦ Hundert Prozent individualisiert ✦ Der erste KI-unterstützte Wimmelbuch-Generator ✦&nbsp;</span>
         <span>Kein Stockfoto ✦ Kein Template ✦ Hundert Prozent individualisiert ✦ Der erste KI-unterstützte Wimmelbuch-Generator ✦&nbsp;</span>
       </div>
@@ -186,7 +191,7 @@
        hat) -- jetzt per expliziter DOM-Reihenfolge sauber/robust nachgebaut statt sich auf diesen
        eher zufaelligen Ueberlappungs-Nebeneffekt zu verlassen. -->
   <div class="ticker-wrap mobile-only" style="background: var(--red); color: var(--paper); border-top: 4px solid var(--ink); border-bottom: 4px solid var(--ink); padding: 15px 0; transform: rotate(-1.6deg) scale(1.22); margin: -30px 0 0; position: relative; z-index: 6;">
-    <div class="ticker-track ticker-red" style="font-size: 13px; letter-spacing: .04em;">
+    <div class="ticker-track ticker-red" style="font-size: 12px; letter-spacing: .04em;">
       <span>Kein Stockfoto ✦ Kein Template ✦ Hundert Prozent individualisiert ✦ Der erste KI-unterstützte Wimmelbuch-Generator ✦ Kein Stockfoto ✦ Kein Template ✦ Hundert Prozent individualisiert ✦ Der erste KI-unterstützte Wimmelbuch-Generator ✦&nbsp;</span>
     </div>
   </div>
@@ -200,7 +205,7 @@
        oben). Verlinkt jetzt auf die echte Gutschein-Seite statt des Platzhalterankers. -->
   <a href="gutschein.html" class="mobile-only" style="display: block; text-decoration: none;" aria-label="Ideal auch als Geschenk – hier geht es zum Gutschein">
     <div class="ticker-wrap" style="background: var(--ink); color: var(--paper); border-top: 4px solid var(--ink); border-bottom: 4px solid var(--ink); padding: 7px 0;">
-      <div class="ticker-track ticker-yellow-rev" style="font-size: 13px; letter-spacing: .04em;">
+      <div class="ticker-track ticker-yellow-rev" style="font-size: 12px; letter-spacing: .04em;">
         <span>Ideal auch als Geschenk ✦ Hier geht es zum Gutschein ✦ Ideal auch als Geschenk ✦ Hier geht es zum Gutschein ✦&nbsp;</span>
         <span>Ideal auch als Geschenk ✦ Hier geht es zum Gutschein ✦ Ideal auch als Geschenk ✦ Hier geht es zum Gutschein ✦&nbsp;</span>
       </div>
