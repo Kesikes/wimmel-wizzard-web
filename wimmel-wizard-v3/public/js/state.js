@@ -220,6 +220,16 @@ const AppState = {
   },
   currentImage() {
     return this.data.images.find((i) => i.id === this.data.currentImageId) || this.data.images[this.data.images.length - 1] || null;
+  },
+  // NEU (Sammel-Runde 10.09.2026, Punkt D: Stift-Werkzeug). Anders als addImage() (legt ein
+  // KOMPLETT NEUES Bild an) patcht das hier ein BESTEHENDES Bild in-place -- fuer die
+  // Stift-Korrektur (PEN_INSTRUCTION_REMOVE/REDO, siehe szene.js applyPenEdit()), die laut
+  // bestehendem Hinweistext ausdruecklich verspricht "der Rest der Szene bleibt genau so", also kein
+  // zweites Bild in der Galerie erzeugen soll. Gleiches Patch-Muster wie updatePerson() oben.
+  updateImage(id, patch) {
+    const images = this.data.images.map((img) => (img.id === id ? Object.assign({}, img, patch) : img));
+    this.update({ images });
+    return images.find((img) => img.id === id);
   }
 };
 

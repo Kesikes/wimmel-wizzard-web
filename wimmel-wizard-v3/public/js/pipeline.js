@@ -390,8 +390,57 @@ function kontextInstruction(raw) {
 // sceneComposeInstruction() selbst Punkt fuer Punkt spezifikationskonform sind (erneut gegen
 // Abschnitt 2 der Spezifikation geprueft, siehe Kommentare dort) -- der Fehler lag ausschliesslich
 // hier im Charakter-Foto-Pfad, nicht in der Szenen-Logik.
+// GEAENDERT (Sammel-Runde 10.09.2026, Nutzer-Vorgabe Punkt 1: "Foto-Pfad auf denselben Stil-Anker
+// bringen wie der Chips-Pfad -- LoRA + Trigger-Wort ergaenzen (falls technisch moeglich bei einem
+// Edit-Aufruf) und in jedem Fall den vollstaendigen Stil-Regelblock ... einsetzen, inkl. 'graphic
+// recording sketchnote style' und 'wmlstil'"). Zur LoRA-Frage: geprueft gegen das offizielle
+// fal.ai-Schema von fal-ai/nano-banana-2/edit (https://fal.ai/models/fal-ai/nano-banana-2/edit/api,
+// Live-Abruf 10.09.2026) -- das komplette Input-Schema dieses Endpoints hat KEIN "loras"-Feld
+// (nur prompt/image_urls/num_images/seed/aspect_ratio/output_format/safety_tolerance/sync_mode/
+// system_prompt/resolution/video_url/audio_url/pdf_url/limit_generations/enable_web_search/
+// thinking_level). Das ist kein Versehen unsererseits, sondern strukturell: Nano Banana 2 ist
+// Googles eigenes Gemini-3.1-Flash-Image-Modell, kein Diffusers/FLUX-Pipeline-Endpoint wie
+// fal-ai/flux-lora -- unser wmlstil-LoRA (ein FLUX-Format-Safetensors) hat dort schlicht keine
+// Andockstelle. LoRA+Trigger-Wort ist bei einem Edit-Aufruf also NICHT technisch moeglich (siehe
+// auch der bestehende Kommentar an LORA_URL in fal-proxy.js: "Nano Banana 2 ... braucht kein
+// LoRA"), das war beim Chips-Pfad ja ohnehin nur bei der ERSTEN Text-zu-Bild-Generierung (flux-lora)
+// im Einsatz, nicht bei dessen eigenen Edit-Folgeaufrufen fuer Seiten-/Ruecken-/3-4-Ansicht (die
+// laufen genauso ueber diesen LoRA-losen Edit-Pfad, siehe charSheetViewPrompt()-Aufrufe in
+// charakter.js). Es bleibt also bei einem reinen Prompt-Text-Anker: "wmlstil" jetzt als fuehrendes
+// Wort (gleiche Position wie in charPrompt()/charPromptFromChips()/charSheetViewPrompt() oben), UND
+// die woertlich gleiche Stil-Formulierung "graphic recording sketchnote style" ergaenzt (vorher nur
+// sinngemaess als "flat, minimal, hand-drawn illustration style" umschrieben, nicht wortgleich) --
+// zusaetzlich zu den bereits vorhandenen, detaillierten No-Exceptions-Regeln (die waren inhaltlich
+// nie das Problem, siehe Bugfix-Kommentar direkt oberhalb dieser Funktion). Ziel: exakt dieselbe
+// Wortwahl wie im Rest der Codebasis verwenden, damit das Modell den Foto-Pfad nicht als eigenen,
+// separaten Stil-Kontext behandelt.
 function photoStyleInstruction() {
-  return "The attached image is a photo of a real person. Redraw this person in a completely different, flat, minimal, hand-drawn illustration style – do not photorealistically render any part of them. Rules, no exceptions: flat solid colors only, absolutely no texture/shading/gradients/highlights anywhere. Hair is 1-2 large flat solid-color blobs with a single outline, never individual strands or highlights. Clothing is flat solid-color shapes with at most one simple seam line, never fabric folds, knit texture, or patterns. Thick uniform black outlines everywhere. Face: plain round shape, two small dot eyes, one short vertical line for a nose, absolutely nothing else on the face (no mouth, no eyebrows, no blush, no visible ears, no earrings or piercings, no glasses unless the photo clearly shows them). No visible neck. Full body, standing, front view, plain white background. Only keep the person's actual hair color, clothing colors, and one distinctive feature (if any) from the photo – everything else about the rendering must be simplified down to this flat, minimal style, not the photo's realism.";
+  return "wmlstil. The attached image is a photo of a real person. Redraw this person entirely in the flat, minimal, hand-drawn wmlstil illustration style used throughout this book – graphic recording sketchnote style – do not photorealistically render any part of them. Rules, no exceptions: flat solid colors only, absolutely no texture/shading/gradients/highlights anywhere. Hair is 1-2 large flat solid-color blobs with a single outline, never individual strands or highlights. Clothing is flat solid-color shapes with at most one simple seam line, never fabric folds, knit texture, or patterns. Thick uniform black outlines everywhere. Face: plain round shape, two small dot eyes, one short vertical line for a nose, absolutely nothing else on the face (no mouth, no eyebrows, no blush, no visible ears, no earrings or piercings, no glasses unless the photo clearly shows them). No visible neck. Full body, standing, front view, plain white background. Only keep the person's actual hair color, clothing colors, and one distinctive feature (if any) from the photo – everything else about the rendering must be simplified down to this flat, minimal, graphic recording sketchnote style, not the photo's realism.";
+}
+
+// NEU (Sammel-Runde 10.09.2026, Punkt A3: "charInSceneFromChips()-Aufruf im Foto-Pfad mit den
+// tatsaechlichen Merkmalen befuellen statt leer"). Der Foto-Pfad hat bewusst KEINE Chip-/Notiz-UI
+// (siehe charakter.js buildFotoPanel()) -- es gibt dort also keine vom Menschen eingegebenen
+// Merkmale, die sich ohne Raten einsetzen liessen (das hatte der urspruengliche Kommentar an dieser
+// Stelle explizit vermeiden wollen: "ein erratener Haarfarben-Text waere hier ohnehin nur geraten").
+// fal.ai liefert bei image_urls-Edit-Antworten (Nano Banana 2/Pro) aber selbst ein "description"-Feld
+// mit: eine kurze englische Beschreibung dessen, was das Modell TATSAECHLICH gezeichnet hat -- nicht
+// von uns geraten, sondern vom selben Modell, das auch das Bild erzeugt hat (siehe fal-proxy.js/
+// generateImage()-Kommentare, die dieses Feld jetzt durchreichen statt es zu verwerfen). Diese
+// Funktion macht daraus einen kurzen, sauberen Prompt-Fragment-Baustein:
+// - nur der erste Satz (Folgesaetze beschreiben bei Nano Banana meist Komposition/Stil, nicht
+//   Merkmale, und wuerden den Szenen-Prompt unnoetig aufblaehen),
+// - auf eine vernuenftige Laenge gekappt,
+// - durch stripEmotionWords() gefiltert: dieser Text kommt vom Bildmodell selbst, nicht aus einer
+//   von uns kontrollierten Quelle -- koennte "smiling"/"happy" etc. enthalten, was scenePrompt()s
+//   eigene EMOTION_WORDS_RULE unterlaeuft, wenn es ungefiltert in sceneDescription landet (gleiche
+//   Vorsichtsmassnahme wie in Punkt B2/B3 fuer imageRefMapping()/heroActionBits gefordert).
+function traitBitFromPhotoDescription(description) {
+  const trimmed = String(description || "").trim();
+  if (!trimmed) return "";
+  const firstSentence = trimmed.split(/(?<=[.!?])\s/)[0].replace(/[.!?]+$/, "").trim();
+  const capped = firstSentence.length > 160 ? firstSentence.slice(0, 160).trim() : firstSentence;
+  return stripEmotionWords(capped);
 }
 
 // Stift-Werkzeug: zwei Modi, Wortlaut exakt aus der Spezifikation Abschnitt 4.
@@ -725,8 +774,19 @@ const EMOTION_WORDS_RULE = "Do not use any emotion or facial-expression words fo
 // [Name]: [Merkmale]... für jedes Bild einzeln, nicht nur eine allgemeine Liste"). heroSpecs[i]
 // entspricht image_urls[i] in generateImage()/composeSceneImage() (siehe dort) — die Reihenfolge
 // MUSS übereinstimmen.
+// BUGFIX (Sammel-Runde 10.09.2026, Punkt B2: "Emotionswörter-Filter auch auf imageRefMapping()/
+// heroActionBits anwenden"). describeHero(spec) liefert entweder spec.sceneDescription (freier,
+// nutzer-/modell-kontrollierter Text -- charNote-Übersetzung im Chips-Pfad, jetzt auch der
+// beschreibende Satz aus Pipeline.traitBitFromPhotoDescription() im Foto-Pfad, siehe Kommentar
+// dort) oder charInScene(spec) als Fallback. Bisher wurde stripEmotionWords() NUR auf den
+// Vignetten-/Situationstext angewendet (siehe scenePrompt() unten, situationText), nicht auf diese
+// Charakterbeschreibungen -- ein charNote wie "lacht viel" (uebersetzt "laughs a lot") oder ein vom
+// Bildmodell selbst geliefertes "a smiling girl" haette so ungefiltert im Prompt gelandet und damit
+// die eigene EMOTION_WORDS_RULE (und die Kern-Stilregel "niemals ein Mund", da Emotionswoerter genau
+// das implizieren) fuer den betroffenen Charakter unterlaufen. Jetzt konsequent gefiltert, genau wie
+// beim Situationstext.
 function imageRefMapping(heroSpecs) {
-  return heroSpecs.map((spec, i) => "Reference image " + (i + 1) + " shows " + spec.name + ": " + describeHero(spec) + ".").join(" ");
+  return heroSpecs.map((spec, i) => "Reference image " + (i + 1) + " shows " + spec.name + ": " + stripEmotionWords(describeHero(spec)) + ".").join(" ");
 }
 
 // NEU: "Alle-Charaktere-müssen-vorkommen"-Regel, verallgemeinert von der Spezifikations-Formulierung
@@ -771,7 +831,9 @@ function scenePrompt({ heroSpecs, theme, situations }) {
     : theme.en + " landscape scene");
   const sentences = [];
   sentences.push(imageRefMapping(heroSpecs));
-  const heroActionBits = heroSpecs.map((s) => s.name + " (" + describeHero(s) + ")").join(", ");
+  // Punkt B2 (siehe Kommentar bei imageRefMapping() oben): dieselbe Filterung hier, zweite Stelle,
+  // an der describeHero() ungefiltert in den Prompt eingesetzt wurde.
+  const heroActionBits = heroSpecs.map((s) => s.name + " (" + stripEmotionWords(describeHero(s)) + ")").join(", ");
   if (heroActionBits) sentences.push("In the foreground, actively taking part in the action described below, not standing still and not posed neutrally: " + heroActionBits + ".");
   sentences.push(densityInstruction(theme));
   const situationText = (situations || []).map(situationPlacementText).join(" ");
@@ -897,7 +959,10 @@ async function generateImage(prompt, kind, opts) {
   try { data = await resp.json(); } catch (e) { throw new Error("Antwort vom Bild-Server war kein gültiges JSON."); }
   if (!resp.ok || data.error) throw new Error(data.error || ("Bild-Server-Fehler " + resp.status));
   if (!data.url) throw new Error("Bild-Server hat keine Bild-URL geliefert.");
-  return { url: data.url, seed: data.seed };
+  // description: siehe fal-proxy.js-Kommentar (Punkt A3) -- fal.ai's eigene kurze Beschreibung des
+  // TATSAECHLICH generierten Bilds, durchgereicht fuer den Foto-Pfad (charakter.js
+  // generateCharacterImageFromPhoto()). Leerer String bei Text-zu-Bild-Aufrufen/aelteren Antworten.
+  return { url: data.url, seed: data.seed, description: data.description || "" };
 }
 
 // Verify-Retry (Spezifikation Abschnitt 3): 2 Kandidaten extern generiert (Aufrufer ruft
@@ -943,7 +1008,7 @@ window.Pipeline = {
   transcribeAudio, moderateText, sceneChat,
   charSheetViewPrompt, charSheetViewPromptFromChips, threeQuarterEditInstruction,
   sideViewEditInstruction, backViewEditInstruction,
-  kontextInstruction, photoStyleInstruction,
+  kontextInstruction, photoStyleInstruction, traitBitFromPhotoDescription,
   PEN_INSTRUCTION_REMOVE, PEN_INSTRUCTION_REDO,
   resizeImageToDataUri, generateImage, verifyImage, countViolations,
   // Szenen-Komposition (neu, siehe Modul-Abschnitt oben)

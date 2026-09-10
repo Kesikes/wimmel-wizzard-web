@@ -251,15 +251,40 @@ function hairPhraseEn(s, isPet) {
   return [length && length.en, texture && texture.en, color && color.en, isPet ? "fur" : "hair"].filter(Boolean).join(" ");
 }
 
+// NEU (Sammel-Runde 10.09.2026, Punkt C5+C6). Zwei zusammenhaengende Robustheits-Luecken in
+// generateCharacterImage()/generateCharacterImageFromPhoto():
+// C5 (Fehlermeldungs-Anker robust gegen Navigation): vorher wurde "errorP" (per
+// document.getElementById()) EINMAL ganz am Anfang der Funktion geholt und dieselbe Referenz ueber
+// mehrere await-Punkte hinweg weiterbenutzt. Navigiert die Nutzerin waehrend eines laufenden Aufrufs
+// weg (z.B. Tab-Wechsel im Dashboard) und wieder zurueck, wird root.innerHTML komplett neu gerendert
+// -- das urspruengliche DOM-Element mit dieser id existiert dann nicht mehr im sichtbaren Baum (ein
+// NEUES Element mit derselben id ersetzt es), die alte JS-Referenz zeigt aber weiter auf den
+// abgehaengten, unsichtbaren Knoten. Eine spaeter eintreffende Fehlermeldung wuerde so still ins
+// Leere geschrieben, ohne Fehler zu werfen -- fuer die Nutzerin sieht es aus wie "nichts passiert".
+// Jetzt: errorEl(id) holt das Element bei JEDER Verwendung frisch aus dem aktuell sichtbaren DOM,
+// statt eine Referenz ueber awaits hinweg zwischenzuspeichern.
+// C6 (Re-Entry-Guard, gleiches Muster wie "zauberBusy" in szene.js Screens.zaubern): ohne diesen
+// Schutz koennte ein zweiter Aufruf (z.B. ein zweiter Klick/Enter, bevor der erste Aufruf die
+// Buttons deaktiviert hat, oder ein Aufruf ueber einen anderen Code-Pfad) parallel zum ersten laufen
+// -- zwei parallele Generierungen fuer dieselbe Person wuerden sich gegenseitig ueberschreiben
+// (AppState.updatePerson() zweimal mit unterschiedlichem Ergebnis) oder doppelt Router.goScreen()
+// ausloesen. charGenBusy sperrt das: ein zweiter Aufruf waehrend eines laufenden wird ignoriert,
+// nicht angehaengt oder abgebrochen -- die Sperre loest sich von selbst wieder, sobald der laufende
+// Aufruf (Erfolg ODER Fehler) fertig ist, kein manuelles Reset noetig (anders als bei zauberBusy gibt
+// es hier keinen "haengt für immer"-Fall, der einen Retry-Button mit explizitem Reset braeuchte).
+let charGenBusy = false;
+function charGenErrorEl(id) { return document.getElementById(id); }
+
 async function generateCharacterImage(person, buttons) {
+  if (charGenBusy) return;
   const s = AppState.data;
-  const errorP = document.getElementById("char-gen-error");
   const isPet = !!person.isPet;
   const hairEn = hairPhraseEn(s, isPet);
   const chipLabels = s.charBesonderheit ? [s.charBesonderheit] : [];
   // Validierung (umgebaut 05.09.2026, B7-Ergaenzung 09.09.2026): Haare/Fell sind die primäre,
   // strukturierte Eingabe -- erst wenn dort NICHTS gewählt ist, zählt ersatzweise die freie Notiz.
   if (!hairEn && !(s.charNote || "").trim()) {
+    const errorP = charGenErrorEl("char-gen-error");
     if (errorP) {
       errorP.textContent = isPet
         ? "Bitte mindestens Fellfarbe, -muster und -länge auswählen oder etwas dazuschreiben."
@@ -268,7 +293,8 @@ async function generateCharacterImage(person, buttons) {
     }
     return;
   }
-  if (errorP) errorP.style.display = "none";
+  { const errorP = charGenErrorEl("char-gen-error"); if (errorP) errorP.style.display = "none"; }
+  charGenBusy = true;
   const activeButtons = (buttons || []).filter(Boolean);
   activeButtons.forEach((b) => { b.dataset.prevText = b.textContent; b.disabled = true; b.textContent = "Ich zeichne …"; b.style.opacity = "0.75"; });
   // NEU (Punkt B8, Sammel-Runde 09.09.2026: "Inhaltsmoderation fürs Freitextfeld"). Prüft die freie
@@ -282,13 +308,17 @@ async function generateCharacterImage(person, buttons) {
     try {
       const flagged = await Pipeline.moderateText(s.charNote);
       if (flagged) {
+        const errorP = charGenErrorEl("char-gen-error");
         if (errorP) { errorP.textContent = "Diese Notiz enthält Inhalte, die wir für ein Kinderprodukt nicht verwenden können — magst du sie anpassen?"; errorP.style.display = "block"; }
         activeButtons.forEach((b) => { b.disabled = false; b.textContent = b.dataset.prevText || b.textContent; b.style.opacity = "1"; });
+        charGenBusy = false;
         return;
       }
     } catch (modErr) {
+      const errorP = charGenErrorEl("char-gen-error");
       if (errorP) { errorP.textContent = "Prüfung der Notiz hat gerade nicht geklappt: " + (modErr && modErr.message ? modErr.message : String(modErr)) + " — bitte nochmal versuchen."; errorP.style.display = "block"; }
       activeButtons.forEach((b) => { b.disabled = false; b.textContent = b.dataset.prevText || b.textContent; b.style.opacity = "1"; });
+      charGenBusy = false;
       return;
     }
   }
@@ -298,8 +328,11 @@ async function generateCharacterImage(person, buttons) {
     const prompt = Pipeline.charPromptFromChips({ role: person.role, age: person.age, chipLabels, extraEnParts, noteEn });
     const sceneDescription = Pipeline.charInSceneFromChips({ role: person.role, age: person.age, chipLabels, extraEnParts, noteEn });
     const result = await Pipeline.generateImage(prompt, "char");
+    charGenBusy = false;
     await generateExtraViewsAndFinish(person, result, sceneDescription);
   } catch (e) {
+    charGenBusy = false;
+    const errorP = charGenErrorEl("char-gen-error");
     if (errorP) {
       errorP.textContent = "Zeichnen hat nicht geklappt: " + (e && e.message ? e.message : String(e)) + " — nochmal versuchen?";
       errorP.style.display = "block";
@@ -346,22 +379,38 @@ async function generateExtraViewsAndFinish(person, frontResult, sceneDescription
 
 // NEU (B9/B10): Foto-Pendant zu generateCharacterImage() -- selbes Muster (Buttons deaktivieren
 // waehrend der Generierung, Fehler sichtbar anzeigen, danach ueber generateExtraViewsAndFinish()
-// weiter). sceneDescription enthaelt hier bewusst NUR role+age (kein Haar-/Fell-Satzteil wie beim
-// Merkmale-Weg) -- die eigentliche visuelle Identitaet traegt bei diesem Weg das generierte BILD
-// selbst (als Referenzbild fuer spaetere Szenen, siehe imageRefMapping() in pipeline.js), nicht der
-// Text; ein erratener Haarfarben-Text waere hier ohnehin nur geraten, da wir die Merkmale vom Foto
-// nicht strukturiert abfragen.
+// weiter).
+// GEAENDERT (Sammel-Runde 10.09.2026, Punkt A3: "charInSceneFromChips()-Aufruf im Foto-Pfad mit den
+// tatsaechlichen Merkmalen befuellen statt leer"). Vorher lief sceneDescription hier bewusst NUR mit
+// role+age (chipLabels/extraEnParts/noteEn fest leer) -- der Foto-Pfad hat keine Chip-/Notiz-UI, ein
+// erratener Text waere hier nur geraten gewesen. Jetzt: sceneDescription wird ERST NACH der
+// Bild-Generierung gebaut (Reihenfolge dafuer vertauscht) und nutzt Pipeline.
+// traitBitFromPhotoDescription(result.description) -- fal.ai's eigene kurze Beschreibung dessen, was
+// tatsaechlich gezeichnet wurde (siehe pipeline.js-Kommentar dort), als echten, nicht-geratenen
+// extraEnParts-Baustein. Die visuelle Identitaet traegt weiterhin primaer das generierte BILD selbst
+// (als Referenzbild fuer spaetere Szenen, siehe imageRefMapping() in pipeline.js) -- dieser Text ist
+// eine zusaetzliche, jetzt aber echte statt leere Absicherung fuer den textuellen Teil des
+// Szenen-Prompts (describeHero()).
+// C5+C6 (siehe ausfuehrlichen Kommentar bei generateCharacterImage() oben): dasselbe Re-Entry-Gate
+// (charGenBusy -- EIN gemeinsames Flag fuer beide Generierungswege, da sie ohnehin nie gleichzeitig
+// fuer dieselbe Person laufen koennen sollen) und derselbe "Fehler-Element frisch statt vorab
+// zwischengespeichert holen"-Fix (charGenErrorEl()).
 async function generateCharacterImageFromPhoto(person, photoDataUri, buttons) {
-  const errorP = document.getElementById("char-photo-error");
-  if (errorP) errorP.style.display = "none";
+  if (charGenBusy) return;
+  { const errorP = charGenErrorEl("char-photo-error"); if (errorP) errorP.style.display = "none"; }
+  charGenBusy = true;
   const activeButtons = (buttons || []).filter(Boolean);
   activeButtons.forEach((b) => { b.dataset.prevText = b.textContent; b.disabled = true; b.textContent = "Ich zeichne …"; b.style.opacity = "0.75"; });
   try {
-    const sceneDescription = Pipeline.charInSceneFromChips({ role: person.role, age: person.age, chipLabels: [], extraEnParts: [], noteEn: "" });
     const result = await Pipeline.generateImage(Pipeline.photoStyleInstruction(), "char", { editImageUrl: photoDataUri });
+    const traitBit = Pipeline.traitBitFromPhotoDescription(result.description);
+    const sceneDescription = Pipeline.charInSceneFromChips({ role: person.role, age: person.age, chipLabels: [], extraEnParts: traitBit ? [traitBit] : [], noteEn: "" });
     resetUploadedPhoto();
+    charGenBusy = false;
     await generateExtraViewsAndFinish(person, result, sceneDescription);
   } catch (e) {
+    charGenBusy = false;
+    const errorP = charGenErrorEl("char-photo-error");
     if (errorP) {
       errorP.textContent = "Zeichnen hat nicht geklappt: " + (e && e.message ? e.message : String(e)) + " — nochmal versuchen?";
       errorP.style.display = "block";
@@ -689,20 +738,33 @@ Screens.charakterblatt = {
         { label: "Rücken", url: person.imageUrlBack },
         { label: "3/4", url: person.imageUrlThreeQuarter },
       ];
-      if (extraViews.some((v) => v.url)) {
+      // BUGFIX (Sammel-Runde 10.09.2026, Punkt C1: "Logik umdrehen -- Hinweis soll erscheinen, wenn
+      // Ansichten fehlen, nicht nur wenn mindestens eine da ist"). Vorher stand der "eine oder
+      // mehrere Zusatz-Ansichten sind diesmal nicht geglückt"-Hinweis VERSCHACHTELT innerhalb von
+      // "if (extraViews.some(v => v.url))" -- schlugen ALLE drei Zusatz-Ansichten fehl (kein einziges
+      // v.url gesetzt), wurde dieser gesamte Block uebersprungen und damit auch der Hinweis NIE
+      // angezeigt: der schlimmste Fall (0 von 3 Ansichten) war der einzige, in dem die Nutzerin
+      // STILLSCHWEIGEND nur das Frontbild sah, ohne jeden Hinweis, dass ihr etwas fehlt. Jetzt: die
+      // Thumbnail-Reihe (nur fuer tatsaechlich vorhandene Ansichten) und der Fehlt-Hinweis sind zwei
+      // UNABHAENGIGE Bedingungen, keine mehr verschachtelt in der anderen -- der Hinweis erscheint
+      // immer, wenn mindestens eine Ansicht fehlt, unabhaengig davon, ob 0, 1 oder 2 andere geklappt
+      // haben.
+      const availableViews = extraViews.filter((v) => v.url);
+      if (availableViews.length) {
         const viewsRow = h("div", { style: { display: "flex", gap: "8px", marginTop: "10px" } });
-        extraViews.forEach((v) => {
-          if (!v.url) return;
+        availableViews.forEach((v) => {
           const thumb = h("div", { style: { flex: "1", minWidth: "0", border: "3px solid var(--ink)", background: "var(--paper)", padding: "4px" } });
           thumb.appendChild(h("img", { src: v.url, alt: person.name + " – " + v.label, style: { display: "block", width: "100%" } }));
           thumb.appendChild(h("span", { class: "h-black", style: { display: "block", marginTop: "3px", fontSize: "9px", letterSpacing: ".06em", textAlign: "center" } }, v.label));
           viewsRow.appendChild(thumb);
         });
         wrap.appendChild(viewsRow);
-        if (extraViews.some((v) => !v.url)) {
-          wrap.appendChild(h("p", { style: { margin: "6px 2px 0", fontSize: "11px", lineHeight: "1.4", color: "rgba(26,26,24,.6)" } },
-            "eine oder mehrere Zusatz-Ansichten sind diesmal nicht geglückt — beim Nachschärfen nochmal versuchen."));
-        }
+      }
+      if (extraViews.some((v) => !v.url)) {
+        wrap.appendChild(h("p", { style: { margin: "6px 2px 0", fontSize: "11px", lineHeight: "1.4", color: "rgba(26,26,24,.6)" } },
+          availableViews.length
+            ? "eine oder mehrere Zusatz-Ansichten sind diesmal nicht geglückt — beim Nachschärfen nochmal versuchen."
+            : "die Zusatz-Ansichten (Seite/Rücken/3-4) sind diesmal nicht geglückt — beim Nachschärfen nochmal versuchen."));
       }
     }
 

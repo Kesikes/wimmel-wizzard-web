@@ -933,38 +933,70 @@ Screens.ergebnis = {
     head.appendChild(h("h1", { class: "h1-scr", style: { fontSize: "31px", marginBottom: "14px" } }, [document.createTextNode("Da ist"), h("br"), document.createTextNode("es.")]));
     wrap.appendChild(head);
 
+    // NEU (Sammel-Runde 10.09.2026, Punkt C3+C4: "Wenn der gewaehlte beste Kandidat noch Verstoesse
+    // hat (oder der Verify-Call selbst fehlschlaegt), das der Nutzerin sichtbar machen statt es als
+    // normales Ergebnis zu zeigen"). Vorher tauchten violations/verify NUR versteckt hinter dem
+    // "Test-Details anzeigen"-Debug-Toggle auf (buildDebugDetails() unten, ausdruecklich als Test-/
+    // Debug-Panel gekennzeichnet -- eine normale Nutzerin wuerde den nie anklicken). Ein Bild mit
+    // echten Stil-/Vollstaendigkeits-Verstoessen ODER einem strukturell fehlgeschlagenen Verify-Call
+    // wurde damit optisch GENAUSO praesentiert wie ein perfektes -- derselbe "stiller Fallback auf
+    // ein falsches Ergebnis"-Fehler, den diese Codebasis an anderer Stelle (Bug 1, B12-Moderation)
+    // bewusst vermeidet. Jetzt: sichtbarer Hinweis direkt ueber dem Bild, sobald irgendetwas nicht
+    // "sauber" ist -- zwei Faelle unterschieden:
+    // - image.verify == null: der Verify-Call konnte fuer den gewaehlten Kandidaten nicht ausgewertet
+    //   werden (Netzwerk-/Parse-Fehler des Vision-Checks, siehe countViolations() in pipeline.js --
+    //   liefert dann violations:99 UND parsed:null als Sentinel). Wir wissen in diesem Fall schlicht
+    //   nicht, ob das Bild stimmt.
+    // - image.verify vorhanden, aber image.violations > 0: die Pruefung LIEF, hat aber tatsaechlich
+    //   Abweichungen gefunden (z.B. ein sichtbarer Mund oder eine fehlende Person) -- und genau dieser
+    //   Kandidat wurde trotzdem als bester von mehreren gewaehlt, weil kein anderer besser war.
+    if (!image.verify || (image.violations || 0) > 0) {
+      const noticeBox = h("div", { style: { margin: "0 14px 16px", background: "var(--yellow)", border: "4px solid var(--ink)", padding: "13px 14px", boxShadow: "5px 6px 0 var(--ink)" } });
+      noticeBox.appendChild(h("p", { class: "h-black", style: { margin: "0 0 5px", fontSize: "12px", letterSpacing: ".04em" } }, "⚠ Bitte einmal gegenchecken"));
+      noticeBox.appendChild(h("p", { style: { margin: "0", fontSize: "12.5px", lineHeight: "1.45" } },
+        !image.verify
+          ? "Unsere automatische Qualitätsprüfung konnte dieses Bild nicht auswerten (technischer Fehler beim Prüf-Schritt) — wir wissen nicht sicher, ob alles passt. Bitte einmal selbst durchschauen, bevor du weitermachst."
+          : "Unsere automatische Qualitätsprüfung hat bei diesem Bild mögliche Abweichungen gefunden (z. B. eine fehlende Person oder ein sichtbarer Mund) — der beste von mehreren Versuchen wurde trotzdem gewählt. Bitte einmal selbst durchschauen, bevor du weitermachst."));
+      wrap.appendChild(noticeBox);
+    }
+
     const imgWrap = h("div", { style: { position: "relative", borderTop: "4px solid var(--ink)", borderBottom: "4px solid var(--ink)", background: "var(--ink)" } });
-    const img = h("img", { src: image.src, alt: "Fertiges Wimmelbild", style: { display: "block", width: "100%" } });
+    // crossOrigin=anonymous (Punkt D): noetig, damit captureAnnotatedImage() das Bild nachher auf ein
+    // eigenes Canvas zeichnen und per toDataURL() auslesen darf, ohne dass der Browser das Canvas als
+    // "tainted" (cross-origin, image.src zeigt auf fal.media) markiert -- siehe ausfuehrlicher
+    // Kommentar bei captureAnnotatedImage() weiter unten zur (noch nicht live verifizierten)
+    // CORS-Annahme.
+    const img = h("img", { src: image.src, alt: "Fertiges Wimmelbild", crossOrigin: "anonymous", style: { display: "block", width: "100%" } });
     imgWrap.appendChild(img);
 
     const canvas = h("canvas", { style: { position: "absolute", inset: "0", width: "100%", height: "100%", touchAction: "none" } });
     imgWrap.appendChild(canvas);
     canvas.classList.toggle("hidden", !s.penOn);
 
-    const penTag = h("span", { class: "h-black", style: { position: "absolute", left: "22%", top: "34%", margin: "-30px 0 0 74px", background: "var(--red)", color: "var(--paper)", fontSize: "10px", letterSpacing: ".06em", padding: "5px 7px", transform: "rotate(-3deg)", pointerEvents: "none" } }, "das da weg");
+    // Text jetzt abhaengig vom Modus (Punkt D: zwei echte Modi statt nur "weg") statt fest "das da weg".
+    const penTag = h("span", { class: "h-black", style: { position: "absolute", left: "22%", top: "34%", margin: "-30px 0 0 74px", background: "var(--red)", color: "var(--paper)", fontSize: "10px", letterSpacing: ".06em", padding: "5px 7px", transform: "rotate(-3deg)", pointerEvents: "none" } }, (s.penMode === "redo") ? "das hier neu" : "das da weg");
     penTag.classList.toggle("hidden", !s.penOn);
     imgWrap.appendChild(penTag);
 
     wrap.appendChild(imgWrap);
-    setupFreehand(canvas, img);
+    const mark = setupFreehand(canvas, img);
 
     const tools = h("div", { style: { display: "flex", gap: "8px", padding: "12px 14px 0" } });
     const penBtn = h("button", { type: "button", class: "h-black", style: { flex: "1", minHeight: "48px", fontSize: "12px", border: "3px solid var(--ink)", background: s.penOn ? "var(--red)" : "var(--paper)", color: s.penOn ? "var(--paper)" : "var(--ink)" } }, "Stift");
+    // GEAENDERT (Punkt D): voller Rerender statt manuellem Class-/Text-Toggle -- so erscheint/
+    // verschwindet das neue buildPenPanel() (Modus-Wahl/Anwenden-Button) automatisch mit, statt es
+    // hier zusaetzlich manuell ein-/auszublenden.
     penBtn.addEventListener("click", () => {
       const nowOn = !AppState.data.penOn;
-      AppState.update({ penOn: nowOn });
-      penBtn.style.background = nowOn ? "var(--red)" : "var(--paper)";
-      penBtn.style.color = nowOn ? "var(--paper)" : "var(--ink)";
-      canvas.classList.toggle("hidden", !nowOn);
-      penTag.classList.toggle("hidden", !nowOn);
-      hint.textContent = nowOn
-        ? "kringel einfach drüber. ich muss nicht genau wissen, wo das Ding anfängt – ich verstehe, was du meinst."
-        : "irgendwas störend? nimm den Stift und mal es durch. der Rest der Szene bleibt genau so.";
+      AppState.update({ penOn: nowOn, penMode: nowOn ? (AppState.data.penMode || "remove") : null });
+      Router.goScreen("ergebnis");
     });
     tools.appendChild(penBtn);
     tools.appendChild(h("button", { type: "button", class: "h-black", style: { flex: "1", minHeight: "48px", background: "var(--paper)", border: "3px solid var(--ink)", fontSize: "12px", color: "inherit" } }, "Detail antippen"));
     tools.appendChild(h("button", { type: "button", class: "h-black", style: { flex: "1", minHeight: "48px", background: "var(--paper)", border: "3px solid var(--ink)", fontSize: "12px", color: "inherit" } }, "Nochmal zaubern"));
     wrap.appendChild(tools);
+
+    if (s.penOn) wrap.appendChild(buildPenPanel({ image, canvas, img, mark, errorId: "pen-error-mobile" }));
 
     const hintBox = h("div", { style: { margin: "16px 14px 0", position: "relative", background: "var(--blue)", border: "4px solid var(--ink)", padding: "15px 15px 15px 54px", boxShadow: "5px 6px 0 var(--ink)", transform: "rotate(-.8deg)" } });
     hintBox.appendChild(h("img", { src: assetPath("wizard-magnifier.png"), alt: "", style: { position: "absolute", left: "-18px", top: "-14px", width: "46px", transform: "rotate(-10deg)" } }));
@@ -1009,17 +1041,18 @@ function buildDesktopErgebnis(s, image) {
 
   const left = h("div", { style: { position: "relative", background: "var(--ink)", padding: "26px 0 26px 32px", display: "flex", alignItems: "center" } });
   const imgBox = h("div", { style: { position: "relative", width: "100%", border: "4px solid var(--paper)" } });
-  const dImg = h("img", { src: image.src, alt: "Fertiges Wimmelbild", style: { display: "block", width: "100%" } });
+  // crossOrigin=anonymous: siehe Kommentar beim mobilen <img> in Screens.ergebnis.render() (Punkt D).
+  const dImg = h("img", { src: image.src, alt: "Fertiges Wimmelbild", crossOrigin: "anonymous", style: { display: "block", width: "100%" } });
   imgBox.appendChild(dImg);
   const dCanvas = h("canvas", { style: { position: "absolute", inset: "0", width: "100%", height: "100%", touchAction: "none" } });
   dCanvas.classList.toggle("hidden", !s.penOn);
   imgBox.appendChild(dCanvas);
-  const dPenTag = h("span", { class: "h-black", style: { position: "absolute", left: "20%", top: "30%", margin: "-34px 0 0 160px", background: "var(--red)", color: "var(--paper)", fontSize: "12px", letterSpacing: ".06em", padding: "7px 10px", transform: "rotate(-3deg)", pointerEvents: "none" } }, "das da weg");
+  const dPenTag = h("span", { class: "h-black", style: { position: "absolute", left: "20%", top: "30%", margin: "-34px 0 0 160px", background: "var(--red)", color: "var(--paper)", fontSize: "12px", letterSpacing: ".06em", padding: "7px 10px", transform: "rotate(-3deg)", pointerEvents: "none" } }, (s.penMode === "redo") ? "das hier neu" : "das da weg");
   dPenTag.classList.toggle("hidden", !s.penOn);
   imgBox.appendChild(dPenTag);
   left.appendChild(imgBox);
   grid.appendChild(left);
-  setupFreehand(dCanvas, dImg);
+  const dMark = setupFreehand(dCanvas, dImg);
 
   const aside = h("aside", { style: { background: "var(--paper)", borderLeft: "4px solid var(--ink)", padding: "26px 28px 26px 26px", display: "flex", flexDirection: "column", gap: "18px" } });
 
@@ -1027,24 +1060,32 @@ function buildDesktopErgebnis(s, image) {
   top.appendChild(h("p", { class: "kicker kicker-yellow", style: { transform: "rotate(-2deg)" } }, "Bild " + s.images.length + " · " + (image.title || "Wimmelbild")));
   top.appendChild(h("h1", { class: "h-black", style: { fontSize: "44px", lineHeight: ".88", letterSpacing: "-.045em" } }, "Da ist es."));
   top.appendChild(h("p", { class: "caveat", style: { margin: "8px 0 0", fontSize: "23px", lineHeight: "1.1" } }, "schau erst mal in Ruhe."));
+  // Siehe Kommentar bei Screens.ergebnis.render() (Punkt C3+C4) -- gleicher sichtbarer Hinweis auch
+  // in der Desktop-Ansicht, nicht nur mobil.
+  if (!image.verify || (image.violations || 0) > 0) {
+    const dNoticeBox = h("div", { style: { marginTop: "12px", background: "var(--yellow)", border: "4px solid var(--ink)", padding: "13px 14px", boxShadow: "5px 6px 0 var(--ink)" } });
+    dNoticeBox.appendChild(h("p", { class: "h-black", style: { margin: "0 0 5px", fontSize: "12px", letterSpacing: ".04em" } }, "⚠ Bitte einmal gegenchecken"));
+    dNoticeBox.appendChild(h("p", { style: { margin: "0", fontSize: "13px", lineHeight: "1.45" } },
+      !image.verify
+        ? "Unsere automatische Qualitätsprüfung konnte dieses Bild nicht auswerten (technischer Fehler beim Prüf-Schritt) — wir wissen nicht sicher, ob alles passt. Bitte einmal selbst durchschauen, bevor du weitermachst."
+        : "Unsere automatische Qualitätsprüfung hat bei diesem Bild mögliche Abweichungen gefunden (z. B. eine fehlende Person oder ein sichtbarer Mund) — der beste von mehreren Versuchen wurde trotzdem gewählt. Bitte einmal selbst durchschauen, bevor du weitermachst."));
+    top.appendChild(dNoticeBox);
+  }
   aside.appendChild(top);
 
   const toolCol = h("div", { style: { display: "flex", flexDirection: "column", gap: "10px" } });
   const dPenBtn = h("button", { type: "button", class: "h-black", style: { width: "100%", minHeight: "52px", fontSize: "13px", border: "3px solid var(--ink)", cursor: "pointer", background: s.penOn ? "var(--red)" : "var(--paper)", color: s.penOn ? "var(--paper)" : "var(--ink)" } }, "Stift · markieren, was weg soll");
+  // GEAENDERT (Punkt D): voller Rerender statt manuellem Class-/Text-Toggle, gleicher Grund wie beim
+  // mobilen penBtn oben in Screens.ergebnis.render().
   dPenBtn.addEventListener("click", () => {
     const nowOn = !AppState.data.penOn;
-    AppState.update({ penOn: nowOn });
-    dPenBtn.style.background = nowOn ? "var(--red)" : "var(--paper)";
-    dPenBtn.style.color = nowOn ? "var(--paper)" : "var(--ink)";
-    dCanvas.classList.toggle("hidden", !nowOn);
-    dPenTag.classList.toggle("hidden", !nowOn);
-    dHint.textContent = nowOn
-      ? "kringel einfach drüber. ich muss nicht genau wissen, wo das Ding anfängt – ich verstehe, was du meinst."
-      : "irgendwas störend? nimm den Stift und mal es durch. der Rest der Szene bleibt genau so.";
+    AppState.update({ penOn: nowOn, penMode: nowOn ? (AppState.data.penMode || "remove") : null });
+    Router.goScreen("ergebnis");
   });
   toolCol.appendChild(dPenBtn);
   toolCol.appendChild(h("button", { type: "button", class: "h-black", style: { width: "100%", minHeight: "52px", background: "var(--paper)", border: "3px solid var(--ink)", fontSize: "13px", color: "inherit" } }, "Einzelnes Detail antippen"));
   toolCol.appendChild(h("button", { type: "button", class: "h-black", style: { width: "100%", minHeight: "52px", background: "var(--paper)", border: "3px solid var(--ink)", fontSize: "13px", color: "inherit" } }, "Ganze Szene nochmal zaubern"));
+  if (s.penOn) toolCol.appendChild(buildPenPanel({ image, canvas: dCanvas, img: dImg, mark: dMark, errorId: "pen-error-desktop" }));
   aside.appendChild(toolCol);
 
   const dHintBox = h("div", { style: { position: "relative", background: "var(--blue)", border: "4px solid var(--ink)", boxShadow: "6px 7px 0 var(--ink)", padding: "18px 18px 18px 62px", transform: "rotate(-.8deg)" } });
@@ -1066,10 +1107,20 @@ function buildDesktopErgebnis(s, image) {
 
 // Echtes Freihand-Kritzeln im Stift-Modus: Kreis, Durchstreichen, Gekritzel
 // gelten alle gleichwertig als Zeiger auf ein Objekt (siehe Briefing Schritt 4).
+// GEAENDERT (Sammel-Runde 10.09.2026, Punkt D: "Stift-Werkzeug UI bauen und mit
+// PEN_INSTRUCTION_REMOVE/PEN_INSTRUCTION_REDO verbinden -- aktuell nirgends aufgerufen"). Vorher
+// war das hier eine reine Deko-Funktion: sie zeichnete rote Freihand-Linien auf ein Overlay-Canvas,
+// tat aber sonst NICHTS damit -- keine Erfassung der Markierung, kein API-Aufruf, kein Ergebnis.
+// PEN_INSTRUCTION_REMOVE/PEN_INSTRUCTION_REDO (pipeline.js, wortgleich aus der Spezifikation
+// Abschnitt 4) lagen fertig vor, wurden aber von keinem Screen aufgerufen. Gibt jetzt ein Objekt mit
+// hasMark()/clear() zurueck, damit der neue Anwenden-Button (buildPenPanel() unten) weiss, ob
+// ueberhaupt etwas markiert wurde, und die Markierung nach einem erfolgreichen/abgebrochenen Editier-
+// Durchlauf wieder loeschen kann, ohne das ganze Canvas-Element neu zu erzeugen.
 function setupFreehand(canvas, img) {
   const ctx = canvas.getContext("2d");
   let drawing = false;
   let last = null;
+  let marked = false;
 
   function resize() {
     const rect = canvas.getBoundingClientRect();
@@ -1103,6 +1154,7 @@ function setupFreehand(canvas, img) {
     ctx.lineTo(p.x, p.y);
     ctx.stroke();
     last = p;
+    marked = true;
     e.preventDefault();
   }
   function end() { drawing = false; }
@@ -1113,4 +1165,127 @@ function setupFreehand(canvas, img) {
   canvas.addEventListener("touchstart", start, { passive: false });
   canvas.addEventListener("touchmove", move, { passive: false });
   canvas.addEventListener("touchend", end);
+
+  return {
+    hasMark: () => marked,
+    clear: () => { marked = false; if (canvas.width && canvas.height) ctx.clearRect(0, 0, canvas.width, canvas.height); }
+  };
+}
+
+// NEU (Punkt D): baut aus dem angezeigten Bild UND der Freihand-Markierung EIN flaches
+// Composite-Bild in der tatsaechlichen (natuerlichen) Aufloesung des Fotos -- das Canvas-Overlay
+// selbst ist nur in der angezeigten (moeglicherweise kleineren) CSS-Groesse gepixelt, die Markierung
+// wird hier proportional auf die volle Bildaufloesung hochskaliert, damit sie an der fal.ai-Edit-
+// Schnittstelle an der richtigen Stelle landet. WICHTIG, noch nicht live verifiziert: das <img>
+// braucht crossOrigin="anonymous" UND der fal.media-Server muesste dafuer CORS-Header setzen, sonst
+// gilt das Canvas als "tainted" und toDataURL() wirft einen SecurityError -- genau wie bei anderen
+// bisher unverifizierten Annahmen in dieser Codebasis (siehe composeSceneImage()-Kommentar zu ">5
+// Personen") ist das hier bewusst dokumentiert statt stillschweigend als sicher angenommen; siehe
+// try/catch in applyPenEdit() unten, das einen expliziten, sichtbaren Fehler zeigt statt eines
+// stillen Fehlschlags, falls genau das im Live-Test auftritt.
+function captureAnnotatedImage(canvas, img) {
+  const off = document.createElement("canvas");
+  off.width = img.naturalWidth || img.width || canvas.width;
+  off.height = img.naturalHeight || img.height || canvas.height;
+  const octx = off.getContext("2d");
+  octx.drawImage(img, 0, 0, off.width, off.height);
+  octx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, off.width, off.height);
+  return off.toDataURL("image/png");
+}
+
+// NEU (Punkt D): ein gemeinsames Re-Entry-Gate fuer beide Ergebnis-Ansichten (mobil + Desktop
+// zeigen zwar getrennte <canvas>-Elemente, aber immer nur EINE davon ist gerade sichtbar/aktiv) --
+// gleiches Muster wie charGenBusy (charakter.js) und zauberBusy (oben in dieser Datei).
+let penApplyBusy = false;
+
+// NEU (Punkt D): fuehrt die eigentliche Stift-Bearbeitung aus -- baut das Composite-Bild, waehlt je
+// nach Modus PEN_INSTRUCTION_REMOVE oder PEN_INSTRUCTION_REDO, ruft Pipeline.generateImage() als
+// Szenen-Edit auf (kind:"scene", editImageUrl:composite -- derselbe Edit-Pfad wie bei der
+// Erstgenerierung, nur ohne Verify-Schritt: die Spezifikation sieht fuer Stift-Korrekturen keine
+// automatische Nachpruefung vor) und ersetzt bei Erfolg NUR die Bild-URL des BESTEHENDEN Bildes
+// (AppState.updateImage(), state.js) -- es entsteht kein zweites, neues Bild in der Galerie, genau
+// wie es der bestehende Hinweistext verspricht ("der Rest der Szene bleibt genau so"). violations/
+// verify werden dabei bewusst auf null zurueckgesetzt: eine Stift-Korrektur wurde NICHT automatisch
+// gegengeprueft, und der bereits vorhandene "Bitte einmal gegenchecken"-Hinweis (Punkt C3+C4, siehe
+// Screens.ergebnis.render()) greift dadurch automatisch auch hier, statt eine ungeprüfte Korrektur
+// stillschweigend als endgueltig sauber darzustellen.
+async function applyPenEdit({ image, canvas, img, mark, mode, errorId, applyBtn, cancelBtn }) {
+  if (penApplyBusy) return;
+  const errorEl = () => document.getElementById(errorId);
+  const showError = (msg) => { const el = errorEl(); if (el) { el.textContent = msg; el.style.display = "block"; } };
+  if (!mark.hasMark()) {
+    showError("Bitte erst etwas auf dem Bild markieren.");
+    return;
+  }
+  { const el = errorEl(); if (el) el.style.display = "none"; }
+  penApplyBusy = true;
+  const buttons = [applyBtn, cancelBtn].filter(Boolean);
+  buttons.forEach((b) => { b.disabled = true; });
+  if (applyBtn) { applyBtn.dataset.prevText = applyBtn.textContent; applyBtn.textContent = "Wird bearbeitet …"; }
+  try {
+    const composite = captureAnnotatedImage(canvas, img);
+    const instruction = mode === "redo" ? Pipeline.PEN_INSTRUCTION_REDO : Pipeline.PEN_INSTRUCTION_REMOVE;
+    const result = await Pipeline.generateImage(instruction, "scene", { editImageUrl: composite });
+    AppState.updateImage(image.id, { src: result.url, violations: null, verify: null });
+    mark.clear();
+    penApplyBusy = false;
+    AppState.update({ penOn: false, penMode: null });
+    Router.goScreen("ergebnis");
+  } catch (e) {
+    penApplyBusy = false;
+    buttons.forEach((b) => { b.disabled = false; });
+    if (applyBtn) applyBtn.textContent = applyBtn.dataset.prevText || "Anwenden";
+    showError("Bearbeiten hat nicht geklappt: " + (e && e.message ? e.message : String(e)) + " — nochmal versuchen?");
+  }
+}
+
+// NEU (Punkt D): das eigentliche Stift-Bedienfeld -- Modus-Umschalter (Weg damit / Neu zeichnen,
+// deckt beide PEN_INSTRUCTION_*-Varianten aus der Spezifikation ab, vorher gab es nur die feste
+// "das da weg"-Beschriftung ohne echte Modus-Wahl), Loeschen- und Anwenden-Button, eigene
+// Fehleranzeige. Wird sowohl von Screens.ergebnis.render() (mobil) als auch buildDesktopErgebnis()
+// aufgerufen -- jeweils mit ihrem eigenen canvas/img-Element und einer eigenen errorId, damit beide
+// unabhaengig funktionieren, falls (theoretisch) beide gleichzeitig im DOM stehen (Breakpoint-
+// Uebergang).
+function buildPenPanel({ image, canvas, img, mark, errorId }) {
+  const s = AppState.data;
+  const mode = s.penMode || "remove";
+  const wrap = h("div", { style: { margin: "10px 14px 0", padding: "12px", border: "3px solid var(--ink)", background: "var(--paper)" } });
+
+  const modeRow = h("div", { style: { display: "flex", gap: "8px", marginBottom: "10px" } });
+  const removeBtn = h("button", {
+    type: "button", class: "h-black",
+    style: { flex: "1", minHeight: "40px", fontSize: "11px", border: "3px solid var(--ink)", cursor: "pointer", background: mode === "remove" ? "var(--red)" : "var(--paper)", color: mode === "remove" ? "var(--paper)" : "var(--ink)" },
+    onClick: () => { AppState.update({ penMode: "remove" }); Router.goScreen("ergebnis"); }
+  }, "Weg damit");
+  const redoBtn = h("button", {
+    type: "button", class: "h-black",
+    style: { flex: "1", minHeight: "40px", fontSize: "11px", border: "3px solid var(--ink)", cursor: "pointer", background: mode === "redo" ? "var(--red)" : "var(--paper)", color: mode === "redo" ? "var(--paper)" : "var(--ink)" },
+    onClick: () => { AppState.update({ penMode: "redo" }); Router.goScreen("ergebnis"); }
+  }, "Neu zeichnen");
+  modeRow.appendChild(removeBtn);
+  modeRow.appendChild(redoBtn);
+  wrap.appendChild(modeRow);
+
+  wrap.appendChild(h("p", { style: { margin: "0 0 10px", fontSize: "11.5px", lineHeight: "1.4", color: "rgba(26,26,24,.65)" } },
+    mode === "redo"
+      ? "kringel das Objekt ein, das anders werden soll — ich zeichne es neu, alles andere bleibt gleich."
+      : "kringel das Objekt ein, das raus soll — ich entferne es komplett."));
+
+  const btnRow = h("div", { style: { display: "flex", gap: "8px" } });
+  const cancelBtn = h("button", {
+    type: "button", class: "h-black",
+    style: { flex: "1", minHeight: "44px", fontSize: "12px", border: "3px solid var(--ink)", background: "var(--paper)", color: "var(--ink)", cursor: "pointer" },
+    onClick: () => { mark.clear(); }
+  }, "Löschen");
+  const applyBtn = h("button", {
+    type: "button", class: "h-black",
+    style: { flex: "1", minHeight: "44px", fontSize: "12px", border: "3px solid var(--ink)", background: "var(--yellow)", color: "var(--ink)", cursor: "pointer" }
+  }, "Anwenden");
+  applyBtn.addEventListener("click", () => applyPenEdit({ image, canvas, img, mark, mode, errorId, applyBtn, cancelBtn }));
+  btnRow.appendChild(cancelBtn);
+  btnRow.appendChild(applyBtn);
+  wrap.appendChild(btnRow);
+
+  wrap.appendChild(h("p", { id: errorId, style: { margin: "8px 0 0", fontSize: "12px", color: "var(--red)", display: "none" } }, ""));
+  return wrap;
 }

@@ -221,9 +221,22 @@ module.exports = async (req, res) => {
   // über 2000 Zeichen erzeugt (im Test: 2481) und wurde von diesem MVP-Missbrauchsschutz fälschlich
   // als "zu lang" abgelehnt (400-Fehler, sichtbar als extrem schnelle/leere "Generierung" statt eines
   // echten Fehlers). Das ist keine fal.ai-Grenze, sondern nur unsere eigene defensive Obergrenze –
-  // auf 6000 angehoben, damit dichte 15+-Situationen-Szenen (das gewünschte "Wimmeln") nicht mehr
-  // künstlich blockiert werden.
-  if (prompt.length > 6000) {
+  // damals auf 6000 angehoben.
+  // WEITER ERHOEHT (Sammel-Runde 10.09.2026, Punkt B3: "Zeichen-Limit pruefen/erhoehen, bevor es bei
+  // längeren Freitexten reißt"). Seit der 6000er-Grenze sind mehrere neue, potenziell lange
+  // Freitext-Quellen dazugekommen, die alle in denselben Szenen-Prompt einfliessen: der echte
+  // Mehrzug-Chat (C17, sendChatTurn()/sceneChat() -- ein laengeres Gespraech kann mehr und
+  // ausfuehrlichere situations_en liefern als die kuratierte GAG_LIBRARY), die echte
+  // Audio-Transkription (C18 -- eine mehrminuetige vorgelesene Gute-Nacht-Geschichte transkribiert
+  // zu einem entsprechend langen Text) und jetzt (Punkt A3) auch fal.ai's eigene Bildbeschreibung
+  // pro Foto-Charakter. Keines dieser Freitextfelder hat ein hartes Zeichenlimit im Frontend (siehe
+  // z.B. das charNote-Textarea/scene-chat-input in charakter.js/szene.js) -- 5 Charaktere mit
+  // jeweils einer laengeren, echten Notiz PLUS 15 laengere, chat-generierte Vignetten koennten den
+  // alten 6000er-Deckel in einem realistischen (nicht nur missbraeuchlichen) Fall erreichen oder
+  // ueberschreiten. Auf 16000 angehoben -- immer noch eine bewusst endliche Obergrenze (echter
+  // Missbrauchsschutz gegen z.B. ein absichtlich zehntausende Zeichen langes charNote bleibt
+  // bestehen), aber mit deutlich mehr Sicherheitsabstand zum realistischen Wimmelbuch-Normalfall.
+  if (prompt.length > 16000) {
     res.status(400).json({ error: "Prompt zu lang." });
     return;
   }
@@ -290,7 +303,19 @@ module.exports = async (req, res) => {
       res.status(502).json({ error: "fal.ai hat kein Bild geliefert." });
       return;
     }
-    res.status(200).json({ url, seed: typeof data.seed === "number" ? data.seed : seed });
+    // NEU (Sammel-Runde 10.09.2026, Punkt A3: "charInSceneFromChips()-Aufruf im Foto-Pfad mit den
+    // tatsaechlichen Merkmalen befuellen statt leer"). Der Foto-Pfad hat keine Chip-/Notiz-UI (siehe
+    // charakter.js buildFotoPanel()) -- es gibt dort schlicht keine vom Menschen eingegebenen
+    // Merkmale, die wir "befuellen" koennten, ohne sie zu ERRATEN (genau das hatte der urspruengliche
+    // Code-Kommentar an dieser Stelle bewusst vermeiden wollen). fal.ai liefert bei image_urls-Edit-
+    // Aufrufen (Nano Banana 2/Pro) aber bereits ein eigenes "description"-Feld mit: eine kurze
+    // englische Beschreibung dessen, was das Modell TATSAECHLICH gezeichnet hat (nicht von uns
+    // geraten, sondern vom selben Modell, das auch das Bild erzeugt hat) -- bisher wurde dieses Feld
+    // hier einfach verworfen. Jetzt durchgereicht, damit der Foto-Pfad (siehe pipeline.js
+    // generateImage()/charakter.js generateCharacterImageFromPhoto()) daraus einen echten,
+    // bild-basierten sceneDescription-Zusatz bauen kann statt eines leeren Strings. Leerer String,
+    // wenn fal.ai kein description liefert (z.B. beim Text-zu-Bild-Pfad) -- kein Fehlerfall.
+    res.status(200).json({ url, seed: typeof data.seed === "number" ? data.seed : seed, description: typeof data.description === "string" ? data.description : "" });
   } catch (e) {
     res.status(502).json({ error: "Verbindung zu fal.ai fehlgeschlagen: " + String(e) });
   }
