@@ -115,15 +115,18 @@
       </div>
     </div>
     <!-- NEU (Sammel-Runde 09.09.2026, Punkt A1): zweites, schwarzes Gegen-Laufband ÜBER dem roten --
-         halbe Bandhoehe (Padding 5px statt 10px, Schrift 11px statt 15px) und Gegenrichtung
-         ("ticker-yellow-rev" -- der Klassenname beschreibt nur die Animationsrichtung/-farbe des
-         gelben Bands weiter unten, ist selbst aber farbneutral, siehe main.css: nur "animation:
-         tickerReverse" ist gesetzt, Hintergrund/Textfarbe kommen wie ueberall hier inline). Verlinkt
-         auf denselben "#verschenken"-Platzhalteranker wie der bestehende Gutschein-Link im
-         Abschluss-CTA weiter unten (dort noch kein eigener Zielbereich gebaut). -->
-    <a href="#verschenken" style="display: block; text-decoration: none;" aria-label="Ideal auch als Geschenk – hier geht es zum Gutschein">
+         halbe Bandhoehe (Padding 5px statt 10px), Gegenrichtung ("ticker-yellow-rev" -- der
+         Klassenname beschreibt nur die Animationsrichtung/-farbe des gelben Bands weiter unten, ist
+         selbst aber farbneutral, siehe main.css: nur "animation: tickerReverse" ist gesetzt,
+         Hintergrund/Textfarbe kommen wie ueberall hier inline).
+         GEAENDERT (Sammel-Runde 10.09.2026): Schriftgroesse jetzt 15px statt 11px -- exakt identisch
+         zum roten Band darunter (Nutzer-Vorgabe: "Schriftgröße im schwarzen Banner genau so groß wie
+         die im roten"), obwohl das Band selbst weiterhin halb so hoch bleibt (5px statt 10px
+         Padding). Ausserdem jetzt klickbar zur echten Gutschein-Seite (gutschein.html) statt des
+         bisherigen "#verschenken"-Platzhalterankers -- siehe dort, Punkt "Gutschein-Seite". -->
+    <a href="gutschein.html" style="display: block; text-decoration: none;" aria-label="Ideal auch als Geschenk – hier geht es zum Gutschein">
       <div class="ticker-wrap" style="background: var(--ink); color: var(--paper); border-top: 4px solid var(--ink); border-bottom: 4px solid var(--ink); padding: 5px 0;">
-        <div class="ticker-track ticker-yellow-rev" style="font-size: 11px; letter-spacing: .04em;">
+        <div class="ticker-track ticker-yellow-rev" style="font-size: 15px; letter-spacing: .04em;">
           <span>Ideal auch als Geschenk ✦ Hier geht es zum Gutschein ✦ Ideal auch als Geschenk ✦ Hier geht es zum Gutschein ✦&nbsp;</span>
           <span>Ideal auch als Geschenk ✦ Hier geht es zum Gutschein ✦ Ideal auch als Geschenk ✦ Hier geht es zum Gutschein ✦&nbsp;</span>
         </div>
@@ -192,9 +195,12 @@
        12px-Abstand war fuer den Fall gedacht, dass nichts direkt danach kommt, hat hier aber eine
        sichtbar helle Luecke zwischen rotem und schwarzem Band gerissen statt eines nahtlosen
        Uebergangs. -->
-  <a href="#verschenken" class="mobile-only" style="display: block; text-decoration: none;" aria-label="Ideal auch als Geschenk – hier geht es zum Gutschein">
+  <!-- GEAENDERT (Sammel-Runde 10.09.2026): Schriftgroesse 13px statt 10px -- exakt identisch zum
+       roten Band darueber (Nutzer-Vorgabe, siehe gleichlautender Kommentar bei der Desktop-Version
+       oben). Verlinkt jetzt auf die echte Gutschein-Seite statt des Platzhalterankers. -->
+  <a href="gutschein.html" class="mobile-only" style="display: block; text-decoration: none;" aria-label="Ideal auch als Geschenk – hier geht es zum Gutschein">
     <div class="ticker-wrap" style="background: var(--ink); color: var(--paper); border-top: 4px solid var(--ink); border-bottom: 4px solid var(--ink); padding: 7px 0;">
-      <div class="ticker-track ticker-yellow-rev" style="font-size: 10px; letter-spacing: .04em;">
+      <div class="ticker-track ticker-yellow-rev" style="font-size: 13px; letter-spacing: .04em;">
         <span>Ideal auch als Geschenk ✦ Hier geht es zum Gutschein ✦ Ideal auch als Geschenk ✦ Hier geht es zum Gutschein ✦&nbsp;</span>
         <span>Ideal auch als Geschenk ✦ Hier geht es zum Gutschein ✦ Ideal auch als Geschenk ✦ Hier geht es zum Gutschein ✦&nbsp;</span>
       </div>
@@ -350,7 +356,7 @@
          nach der Preise-Sektion weiter oben auf derselben Seite ist der Hinweis redundant geworden,
          jetzt nur noch der Konto-Hinweis. -->
     <p class="caveat" style="margin: 18px 0 0; font-size: 19px; line-height: 1.15;">Kein Konto notwendig.</p>
-    <a href="#verschenken" style="display: inline-block; margin-top: 10px; font-size: 14px; font-weight: 600; color: var(--paper);">Lieber verschenken? Gutschein →</a>
+    <a href="gutschein.html" style="display: inline-block; margin-top: 10px; font-size: 14px; font-weight: 600; color: var(--paper);">Lieber verschenken? Gutschein →</a>
   </section>
 
   <footer style="padding: 20px 14px 40px; background: var(--ink); color: var(--paper-a60); font-size: 12px; line-height: 1.7;">

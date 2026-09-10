@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gutschein verschenken — Wimmel Wizard</title>
+<meta name="description" content="Verschenke ein personalisiertes Wimmelbuch: Gutschein für Poster oder Mini-Wimmelbuch, unkompliziert per Anfrage." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;500;600;700&family=Caveat:wght@600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="css/main.css" />
+<style>
+  /* NEU (Sammel-Runde 10.09.2026, Gutschein-Seite): eigene, schlanke Styles fuer diese Seite --
+     bewusst NICHT css/app.css eingebunden (dessen .field/.pay-btn sind fuer die App-SPA gedacht und
+     ziehen dort einiges an Kontext mit), stattdessen ein eigenes, minimales .gs-field hier, im
+     selben visuellen Stil wie das bestehende .field (3px Rahmen, var(--ink), Archivo). */
+  .gs-field {
+    width: 100%; min-height: 50px; border: 3px solid var(--ink); background: #FFF; padding: 0 12px;
+    font-family: 'Archivo', sans-serif; font-size: 15px; box-sizing: border-box;
+  }
+  textarea.gs-field { min-height: 96px; resize: none; padding: 11px; line-height: 1.45; }
+  .gs-option { display: flex; gap: 12px; align-items: center; border: 4px solid var(--ink); padding: 14px; background: var(--paper); cursor: pointer; text-align: left; width: 100%; font-family: 'Archivo', sans-serif; }
+  .gs-option.on { background: var(--yellow); box-shadow: 4px 4px 0 var(--ink); }
+  .lp-header {
+    position: fixed; top: 0; left: 50%; z-index: 60; width: 100%; max-width: var(--container-max);
+    transform: translateX(-50%); background: var(--ink); color: var(--paper);
+  }
+  @media (min-width: 1024px) {
+    .lp-header { left: 0; width: 100%; max-width: none; transform: none; }
+    .gs-wrap { max-width: 640px; margin: 0 auto; }
+  }
+</style>
+</head>
+<body>
+<div class="app-shell" id="app">
+
+  <!-- Identischer Header wie index.html (siehe dortiger Kommentar zur Fixierung/Groessenangleichung). -->
+  <header id="lp-header" class="lp-header" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px;">
+    <a href="/" style="display:flex; align-items:center; gap:8px; margin-right:auto; text-decoration:none; color: var(--paper);">
+      <img src="assets/wizard-badge.png" alt="" style="width: 30px; height: 30px; flex: none; transform: rotate(-6deg);" />
+      <span class="h-black" style="font-size: 12px; letter-spacing: -.01em;">Wimmel&nbsp;Wizard<sup style="font-size: 7px; vertical-align: super;">™</sup></span>
+    </a>
+    <a href="/app" class="h-black" style="flex: none; background: var(--red); color: var(--paper); font-size: 12px; padding: 10px 13px; border: 3px solid var(--paper); transform: rotate(-2deg); min-height: 40px; display: flex; align-items: center;">Los!</a>
+  </header>
+
+  <div class="gs-wrap" style="padding: 20px 14px 0;">
+    <a href="/" style="display: inline-block; margin-bottom: 14px; font-size: 13px; font-weight: 600; color: var(--ink-a70);">← zurück zu Wimmel Wizard</a>
+
+    <!-- Kein ".kicker"/".kicker-red" hier -- die Klassen existieren nur in css/app.css (App-SPA),
+         diese Seite bindet bewusst nur main.css ein (wie index.html). Gleicher Look rein inline
+         nachgebaut. -->
+    <p class="h-black" style="margin: 0 0 8px; display: inline-block; border: 3px solid var(--ink); background: var(--red); color: var(--paper); font-size: 9px; letter-spacing: .1em; text-transform: uppercase; padding: 5px 8px; transform: rotate(-1.5deg);">Verschenken · ohne Umwege</p>
+    <h1 class="h-black" style="margin: 8px 0 10px; font-size: 34px; line-height: .92; letter-spacing: -.04em;">Gutschein<br />statt Rätselraten.</h1>
+    <p class="caveat" style="margin: 0 0 22px; font-size: 22px; line-height: 1.15;">ideal für alle, bei denen du nicht weißt, welches Alltagschaos sie am meisten lieben. das entscheiden sie dann selbst.</p>
+
+    <!-- NEU (Sammel-Runde 10.09.2026): Phase-1/Pilot-Hinweis im selben ehrlichen Ton wie
+         index.html (siehe dortiger Kommentar Punkt A4) -- es gibt noch keine automatisierte
+         Zahlungs-/Gutschein-Ausgabe, daher hier bewusst eine ECHTE Anfrage per E-Mail statt eines
+         Formulars, das eine Funktion vortäuscht, die es (noch) nicht gibt. -->
+    <div style="border: 3px dashed var(--ink); background: var(--paper-a80); padding: 14px; margin-bottom: 24px; transform: rotate(-.5deg);">
+      <p style="margin: 0; font-size: 13px; line-height: 1.5;">Ehrliche Sache: wir sind noch im Pilotbetrieb, es gibt noch keinen automatischen Gutschein-Versand. Du schickst uns unten kurz deine Wahl und Daten per E-Mail, wir melden uns garantiert innerhalb von 24 Stunden mit dem fertigen Gutschein-Code.</p>
+    </div>
+
+    <h2 class="h-black" style="margin: 0 0 12px; font-size: 20px; letter-spacing: -.02em;">Welcher Gutschein?</h2>
+    <div id="gs-options" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 26px;"></div>
+
+    <h2 class="h-black" style="margin: 0 0 12px; font-size: 20px; letter-spacing: -.02em;">Deine Angaben</h2>
+    <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px;">
+      <input class="gs-field" id="gs-name" placeholder="Dein Name" aria-label="Dein Name" />
+      <input class="gs-field" id="gs-email" type="email" placeholder="Deine E-Mail-Adresse" aria-label="Deine E-Mail-Adresse" />
+      <input class="gs-field" id="gs-recipient" placeholder="Für wen ist der Gutschein? (optional)" aria-label="Empfänger, optional" />
+      <textarea class="gs-field" id="gs-message" placeholder="Nachricht, Wunschtermin oder sonst was (optional)" aria-label="Nachricht, optional"></textarea>
+    </div>
+    <p id="gs-error" style="display: none; margin: 0 0 12px; font-size: 13px; color: var(--red);"></p>
+
+    <button type="button" id="gs-submit" class="h-black" style="display: block; width: 100%; background: var(--yellow); color: var(--ink); font-size: 17px; padding: 16px; border: 4px solid var(--ink); box-shadow: 5px 6px 0 var(--ink); cursor: pointer; margin-bottom: 10px;">Gutschein per E-Mail anfragen</button>
+    <p style="margin: 0 0 30px; font-size: 12px; line-height: 1.5; color: var(--ink-a70);">öffnet dein E-Mail-Programm mit einer vorausgefüllten Nachricht an uns — nichts wird automatisch oder im Hintergrund verschickt.</p>
+  </div>
+
+  <footer style="padding: 20px 14px 40px; background: var(--ink); color: var(--paper-a60); font-size: 12px; line-height: 1.7; margin-top: 20px;">
+    <div style="display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 12px;">
+      <a href="/#impressum" style="color: var(--paper);">Impressum</a>
+      <a href="/#datenschutz" style="color: var(--paper);">Datenschutz</a>
+      <a href="/#agb" style="color: var(--paper);">AGB</a>
+      <a href="/#kontakt" style="color: var(--paper);">Kontakt</a>
+    </div>
+    <p style="margin: 0;">Wimmel Wizard · gedruckt in Deutschland · Hund inklusive</p>
+  </footer>
+</div>
+
+<script>
+(function () {
+  // TODO (vor echtem Launch ersetzen): noch keine feste Kontakt-Adresse im Projekt hinterlegt --
+  // Platzhalter, per Nutzer-Rueckmeldung (Sammel-Runde 10.09.2026) bewusst als Platzhalter gesetzt,
+  // nicht geraten. Klar im Code markiert, damit das vor dem echten Launch nicht uebersehen wird.
+  var CONTACT_EMAIL = "hallo@wimmel-wizard.de"; // TODO: durch echte Kontakt-Adresse ersetzen
+
+  var OPTIONS = [
+    { id: "poster", label: "Poster-Gutschein", desc: "1 Wimmelbild, DIN A2", price: "29 €" },
+    { id: "buch", label: "Mini-Wimmelbuch-Gutschein", desc: "2 Bilder + Charakterseite, 8 Seiten, Softcover", price: "49 €" }
+  ];
+  var selected = "buch";
+
+  function syncHeaderSpacing() {
+    var header = document.getElementById("lp-header");
+    var shell = document.getElementById("app");
+    if (header && shell) shell.style.paddingTop = header.offsetHeight + "px";
+  }
+  syncHeaderSpacing();
+  window.addEventListener("resize", syncHeaderSpacing);
+
+  function renderOptions() {
+    var wrap = document.getElementById("gs-options");
+    wrap.innerHTML = "";
+    OPTIONS.forEach(function (opt) {
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "gs-option" + (selected === opt.id ? " on" : "");
+      btn.setAttribute("aria-pressed", selected === opt.id ? "true" : "false");
+      btn.onclick = function () { selected = opt.id; renderOptions(); };
+      var textWrap = document.createElement("div");
+      textWrap.style.flex = "1";
+      textWrap.style.minWidth = "0";
+      var h3 = document.createElement("h3");
+      h3.className = "h-black";
+      h3.style.cssText = "font-size:16px; letter-spacing:-.02em; margin:0 0 3px;";
+      h3.textContent = opt.label;
+      var p = document.createElement("p");
+      p.style.cssText = "font-size:13px; line-height:1.4; font-weight:500; margin:0;";
+      p.textContent = opt.desc;
+      textWrap.appendChild(h3);
+      textWrap.appendChild(p);
+      var price = document.createElement("span");
+      price.className = "h-black";
+      price.style.cssText = "flex:none; font-size:16px; background: var(--ink); color: var(--paper); padding:6px 9px;";
+      price.textContent = opt.price;
+      btn.appendChild(textWrap);
+      btn.appendChild(price);
+      wrap.appendChild(btn);
+    });
+  }
+  renderOptions();
+
+  document.getElementById("gs-submit").addEventListener("click", function () {
+    var errorP = document.getElementById("gs-error");
+    var name = document.getElementById("gs-name").value.trim();
+    var email = document.getElementById("gs-email").value.trim();
+    var recipient = document.getElementById("gs-recipient").value.trim();
+    var message = document.getElementById("gs-message").value.trim();
+
+    if (!name || !email) {
+      errorP.textContent = "Bitte Name und E-Mail-Adresse ausfüllen, sonst können wir uns nicht bei dir melden.";
+      errorP.style.display = "block";
+      return;
+    }
+    errorP.style.display = "none";
+
+    var opt = OPTIONS.filter(function (o) { return o.id === selected; })[0];
+    var subject = "Gutschein-Anfrage: " + opt.label + " (" + opt.price + ")";
+    var bodyLines = [
+      "Hallo Wimmel Wizard,",
+      "",
+      "ich möchte gerne folgenden Gutschein bestellen:",
+      opt.label + " – " + opt.desc + " – " + opt.price,
+      "",
+      "Mein Name: " + name,
+      "Meine E-Mail: " + email
+    ];
+    if (recipient) bodyLines.push("Für wen: " + recipient);
+    if (message) { bodyLines.push(""); bodyLines.push("Nachricht: " + message); }
+    bodyLines.push("");
+    bodyLines.push("Danke und viele Grüße!");
+
+    var mailto = "mailto:" + encodeURIComponent(CONTACT_EMAIL)
+      + "?subject=" + encodeURIComponent(subject)
+      + "&body=" + encodeURIComponent(bodyLines.join("\n"));
+    window.location.href = mailto;
+  });
+})();
+</script>
+</body>
+</html>
