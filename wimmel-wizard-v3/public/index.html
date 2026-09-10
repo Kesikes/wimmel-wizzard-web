@@ -170,44 +170,36 @@
        (vorher bei einer 1.6°-Drehung minimal zu knapp bemessen). Negativer Top-Margin von -2px auf
        -30px erhöht, damit das Band sichtbar in den unteren Rand des Hero-Bilds hineinragt statt nur
        knapp darunter zu kleben. -->
-  <!-- NEU (Sammel-Runde 09.09.2026, Punkt A1): mobile Variante des schwarzen Gegen-Laufbands, siehe
-       ausfuehrlichen Kommentar bei der Desktop-Version oben.
-       GEAENDERT (Sammel-Runde 10.09.2026, A1-Feinschliff, per Screenshot mit roter Markierung der
-       gewuenschten Oberkante): war zwischenzeitlich bewusst NICHT rotiert/hochskaliert (siehe
-       darunterstehender, jetzt ueberholter Bugfix-Kommentar zum roten Band) -- neue Anforderung ist
-       aber das genaue Gegenteil: "exakt parallel zum orangenen/roten Band geneigt, halb so hoch, aber
-       WEITER ins Bild hineinragend als das orangene". Jetzt bekommt das schwarze Band SELBST die
-       Rotation/Hochskalierung (identischer -1.6deg/1.22-Wert wie das rote Band darunter, fuer
-       dieselbe randlose Kantenueberdeckung, siehe roter Band-Kommentar oben zur Herkunft dieser
-       Werte) UND einen eigenen negativen Top-Margin, der es weiter ins Heldenbild hineinzieht als
-       das rote Band selbst (-34px vs. dessen 0px, siehe dort) -- per Live-Test mit der tatsaechlich
-       deployten Seite (getBoundingClientRect()-Messung gegen die vom Nutzer markierte Ziel-Oberkante)
-       ermittelt, nicht geraten. z-index:7 (hoeher als das rote Band mit z-index:6), damit das
-       schwarze Band in der jetzt bewusst wieder ueberlappenden Zone beide sichtbar bleiben UND nicht
-       erneut vom roten Band verdeckt wird (siehe genau dieser Fehler im vorherigen Bugfix-Kommentar
-       unten). Negativer Bottom-Margin (-6px) haelt den Abstand zum roten Band knapp/nahtlos, statt
-       durch den neuen negativen Top-Margin eine sichtbare Luecke zum roten Band darunter zu reissen. -->
+  <!-- GEAENDERT (Sammel-Runde 10.09.2026, A1-Feinschliff Runde 2, per Screenshot-Bestaetigung des
+       Nutzers "genau so soll es ausschauen ... erst der rote Balken, dann der schwarze drunter"):
+       bisherige Reihenfolge war schwarzes Band ZUERST (direkt unter dem Heldenbild, mit eigener
+       Rotation/negativem Top-Margin, siehe vorherige Kommentar-Version im Git-Verlauf), rotes Band
+       DANACH. Jetzt getauscht: rotes Band zuerst (direkt unters Heldenbild, ragt wie urspruenglich
+       vor Punkt A1 in dessen unteren Rand hinein, siehe Kommentar dort), schwarzes Band danach,
+       normal im Fluss, flach (keine eigene Rotation/kein negativer Margin mehr noetig, da es nicht
+       mehr an das Heldenbild direkt angrenzt). Das vom Nutzer als "genau richtig" bestaetigte
+       Screenshot zeigte optisch bereits fast dieses Ergebnis (durch das hochskalierte rote Band,
+       das durch seinen hoeheren z-index das schwarze Band an der Nahtstelle teilweise ueberdeckt
+       hat) -- jetzt per expliziter DOM-Reihenfolge sauber/robust nachgebaut statt sich auf diesen
+       eher zufaelligen Ueberlappungs-Nebeneffekt zu verlassen. -->
+  <div class="ticker-wrap mobile-only" style="background: var(--red); color: var(--paper); border-top: 4px solid var(--ink); border-bottom: 4px solid var(--ink); padding: 15px 0; transform: rotate(-1.6deg) scale(1.22); margin: -30px 0 0; position: relative; z-index: 6;">
+    <div class="ticker-track ticker-red" style="font-size: 13px; letter-spacing: .04em;">
+      <span>Kein Stockfoto ✦ Kein Template ✦ Hundert Prozent individualisiert ✦ Der erste KI-unterstützte Wimmelbuch-Generator ✦ Kein Stockfoto ✦ Kein Template ✦ Hundert Prozent individualisiert ✦ Der erste KI-unterstützte Wimmelbuch-Generator ✦&nbsp;</span>
+    </div>
+  </div>
+  <!-- Bottom-Margin von vorher 12px auf 0 (per Live-Test): das rote Band folgt jetzt direkt auf das
+       Heldenbild UND hat das schwarze Band direkt als naechstes Geschwisterelement -- der alte
+       12px-Abstand war fuer den Fall gedacht, dass nichts direkt danach kommt, hat hier aber eine
+       sichtbar helle Luecke zwischen rotem und schwarzem Band gerissen statt eines nahtlosen
+       Uebergangs. -->
   <a href="#verschenken" class="mobile-only" style="display: block; text-decoration: none;" aria-label="Ideal auch als Geschenk – hier geht es zum Gutschein">
-    <div class="ticker-wrap" style="background: var(--ink); color: var(--paper); border-top: 4px solid var(--ink); border-bottom: 4px solid var(--ink); padding: 7px 0; transform: rotate(-1.6deg) scale(1.22); margin: -34px 0 -6px; position: relative; z-index: 7;">
+    <div class="ticker-wrap" style="background: var(--ink); color: var(--paper); border-top: 4px solid var(--ink); border-bottom: 4px solid var(--ink); padding: 7px 0;">
       <div class="ticker-track ticker-yellow-rev" style="font-size: 10px; letter-spacing: .04em;">
         <span>Ideal auch als Geschenk ✦ Hier geht es zum Gutschein ✦ Ideal auch als Geschenk ✦ Hier geht es zum Gutschein ✦&nbsp;</span>
         <span>Ideal auch als Geschenk ✦ Hier geht es zum Gutschein ✦ Ideal auch als Geschenk ✦ Hier geht es zum Gutschein ✦&nbsp;</span>
       </div>
     </div>
   </a>
-  <!-- BUGFIX (Sammel-Runde 09.09.2026, Punkt A1 Nachzieher): der negative Top-Margin von -30px war
-       vom 06.09.2026-Fix (siehe Kommentar oben) noch aus der Zeit, als dieses rote Band DIREKT unter
-       dem Heldenbild lag und bewusst in dessen unteren Rand hineinragen sollte. Seit dem neuen
-       schwarzen Band direkt darueber (Punkt A1) zieht dieser Minus-30px-Margin das rote Band aber
-       ueber die volle Hoehe des schwarzen Bands nach oben -- kombiniert mit z-index:6 (hoeher als
-       der von .ticker-wrap geerbte z-index:5 des schwarzen Bands) hat das rote Band das schwarze
-       Band komplett uebermalt, obwohl dessen Markup ganz normal im DOM stand ("im Seitencode da,
-       aber nicht sichtbar"). Margin auf 0 gesetzt, damit beide Baender sauber uebereinander stehen. -->
-  <div class="ticker-wrap mobile-only" style="background: var(--red); color: var(--paper); border-top: 4px solid var(--ink); border-bottom: 4px solid var(--ink); padding: 15px 0; transform: rotate(-1.6deg) scale(1.22); margin: 0 0 12px; position: relative; z-index: 6;">
-    <div class="ticker-track ticker-red" style="font-size: 13px; letter-spacing: .04em;">
-      <span>Kein Stockfoto ✦ Kein Template ✦ Hundert Prozent individualisiert ✦ Der erste KI-unterstützte Wimmelbuch-Generator ✦ Kein Stockfoto ✦ Kein Template ✦ Hundert Prozent individualisiert ✦ Der erste KI-unterstützte Wimmelbuch-Generator ✦&nbsp;</span>
-    </div>
-  </div>
 
   <!-- Suchprotokoll (mobil) -- übernimmt jetzt den Stil des entfernten "Drei Schritte"-Blocks
        (schwarzer Hintergrund, große gelbe Zahlen-Typografie), siehe Kommentar dort. -->
