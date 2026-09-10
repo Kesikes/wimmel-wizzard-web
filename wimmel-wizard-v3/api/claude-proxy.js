@@ -225,6 +225,47 @@ module.exports = async (req, res) => {
     return;
   }
 
+  // ---- Modus (NEU, Sammel-Runde 09.09.2026, Punkt B8: "Inhaltsmoderation fürs Freitextfeld") ----
+  // Grund (aus der Aufgabenbeschreibung übernommen): den eingegebenen Freitext vor der Verwendung
+  // durch einen einfachen Prüf-Aufruf schicken (über den ohnehin vorhandenen ANTHROPIC_API_KEY,
+  // ähnlich dem Vision-Verify-Mechanismus von fal-proxy.js -- dort prüft ein Vision-Modell ein
+  // fertiges Bild gegen eine Checkliste, hier prüft ein einzelner, zustandsloser Text-Aufruf einen
+  // Freitext gegen eine einzige Ja/Nein-Frage). Bewusst SEHR knapp gehalten (max_tokens: 5, ein
+  // einzelnes Wort als Antwort erwartet) -- kein Gespräch, kein Tool-Calling, keine Begründung.
+  if (body.mode === "moderate") {
+    const text = String(body.text || "").slice(0, 2000).trim();
+    if (!text) {
+      res.status(200).json({ flagged: false });
+      return;
+    }
+    try {
+      const resp = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+        body: JSON.stringify({
+          model: MODEL,
+          max_tokens: 5,
+          system: "Du prüfst kurze Nutzereingaben für ein Kinderprodukt (ein personalisiertes Bilderbuch für Kinder). Enthält der folgende Text anstößige Inhalte, Waffen, Gewalt oder anderweitig Unangemessenes für ein Kinderprodukt? Antworte AUSSCHLIESSLICH mit dem einzigen Wort 'Ja' oder 'Nein' – keine Erklärung, keine Satzzeichen, kein weiterer Text.",
+          messages: [{ role: "user", content: text }],
+        }),
+      });
+      if (!resp.ok) {
+        const txt = await resp.text().catch(() => "");
+        res.status(502).json({ error: "Anthropic-Fehler " + resp.status + ": " + txt.slice(0, 200) });
+        return;
+      }
+      const data = await resp.json();
+      const answer = ((data.content && data.content[0] && data.content[0].text) || "").trim().toLowerCase();
+      // Bewusst per startsWith statt exaktem "===" (fängt "ja", "ja.", "ja!" etc. gleichermaßen ab,
+      // falls das Modell doch minimal von der angeforderten Ein-Wort-Antwort abweicht).
+      const flagged = answer.startsWith("ja");
+      res.status(200).json({ flagged });
+    } catch (e) {
+      res.status(502).json({ error: "Verbindung zu Anthropic fehlgeschlagen: " + String(e) });
+    }
+    return;
+  }
+
   // ---- Modus 1: Foto-Merkmalsextraktion (kein Chatverlauf, ein einzelner Vision-Aufruf) ----
   if (body.mode === "extract_traits") {
     const imageDataUri = String(body.imageDataUri || "");

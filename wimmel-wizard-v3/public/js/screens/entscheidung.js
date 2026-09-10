@@ -3,10 +3,14 @@
    Texte wörtlich aus referenz/App-Flow-v4-OatlyWimmel.dc.html.
    ========================================================================== */
 
+// Sammel-Runde 09.09.2026, Punkt A3: dritte Stufe "Wimmelbuch" (89 €, 5 Bilder, gebunden/Hardcover)
+// vorerst entfernt -- Produktangebot ist auf der Landingpage (index.html) auf Poster +
+// Mini-Wimmelbuch (Softcover) reduziert, damit hier im Flow dieselben zwei Optionen stehen (sonst
+// koennte man im App-Flow etwas waehlen, das auf der Marketingseite gar nicht mehr beworben wird).
+// Hardcover/5-Bilder-Stufe kommt spaeter zurueck.
 const TIERS = [
   { name: "Poster", price: "29 €", body: "Ein Bild, groß gedruckt. Fertig – keine weiteren Schritte.", tag: "sofort fertig" },
-  { name: "Mini-Wimmelbuch", price: "49 €", body: "2 Bilder + Charakterseite, 8 Seiten. Du hast alles schon zusammen.", tag: "alles da" },
-  { name: "Wimmelbuch", price: "89 €", body: "5 Bilder. Vier Abende Erzählen – oder vier Wochen, wie du magst.", tag: "noch 3 Bilder" }
+  { name: "Mini-Wimmelbuch", price: "49 €", body: "2 Bilder + Charakterseite, 8 Seiten, Softcover. Du hast alles schon zusammen.", tag: "alles da" }
 ];
 
 Screens.entscheidung = {
@@ -72,9 +76,15 @@ Screens.widmung = {
     ta.addEventListener("input", () => AppState.update({ dedication: ta.value }));
     card.appendChild(ta);
 
-    const voiceRow = h("div", { style: { display: "flex", alignItems: "center", gap: "9px", borderTop: "3px solid var(--ink)", paddingTop: "12px" } });
-    voiceRow.appendChild(h("button", { type: "button", style: { flex: "none", width: "46px", height: "46px", border: "3px solid var(--ink)", background: "var(--red)", color: "var(--paper)", fontFamily: "'Archivo Black',sans-serif", fontSize: "15px", cursor: "pointer" } }, "●"));
-    voiceRow.appendChild(h("span", { style: { fontSize: "13px", lineHeight: "1.35" } }, "Lieber einsprechen? Deine Stimme kommt als QR-Code hinten ins Buch."));
+    // UMGEBAUT (Sammel-Runde 09.09.2026, Punkt E23: "QR-Code-Idee fallen lassen. Stattdessen wie
+    // bei Szene: einfache Moeglichkeit, zu sprechen statt zu tippen"). Vorher: ein rein dekorativer
+    // "●"-Button ohne jede Funktion + Text ueber eine QR-Code-Widmung, die es serverseitig nie gab
+    // (kein Audio-Speicher-/QR-Generierungs-Endpunkt). Jetzt: derselbe echte, bereits im
+    // Chat-Interview bewaehrte Sprechen-statt-Tippen-Baustein (buildVoiceButton(), Web Speech API
+    // mit Browser-Feature-Detection, siehe szene.js) -- schreibt direkt in dieselbe Textarea/denselben
+    // "dedication"-State-Key wie normales Tippen, kein neuer Mechanismus noetig.
+    const voiceRow = h("div", { style: { borderTop: "3px solid var(--ink)", paddingTop: "12px" } });
+    voiceRow.appendChild(buildVoiceButton(ta, "dedication"));
     card.appendChild(voiceRow);
     wrap.appendChild(card);
 
@@ -89,6 +99,37 @@ Screens.widmung = {
     });
     wrap.appendChild(tplWrap);
 
+    wrap.appendChild(h("p", { id: "dedication-error", style: { margin: "14px 0 0", fontSize: "12px", color: "var(--red)", display: "none" } }, ""));
+
     root.appendChild(wrap);
   }
+};
+
+// NEU (Punkt B8, Sammel-Runde 09.09.2026: "Inhaltsmoderation fürs Freitextfeld"). Vorher hatte die
+// Widmung KEIN eigenes onNext() -- die Bottom-Bar navigierte immer einfach per defaultGoNext()
+// weiter, egal was in der Widmung stand. Die Widmung ist aber freier Text, der spaeter tatsaechlich
+// gedruckt wird -- genau die Art Freitext, die B8 vor der Verwendung geprueft haben will. Eine
+// Vorlage (DEDICATION_TEMPLATES) gilt als bereits geprueft (feste, im Code stehende Texte) und wird
+// NICHT erneut moderiert -- nur wenn der Text vom vorformulierten Vorlagen-Wortlaut abweicht (freie
+// Eingabe/Aenderung), lohnt sich der Prüf-Aufruf. Fail-closed wie bei charNote (charakter.js): ein
+// fehlgeschlagener Prüf-Aufruf blockiert mit Retry-Hinweis, statt stillschweigend durchzuwinken.
+Screens.widmung.onNext = ({ nextBtn, weiterBtn, defaultGoNext }) => {
+  const s = AppState.data;
+  const text = (s.dedication || "").trim();
+  const errorP = document.getElementById("dedication-error");
+  if (!text || DEDICATION_TEMPLATES.includes(text)) { defaultGoNext(); return; }
+  const activeButtons = [nextBtn, weiterBtn].filter(Boolean);
+  activeButtons.forEach((b) => { b.dataset.prevText = b.textContent; b.disabled = true; b.textContent = "Ich prüfe …"; b.style.opacity = "0.75"; });
+  return Pipeline.moderateText(text).then((flagged) => {
+    activeButtons.forEach((b) => { b.disabled = false; b.textContent = b.dataset.prevText || b.textContent; b.style.opacity = "1"; });
+    if (flagged) {
+      if (errorP) { errorP.textContent = "Diese Widmung enthält Inhalte, die wir für ein Kinderprodukt nicht verwenden können — magst du sie anpassen?"; errorP.style.display = "block"; }
+      return;
+    }
+    if (errorP) errorP.style.display = "none";
+    defaultGoNext();
+  }).catch((e) => {
+    activeButtons.forEach((b) => { b.disabled = false; b.textContent = b.dataset.prevText || b.textContent; b.style.opacity = "1"; });
+    if (errorP) { errorP.textContent = "Prüfung hat gerade nicht geklappt: " + (e && e.message ? e.message : String(e)) + " — bitte nochmal versuchen."; errorP.style.display = "block"; }
+  });
 };

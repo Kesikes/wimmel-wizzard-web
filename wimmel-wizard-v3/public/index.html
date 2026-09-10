@@ -114,6 +114,21 @@
         <p class="h-black" style="margin: 20px 0 0; display: inline-flex; align-items: center; gap: 10px; background: var(--ink); padding: 9px 13px; font-size: 11px; letter-spacing: .12em; color: var(--yellow);"><span>↗</span> anklicken, in beliebiger Reihenfolge</p>
       </div>
     </div>
+    <!-- NEU (Sammel-Runde 09.09.2026, Punkt A1): zweites, schwarzes Gegen-Laufband ÜBER dem roten --
+         halbe Bandhoehe (Padding 5px statt 10px, Schrift 11px statt 15px) und Gegenrichtung
+         ("ticker-yellow-rev" -- der Klassenname beschreibt nur die Animationsrichtung/-farbe des
+         gelben Bands weiter unten, ist selbst aber farbneutral, siehe main.css: nur "animation:
+         tickerReverse" ist gesetzt, Hintergrund/Textfarbe kommen wie ueberall hier inline). Verlinkt
+         auf denselben "#verschenken"-Platzhalteranker wie der bestehende Gutschein-Link im
+         Abschluss-CTA weiter unten (dort noch kein eigener Zielbereich gebaut). -->
+    <a href="#verschenken" style="display: block; text-decoration: none;" aria-label="Ideal auch als Geschenk – hier geht es zum Gutschein">
+      <div class="ticker-wrap" style="background: var(--ink); color: var(--paper); border-top: 4px solid var(--ink); border-bottom: 4px solid var(--ink); padding: 5px 0;">
+        <div class="ticker-track ticker-yellow-rev" style="font-size: 11px; letter-spacing: .04em;">
+          <span>Ideal auch als Geschenk ✦ Hier geht es zum Gutschein ✦ Ideal auch als Geschenk ✦ Hier geht es zum Gutschein ✦&nbsp;</span>
+          <span>Ideal auch als Geschenk ✦ Hier geht es zum Gutschein ✦ Ideal auch als Geschenk ✦ Hier geht es zum Gutschein ✦&nbsp;</span>
+        </div>
+      </div>
+    </a>
     <div class="ticker-wrap" style="background: var(--red); color: var(--paper); border-top: 4px solid var(--ink); border-bottom: 4px solid var(--ink); padding: 10px 0;">
       <div class="ticker-track ticker-red" style="font-size: 15px; letter-spacing: .04em; animation-duration: 30s;">
         <span>Kein Stockfoto ✦ Kein Template ✦ Hundert Prozent individualisiert ✦ Der erste KI-unterstützte Wimmelbuch-Generator ✦&nbsp;</span>
@@ -155,6 +170,18 @@
        (vorher bei einer 1.6°-Drehung minimal zu knapp bemessen). Negativer Top-Margin von -2px auf
        -30px erhöht, damit das Band sichtbar in den unteren Rand des Hero-Bilds hineinragt statt nur
        knapp darunter zu kleben. -->
+  <!-- NEU (Sammel-Runde 09.09.2026, Punkt A1): mobile Variante des schwarzen Gegen-Laufbands, siehe
+       ausfuehrlichen Kommentar bei der Desktop-Version oben. Bewusst NICHT wie das rote Band darunter
+       rotiert/hochskaliert (das rote Band "haengt" gestalterisch noch ins Heldenbild hinein, siehe
+       dessen eigener Kommentar -- das neue schwarze Band sitzt normal im Fluss direkt darueber). -->
+  <a href="#verschenken" class="mobile-only" style="display: block; text-decoration: none;" aria-label="Ideal auch als Geschenk – hier geht es zum Gutschein">
+    <div class="ticker-wrap" style="background: var(--ink); color: var(--paper); border-top: 4px solid var(--ink); border-bottom: 4px solid var(--ink); padding: 7px 0;">
+      <div class="ticker-track ticker-yellow-rev" style="font-size: 10px; letter-spacing: .04em;">
+        <span>Ideal auch als Geschenk ✦ Hier geht es zum Gutschein ✦ Ideal auch als Geschenk ✦ Hier geht es zum Gutschein ✦&nbsp;</span>
+        <span>Ideal auch als Geschenk ✦ Hier geht es zum Gutschein ✦ Ideal auch als Geschenk ✦ Hier geht es zum Gutschein ✦&nbsp;</span>
+      </div>
+    </div>
+  </a>
   <div class="ticker-wrap mobile-only" style="background: var(--red); color: var(--paper); border-top: 4px solid var(--ink); border-bottom: 4px solid var(--ink); padding: 15px 0; transform: rotate(-1.6deg) scale(1.22); margin: -30px 0 12px; position: relative; z-index: 6;">
     <div class="ticker-track ticker-red" style="font-size: 13px; letter-spacing: .04em;">
       <span>Kein Stockfoto ✦ Kein Template ✦ Hundert Prozent individualisiert ✦ Der erste KI-unterstützte Wimmelbuch-Generator ✦ Kein Stockfoto ✦ Kein Template ✦ Hundert Prozent individualisiert ✦ Der erste KI-unterstützte Wimmelbuch-Generator ✦&nbsp;</span>
@@ -210,7 +237,9 @@
   <!-- Gelber Ticker -->
   <div class="ticker-wrap" style="background: var(--yellow); border-top: 4px solid var(--ink); border-bottom: 4px solid var(--ink); padding: 7px 0; transform: rotate(1.4deg) scale(1.07); margin: 10px 0 14px;">
     <div class="ticker-track ticker-yellow-rev" style="font-size: 12px; letter-spacing: .05em; color: var(--ink);">
-      <span>gedruckt in Deutschland ✦ Server in Deutschland ✦ Fotos freiwillig ✦ Hund inklusive ✦ gedruckt in Deutschland ✦ Server in Deutschland ✦ Fotos freiwillig ✦ Hund inklusive ✦&nbsp;</span>
+      <!-- "Server in Deutschland" entfernt (Sammel-Runde 09.09.2026, Punkt A2: nicht mehr zutreffend,
+           siehe DSGVO-Klaerung). -->
+      <span>gedruckt in Deutschland ✦ Fotos freiwillig ✦ Hund inklusive ✦ gedruckt in Deutschland ✦ Fotos freiwillig ✦ Hund inklusive ✦&nbsp;</span>
     </div>
   </div>
 
@@ -232,6 +261,12 @@
       <p class="h-black" style="margin: 6px 0 0; font-size: 22px; line-height: 1; letter-spacing: -.03em;">Das dauert länger als 3 Minuten.</p>
       <img src="assets/wizard-on-book.png" alt="" style="float: right; width: 176px; margin: 4px -6px 6px 16px; shape-outside: url(assets/wizard-on-book.png); shape-margin: 12px;" />
       <p style="margin: 10px 0 0; font-size: 14px; line-height: 1.5;">Ehrlich. Ein Wimmelbild ist ein kleines Kunstwerk. Jeder Schritt kostet nur ein paar Minuten – aber es sind halt mehrere. Du kannst jederzeit aufhören und später weitermachen. Wir speichern automatisch, weil wir keine Monster sind.</p>
+      <!-- NEU (Sammel-Runde 09.09.2026, Punkt A4): Phase-1/Pilot-Hinweis im selben ehrlichen,
+           unaufgeregten Ton wie der Absatz darueber -- bewusst in DIESER Karte statt eines eigenen
+           neuen Blocks, weil "unbequeme Ehrlichkeit" thematisch exakt passt. Identischer Text auch
+           im Zaubern-Ladebildschirm (szene.js, Punkt D22) -- an EINER Stelle formuliert, an zwei
+           Stellen eingesetzt. -->
+      <p style="margin: 10px 0 0; font-size: 14px; line-height: 1.5;">Noch eine ehrliche Sache: Bei den Bildern selbst stecken wir gerade in Phase eins, unserem Pilotprojekt. Die ersten Wimmelbilder kommen deshalb etwas kleiner daher als eigentlich geplant – größere Formate und noch mehr Wimmel-Trubel bauen wir schon.</p>
     </div>
   </section>
 
@@ -269,13 +304,13 @@
         <div style="flex:1; min-width:0;"><h3 class="h-black" style="font-size:17px; letter-spacing:-.02em; margin:0 0 3px;">Poster</h3><p style="font-size:13px; line-height:1.4; font-weight:500; margin:0;">1 Wimmelbild, DIN A2</p></div>
         <span class="h-black" style="flex:none; font-size:18px; background: var(--ink); color: var(--paper); padding:6px 9px; transform: rotate(2.2deg);">29 €</span>
       </div>
+      <!-- Sammel-Runde 09.09.2026, Punkt A3: Produktangebot vorerst auf Poster + Mini-Wimmelbuch
+           (Softcover) reduziert -- die dritte Stufe "Wimmelbuch, 89 €, 5 Bilder, gebunden" ist raus,
+           Hardcover kommt spaeter. Gleiche Reduktion in entscheidung.js (TIERS) und checkout.js
+           (Material-Text Hard->Softcover) vorgenommen. -->
       <div style="display:flex; gap:12px; align-items:center; border:4px solid var(--ink); padding:14px; background: var(--paper); transform: rotate(.96deg); box-shadow: -4px 5px 0 var(--ink);">
-        <div style="flex:1; min-width:0;"><h3 class="h-black" style="font-size:17px; letter-spacing:-.02em; margin:0 0 3px;">Mini-Wimmelbuch</h3><p style="font-size:13px; line-height:1.4; font-weight:500; margin:0;">2 Bilder + Charakterseite, 8 Seiten</p></div>
+        <div style="flex:1; min-width:0;"><h3 class="h-black" style="font-size:17px; letter-spacing:-.02em; margin:0 0 3px;">Mini-Wimmelbuch</h3><p style="font-size:13px; line-height:1.4; font-weight:500; margin:0;">2 Bilder + Charakterseite, 8 Seiten, Softcover</p></div>
         <span class="h-black" style="flex:none; font-size:18px; background: var(--ink); color: var(--paper); padding:6px 9px; transform: rotate(-1.6deg);">49 €</span>
-      </div>
-      <div style="display:flex; gap:12px; align-items:center; border:4px solid var(--ink); padding:14px; background: var(--paper); transform: rotate(-.72deg); box-shadow: 4px 5px 0 var(--ink);">
-        <div style="flex:1; min-width:0;"><h3 class="h-black" style="font-size:17px; letter-spacing:-.02em; margin:0 0 3px;">Wimmelbuch</h3><p style="font-size:13px; line-height:1.4; font-weight:500; margin:0;">5 Wimmelbilder, gebunden</p></div>
-        <span class="h-black" style="flex:none; font-size:18px; background: var(--ink); color: var(--paper); padding:6px 9px; transform: rotate(1.2deg);">89 €</span>
       </div>
     </div>
   </section>
@@ -298,7 +333,10 @@
        -- die Sprechblasen-Grafik samt Overlay-Text ("Also. Erzähl.") ist raus, direkt der Button. -->
   <section id="start" style="margin-top: 34px; background: var(--red); color: var(--paper); border-top: 4px solid var(--ink); padding: 26px 14px 28px; text-align: center;">
     <a href="/app" class="h-black" style="display: block; background: var(--yellow); color: var(--ink); font-size: 20px; padding: 18px; border: 4px solid var(--ink); box-shadow: 5px 6px 0 var(--ink); transform: rotate(1.2deg);">Jetzt loswimmeln</a>
-    <p class="caveat" style="margin: 18px 0 0; font-size: 19px; line-height: 1.15;">kein Konto. kein Preis, bevor du weißt, was du kriegst.</p>
+    <!-- Sammel-Runde 09.09.2026, Punkt A5: "kein Preis, bevor du weißt, was du bekommst" entfernt --
+         nach der Preise-Sektion weiter oben auf derselben Seite ist der Hinweis redundant geworden,
+         jetzt nur noch der Konto-Hinweis. -->
+    <p class="caveat" style="margin: 18px 0 0; font-size: 19px; line-height: 1.15;">Kein Konto notwendig.</p>
     <a href="#verschenken" style="display: inline-block; margin-top: 10px; font-size: 14px; font-weight: 600; color: var(--paper);">Lieber verschenken? Gutschein →</a>
   </section>
 

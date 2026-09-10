@@ -21,6 +21,24 @@ const HAIR_LENGTH = [{ label: "Kurz", en: "short" }, { label: "Mittel", en: "med
 // ueber die Haar-Gruppen oben abgefragt wird (sonst doppelt/widerspruechlich).
 const CHIPS = ["Strickjacke", "Blümchenbluse", "Brille an der Kette", "Gehstock", "Perlenkette", "Gummistiefel", "immer eine Tasche dabei", "lacht viel"];
 
+// NEU (Sammel-Runde 09.09.2026, Punkt B7: "tierspezifische Merkmal-Sets" -- bisher zeigte das
+// Merkmale-Formular JEDER Person, auch einem als "Haustier" angelegten Hund/Katze, dieselben
+// Haarfarbe/-form/-länge-Chips und dieselbe "Perlenkette/Gehstock"-Besonderheiten-Liste. Das passt
+// inhaltlich nicht ("Locken" bei einem Hund) und liefert unpassende Prompt-Bestandteile. Jetzt: ein
+// paralleles Fell-Merkmal-Set (Farbe/Muster + wiederverwendete Laenge-Chips, siehe HAIR_LENGTH
+// unten -- "kurz/mittel/lang" passt inhaltlich unveraendert auch auf Fell) + eigene, tierpassende
+// Besonderheiten-Chips. buildChipsPanel() waehlt anhand von person.isPet (state.js) zwischen den
+// zwei Sets.
+const FUR_COLORS = [
+  { label: "Braun", en: "brown" }, { label: "Schwarz", en: "black" }, { label: "Weiß", en: "white" },
+  { label: "Grau", en: "gray" }, { label: "Beige/Creme", en: "cream" }, { label: "Rotbraun", en: "reddish-brown" },
+  { label: "Gefleckt", en: "spotted, multi-colored" }
+];
+const FUR_PATTERN = [
+  { label: "Einfarbig", en: "solid-colored" }, { label: "Gestreift", en: "striped" }, { label: "Gescheckt", en: "patchy, multi-colored patterns" }
+];
+const PET_CHIPS = ["Schlappohren", "Stehohren", "buschiger Schwanz", "Stummelschwanz", "Flecken auf dem Rücken", "trägt ein Halsband", "immer mit einem Ball", "schläft am liebsten in der Sonne"];
+
 // Rollen-Auswahl fuer das "Person hinzufuegen"-Formular. value ist bereits
 // der von Pipeline.ageRole()/charPrompt() erwartete Wert (siehe pipeline.js
 // Kommentar "role muss vom Aufrufer kommen: girl/boy/woman/man/grandmother/
@@ -85,7 +103,7 @@ Screens.charakter = {
     wrap.appendChild(grid);
 
     if (chipsOn) wrap.appendChild(buildChipsPanel(person));
-    if (fotoOn) wrap.appendChild(buildFotoPanel());
+    if (fotoOn) wrap.appendChild(buildFotoPanel(person));
 
     root.appendChild(wrap);
 
@@ -136,6 +154,14 @@ function buildSingleSelectGroup(stateKey, options, hint) {
 
 function buildChipsPanel(person) {
   const s = AppState.data;
+  // NEU (B7): person.isPet (state.js) steuert, ob die Haar- oder die Fell-Merkmal-Sets gezeigt
+  // werden. Die drei Chip-Gruppen bleiben technisch dieselben State-Keys (charHairColor/-Texture/
+  // -Length) -- gespeichert wird nur ein Array-INDEX, welche Bedeutung der Index hat (Haar- oder
+  // Fell-Option) entscheidet ausschliesslich isPet bei Anzeige/Auswertung (siehe hairPhraseEn()).
+  const isPet = !!person.isPet;
+  const colorSet = isPet ? FUR_COLORS : HAIR_COLORS;
+  const patternSet = isPet ? FUR_PATTERN : HAIR_TEXTURE;
+  const besondersheitSet = isPet ? PET_CHIPS : CHIPS;
   const panel = h("div", { style: { marginTop: "22px", border: "4px solid var(--ink)", background: "var(--paper)", boxShadow: "6px 7px 0 var(--ink)", padding: "16px" } });
   const row = h("div", { style: { display: "flex", gap: "14px", alignItems: "flex-start" } });
 
@@ -145,9 +171,9 @@ function buildChipsPanel(person) {
   row.appendChild(preview);
 
   const right = h("div", { style: { flex: "1", minWidth: "0" } });
-  right.appendChild(h("p", { class: "h-black", style: { margin: "0 0 10px", fontSize: "13px", letterSpacing: "-.01em" } }, "Haare"));
-  right.appendChild(buildSingleSelectGroup("charHairColor", HAIR_COLORS, "z. B. Farbe wählen"));
-  right.appendChild(buildSingleSelectGroup("charHairTexture", HAIR_TEXTURE, null));
+  right.appendChild(h("p", { class: "h-black", style: { margin: "0 0 10px", fontSize: "13px", letterSpacing: "-.01em" } }, isPet ? "Fell" : "Haare"));
+  right.appendChild(buildSingleSelectGroup("charHairColor", colorSet, isPet ? "z. B. Fellfarbe wählen" : "z. B. Farbe wählen"));
+  right.appendChild(buildSingleSelectGroup("charHairTexture", patternSet, null));
   right.appendChild(buildSingleSelectGroup("charHairLength", HAIR_LENGTH, null));
   row.appendChild(right);
   panel.appendChild(row);
@@ -157,7 +183,7 @@ function buildChipsPanel(person) {
   // Besonderheit ist bewusst eine EINZELNE Auswahl (Radio-Verhalten): erneutes Antippen des
   // bereits gewählten Chips waehlt ihn wieder ab, ein anderer Chip ersetzt die Auswahl.
   const besChipWrap = h("div", { style: { display: "flex", flexWrap: "wrap", gap: "7px" } });
-  CHIPS.forEach((label, i) => {
+  besondersheitSet.forEach((label, i) => {
     const chip = h("button", {
       type: "button",
       style: chipStyle(s.charBesonderheit === label, i),
@@ -207,28 +233,37 @@ function buildChipsPanel(person) {
 // Von Screens.charakter.onNext() (siehe unten) UND nirgendwo sonst aufgerufen -- einziger
 // verbleibender Weg, eine Figur zu generieren, statt zweier Buttons mit unterschiedlichem
 // Verhalten (siehe Bugfix-Kommentar oben in buildChipsPanel()).
-// Baut den fertigen, bereits englischen Haar-Satzteil aus den drei Haar-Gruppen (Farbe/Form/
-// Laenge), z.B. "short curly blonde hair". Bewusst NICHT ueber translateChip()/translate() geroutet
-// (siehe Konstanten-Kommentar oben bei HAIR_COLORS) -- feste, getestete Werte statt freier Eingabe.
-function hairPhraseEn(s) {
-  const color = s.charHairColor != null ? HAIR_COLORS[s.charHairColor] : null;
-  const texture = s.charHairTexture != null ? HAIR_TEXTURE[s.charHairTexture] : null;
+// Baut den fertigen, bereits englischen Haar- ODER Fell-Satzteil aus den drei Chip-Gruppen (Farbe/
+// Form/Laenge), z.B. "short curly blonde hair" bzw. "short spotted brown fur". Bewusst NICHT ueber
+// translateChip()/translate() geroutet (siehe Konstanten-Kommentar oben bei HAIR_COLORS) -- feste,
+// getestete Werte statt freier Eingabe.
+// GEAENDERT (B7): neuer Parameter "isPet" -- entscheidet, ob die gespeicherten Indizes gegen
+// HAIR_COLORS/HAIR_TEXTURE oder FUR_COLORS/FUR_PATTERN aufgeloest werden (siehe buildChipsPanel(),
+// das je nach person.isPet das jeweils passende Set zur Auswahl anzeigt) und ob der Prompt auf
+// "hair" oder "fur" endet.
+function hairPhraseEn(s, isPet) {
+  const colorSet = isPet ? FUR_COLORS : HAIR_COLORS;
+  const patternSet = isPet ? FUR_PATTERN : HAIR_TEXTURE;
+  const color = s.charHairColor != null ? colorSet[s.charHairColor] : null;
+  const texture = s.charHairTexture != null ? patternSet[s.charHairTexture] : null;
   const length = s.charHairLength != null ? HAIR_LENGTH[s.charHairLength] : null;
   if (!color && !texture && !length) return "";
-  return [length && length.en, texture && texture.en, color && color.en, "hair"].filter(Boolean).join(" ");
+  return [length && length.en, texture && texture.en, color && color.en, isPet ? "fur" : "hair"].filter(Boolean).join(" ");
 }
 
 async function generateCharacterImage(person, buttons) {
   const s = AppState.data;
   const errorP = document.getElementById("char-gen-error");
-  const hairEn = hairPhraseEn(s);
+  const isPet = !!person.isPet;
+  const hairEn = hairPhraseEn(s, isPet);
   const chipLabels = s.charBesonderheit ? [s.charBesonderheit] : [];
-  // Validierung (umgebaut 05.09.2026): Haare sind jetzt die primäre, strukturierte Eingabe --
-  // erst wenn dort NICHTS gewählt ist, zählt ersatzweise die freie Notiz (z.B. bei einem Tier ohne
-  // "Haare" im menschlichen Sinn).
+  // Validierung (umgebaut 05.09.2026, B7-Ergaenzung 09.09.2026): Haare/Fell sind die primäre,
+  // strukturierte Eingabe -- erst wenn dort NICHTS gewählt ist, zählt ersatzweise die freie Notiz.
   if (!hairEn && !(s.charNote || "").trim()) {
     if (errorP) {
-      errorP.textContent = "Bitte mindestens Haarfarbe, -form und -länge auswählen oder etwas dazuschreiben.";
+      errorP.textContent = isPet
+        ? "Bitte mindestens Fellfarbe, -muster und -länge auswählen oder etwas dazuschreiben."
+        : "Bitte mindestens Haarfarbe, -form und -länge auswählen oder etwas dazuschreiben.";
       errorP.style.display = "block";
     }
     return;
@@ -236,38 +271,102 @@ async function generateCharacterImage(person, buttons) {
   if (errorP) errorP.style.display = "none";
   const activeButtons = (buttons || []).filter(Boolean);
   activeButtons.forEach((b) => { b.dataset.prevText = b.textContent; b.disabled = true; b.textContent = "Ich zeichne …"; b.style.opacity = "0.75"; });
+  // NEU (Punkt B8, Sammel-Runde 09.09.2026: "Inhaltsmoderation fürs Freitextfeld"). Prüft die freie
+  // Notiz VOR ihrer Verwendung (vor dem Übersetzen/Prompt-Bau) über Pipeline.moderateText() --
+  // eigener try/catch statt im Haupt-try unten, damit die Fehlermeldung nicht doppelt mit dem
+  // generischen "Zeichnen hat nicht geklappt: ..."-Präfix verkettet wird. Fail-closed: schlägt die
+  // Prüfung SELBST fehl (Netzwerk-/API-Fehler), wird NICHT stillschweigend weitergemacht, sondern
+  // mit Retry-Hinweis blockiert -- ein Sicherheits-Check, der bei einem Fehler einfach durchwinkt,
+  // wäre keiner.
+  if ((s.charNote || "").trim()) {
+    try {
+      const flagged = await Pipeline.moderateText(s.charNote);
+      if (flagged) {
+        if (errorP) { errorP.textContent = "Diese Notiz enthält Inhalte, die wir für ein Kinderprodukt nicht verwenden können — magst du sie anpassen?"; errorP.style.display = "block"; }
+        activeButtons.forEach((b) => { b.disabled = false; b.textContent = b.dataset.prevText || b.textContent; b.style.opacity = "1"; });
+        return;
+      }
+    } catch (modErr) {
+      if (errorP) { errorP.textContent = "Prüfung der Notiz hat gerade nicht geklappt: " + (modErr && modErr.message ? modErr.message : String(modErr)) + " — bitte nochmal versuchen."; errorP.style.display = "block"; }
+      activeButtons.forEach((b) => { b.disabled = false; b.textContent = b.dataset.prevText || b.textContent; b.style.opacity = "1"; });
+      return;
+    }
+  }
   try {
     const noteEn = await Pipeline.translateFreeText(s.charNote);
     const extraEnParts = hairEn ? [hairEn] : [];
     const prompt = Pipeline.charPromptFromChips({ role: person.role, age: person.age, chipLabels, extraEnParts, noteEn });
     const sceneDescription = Pipeline.charInSceneFromChips({ role: person.role, age: person.age, chipLabels, extraEnParts, noteEn });
     const result = await Pipeline.generateImage(prompt, "char");
-    // NEU (Feature-Ergänzung 05.09.2026: "Charakterblatt zeigt nur eine Ansicht" — jetzt bewusst
-    // mitgebaut): nach der Frontansicht zusätzlich Seite + Rücken + Dreiviertel-Ansicht.
-    // BUGFIX (Live-Test 06.09.2026: "Seitenansicht zeigt eine Glatze, obwohl die Frontansicht
-    // korrekte Haare hat" / "Rückansicht zeigt eine komplett andere Hose"): Seite und Rücken liefen
-    // vorher über charSheetViewPromptFromChips() -- reiner Text-zu-Bild-Weg ohne Referenzbild. Das
-    // haelt sich in der Praxis nicht zuverlaessig an Haar-/Kleidungs-Details, auch wenn sie im Prompt
-    // stehen (widerlegt die fruehere LoRA-Testnotiz dazu). Jetzt laufen ALLE DREI Zusatz-Ansichten
-    // ueber denselben Edit-Pfad wie schon die Dreiviertel-Ansicht (editImageUrl = fertiges Frontbild
-    // als visuelle Referenz, siehe sideViewEditInstruction()/backViewEditInstruction() in
-    // pipeline.js) -- das Modell kopiert Haare/Kleidung dann vom tatsaechlichen Bild statt sie nur
-    // aus einer Wortbeschreibung zu erraten. Laufen untereinander parallel, um die Wartezeit nicht
-    // zu verdreifachen. Best-effort: schlägt eine einzelne Zusatz-Ansicht fehl, blockiert das nicht
-    // die anderen — Charakterblatt zeigt dann ehrlich nur die Ansichten, die tatsächlich da sind
-    // (siehe dort).
-    const [sideR, backR, threeQR] = await Promise.allSettled([
-      Pipeline.generateImage(Pipeline.sideViewEditInstruction(), "char", { editImageUrl: result.url }),
-      Pipeline.generateImage(Pipeline.backViewEditInstruction(), "char", { editImageUrl: result.url }),
-      Pipeline.generateImage(Pipeline.threeQuarterEditInstruction(), "char", { editImageUrl: result.url }),
-    ]);
-    AppState.updatePerson(person.id, {
-      imageUrl: result.url, imageSeed: result.seed, sceneDescription,
-      imageUrlSide: sideR.status === "fulfilled" ? sideR.value.url : null,
-      imageUrlBack: backR.status === "fulfilled" ? backR.value.url : null,
-      imageUrlThreeQuarter: threeQR.status === "fulfilled" ? threeQR.value.url : null,
-    });
-    Router.goScreen("charakterblatt");
+    await generateExtraViewsAndFinish(person, result, sceneDescription);
+  } catch (e) {
+    if (errorP) {
+      errorP.textContent = "Zeichnen hat nicht geklappt: " + (e && e.message ? e.message : String(e)) + " — nochmal versuchen?";
+      errorP.style.display = "block";
+    }
+    activeButtons.forEach((b) => { b.disabled = false; b.textContent = b.dataset.prevText || b.textContent; b.style.opacity = "1"; });
+  }
+}
+
+// NEU (B9/B10, Sammel-Runde 09.09.2026): aus generateCharacterImage() herausgezogen, damit der neue
+// Foto-Weg (generateCharacterImageFromPhoto() unten) dieselbe "nach dem Frontbild automatisch
+// Seite/Ruecken/3-4 generieren und an der Person speichern"-Logik nutzt, statt sie ein zweites Mal
+// (und potenziell abweichend) zu implementieren. Uebernimmt 1:1 das Verhalten von vorher (siehe
+// Kommentare, die urspruenglich hier standen, jetzt bei generateCharacterImage() historisch nicht
+// mehr vorhanden, da diese Funktion jetzt die einzige Quelle ist): Seite/Ruecken/3-4 laufen ALLE
+// ueber den Edit-Pfad mit dem fertigen Frontbild als visuelle Referenz (zuverlaessiger als reiner
+// Text-zu-Bild-Weg, siehe pipeline.js sideViewEditInstruction()/backViewEditInstruction()-Kommentar),
+// parallel statt nacheinander, best-effort (Promise.allSettled -- eine fehlgeschlagene Zusatz-Ansicht
+// blockiert die anderen nicht).
+async function generateExtraViewsAndFinish(person, frontResult, sceneDescription) {
+  const [sideR, backR, threeQR] = await Promise.allSettled([
+    Pipeline.generateImage(Pipeline.sideViewEditInstruction(), "char", { editImageUrl: frontResult.url }),
+    Pipeline.generateImage(Pipeline.backViewEditInstruction(), "char", { editImageUrl: frontResult.url }),
+    Pipeline.generateImage(Pipeline.threeQuarterEditInstruction(), "char", { editImageUrl: frontResult.url }),
+  ]);
+  AppState.updatePerson(person.id, {
+    imageUrl: frontResult.url, imageSeed: frontResult.seed, sceneDescription,
+    imageUrlSide: sideR.status === "fulfilled" ? sideR.value.url : null,
+    imageUrlBack: backR.status === "fulfilled" ? backR.value.url : null,
+    imageUrlThreeQuarter: threeQR.status === "fulfilled" ? threeQR.value.url : null,
+  });
+  Router.goScreen("charakterblatt");
+}
+
+// NEU (B9/B10): liefert das/die Referenzbild(er), die Pipeline.photoStyleInstruction() als "REQUIRED
+// style reference" braucht (siehe pipeline.js-Kommentar dort: der Edit-Aufruf bekommt IMMER zwei
+// Bilder -- das hochgeladene Foto UND ein Referenzbild im Zielstil, sonst rutscht das Ergebnis
+// Richtung Fotorealismus statt des flachen wmlstil). Bevorzugt ein bereits FERTIG GEZEICHNETES Bild
+// derselben Familie/desselben Buchs (garantiert exakt denselben Stil, weil es aus genau demselben
+// Modell/Prompt-Pfad stammt) -- faellt nur beim allerersten Charakter eines frischen Haushalts (noch
+// niemand fertig) auf die feste Marketing-Asset-Grafik zurueck. fal-proxy.js akzeptiert dafuer sowohl
+// https-URLs (fal.media, bereits generierte Bilder) als auch /assets/-Pfade unserer eigenen Domain
+// (isImageRef()-Pruefung dort verlangt eine absolute https-URL -- window.location.origin macht
+// daraus zur Laufzeit eine, unabhaengig davon, unter welcher Domain die App gerade laeuft).
+function styleReferenceUrls() {
+  const s = AppState.data;
+  const doneWithImage = s.people.find((p) => p.status === "done" && p.imageUrl);
+  if (doneWithImage) return [doneWithImage.imageUrl];
+  return [window.location.origin + assetPath("wizzelwim-family-hero.png")];
+}
+
+// NEU (B9/B10): Foto-Pendant zu generateCharacterImage() -- selbes Muster (Buttons deaktivieren
+// waehrend der Generierung, Fehler sichtbar anzeigen, danach ueber generateExtraViewsAndFinish()
+// weiter). sceneDescription enthaelt hier bewusst NUR role+age (kein Haar-/Fell-Satzteil wie beim
+// Merkmale-Weg) -- die eigentliche visuelle Identitaet traegt bei diesem Weg das generierte BILD
+// selbst (als Referenzbild fuer spaetere Szenen, siehe imageRefMapping() in pipeline.js), nicht der
+// Text; ein erratener Haarfarben-Text waere hier ohnehin nur geraten, da wir die Merkmale vom Foto
+// nicht strukturiert abfragen.
+async function generateCharacterImageFromPhoto(person, photoDataUri, buttons) {
+  const errorP = document.getElementById("char-photo-error");
+  if (errorP) errorP.style.display = "none";
+  const activeButtons = (buttons || []).filter(Boolean);
+  activeButtons.forEach((b) => { b.dataset.prevText = b.textContent; b.disabled = true; b.textContent = "Ich zeichne …"; b.style.opacity = "0.75"; });
+  try {
+    const sceneDescription = Pipeline.charInSceneFromChips({ role: person.role, age: person.age, chipLabels: [], extraEnParts: [], noteEn: "" });
+    const result = await Pipeline.generateImage(Pipeline.photoStyleInstruction(), "char", { editImageUrl: photoDataUri, styleRefUrls: styleReferenceUrls() });
+    resetUploadedPhoto();
+    await generateExtraViewsAndFinish(person, result, sceneDescription);
   } catch (e) {
     if (errorP) {
       errorP.textContent = "Zeichnen hat nicht geklappt: " + (e && e.message ? e.message : String(e)) + " — nochmal versuchen?";
@@ -279,27 +378,123 @@ async function generateCharacterImage(person, buttons) {
 
 // Wird von app-shell.js renderBottomBar() aufgerufen, wenn vorhanden (statt der
 // Standard-"einfach weiternavigieren"-Aktion) -- siehe Kommentar dort.
+// BUGFIX (Sammel-Runde 09.09.2026, Punkt B6, Fortsetzung): seit buildAddPersonForm() ihren eigenen
+// Submit-Button verloren hat (siehe Kommentar dort), war dieser Zweig hier noch der alte -- er hat
+// beim fehlenden "person" (= Anlege-Formular aktiv) einfach nur defaultGoNext() ausgefuehrt, OHNE
+// die Person tatsaechlich anzulegen. Jetzt: kein "person" -> submitAddPerson() aufrufen (validiert
+// und legt an, siehe dort), NICHT einfach weiternavigieren. Nur wenn eine Person existiert, aber
+// gerade NICHT im Merkmale-Modus ("foto" oder null) ist, macht defaultGoNext() weiterhin Sinn (z.B.
+// beim Foto-Weg, der noch nicht angeschlossen ist, siehe buildFotoPanel()-Hinweis).
+// GEAENDERT (B9/B10): frueher fiel der Foto-Modus (s.charMode === "foto") komplett auf
+// defaultGoNext() zurueck ("Dieser Weg ist in diesem Testlauf noch nicht angeschlossen"-Hinweis im
+// Panel). Jetzt macht der Foto-Modus GENAU DASSELBE wie der Merkmale-Modus: wenn kein Foto
+// hochgeladen ist, wird NICHT navigiert (sichtbare Fehlermeldung im Panel statt dessen -- das ist
+// die "Button-Aktivierung" aus B9: der Bottom-Bar-Button loest ohne gueltige Eingabe keine Aktion
+// aus, exakt das gleiche Verhalten wie die Haar-Validierung im Merkmale-Modus und die
+// Namen/Rollen-Validierung im Anlage-Formular, siehe submitAddPerson()), mit Foto wird generiert.
 Screens.charakter.onNext = ({ nextBtn, weiterBtn, defaultGoNext }) => {
   const s = AppState.data;
   const person = AppState.currentPerson();
-  if (!person || s.charMode !== "chips") { defaultGoNext(); return; }
+  if (!person) { submitAddPerson(); return; }
+  if (s.charMode === "foto") {
+    if (!uploadedPhotoDataUri || uploadedPhotoForPersonId !== person.id) {
+      const errorP = document.getElementById("char-photo-error");
+      if (errorP) { errorP.textContent = "Bitte zuerst ein Foto auswählen."; errorP.style.display = "block"; }
+      return;
+    }
+    return generateCharacterImageFromPhoto(person, uploadedPhotoDataUri, [nextBtn, weiterBtn]);
+  }
+  if (s.charMode !== "chips") { defaultGoNext(); return; }
   // Rueckgabewert durchreichen (statt fire-and-forget): app-shell.js wartet zwar nicht darauf
   // (onclick braucht das nicht), aber so bleibt die Funktion sauber awaitbar/testbar.
   return generateCharacterImage(person, [nextBtn, weiterBtn]);
 };
 
-// EHRLICHER STATUS (nicht Teil dieses Testlaufs): der Foto-Weg hat bisher kein echtes
-// Datei-Upload-Feld (nur diese dekorative Vorschau) und ist nicht an Pipeline.generateImage()
-// mit editImageUrl/Pipeline.photoStyleInstruction() angeschlossen. Statt das stillschweigend so
-// zu lassen (sieht funktionsfaehig aus, ist es aber nicht), ein sichtbarer Hinweis + deaktivierter
-// Button, bis der echte Upload gebaut ist.
-function buildFotoPanel() {
+// NEU (Sammel-Runde 09.09.2026, Punkt B6): ueberschreibt die Bottom-Bar-Beschriftung (siehe
+// app-shell.js renderBottomBar()), solange das Personen-Anlage-Formular aktiv ist -- vorher zeigte
+// die Bar hier immer den festen NEXT[1]-Eintrag "Figur zeichnen lassen" samt dreizeiligem
+// Zeichnen-Untertext, obwohl an dieser Stelle noch gar nichts gezeichnet wird (das passiert erst
+// EINEN Schritt spaeter, im Merkmale/Foto-Baustein). Kurze, zutreffende einzeilige Beschriftung
+// statt dessen; sobald eine Person existiert (Merkmale/Foto-Baustein aktiv), null zurueckgeben,
+// damit der Standard-Eintrag aus NEXT[1] greift wie bisher.
+Screens.charakter.nextLabel = () => {
+  const person = AppState.currentPerson();
+  if (person) return null;
+  return { l: "Person anlegen", s: "Rolle hilft uns spaeter beim Zeichnen. Alter ist optional." };
+};
+
+// NEU (B9/B10, Sammel-Runde 09.09.2026: "Foto-Upload echt umsetzen"). Vorher rein dekorativ (kein
+// echtes <input type="file">, kein Anschluss an Pipeline.generateImage()) mit einem sichtbaren
+// "noch nicht angeschlossen"-Hinweis. Jetzt: echtes Datei-Feld + FileReader-Weg ueber
+// Pipeline.resizeImageToDataUri() (verkleinert client-seitig auf max. 1024px/JPEG-Qualitaet 0.85,
+// existierte in pipeline.js bereits fertig vorbereitet, siehe Kommentar dort "frisch hochgeladenes
+// Foto ... client-seitig bereits verkleinert" -- nur nie aufgerufen). Das verkleinerte Bild bleibt
+// als Data-URI NUR im Speicher dieses Browser-Tabs (modul-scoped Variable, siehe unten, gleiches
+// Muster wie recState in szene.js fuer die Audioaufnahme) -- NICHT in AppState/localStorage, damit
+// das "wird nur fuer dein Bild benutzt und danach geloescht"-Versprechen auf dieser Karte auch
+// technisch stimmt (kein dauerhaft gespeichertes Foto irgendwo).
+let uploadedPhotoDataUri = null;
+let uploadedPhotoForPersonId = null;
+
+function resetUploadedPhoto() {
+  uploadedPhotoDataUri = null;
+  uploadedPhotoForPersonId = null;
+}
+
+function buildFotoPanel(person) {
+  // Sicherheits-Hook (gleiches Prinzip wie WAYS.forEach in szene.js bei einem Way-Wechsel waehrend
+  // einer laufenden Aufnahme): ein fuer eine ANDERE Person hochgeladenes Foto darf nie versehentlich
+  // fuer diese Person verwendet werden (z.B. wenn zwischendurch zu einer anderen offenen Person
+  // gewechselt wurde).
+  if (uploadedPhotoForPersonId !== person.id) resetUploadedPhoto();
+
   const panel = h("div", { style: { marginTop: "22px", border: "4px dashed var(--ink)", background: "rgba(155,198,216,.35)", padding: "26px 16px", textAlign: "center" } });
-  panel.appendChild(h("p", { class: "h-black", style: { fontSize: "17px", lineHeight: "1", letterSpacing: "-.02em" } }, "Foto hier ablegen"));
-  panel.appendChild(h("p", { class: "caveat", style: { margin: "8px 0 14px", fontSize: "19px" } }, "ein Gesicht reicht. Handyfoto ist völlig okay."));
-  panel.appendChild(h("span", { class: "h-black", style: { display: "inline-block", background: "rgba(26,26,24,.3)", color: "var(--paper)", fontSize: "13px", padding: "13px 18px", border: "3px solid var(--ink)" } }, "Kamera oder Galerie"));
-  panel.appendChild(h("p", { style: { margin: "14px 0 0", fontSize: "12px", lineHeight: "1.4", color: "rgba(26,26,24,.7)" } }, "Wir zeigen dir danach drei Vorschläge im Wimmelstil. Das Original löschen wir sofort danach."));
-  panel.appendChild(h("p", { class: "h-black", style: { margin: "16px 0 0", fontSize: "11px", lineHeight: "1.4", color: "var(--red)" } }, "Dieser Weg ist in diesem Testlauf noch nicht angeschlossen — bitte „Merkmale antippen“ verwenden."));
+  const fileInput = h("input", { type: "file", id: "addphoto-file", accept: "image/*", style: { display: "none" } });
+  const statusP = h("p", { id: "char-photo-status", class: "h-black", style: { margin: "0 0 8px", fontSize: "12px", lineHeight: "1.4", color: "var(--ink)", display: uploadedPhotoDataUri ? "block" : "none" } }, "Foto ausgewählt ✓");
+  const preview = h("img", { id: "char-photo-preview", src: uploadedPhotoDataUri || "", alt: "Vorschau deines Fotos", style: { display: uploadedPhotoDataUri ? "block" : "none", maxWidth: "120px", maxHeight: "120px", margin: "0 auto 12px", border: "3px solid var(--ink)", background: "var(--paper)" } });
+
+  panel.appendChild(preview);
+  panel.appendChild(statusP);
+  panel.appendChild(h("p", { class: "h-black", style: { fontSize: "17px", lineHeight: "1", letterSpacing: "-.02em", display: uploadedPhotoDataUri ? "none" : "block" } }, "Foto hier ablegen"));
+  panel.appendChild(h("p", { class: "caveat", style: { margin: "8px 0 14px", fontSize: "19px", display: uploadedPhotoDataUri ? "none" : "block" } }, "ein Gesicht reicht. Handyfoto ist völlig okay."));
+
+  const pickBtn = h("button", {
+    type: "button",
+    class: "h-black",
+    style: { display: "inline-block", background: "rgba(26,26,24,.85)", color: "var(--paper)", fontSize: "13px", padding: "13px 18px", border: "3px solid var(--ink)", cursor: "pointer" },
+    onClick: () => fileInput.click()
+  }, uploadedPhotoDataUri ? "Anderes Foto wählen" : "Kamera oder Galerie");
+  panel.appendChild(pickBtn);
+  panel.appendChild(fileInput);
+
+  const errorP = h("p", { id: "char-photo-error", style: { margin: "12px 0 0", fontSize: "12px", color: "var(--red)", display: "none" } }, "");
+  panel.appendChild(errorP);
+
+  panel.appendChild(h("p", { style: { margin: "14px 0 0", fontSize: "12px", lineHeight: "1.4", color: "rgba(26,26,24,.7)" } }, "Wir zeigen dir danach drei Vorschläge im Wimmelstil. Das Original löschen wir sofort danach — es bleibt nur in diesem Browser-Tab und wird nirgends gespeichert."));
+
+  fileInput.addEventListener("change", async () => {
+    const file = fileInput.files && fileInput.files[0];
+    if (!file) return;
+    errorP.style.display = "none";
+    pickBtn.disabled = true;
+    const prevText = pickBtn.textContent;
+    pickBtn.textContent = "lädt …";
+    try {
+      const dataUri = await Pipeline.resizeImageToDataUri(file, 1024, 0.85);
+      uploadedPhotoDataUri = dataUri;
+      uploadedPhotoForPersonId = person.id;
+      preview.src = dataUri;
+      preview.style.display = "block";
+      statusP.style.display = "block";
+      pickBtn.textContent = "Anderes Foto wählen";
+    } catch (e) {
+      errorP.textContent = "Foto konnte nicht gelesen werden: " + (e && e.message ? e.message : String(e)) + " — bitte ein anderes Bild versuchen.";
+      errorP.style.display = "block";
+      pickBtn.textContent = prevText;
+    }
+    pickBtn.disabled = false;
+  });
+
   return panel;
 }
 
@@ -308,6 +503,20 @@ function buildFotoPanel() {
 // Rosi/Bruno/Mama/Hund, siehe state.js-Kommentar). Nutzerinnen legen hier
 // jede Person selbst an: Name (Pflicht), Rolle (Pflicht, als Chip), Alter
 // (optional). Wird gezeigt, sobald AppState.currentPerson() null liefert.
+// UMGEBAUT (Sammel-Runde 09.09.2026, Punkt B6/B11: "Bottom-Bar zeigt faelschlich 'Figur zeichnen
+// lassen' -- das kommt erst im naechsten Schritt. Ausserdem ueberdeckt die fixierte Bottom-Bar mit
+// dem langen Text teilweise die Eingabefelder"). Vorher hatte dieses Formular einen EIGENEN
+// Submit-Button ("Person anlegen") UNTER dem Bottom-Nav-Button ("Figur zeichnen lassen" mit
+// dreizeiligem Untertext) -- zwei Buttons mit unterschiedlicher Beschriftung fuer denselben Bereich
+// der Seite, verwirrend, und der lange dreizeilige Untertext sprengte auf diesem ohnehin vollen
+// Formular-Screen sichtbar den fuer die Bottom-Bar reservierten Platz. Jetzt (gleiches "ein Button
+// pro Aktion"-Prinzip wie schon beim Merkmale-Weg, siehe BUGFIX-Kommentar bei
+// generateCharacterImage() oben): der eigene Panel-Button ist raus, die Bottom-Bar UEBERNIMMT
+// diese Aktion exklusiv (siehe Screens.charakter.nextLabel()/onNext() unten) -- mit kurzer,
+// einzeiliger Beschriftung ("Person anlegen") statt der langen Zeichnen-Erklaerung, die hier nicht
+// zutrifft. Die Formularfelder bekommen feste IDs, weil onNext() sie zum Zeitpunkt des Klicks aus
+// dem echten DOM liest (nicht mehr aus Render-Zeit-Closures wie vorher) -- so kann outNext() sie
+// unabhaengig vom aktuellen Render-Aufruf erreichen.
 function buildAddPersonForm(s) {
   const wrap = h("div", {});
   const isFirst = s.people.length === 0;
@@ -319,27 +528,23 @@ function buildAddPersonForm(s) {
   ]));
   wrap.appendChild(h("p", { class: "caveat-sub" }, "Name reicht zum Start. Rolle hilft uns später beim Zeichnen."));
 
-  let name = "", role = null, petLabel = "", age = "";
-
   const panel = h("div", { style: { marginTop: "18px", border: "4px solid var(--ink)", background: "var(--paper)", boxShadow: "6px 7px 0 var(--ink)", padding: "16px" } });
 
   const nameLabel = h("label", { style: { display: "block" } });
   nameLabel.appendChild(h("span", { class: "h-black", style: { display: "block", fontSize: "11px", letterSpacing: ".06em" } }, "Name"));
-  const nameInput = h("input", { type: "text", class: "field", style: { marginTop: "7px" }, placeholder: "z. B. Lena", maxlength: "40" });
-  nameInput.addEventListener("input", () => { name = nameInput.value; });
+  const nameInput = h("input", { type: "text", id: "addperson-name", class: "field", style: { marginTop: "7px" }, placeholder: "z. B. Lena", maxlength: "40" });
   nameLabel.appendChild(nameInput);
   panel.appendChild(nameLabel);
 
   const roleWrap = h("div", { style: { marginTop: "16px" } });
   roleWrap.appendChild(h("span", { class: "h-black", style: { display: "block", fontSize: "11px", letterSpacing: ".06em" } }, "Rolle"));
-  const roleChipRow = h("div", { style: { display: "flex", flexWrap: "wrap", gap: "7px", marginTop: "7px" } });
+  const roleChipRow = h("div", { id: "addperson-role-row", style: { display: "flex", flexWrap: "wrap", gap: "7px", marginTop: "7px" } });
   panel.appendChild(roleWrap);
   roleWrap.appendChild(roleChipRow);
 
   const petField = h("label", { style: { display: "none", marginTop: "12px" } });
   petField.appendChild(h("span", { class: "h-black", style: { display: "block", fontSize: "11px", letterSpacing: ".06em" } }, "Welches Tier?"));
-  const petInput = h("input", { type: "text", class: "field", style: { marginTop: "7px" }, placeholder: "z. B. Hund" });
-  petInput.addEventListener("input", () => { petLabel = petInput.value; });
+  const petInput = h("input", { type: "text", id: "addperson-pet", class: "field", style: { marginTop: "7px" }, placeholder: "z. B. Hund" });
   petField.appendChild(petInput);
   panel.appendChild(petField);
 
@@ -349,13 +554,13 @@ function buildAddPersonForm(s) {
       type: "button",
       style: { cursor: "pointer", fontFamily: "'Archivo',sans-serif", fontSize: "12px", fontWeight: "700", padding: "8px 10px", border: "3px solid var(--ink)", transform: "rotate(" + rot(i) + "deg)", background: "#FFF", color: "var(--ink)" },
       onClick: () => {
-        role = r.value;
+        roleChipRow.dataset.role = r.value;
         roleButtons.forEach((b) => {
-          const on = b.r.value === role;
+          const on = b.r.value === r.value;
           b.btn.style.background = on ? "var(--red)" : "#FFF";
           b.btn.style.color = on ? "var(--paper)" : "var(--ink)";
         });
-        petField.style.display = role === "pet" ? "block" : "none";
+        petField.style.display = r.value === "pet" ? "block" : "none";
       }
     }, r.label);
     roleButtons.push({ btn, r });
@@ -364,31 +569,12 @@ function buildAddPersonForm(s) {
 
   const ageLabel = h("label", { style: { display: "block", marginTop: "12px" } });
   ageLabel.appendChild(h("span", { class: "h-black", style: { display: "block", fontSize: "11px", letterSpacing: ".06em" } }, "Alter"));
-  const ageInput = h("input", { type: "number", class: "field", style: { marginTop: "7px" }, placeholder: "z. B. 6", min: "0", max: "110" });
-  ageInput.addEventListener("input", () => { age = ageInput.value; });
+  const ageInput = h("input", { type: "number", id: "addperson-age", class: "field", style: { marginTop: "7px" }, placeholder: "z. B. 6", min: "0", max: "110" });
   ageLabel.appendChild(ageInput);
   panel.appendChild(ageLabel);
 
-  const errorP = h("p", { style: { margin: "12px 0 0", fontSize: "12px", color: "var(--red)", display: "none" } }, "");
+  const errorP = h("p", { id: "addperson-error", style: { margin: "12px 0 0", fontSize: "12px", color: "var(--red)", display: "none" } }, "");
   panel.appendChild(errorP);
-
-  panel.appendChild(h("button", {
-    type: "button", class: "h-black",
-    style: { marginTop: "16px", width: "100%", minHeight: "50px", background: "var(--ink)", color: "var(--paper)", border: "3px solid var(--ink)", fontSize: "13px", cursor: "pointer" },
-    onClick: () => {
-      const trimmedName = name.trim();
-      if (!trimmedName) { errorP.textContent = "Bitte einen Namen eintragen."; errorP.style.display = "block"; return; }
-      if (!role) { errorP.textContent = "Bitte eine Rolle auswählen."; errorP.style.display = "block"; return; }
-      let finalRole = role;
-      if (role === "pet") {
-        const petTrim = petLabel.trim();
-        finalRole = petTrim ? (window.Pipeline && Pipeline.translate ? Pipeline.translate(petTrim) : petTrim) : "pet";
-      }
-      const ageNum = age !== "" && !isNaN(Number(age)) ? Number(age) : null;
-      AppState.addPerson({ name: trimmedName, role: finalRole, age: ageNum });
-      Router.goScreen("charakter");
-    }
-  }, "Person anlegen"));
 
   wrap.appendChild(panel);
 
@@ -401,6 +587,45 @@ function buildAddPersonForm(s) {
   }
 
   return wrap;
+}
+
+// Von Screens.charakter.onNext() (siehe unten) aufgerufen, wenn das Personen-Anlage-Formular
+// aktiv ist (AppState.currentPerson() === null). Liest die Formularfelder direkt aus dem DOM
+// (siehe Kommentar bei buildAddPersonForm() oben), damit dieselbe Logik sowohl fuer den
+// Bottom-Bar-Button als auch -- falls jemand das Formular per Enter-Taste absendet -- funktioniert.
+function submitAddPerson() {
+  const nameInput = document.getElementById("addperson-name");
+  if (!nameInput) return false;
+  const roleChipRow = document.getElementById("addperson-role-row");
+  const petInput = document.getElementById("addperson-pet");
+  const ageInput = document.getElementById("addperson-age");
+  const errorP = document.getElementById("addperson-error");
+  const trimmedName = nameInput.value.trim();
+  const role = (roleChipRow && roleChipRow.dataset.role) || null;
+  if (!trimmedName) {
+    if (errorP) { errorP.textContent = "Bitte einen Namen eintragen."; errorP.style.display = "block"; }
+    return false;
+  }
+  if (!role) {
+    if (errorP) { errorP.textContent = "Bitte eine Rolle auswählen."; errorP.style.display = "block"; }
+    return false;
+  }
+  // NEU (B7): isPet MUSS hier, waehrend "role" noch der feste Rollen-Chip-Wert "pet" ist,
+  // festgehalten werden (siehe state.js addPerson()-Kommentar) -- direkt danach wird "finalRole"
+  // auf die freie uebersetzte Tierart (z.B. "dog") oder den Fallback-String "pet" umgeschrieben,
+  // an der role === "pet"-Pruefung liesse sich ein konkret benanntes Tier spaeter nicht mehr sicher
+  // erkennen.
+  const isPet = role === "pet";
+  let finalRole = role;
+  if (role === "pet") {
+    const petTrim = (petInput && petInput.value ? petInput.value : "").trim();
+    finalRole = petTrim ? (window.Pipeline && Pipeline.translate ? Pipeline.translate(petTrim) : petTrim) : "pet";
+  }
+  const ageVal = ageInput ? ageInput.value : "";
+  const ageNum = ageVal !== "" && !isNaN(Number(ageVal)) ? Number(ageVal) : null;
+  AppState.addPerson({ name: trimmedName, role: finalRole, age: ageNum, isPet });
+  Router.goScreen("charakter");
+  return true;
 }
 
 // ---- Charakterblatt ----
@@ -423,10 +648,30 @@ function peopleBody(people) {
 Screens.charakterblatt = {
   render(root) {
     const wrap = h("section", { class: "scr-pad" });
-    const person = AppState.currentPerson();
-    // Kein Fallback mehr auf people[0] (siehe state.js) — ohne aktuelle
-    // Person gibt es hier nichts zu zeigen, zurueck zum Anlege-Formular.
+    const s = AppState.data;
+    let person = AppState.currentPerson();
+    // BUGFIX B12 (Sammel-Runde 09.09.2026: "Charakterblatt-Tab in der Navigation lässt sich nicht
+    // sinnvoll aufrufen -- Galerie aller Personen fehlt"). Vorher sprang dieser Screen bei JEDEM
+    // Aufruf ohne "aktuelle" Person (currentPersonId leer/ungueltig UND keine offene Person mehr --
+    // genau der Zustand, in dem AppState.currentPerson() null liefert, z.B. NACH "Passt so" bei der
+    // letzten Person, siehe unten im "Passt so"-Handler: currentPersonId wird dort explizit auf
+    // null gesetzt, wenn niemand mehr offen ist) SOFORT zurueck zum Anlage-Formular. Ein Klick auf
+    // den "Charakterblatt"-Tab im Rail-Nav (app-shell.js renderRail(), navigiert immer direkt
+    // hierher, ohne Personen-Auswahl) landete dadurch faktisch nie auf diesem Screen, sobald alle
+    // Personen fertig waren -- die weiter unten laengst vorhandene Personen-Galerie (peopleGrid/
+    // currentPeopleGrid(), siehe unten) war so nie erreichbar. Jetzt: gibt es keine "aktuelle"
+    // Person, aber mindestens eine bereits fertige, zeigen wir ersatzweise die zuletzt
+    // fertiggestellte Person (inkl. Galerie aller Personen darunter) -- nur wenn WIRKLICH noch
+    // niemand fertig ist, geht es weiterhin zurueck zum Anlage-/Merkmale-Formular (da gibt es dann
+    // tatsaechlich nichts zu zeigen). currentPersonId wird dabei synchron nachgezogen (gleiches
+    // Muster wie Screens.charakter.render() oben), damit z.B. der "Nachschärfen"-Button unten
+    // weiterhin dieselbe Person referenziert statt erneut ins Leere zu navigieren.
+    if (!person) {
+      const donePeople = s.people.filter((p) => p.status === "done");
+      if (donePeople.length) person = donePeople[donePeople.length - 1];
+    }
     if (!person) { Router.goScreen("charakter"); return; }
+    if (s.currentPersonId !== person.id) AppState.update({ currentPersonId: person.id });
 
     wrap.appendChild(h("p", { class: "kicker kicker-red", style: { transform: "rotate(1.5deg)" } }, "Charakterblatt · " + person.name));
     wrap.appendChild(h("h1", { class: "h1-scr", style: { fontSize: "31px", marginBottom: "14px" } }, [document.createTextNode("Erkennst"), h("br"), document.createTextNode("du sie?")]));

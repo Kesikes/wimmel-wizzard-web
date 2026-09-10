@@ -61,7 +61,20 @@ function syncHeaderSpacing() {
 
 function renderBottomBar() {
   const idx = Router.screenIndex();
-  const n = NEXT[idx] || NEXT[0];
+  let n = NEXT[idx] || NEXT[0];
+  // NEU (Sammel-Runde 09.09.2026, Punkt B6: "bei 'Wer soll noch mitspielen?' zeigt die Bottom-Bar
+  // faelschlich 'Figur zeichnen lassen' -- Zeichnen passiert aber erst im naechsten Schritt").
+  // Der Charakter-Screen (idx 1) hat ZWEI verschiedene Unter-Zustaende (Personen-Anlage-Formular
+  // OHNE aktuelle Person vs. Merkmale/Foto-Auswahl MIT aktueller Person), die eine jeweils andere
+  // Bottom-Bar-Beschriftung brauchen -- das statische NEXT-Array kennt aber nur EINEN Eintrag pro
+  // Screen-Index. Ein Screen-Modul kann jetzt optional "nextLabel()" definieren, das bei Bedarf
+  // {l, s} zurueckgibt (ueberschreibt NEXT[idx]) oder null/undefined (Standard-Eintrag bleibt) --
+  // gleiches optionales Erweiterungs-Muster wie "onNext()" weiter unten.
+  const modForLabel = Screens[Router.current];
+  if (modForLabel && typeof modForLabel.nextLabel === "function") {
+    const override = modForLabel.nextLabel();
+    if (override) n = override;
+  }
   const nextBtn = document.getElementById("btn-next");
   const weiterBtn = document.getElementById("btn-weitermachen");
   nextBtn.disabled = false;

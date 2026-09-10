@@ -17,7 +17,9 @@ const WAYS = [
 ];
 const THEMES = ["Bauernhof im Herbst", "Weihnachtsabend", "Weltraum", "Ritterburg", "Unterwasser", "Zirkus"];
 const THEME_BG = ["var(--blue)", "var(--yellow)", "var(--paper)", "var(--yellow)", "var(--blue)", "var(--paper)"];
-const STARTHILFEN = ["Ein ganz normaler Morgen", "Der Tag, an dem alles schiefging", "Unser Lieblingsplatz"];
+// ENTFERNT (Punkt C17, Sammel-Runde 09.09.2026): STARTHILFEN gehörte zum alten 3-Schritte-Formular
+// (buildInterviewBeatStep(), jetzt ganz entfernt) -- der echte Chat (buildChatPanel() unten) stellt
+// die Einstiegsfrage jetzt selbst (CHAT_OPENER), keine vorformulierten Chips mehr nötig.
 
 Screens.szene = {
   render(root) {
@@ -42,10 +44,6 @@ Screens.szene = {
         style: { display: "flex", gap: "8px", alignItems: "flex-start", width: "100%", cursor: "pointer", padding: "15px", border: "4px solid var(--ink)", color: "inherit", background: on ? "var(--yellow)" : "var(--paper)", boxShadow: on ? "6px 7px 0 var(--ink)" : "4px 5px 0 var(--ink)" },
         onClick: () => {
           const patch = { sceneWay: w.way };
-          // Frischer Einstieg ins Interview, wenn vorher ein ANDERER Weg aktiv war (nicht bei
-          // erneutem Antippen desselben Wegs -- sonst wuerde ein versehentlicher zweiter Klick
-          // mitten im Interview den Fortschritt zuruecksetzen).
-          if (w.way === 2 && s.sceneWay !== 2) patch.sceneInterviewStep = 0;
           // NEU (Feature C18): weg von der Aufnahme-Karte (way 1) zu einer ANDEREN Karte -- eine
           // evtl. noch laufende Aufnahme (Mikro!) muss dann gestoppt/verworfen werden, sonst bliebe
           // das Mikrofon unsichtbar im Hintergrund aktiv, obwohl die Nutzerin sichtbar einen anderen
@@ -66,52 +64,45 @@ Screens.szene = {
 
     if (s.sceneWay === 0) wrap.appendChild(buildThemeGrid());
     if (s.sceneWay === 1) wrap.appendChild(buildRecordPanel());
-    if (s.sceneWay === 2) wrap.appendChild(buildInterviewPanel());
+    if (s.sceneWay === 2) wrap.appendChild(buildChatPanel());
 
     root.appendChild(wrap);
     function rerender() { root.innerHTML = ""; Screens.szene.render(root); }
   }
 };
 
-// Wird von app-shell.js renderBottomBar() aufgerufen, wenn vorhanden (statt der Standard-
-// "einfach weiternavigieren"-Aktion) -- gleiches Muster wie Screens.charakter.onNext (siehe
-// charakter.js). Nur fuer Weg 2 ("Selbst eintippen") relevant: dort ersetzt das geführte
-// Chat-Interview (siehe buildInterviewPanel() unten) die vorherige einzelne Textarea, und die
-// Bottom-Bar-"Los, zaubern"-Taste treibt jetzt die drei Interview-Schritte voran, statt sofort
-// zu "zaubern" zu springen. Wege 0 ("Thema wählen") und 1 ("Geschichte aufnehmen") navigieren
-// bereits selbst direkt weiter (siehe buildThemeGrid()/buildRecordPanel() onClick) -- dort greift
-// weiterhin defaultGoNext, falls die Bottom-Bar-Taste trotzdem angetippt wird, ohne dass etwas
-// ausgewählt wurde (unveraendertes, bereits vorher bestehendes Verhalten).
+// UMGEBAUT (Punkt C17, Sammel-Runde 09.09.2026: "echter Chat statt statischem Interview"). Vorher
+// trieb die Bottom-Bar-Taste ein starres 3-Schritte-Formular voran (Thema -> Pflicht-Beat ->
+// optionale Kleinigkeit). Jetzt uebernimmt fuer Weg 2 das eigene "Senden"-Feld im Chat-Panel
+// (buildChatPanel() unten) die laufende Konversation -- die Bottom-Bar-Taste bekommt eine NEUE,
+// eigene Bedeutung: "ich bin fertig, mach jetzt weiter" (schickt eine kurze, feste
+// Abschluss-Nachricht ins Gespraech, die WizzelWim -- siehe SCENE_SYSTEM in api/claude-proxy.js,
+// Schritt 3 dort -- als Signal zum Abschliessen/Ergaenzen/add_scene-Aufruf erwartet). Damit gibt es
+// weiterhin nur EINEN Button pro Aktion (Senden fuer einzelne Chat-Zuege, Bottom-Bar fuer "fertig"),
+// keine zwei Buttons mit ueberlappender Funktion. Wege 0 ("Thema wählen") und 1 ("Geschichte
+// aufnehmen") navigieren weiterhin selbst direkt weiter (siehe buildThemeGrid()/buildRecordPanel()
+// onClick) -- dort greift weiterhin defaultGoNext, unveraendert.
 Screens.szene.onNext = ({ nextBtn, weiterBtn, defaultGoNext }) => {
   const s = AppState.data;
   if (s.sceneWay !== 2) { defaultGoNext(); return; }
-  const errorP = document.getElementById("scene-interview-error");
-  const step = s.sceneInterviewStep || 0;
-  if (step === 0) {
-    if (!s.sceneTheme) {
-      if (errorP) { errorP.textContent = "Bitte zuerst ein Thema auswählen."; errorP.style.display = "block"; }
-      return;
-    }
-    AppState.update({ sceneInterviewStep: 1 });
-    Router.goScreen("szene");
+  const errorP = document.getElementById("scene-chat-error");
+  const hasUserReply = (s.sceneChatMessages || []).some((m) => m.role === "user");
+  if (!hasUserReply) {
+    if (errorP) { errorP.textContent = "Erzähl mir erst ein bisschen, bevor wir weitermachen."; errorP.style.display = "block"; }
     return;
   }
-  if (step === 1) {
-    if (!(s.sceneBeat1 || "").trim()) {
-      if (errorP) { errorP.textContent = "Bitte kurz erzählen, was passiert ist."; errorP.style.display = "block"; }
-      return;
-    }
-    if (errorP) errorP.style.display = "none";
-    AppState.update({ sceneInterviewStep: 2 });
-    Router.goScreen("szene");
-    return;
-  }
-  // Letzter Schritt: uebersetzt beide Beats (Pipeline.translateFreeText(), gleiches Muster wie
-  // charakter.js bei charNote) und speichert sie als sceneUserSituations -- schliesst damit die
-  // bisherige Luecke "freie Geschichte -> Vignetten automatisch" (siehe runGeneration() unten,
-  // das jetzt s.sceneUserSituations statt eines hartcodierten leeren Arrays an
-  // Pipeline.autoSituations() uebergibt). Erst danach echtes Weiternavigieren zu "zaubern".
-  return finalizeSceneInterview([nextBtn, weiterBtn]).then((ok) => { if (ok) defaultGoNext(); });
+  if (errorP) errorP.style.display = "none";
+  return sendChatTurn("Das reicht mir erstmal, bitte mach jetzt weiter.", { buttons: [nextBtn, weiterBtn], skipModeration: true });
+};
+
+// NEU (Punkt C17): ueberschreibt die Bottom-Bar-Beschriftung fuer Weg 2 (gleiches Erweiterungs-
+// Muster wie Screens.charakter.nextLabel(), siehe app-shell.js/charakter.js) -- "Los, zaubern"
+// (NEXT[3]) trifft waehrend eines laufenden Gespraechs nicht zu, hier passiert ja gerade noch
+// nichts Magisches. Wege 0/1 behalten den Standard-Eintrag (null = kein Override).
+Screens.szene.nextLabel = () => {
+  const s = AppState.data;
+  if (s.sceneWay !== 2) return null;
+  return { l: "Fertig, weiter zaubern", s: "sag mir gern noch mehr, bevor du weitermachst" };
 };
 
 function buildThemeGrid() {
@@ -124,7 +115,11 @@ function buildThemeGrid() {
         textTransform: "uppercase", textAlign: "left", padding: "16px 12px", minHeight: "84px", border: "4px solid var(--ink)",
         color: "var(--ink)", transform: "rotate(" + rot(i, ROT6_APP) + "deg)", background: THEME_BG[i % THEME_BG.length], boxShadow: "4px 5px 0 var(--ink)"
       },
-      onClick: () => { AppState.update({ sceneTheme: label }); Router.goScreen("zaubern"); }
+      // GEAENDERT (Punkt C17, Sammel-Runde 09.09.2026): raeumt sceneChatTheme/sceneUserSituations
+      // auf, falls vorher (in einer fruehen Sitzung) schon mal Weg 2 (Chat) probiert wurde --
+      // runGeneration() (Screens.zaubern) bevorzugt sonst faelschlich ein noch gespeichertes,
+      // veraltetes sceneChatTheme gegenueber der hier gerade frisch gewaehlten festen THEMES-Karte.
+      onClick: () => { AppState.update({ sceneTheme: label, sceneChatTheme: null, sceneUserSituations: [] }); Router.goScreen("zaubern"); }
     }, label));
   });
   return grid;
@@ -228,8 +223,18 @@ async function handleRecordingStopped(chunks, mimeType) {
     const base64 = await blobToBase64(blob);
     const transcriptDe = await Pipeline.transcribeAudio(base64, mimeType);
     if (!transcriptDe || !transcriptDe.trim()) throw new Error("Ich konnte in der Aufnahme leider keinen Text erkennen.");
+    // NEU (Punkt B8, Sammel-Runde 09.09.2026: "Inhaltsmoderation fürs Freitextfeld"). Ein
+    // transkribiertes Gute-Nacht-Geschichte-Audio ist inhaltlich genauso "eingegebener Freitext"
+    // wie Getipptes -- einmal zu Text geworden, gilt dieselbe Prüfpflicht vor der Verwendung.
+    // Fail-closed wie ueberall sonst: schlaegt die Pruefung selbst fehl, wird NICHT stillschweigend
+    // weitergemacht.
+    const flagged = await Pipeline.moderateText(transcriptDe);
+    if (flagged) throw new Error("Diese Aufnahme enthält Inhalte, die wir für ein Kinderprodukt nicht verwenden können — magst du es nochmal versuchen oder stattdessen tippen?");
     const en = await Pipeline.translateFreeText(transcriptDe);
-    AppState.update({ sceneUserSituations: [{ en, de: transcriptDe }] });
+    // sceneChatTheme: null -- gleicher Aufraeum-Grund wie in buildThemeGrid() oben (verhindert, dass
+    // ein aus einer frueheren Chat-Sitzung noch gespeichertes Theme-Objekt hier faelschlich Vorrang
+    // vor der festen THEME_META-Zuordnung bekommt).
+    AppState.update({ sceneUserSituations: [{ en, de: transcriptDe }], sceneChatTheme: null });
     resetRecState();
     Router.goScreen("zaubern");
   } catch (e) {
@@ -292,97 +297,188 @@ function buildRecordPanel() {
   return panel;
 }
 
-// UMGEBAUT (Feature #38, 06.09.2026: "Geführtes Chat-Interview für 'Selbst eintippen'"). Vorher:
-// eine einzelne freie Textarea + drei Starthilfe-Chips, komplett OHNE Anschluss an
-// Pipeline.autoSituations() -- runGeneration() (unten) hat "existing" immer hartcodiert als []
-// uebergeben, egal was hier eingetippt wurde (siehe alter Kommentar dort). Jetzt: drei geführte
-// Schritte (Thema -> Pflicht-Hauptszene -> optionale Kleinigkeit), Fortschritt in
-// AppState.data.sceneInterviewStep (siehe state.js), Vor-/Zurueck ueber Screens.szene.onNext()
-// oben (gleiches Bottom-Nav-Override-Muster wie charakter.js). Jede Text-Frage bekommt zusaetzlich
-// eine Sprechen-statt-Tippen-Option (buildVoiceButton(), Web Speech API mit Feature-Detection).
-function buildInterviewPanel() {
+// UMGEBAUT (Punkt C17, Sammel-Runde 09.09.2026: "echter Chat statt statischem Interview"). Vorher
+// (Feature #38, 06.09.2026): ein starres 3-Schritte-Formular (Thema -> Pflicht-Hauptszene ->
+// optionale Kleinigkeit), komplett OHNE echte KI-Reaktion -- die Texte wurden nur uebersetzt, nie
+// inhaltlich verstanden/nachgefragt. Jetzt: ein ECHTER Chat mit WizzelWim (api/claude-proxy.js
+// mode:"scene", SCENE_SYSTEM/ADD_SCENE_TOOL dort -- diese Backend-Logik lag bereits fertig vor,
+// wurde aber von KEINEM Screen aufgerufen). Keine vorgelagerte Themenauswahl mehr an dieser Stelle
+// (der Chat fragt selbst zuerst nach dem Ort, siehe CHAT_OPENER) -- die feste THEMES-Liste bleibt
+// ausschliesslich Weg 0 ("Thema wählen") vorbehalten. Sprechen-statt-Tippen bleibt ueber
+// buildVoiceButton() (Web Speech API, unveraendert, nur jetzt an das Chat-Entwurfsfeld statt an
+// die alte Textarea angehaengt).
+const CHAT_OPENER = "Alles klar, dann erzähl mal, wo haltet ihr euch am liebsten auf?";
+
+function buildChatPanel() {
   const s = AppState.data;
-  const step = s.sceneInterviewStep || 0;
+  // Einstiegsfrage EINMALIG seeden, sobald der Chat zum ersten Mal aufgeht (leeres Verlauf-Array).
+  // Bewusst hartcodiert statt per API generiert (siehe Modul-Kommentar) -- spart einen unnoetigen
+  // ersten Roundtrip nur fuer eine Begruessung, und der Wortlaut ist ohnehin durch die Aufgabe fest
+  // vorgegeben. AppState.update() waehrend des Renderns ist ein etabliertes Muster in dieser
+  // Codebasis (siehe z.B. charakter.js/charakterblatt.js) -- loest keinen Render-Loop aus, da
+  // AppState.onChange() nur renderRail()/renderSaveHint() aufruft, nicht renderScreen().
+  if (!(s.sceneChatMessages || []).length) {
+    AppState.update({ sceneChatMessages: [{ role: "assistant", content: CHAT_OPENER }] });
+  }
+  const messages = AppState.data.sceneChatMessages || [];
+
   const panel = h("div", { style: { marginTop: "20px", border: "4px solid var(--ink)", background: "var(--paper)", boxShadow: "6px 7px 0 var(--ink)", padding: "16px" } });
 
-  // Fortschrittsanzeige: rein informativ (3 Balken, aktueller + abgeschlossene hervorgehoben) --
-  // keine eigene Navigation, "zurueck" laeuft weiterhin ueber die normale Bottom-Bar-Taste.
-  const dots = h("div", { style: { display: "flex", gap: "6px", marginBottom: "14px" } });
-  for (let i = 0; i < 3; i++) {
-    dots.appendChild(h("span", { style: { display: "block", flex: "1", height: "6px", background: i <= step ? "var(--red)" : "rgba(26,26,24,.18)" } }));
+  const thread = h("div", { id: "scene-chat-thread", style: { display: "flex", flexDirection: "column", gap: "10px", maxHeight: "340px", overflowY: "auto" } });
+  function renderThread() {
+    thread.innerHTML = "";
+    (AppState.data.sceneChatMessages || []).forEach((m) => {
+      const mine = m.role === "user";
+      const bubble = h("div", {
+        style: {
+          alignSelf: mine ? "flex-end" : "flex-start", maxWidth: "88%",
+          border: "3px solid var(--ink)", padding: "9px 12px", fontSize: "13px", lineHeight: "1.4",
+          background: mine ? "var(--yellow)" : "var(--blue)", color: "var(--ink)"
+        }
+      }, m.content);
+      thread.appendChild(bubble);
+    });
   }
-  panel.appendChild(dots);
+  renderThread();
+  panel.appendChild(thread);
 
-  if (step === 0) {
-    panel.appendChild(buildInterviewThemeStep());
-  } else if (step === 1) {
-    panel.appendChild(buildInterviewBeatStep({
-      key: "sceneBeat1", stepNum: 2, title: "Was ist passiert?",
-      placeholder: "Wir waren im Herbst auf dem Bauernhof, Mia wollte nicht in den Stall und Papa hat den Traktor kaputt gemacht …",
-      hint: "ein, zwei Sätze reichen. ich frage nach, wenn was fehlt.", required: true
-    }));
-  } else {
-    panel.appendChild(buildInterviewBeatStep({
-      key: "sceneBeat2", stepNum: 3, title: "Noch eine Kleinigkeit dazu?",
-      placeholder: "z. B. ein Spruch, den jemand ständig sagt, oder ein kleiner Running-Gag …",
-      hint: "optional – kannst du auch leer lassen.", required: false
-    }));
-  }
+  const typingHint = h("p", { id: "scene-chat-typing", style: { margin: "8px 0 0", fontSize: "12px", color: "rgba(26,26,24,.6)", display: "none" } }, "WizzelWim tippt …");
+  panel.appendChild(typingHint);
 
-  panel.appendChild(h("p", { id: "scene-interview-error", style: { margin: "12px 0 0", fontSize: "12px", color: "var(--red)", display: "none" } }, ""));
+  const inputRow = h("div", { style: { marginTop: "12px" } });
+  const ta = h("textarea", { class: "field", id: "scene-chat-input", style: { minHeight: "70px" }, placeholder: "hier tippen …", "aria-label": "Nachricht an WizzelWim" });
+  ta.value = s.sceneChatDraft || "";
+  ta.addEventListener("input", () => AppState.update({ sceneChatDraft: ta.value }));
+  inputRow.appendChild(ta);
+
+  const btnRow = h("div", { style: { display: "flex", gap: "8px", marginTop: "8px", alignItems: "flex-start" } });
+  btnRow.appendChild(buildVoiceButton(ta, "sceneChatDraft"));
+  const sendBtn = h("button", {
+    type: "button", id: "scene-chat-send", class: "h-black",
+    style: { marginLeft: "auto", minHeight: "40px", padding: "0 18px", background: "var(--red)", color: "var(--paper)", border: "3px solid var(--ink)", fontSize: "13px", cursor: "pointer" },
+    onClick: () => {
+      const draft = (AppState.data.sceneChatDraft || "").trim();
+      if (!draft) return;
+      ta.value = "";
+      AppState.update({ sceneChatDraft: "" });
+      sendChatTurn(draft, {});
+    }
+  }, "Senden");
+  btnRow.appendChild(sendBtn);
+  inputRow.appendChild(btnRow);
+  panel.appendChild(inputRow);
+
+  panel.appendChild(h("p", { id: "scene-chat-error", style: { margin: "12px 0 0", fontSize: "12px", color: "var(--red)", display: "none" } }, ""));
   return panel;
 }
 
-function buildInterviewThemeStep() {
-  const wrap = h("div", {});
-  wrap.appendChild(h("p", { class: "h-black", style: { margin: "0 0 4px", fontSize: "12px", letterSpacing: ".04em" } }, "Schritt 1 von 3 · Thema"));
-  wrap.appendChild(h("p", { style: { margin: "0 0 12px", fontSize: "13px", lineHeight: "1.4" } }, "wähl die Welt, in der eure Geschichte spielt."));
-  const grid = h("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" } });
-  THEMES.forEach((label, i) => {
-    const on = AppState.data.sceneTheme === label;
-    grid.appendChild(h("button", {
-      type: "button",
-      style: {
-        cursor: "pointer", fontFamily: "'Archivo Black',sans-serif", fontSize: "12px", lineHeight: "1.05", letterSpacing: "-.02em",
-        textTransform: "uppercase", textAlign: "left", padding: "13px 10px", minHeight: "66px", border: "3px solid var(--ink)",
-        color: "var(--ink)", background: on ? "var(--red)" : THEME_BG[i % THEME_BG.length],
-        boxShadow: on ? "4px 5px 0 var(--ink)" : "2px 3px 0 var(--ink)"
-      },
-      onClick: () => {
-        const errorP = document.getElementById("scene-interview-error");
-        if (errorP) errorP.style.display = "none";
-        AppState.update({ sceneTheme: label, sceneInterviewStep: 1 });
-        Router.goScreen("szene");
-      }
-    }, on ? label + " ✓" : label));
-  });
-  wrap.appendChild(grid);
-  return wrap;
+// NEU (Punkt C17): baut aus dem freien deutschen Ort/Orttyp, den das add_scene-Werkzeug liefert
+// (location_label/location_type, siehe ADD_SCENE_TOOL in api/claude-proxy.js), ein zu
+// Pipeline.scenePrompt()/densityInstruction() kompatibles Theme-Objekt -- dieselbe Form wie ein
+// Eintrag aus Pipeline.THEME_META (siehe pipeline.js), nur zur Laufzeit aus dem Gespraech gebaut
+// statt aus der festen 6-Themen-Liste. locId bleibt "generic" (kein eigener GAG_LIBRARY-Pool fuer
+// frei erzaehlte Orte -- topUpSituations() faellt dafuer ohnehin schon auf den generischen Pool
+// zurueck, siehe pipeline.js). Uebersetzt den Orts-Namen per Pipeline.translateFreeText() (gleiches,
+// bereits bewaehrtes Freitext-Uebersetzungsmuster wie bei charNote/den alten Interview-Beats) --
+// wirft nie (translateFreeText() hat selbst schon einen stillen Woerterbuch-Fallback), daher hier
+// kein eigenes try/catch noetig.
+async function buildThemeFromLocation(locationLabel, locationType) {
+  const en = await Pipeline.translateFreeText(locationLabel || "");
+  return {
+    locId: "generic",
+    type: locationType === "cutaway" ? "cutaway" : "landscape",
+    en: en || "a cozy scene",
+    regions: ["in the foreground", "further in the background", "off to one side", "in a quieter corner of the scene"],
+    regionMin: 5
+  };
 }
 
-function buildInterviewBeatStep({ key, stepNum, title, placeholder, hint, required }) {
-  const s = AppState.data;
-  const wrap = h("div", {});
-  wrap.appendChild(h("p", { class: "h-black", style: { margin: "0 0 4px", fontSize: "12px", letterSpacing: ".04em" } }, "Schritt " + stepNum + " von 3 · " + title));
-  wrap.appendChild(h("p", { style: { margin: "0 0 10px", fontSize: "13px", lineHeight: "1.4" } }, hint));
-  const ta = h("textarea", { class: "field", style: { minHeight: "110px" }, placeholder, "aria-label": title });
-  ta.value = s[key] || "";
-  ta.addEventListener("input", () => AppState.update({ [key]: ta.value }));
-  wrap.appendChild(ta);
-  wrap.appendChild(buildVoiceButton(ta, key));
-  if (key === "sceneBeat1") {
-    wrap.appendChild(h("p", { class: "h-black", style: { margin: "12px 0 8px", fontSize: "11px", letterSpacing: ".06em" } }, "oder eine Starthilfe antippen"));
-    const chipWrap = h("div", { style: { display: "flex", flexWrap: "wrap", gap: "7px" } });
-    STARTHILFEN.forEach((label) => {
-      chipWrap.appendChild(h("button", {
-        type: "button",
-        style: { border: "3px solid var(--ink)", background: "#FFF", fontFamily: "'Archivo',sans-serif", fontSize: "12px", fontWeight: "700", padding: "8px 10px", cursor: "pointer", color: "var(--ink)" },
-        onClick: () => { ta.value = label; AppState.update({ [key]: label }); }
-      }, label));
-    });
-    wrap.appendChild(chipWrap);
+// NEU (Punkt C17): zentrale Sende-Funktion, sowohl fuer echte Nutzer-Nachrichten (Senden-Button im
+// Chat-Panel) als auch fuer die synthetische Abschluss-Nachricht ueber die Bottom-Bar (siehe
+// Screens.szene.onNext() oben). skipModeration=true NUR fuer diese eine, selbst geschriebene, feste
+// Abschluss-Nachricht -- Punkt B8 verlangt, EINGEGEBENEN Freitext zu pruefen, nicht von der
+// Anwendung selbst erzeugte Steuer-Nachrichten.
+async function sendChatTurn(userText, { buttons, skipModeration } = {}) {
+  const errorP = document.getElementById("scene-chat-error");
+  const sendBtn = document.getElementById("scene-chat-send");
+  const activeButtons = (buttons || []).concat(sendBtn ? [sendBtn] : []).filter(Boolean);
+  if (errorP) errorP.style.display = "none";
+
+  // NEU (Punkt B8, Sammel-Runde 09.09.2026: "Inhaltsmoderation fürs Freitextfeld"). Prüft JEDE
+  // echte Nutzer-Nachricht VOR dem Versenden -- wird sie beanstandet, geht sie NICHT ins Gespraech
+  // (weder sichtbar im Verlauf noch an die API), sondern es gibt eine freundliche Fehlermeldung
+  // direkt am Eingabefeld, Text bleibt zum Anpassen im Entwurfsfeld erhalten (wird NICHT geleert,
+  // siehe unten -- im Unterschied zum Erfolgsfall, wo btnRow.onClick den Entwurf schon vor dem
+  // Aufruf geleert hat; bei einer Blockade tragen wir den Text wieder ins Feld zurueck).
+  if (!skipModeration) {
+    activeButtons.forEach((b) => { b.disabled = true; });
+    try {
+      const flagged = await Pipeline.moderateText(userText);
+      if (flagged) {
+        AppState.update({ sceneChatDraft: userText });
+        const ta = document.getElementById("scene-chat-input");
+        if (ta) ta.value = userText;
+        if (errorP) { errorP.textContent = "Das können wir für ein Kinderbuch leider nicht verwenden — magst du es anders formulieren?"; errorP.style.display = "block"; }
+        activeButtons.forEach((b) => { b.disabled = false; });
+        return;
+      }
+    } catch (e) {
+      AppState.update({ sceneChatDraft: userText });
+      const ta = document.getElementById("scene-chat-input");
+      if (ta) ta.value = userText;
+      if (errorP) { errorP.textContent = "Prüfung hat gerade nicht geklappt: " + (e && e.message ? e.message : String(e)) + " — bitte nochmal versuchen."; errorP.style.display = "block"; }
+      activeButtons.forEach((b) => { b.disabled = false; });
+      return;
+    }
   }
-  return wrap;
+
+  const s = AppState.data;
+  const messages = (s.sceneChatMessages || []).concat([{ role: "user", content: userText }]);
+  AppState.update({ sceneChatMessages: messages });
+  const thread = document.getElementById("scene-chat-thread");
+  if (thread) {
+    const bubble = h("div", { style: { alignSelf: "flex-end", maxWidth: "88%", border: "3px solid var(--ink)", padding: "9px 12px", fontSize: "13px", lineHeight: "1.4", background: "var(--yellow)", color: "var(--ink)" } }, userText);
+    thread.appendChild(bubble);
+    thread.scrollTop = thread.scrollHeight;
+  }
+  const typingHint = document.getElementById("scene-chat-typing");
+  if (typingHint) typingHint.style.display = "block";
+  activeButtons.forEach((b) => { b.disabled = true; });
+
+  try {
+    const doneCharacters = (s.people || []).filter((p) => p.status === "done").map((p) => ({ name: p.name, description: p.sceneDescription || p.role }));
+    const context = { characters: doneCharacters, sceneIndex: (s.images || []).length + 1, sceneTarget: 5 };
+    const result = await Pipeline.sceneChat(messages, context);
+    if (result.tool_call && result.tool_call.name === "add_scene") {
+      const input = result.tool_call.input || {};
+      const rawSituations = Array.isArray(input.situations_en) ? input.situations_en : [];
+      // situations_en liefert nur Englisch (kein separates Deutsch pro Situation, anders als beim
+      // Audiotranskript-Weg mit echtem {en,de}-Paar) -- de wird hier bewusst mit dem englischen
+      // Text gespiegelt statt leer gelassen, da einige Debug-/Anzeige-Stellen (z.B. der
+      // Test-Details-Toggle auf dem Ergebnis-Screen) ein gefuelltes .de erwarten.
+      const situations = rawSituations.map((text) => ({ en: text, de: text }));
+      const theme = await buildThemeFromLocation(input.location_label, input.location_type);
+      const finalMessages = messages.concat(result.reply ? [{ role: "assistant", content: result.reply }] : []);
+      AppState.update({
+        sceneUserSituations: situations,
+        sceneTheme: input.location_label || s.sceneTheme,
+        sceneChatTheme: theme,
+        sceneChatMessages: finalMessages
+      });
+      Router.goScreen("zaubern");
+      return;
+    }
+    // Normale Gespraechs-Antwort (kein add_scene/confirm_result) -- Chat geht weiter.
+    const newMessages = messages.concat([{ role: "assistant", content: result.reply || "…" }]);
+    AppState.update({ sceneChatMessages: newMessages });
+    Router.goScreen("szene");
+  } catch (e) {
+    if (errorP) { errorP.textContent = "Antwort hat nicht geklappt: " + (e && e.message ? e.message : String(e)) + " — bitte nochmal versuchen."; errorP.style.display = "block"; }
+    // Die Nutzer-Nachricht bleibt im Verlauf erhalten (schon oben in sceneChatMessages gespeichert)
+    // -- nur der Sendevorgang selbst schlug fehl, kein Datenverlust, Retry ueber den Senden-Button.
+    if (typingHint) typingHint.style.display = "none";
+    activeButtons.forEach((b) => { b.disabled = false; });
+  }
 }
 
 // NEU (Feature #38): Sprechen-statt-Tippen fuer jede Interview-Text-Frage, per Web Speech API
@@ -436,39 +532,10 @@ function buildVoiceButton(ta, stateKey) {
   return wrap;
 }
 
-// Von Screens.szene.onNext() (siehe oben) im letzten Interview-Schritt aufgerufen. Uebersetzt
-// beide Beats (gleiches Pipeline.translateFreeText()-Muster wie charakter.js bei charNote) und
-// speichert sie als sceneUserSituations -- schliesst die bisherige Luecke "freie Geschichte ->
-// Vignetten automatisch" (siehe runGeneration() unten). Gibt true (weiter zu "zaubern"), false/
-// undefined (Validierung/Fehler, nicht weiternavigieren) zurueck -- gleiches Rueckgabe-Muster wie
-// generateCharacterImage() in charakter.js.
-async function finalizeSceneInterview(buttons) {
-  const s = AppState.data;
-  const errorP = document.getElementById("scene-interview-error");
-  const beat1 = (s.sceneBeat1 || "").trim();
-  if (!beat1) {
-    if (errorP) { errorP.textContent = "Bitte kurz erzählen, was passiert ist."; errorP.style.display = "block"; }
-    return false;
-  }
-  if (errorP) errorP.style.display = "none";
-  const activeButtons = (buttons || []).filter(Boolean);
-  activeButtons.forEach((b) => { b.dataset.prevText = b.textContent; b.disabled = true; b.textContent = "Ich übersetze …"; b.style.opacity = "0.75"; });
-  try {
-    const beat2 = (s.sceneBeat2 || "").trim();
-    const [beat1En, beat2En] = await Promise.all([
-      Pipeline.translateFreeText(beat1),
-      beat2 ? Pipeline.translateFreeText(beat2) : Promise.resolve("")
-    ]);
-    const situations = [{ en: beat1En, de: beat1 }];
-    if (beat2En) situations.push({ en: beat2En, de: beat2 });
-    AppState.update({ sceneUserSituations: situations });
-    return true;
-  } catch (e) {
-    if (errorP) { errorP.textContent = "Übersetzen hat nicht geklappt: " + (e && e.message ? e.message : String(e)) + " — nochmal versuchen?"; errorP.style.display = "block"; }
-    activeButtons.forEach((b) => { b.disabled = false; b.textContent = b.dataset.prevText || b.textContent; b.style.opacity = "1"; });
-    return false;
-  }
-}
+// ENTFERNT (Punkt C17, Sammel-Runde 09.09.2026): finalizeSceneInterview() gehoerte zum alten
+// 3-Schritte-Formular (sceneBeat1/sceneBeat2) -- ersetzt durch sendChatTurn() weiter oben, das
+// dieselbe Aufgabe (Nutzer-Freitext -> uebersetzte/strukturierte sceneUserSituations) jetzt ueber
+// den echten Chat erledigt.
 
 // ---- Zaubern ----
 
@@ -554,16 +621,30 @@ const JOKE_LIBRARY = {
 // Reihenfolge/Auswahl (statt vorher schlicht "s.jokeIndex % JOKES.length" durchzuzählen): pro
 // Themen-locId zuerst aus dem passenden Pool ziehen, dann bei Bedarf aus dem generischen Pool
 // auffüllen -- gleiches Zweistufen-Muster wie topUpSituations() oben, nur für Witze statt
-// Szenen-Vignetten. "used" verhindert Wiederholungen, solange der kombinierte Pool nicht
-// erschöpft ist.
+// Szenen-Vignetten.
+//
+// UMGEBAUT (Sammel-Runde 09.09.2026, Ergaenzung zu Punkt 21: "Shuffle-Modus ... kein Witz zweimal
+// innerhalb eines Durchlaufs ... bereits gezeigt-Status persistiert speichern, nicht nur pro
+// Ladebildschirm-Aufruf"). Vorher lebte "used" als reines Laufzeit-Set (usedJokes in
+// Screens.zaubern.render() unten), das bei jedem neuen Seitenaufruf wieder leer anfing -- ein
+// Reload mitten im Zaubern-Vorgang konnte also sofort wieder denselben Witz zeigen. Jetzt kommt
+// "used" von AUSSEN als Set herein, das direkt vor/nach dem Aufruf mit AppState.data.shownJokes
+// synchronisiert wird (siehe Aufrufstellen unten) -- macht diese Funktion selbst weiterhin
+// zustandslos/testbar, haelt den eigentlichen Fortschritt aber persistent.
+// "erschoepft" bedeutet: kein einziger Witz aus DIESEM kombinierten Pool (Thema + generisch) ist
+// noch "frisch" -- dann wird NUR dieser Pool neu gemischt (die Eintraege aus "used" entfernt,
+// andere Themen-Pools bleiben unberuehrt), nicht der komplette globale Fortschritt verworfen.
 function pickJoke(locId, used) {
   const pools = [];
   if (locId && JOKE_LIBRARY[locId]) pools.push(JOKE_LIBRARY[locId]);
   if (locId !== "generic") pools.push(JOKE_LIBRARY.generic);
   const combined = pools.flat();
-  const fresh = combined.filter((j) => !used.has(j));
-  const pool = fresh.length ? fresh : combined;
-  const pick = pool[Math.floor(Math.random() * pool.length)];
+  let fresh = combined.filter((j) => !used.has(j));
+  if (!fresh.length) {
+    combined.forEach((j) => used.delete(j));
+    fresh = combined.slice();
+  }
+  const pick = fresh[Math.floor(Math.random() * fresh.length)];
   used.add(pick);
   return pick;
 }
@@ -664,7 +745,12 @@ Screens.zaubern = {
         showError("Es gibt noch keine fertig gezeichnete Person mit echtem Bild — bitte erst mindestens eine Figur im Charakter-Baustein zeichnen lassen.");
         return;
       }
-      const theme = Pipeline.THEME_META[s.sceneTheme];
+      // GEAENDERT (Punkt C17, Sammel-Runde 09.09.2026): der Chat-Weg (sceneWay 2) liefert einen frei
+      // erzaehlten Ort statt einer Auswahl aus der festen THEMES-Liste -- s.sceneChatTheme (siehe
+      // szene.js sendChatTurn()/buildThemeFromLocation()) enthaelt dafuer ein bereits fertiges,
+      // scenePrompt()-kompatibles Theme-Objekt. Nur wenn das NICHT gesetzt ist (Wege "Thema wählen"/
+      // "Geschichte aufnehmen"), greift wie bisher die feste THEME_META-Zuordnung ueber s.sceneTheme.
+      const theme = s.sceneChatTheme || Pipeline.THEME_META[s.sceneTheme];
       if (!theme) {
         showError("Kein Thema ausgewählt. Bitte zurück zur Szene-Auswahl.");
         return;
@@ -675,11 +761,12 @@ Screens.zaubern = {
         // GEAENDERT (Feature #38, schliesst die bisherige Luecke "freie Geschichte -> Vignetten
         // automatisch"): vorher hier IMMER hartcodiert [] -- nur der Weg "Thema wählen" hatte damit
         // ueberhaupt einen Effekt auf die generierten Vignetten. s.sceneUserSituations kommt jetzt
-        // vom geführten Chat-Interview (Weg "Selbst eintippen", siehe finalizeSceneInterview() oben),
-        // bereits uebersetzt und im von autoSituations() erwarteten {en/de}-Format. Bleibt fuer die
-        // Wege "Thema wählen"/"Geschichte aufnehmen" (Aufnahme noch nicht transkribiert-angeschlossen)
-        // ein leeres Array, genau wie bisher.
-        const situations = Pipeline.autoSituations(theme, s.sceneUserSituations || [], 16);
+        // von ALLEN DREI Wegen (Chat: sendChatTurn(); Aufnahme: handleRecordingStopped(); "Thema
+        // wählen" liefert weiterhin ein leeres Array, komplett aus der GAG_LIBRARY aufgefuellt).
+        // GEAENDERT (Punkt C19): Ziel jetzt einheitlich 15 statt 16 (siehe pipeline.js
+        // autoSituations()-Kommentar) -- fuer den Chat-Weg zaehlt v.a. die TRUNKIERUNG bei mehr als
+        // 15 gelieferten Situationen (Anthropic erzwingt "minItems" im Tool-Schema nicht hart).
+        const situations = Pipeline.autoSituations(theme, s.sceneUserSituations || [], 15);
         setPhase("gen");
         // composeSceneImage() generiert intern beide Kandidaten UND prueft beide (siehe
         // pipeline.js) -- aus Sicht dieses Screens ist das ein einzelner Aufruf, daher springt
@@ -703,15 +790,27 @@ Screens.zaubern = {
     }
     runGeneration();
 
+    // UMFORMULIERT (Sammel-Runde 09.09.2026, Punkt D20: "Nutzer soll bei Bedarf einfach zu einer
+    // anderen Seite/einem anderen Tab wechseln koennen, nicht den Browser schliessen -- Text
+    // entsprechend klarstellen"). Vorher: "du kannst auch was anderes machen" war mehrdeutig (koennte
+    // als "App/Browser schliessen ist ok" gelesen werden) -- jetzt explizit "Tab wechseln ja,
+    // Browser zu nein".
     const stayCard = h("div", { style: { marginTop: "24px", border: "4px solid var(--paper)", background: "var(--red)", padding: "16px", transform: "rotate(.8deg)" } });
     stayCard.appendChild(h("p", { class: "h-black", style: { fontSize: "15px", lineHeight: "1.05", letterSpacing: "-.02em" } }, "Willst du hierbleiben?"));
-    stayCard.appendChild(h("p", { class: "caveat", style: { margin: "7px 0 12px", fontSize: "20px", lineHeight: "1.12" } }, "du kannst auch was anderes machen – ich schreib dir, wenn's fertig ist. oder ich erzähl dir Witze."));
+    stayCard.appendChild(h("p", { class: "caveat", style: { margin: "7px 0 12px", fontSize: "20px", lineHeight: "1.12" } }, "du kannst gern zu einem anderen Tab oder einer anderen Seite wechseln – ich brauch dich hier nicht. nur den Browser bitte nicht schließen, sonst brech ich mittendrin ab. oder ich erzähl dir Witze."));
+
+    // NEU (Punkt D22): identischer Phase-1/Pilot-Hinweis wie auf der Landingpage (index.html,
+    // Ehrlichkeitsblock, Punkt A4) -- an EINER Stelle formuliert, an zwei Stellen eingesetzt.
+    stayCard.appendChild(h("p", { style: { margin: "0 0 12px", fontSize: "12px", lineHeight: "1.5", color: "var(--paper-a90)" } }, "Noch eine ehrliche Sache: Bei den Bildern selbst stecken wir gerade in Phase eins, unserem Pilotprojekt. Die ersten Wimmelbilder kommen deshalb etwas kleiner daher als eigentlich geplant – größere Formate und noch mehr Wimmel-Trubel bauen wir schon."));
 
     // GEAENDERT (kuratierte Witzeliste, siehe JOKE_LIBRARY/pickJoke() oben): waehlt passend zum
     // gerade gewaehlten Szenen-Thema (s.sceneTheme -> locId), faellt ohne Thema auf den
-    // generischen Pool zurueck. "usedJokes" ist bewusst NICHT in AppState (kein Grund, das ueber
-    // einen Reload hinweg zu merken) -- lebt nur, solange dieser Screen offen ist.
-    const usedJokes = new Set();
+    // generischen Pool zurueck. "usedJokes" kommt jetzt aus dem PERSISTENTEN AppState.data.shownJokes
+    // (Sammel-Runde 09.09.2026, Ergaenzung zu Punkt 21) statt bei jedem Seitenaufruf wieder leer
+    // anzufangen -- als Set gehalten fuer schnelle has()/delete()-Zugriffe in pickJoke(), nach jedem
+    // Zug zurueck in ein Array geschrieben und ueber AppState.update() gespeichert.
+    const usedJokes = new Set(s.shownJokes || []);
+    function saveShownJokes() { AppState.update({ shownJokes: Array.from(usedJokes) }); }
     let currentJoke = "";
     const jokeArea = h("div", {});
     function renderJokeArea() {
@@ -725,6 +824,7 @@ Screens.zaubern = {
         if (!currentJoke) {
           const theme = Pipeline.THEME_META[s.sceneTheme];
           currentJoke = pickJoke(theme ? theme.locId : "generic", usedJokes);
+          saveShownJokes();
         }
         const box = h("div", { style: { border: "3px solid var(--ink)", background: "var(--paper)", color: "var(--ink)", padding: "14px" } });
         box.appendChild(h("p", { style: { fontSize: "15px", lineHeight: "1.45", fontWeight: "600" } }, currentJoke));
@@ -733,6 +833,7 @@ Screens.zaubern = {
           onClick: () => {
             const theme = Pipeline.THEME_META[s.sceneTheme];
             currentJoke = pickJoke(theme ? theme.locId : "generic", usedJokes);
+            saveShownJokes();
             renderJokeArea();
           }
         }, "Noch einen"));

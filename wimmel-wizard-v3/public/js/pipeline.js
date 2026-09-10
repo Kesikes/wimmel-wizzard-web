@@ -243,6 +243,51 @@ async function transcribeAudio(base64, mimeType) {
   return data.text || "";
 }
 
+// NEU (Punkt B8, Sammel-Runde 09.09.2026: "Inhaltsmoderation fürs Freitextfeld"). Ruft den neuen
+// claude-proxy.js-Modus "moderate" auf (ANTHROPIC_API_KEY, bereits vorhanden -- gleiches Prinzip wie
+// der Vision-Verify-Mechanismus von fal-proxy.js: eine einzelne Ja/Nein-Prüf-Frage statt eines
+// echten Gesprächs). Anders als translateFreeText() gibt es hier BEWUSST KEINEN stillen Fallback bei
+// einem Fehler -- ein fehlgeschlagener Prüf-Aufruf bedeutet "wir wissen es nicht", nicht "ist
+// erlaubt". Aufrufer fangen den Fehler ab und blockieren die Verwendung (mit Retry-Hinweis), statt
+// unmoderierten Text stillschweigend durchzulassen (fail closed statt fail open, siehe
+// Aufrufstellen in charakter.js/entscheidung.js/szene.js). Gibt true zurück, wenn der Text als
+// unangemessen eingestuft wurde (geblockt werden soll), sonst false. Leerer Text gilt nie als
+// Verstoß (nichts zu prüfen).
+async function moderateText(text) {
+  const trimmed = String(text || "").trim();
+  if (!trimmed) return false;
+  const resp = await fetch("/api/claude-proxy", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mode: "moderate", text: trimmed }),
+  });
+  let data;
+  try { data = await resp.json(); } catch (e) { throw new Error("Antwort war kein gültiges JSON."); }
+  if (!resp.ok || data.error) throw new Error(data.error || ("Prüf-Fehler " + resp.status));
+  return !!data.flagged;
+}
+
+// NEU (Punkt C17, Sammel-Runde 09.09.2026: "echter Chat statt statischem Interview"). Client-Helper
+// fuer den bereits FERTIG in api/claude-proxy.js vorhandenen, bisher aber von KEINEM Screen
+// aufgerufenen geführten Chat-Modus "scene" (SCENE_SYSTEM/ADD_SCENE_TOOL dort -- fragt zuerst nach
+// dem Ort, sammelt dann einzelne Situationen im Gespräch, ergänzt bei Bedarf selbst auf mindestens
+// 15 und ruft am Ende add_scene mit der fertigen Situationsliste auf). messages: Array {role,
+// content} (voller bisheriger Gesprächsverlauf, wird bei jedem Zug komplett mitgeschickt -- die
+// Anthropic-API ist zustandslos). context: {characters, sceneIndex, sceneTarget}, siehe
+// api/claude-proxy.js-Kommentar zum SCENE_SYSTEM-Prompt. Gibt {reply, tool_call} zurück, tool_call
+// ist null (normale Gesprächsantwort) oder {name, input} (add_scene/confirm_result).
+async function sceneChat(messages, context) {
+  const resp = await fetch("/api/claude-proxy", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mode: "scene", messages, context: context || {} }),
+  });
+  let data;
+  try { data = await resp.json(); } catch (e) { throw new Error("Antwort war kein gültiges JSON."); }
+  if (!resp.ok || data.error) throw new Error(data.error || ("Chat-Fehler " + resp.status));
+  return { reply: data.reply || "", tool_call: data.tool_call || null };
+}
+
 // NEU: von imageRefMapping()/scenePrompt() benutzt, um pro Held entweder eine vorab (ueber
 // charInSceneFromChips) gebaute Beschreibung zu nehmen -- das ist der Normalfall in v3, siehe
 // charakter.js -- oder, falls keine da ist, wie bisher auf charInScene(spec) zurueckzufallen
@@ -659,13 +704,23 @@ function allCharactersRule(heroSpecs) {
   return "Each of the " + n + " named characters (" + namesList + ") appears in exactly ONE vignette across the whole scene, never duplicated. All " + n + " named characters must each appear at least once, clearly recognizable according to their reference image and the mapping above. None of them may be omitted.";
 }
 
-// NEU: baut die 15-16 Vignetten fuer eine Szene: vorhandene (z.B. nutzereigene) Situationen plus
+// NEU: baut die Vignetten fuer eine Szene: vorhandene (z.B. nutzereigene) Situationen plus
 // Auffuellung aus der GAG_LIBRARY (topUpSituations, s.o.), danach Positionen/Groessen zugewiesen
 // (defaultBubbleLayout, s.o.). "existing" ist optional; ohne sie wird komplett aus der Bibliothek
 // gefuellt.
-const SIZE_CYCLE = ["M", "M", "S", "L", "M", "S", "M", "M", "L", "S", "M", "M", "S", "L", "M", "M"];
+// GEAENDERT (Punkt C19, Sammel-Runde 09.09.2026: "In allen drei Wegen (Themenauswahl, Chat,
+// Audiotranskript) sollen am Ende 15 Vignetten erzeugt werden"). Vorher default/Aufrufstelle=16
+// (Spezifikations-Zielspanne war "15-16"). Jetzt fest auf 15, EINHEITLICH ueber alle drei Wege --
+// die einzige Aufrufstelle (Screens.zaubern.runGeneration() in szene.js) ist fuer alle drei Wege
+// dieselbe Funktion, daher reicht diese eine Aenderung, um C19 konsistent umzusetzen. topUpSituations
+// (target-Default 15, s.o.) und list.slice(0, target) (in topUpSituations) sorgen dafuer, dass
+// AUCH der neue Chat-Weg (C17, liefert oft schon >=15 eigene Situationen aus dem Gespraech) am Ende
+// exakt 15 hat, egal ob Claude mehr, weniger oder genau 15 geliefert hat (Anthropic erzwingt
+// "minItems" im Tool-Schema nicht hart serverseitig -- dieser Zuschnitt hier ist die verlaessliche
+// clientseitige Garantie).
+const SIZE_CYCLE = ["M", "M", "S", "L", "M", "S", "M", "M", "L", "S", "M", "M", "S", "L", "M"];
 function autoSituations(theme, existing, target) {
-  target = target || 16;
+  target = target || 15;
   let list = (existing || []).map((s) => ({ text: s.en || s.text, de: s.de || s.text }));
   list = topUpSituations(list, theme.locId, target);
   const positions = defaultBubbleLayout(list.length);
@@ -851,7 +906,7 @@ function countViolations(verifyOutputText) {
 window.Pipeline = {
   translate, translateChip, ageRole, twoColorBoost, makeCharacterSpec,
   charPrompt, charInScene, charPromptFromChips, charInSceneFromChips, describeHero, translateFreeText,
-  transcribeAudio,
+  transcribeAudio, moderateText, sceneChat,
   charSheetViewPrompt, charSheetViewPromptFromChips, threeQuarterEditInstruction,
   sideViewEditInstruction, backViewEditInstruction,
   kontextInstruction, photoStyleInstruction,

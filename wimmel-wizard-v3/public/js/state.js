@@ -41,23 +41,49 @@ const DEFAULT_STATE = {
   sceneText: "", // ungenutzt seit dem Chat-Interview-Umbau (06.09.2026), bleibt für alte
   // localStorage-Stände unschädlich stehen (siehe szene.js: sceneBeat1/sceneBeat2/
   // sceneInterviewStep/sceneUserSituations ersetzen das alte freie Textfeld).
-  sceneInterviewStep: 0, // 0 Thema, 1 erste Szene, 2 optionale Kleinigkeit (siehe szene.js buildInterviewPanel)
+  // ENTFERNT/UNGENUTZT seit Punkt C17 (Sammel-Runde 09.09.2026, "echter Chat statt statischem
+  // Interview"): das alte 3-Schritte-Formular (Thema -> Pflicht-Beat -> optionale Kleinigkeit) ist
+  // einem echten Chat gewichen (siehe sceneChatMessages unten). Felder bleiben hier stehen, damit
+  // ein bereits gespeicherter alter localStorage-Stand (Object.assign in loadState()) nicht
+  // bricht -- werden von keinem Code mehr geschrieben oder gelesen.
+  sceneInterviewStep: 0,
   sceneBeat1: "",
   sceneBeat2: "",
   // NEU (06.09.2026): schliesst die bisherige Luecke "freie Geschichte -> Vignetten automatisch"
-  // (siehe Spezifikation Abschnitt 6) -- vom Chat-Interview uebersetzte Situationen, die
+  // (siehe Spezifikation Abschnitt 6) -- vom Chat/Audiotranskript uebersetzte Situationen, die
   // Pipeline.autoSituations() als "existing" bekommt (siehe szene.js runGeneration()), statt dass
   // der Freitext-Weg wie bisher komplett folgenlos blieb (nur "Thema wählen" war angeschlossen).
   sceneUserSituations: [],
+  // NEU (Punkt C17, Sammel-Runde 09.09.2026): echter Gesprächsverlauf mit WizzelWim fuer den Weg
+  // "Selbst eintippen oder einsprechen" -- {role: "user"|"assistant", content}[], wird komplett bei
+  // jedem Zug an api/claude-proxy.js (mode:"scene") mitgeschickt (die Anthropic-API ist selbst
+  // zustandslos). Ueberlebt Reloads (gleiches Auto-Save-Prinzip wie der Rest des States), damit ein
+  // versehentlicher Reload mitten im Gespraech nicht alles zunichtemacht.
+  sceneChatMessages: [],
+  // Noch nicht abgeschickter Entwurfstext im Chat-Eingabefeld (gleiches Zwischenspeicher-Prinzip wie
+  // jedes andere Textfeld in dieser App -- "ich speichere nach jeder Eingabe").
+  sceneChatDraft: "",
+  // Vom Chat gebautes, scenePrompt()-kompatibles Theme-Objekt (locId/type/en/regions/regionMin),
+  // sobald das add_scene-Werkzeug im Gespraech ausgeloest wurde -- siehe szene.js
+  // buildThemeFromLocation(). null, solange der Chat noch laeuft bzw. wenn ein anderer Weg (Thema/
+  // Aufnahme) genutzt wird. Screens.zaubern.runGeneration() bevorzugt dieses Feld gegenueber
+  // Pipeline.THEME_META[s.sceneTheme], falls gesetzt.
+  sceneChatTheme: null,
 
   // Zaubern / Ergebnis
   jokesOn: false,
   jokeIndex: 0, // ungenutzt seit der kuratierten Witzeliste (06.09.2026, siehe szene.js
   // JOKE_LIBRARY/pickJoke()) -- Auswahl läuft jetzt zufällig+themenbezogen statt durchgezählt.
+  // NEU (Sammel-Runde 09.09.2026, Ergaenzung zu Punkt 21: "Shuffle-Modus ... bereits gezeigt-Status
+  // sinnvoll speichern ... auch ueber mehrere Ladevorgaenge hinweg konsistent"): Texte der bereits
+  // gezeigten Witze (nicht nur eine Laufzeit-Menge wie vorher usedJokes in szene.js) -- lebt hier in
+  // AppState, weil das die einzige tatsaechlich vorhandene "anonyme Session" dieses Projekts ist
+  // (Auto-Save in localStorage, siehe Kommentar oben am Dateianfang). Siehe pickJoke() in szene.js.
+  shownJokes: [],
   penOn: false,
 
   // Entscheidung / Widmung / Bestellung
-  tier: 1, // 0 Poster, 1 Mini-Wimmelbuch, 2 Wimmelbuch
+  tier: 1, // 0 Poster, 1 Mini-Wimmelbuch (Stufe "Wimmelbuch"/89€ vorerst entfernt, siehe A3)
   dedication: "",
   payMethod: 0,
 
@@ -123,9 +149,10 @@ const AppState = {
     this.save();
   },
 
-  // Hilfsfunktionen fuer haeufige Ableitungen
+  // Hilfsfunktionen fuer haeufige Ableitungen. Sammel-Runde 09.09.2026, Punkt A3: dritte Stufe
+  // "Wimmelbuch" (89 €) entfernt (siehe entscheidung.js TIERS) -- Array hier synchron gekuerzt.
   priceForTier(tier) {
-    return ["29 €", "49 €", "89 €"][tier];
+    return ["29 €", "49 €"][tier];
   },
   currentPrice() {
     return this.priceForTier(this.data.tier);
@@ -155,11 +182,19 @@ const AppState = {
   },
   // Legt eine neue, von der Nutzerin selbst benannte Person an (Status "open"),
   // macht sie zur aktuell bearbeiteten Person und gibt sie zurueck.
-  addPerson({ name, role, age }) {
+  // NEU (Sammel-Runde 09.09.2026, Punkt B7: "tierspezifische Merkmal-Sets"): optionales "isPet" --
+  // wird von charakter.js submitAddPerson() gesetzt, WAEHREND dort noch der Rollen-Chip-Wert
+  // ("pet") vorliegt, bevor "role" auf die uebersetzte Tierart (z.B. "dog") oder den Fallback
+  // "pet" umgeschrieben wird. Explizit als eigenes Feld gespeichert statt spaeter aus "role" zu
+  // raten (role ist fuer Tiere ein FREIES uebersetztes Wort, kein fester Wert wie bei Menschen --
+  // "role === 'pet'" wuerde z.B. bei jedem konkret benannten Tier wie "dog" schon nicht mehr
+  // greifen). buildChipsPanel()/generateCharacterImage() (charakter.js) lesen isPet, um zwischen
+  // Haar- und Fell-Merkmal-Sets umzuschalten.
+  addPerson({ name, role, age, isPet }) {
     const base = String(name || "").trim().toLowerCase().replace(/[^a-z0-9äöüß]+/g, "-").replace(/^-+|-+$/g, "") || "person";
     let id = base, n = 2;
     while (this.data.people.some((p) => p.id === id)) { id = base + "-" + n; n++; }
-    const person = { id, name: String(name || "").trim(), role: role || null, age: age != null ? age : null, status: "open" };
+    const person = { id, name: String(name || "").trim(), role: role || null, age: age != null ? age : null, isPet: !!isPet, status: "open" };
     const people = this.data.people.concat([person]);
     this.update({ people, currentPersonId: id });
     return person;

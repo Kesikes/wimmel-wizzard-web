@@ -48,6 +48,15 @@
   /* Weiter erhoeht (07.09.2026, dritter Zeilenumbruch: "Spaß.<br>Aber wir..."): jetzt drei
      erzwungene Absaetze statt zwei -- etwas mehr Sicherheitsabstand, falls der mittlere Satz
      auf schmalen Bildschirmen zusaetzlich selbst umbricht. */
+  /* BUGFIX B11 (Sammel-Runde 09.09.2026, Live-Messung 09.09.2026 auf der Live-URL, 375x812
+     Viewport): Ursache des gemeldeten "Bottom-Bar ueberdeckt Eingabefelder"-Bugs war NICHT dieser
+     Wert selbst zu klein -- 185px reserviert bereits ausreichend Platz fuer die (damals) 166px
+     hohe dreizeilige Bottom-Bar. Ursache war der jetzt entfernte EIGENE Submit-Button im
+     "Person anlegen"-Formular (siehe charakter.js buildAddPersonForm()-Kommentar zu B6): der
+     stand als letztes Element IM normalen Dokumentfluss unterhalb der 185px-Reserve und wurde von
+     der fixed-position Bottom-Bar bis zu 108px hoch komplett verdeckt (live gemessen, sichtbar mit
+     ausgeklapptem Tierart-Feld + Validierungsfehler). Seit B6 gibt es diesen Button nicht mehr --
+     die Bottom-Bar selbst uebernimmt die Aktion -- daher hier keine weitere CSS-Aenderung noetig. */
   --bottom-bar-space: 185px;
 }
 

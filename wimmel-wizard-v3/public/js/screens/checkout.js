@@ -22,7 +22,9 @@ Screens.bestellen = {
     orderCard.appendChild(h("img", { src: assetPath("example_gardasee.png"), alt: "Euer Wimmelbuch", style: { flex: "none", width: "96px", border: "3px solid var(--ink)", alignSelf: "flex-start" } }));
     const orderText = h("div", { style: { flex: "1", minWidth: "0" } });
     orderText.appendChild(h("p", { class: "h-black", style: { fontSize: "16px", lineHeight: "1", letterSpacing: "-.02em" } }, "Mini-Wimmelbuch"));
-    orderText.appendChild(h("p", { style: { margin: "6px 0 0", fontSize: "13px", lineHeight: "1.4" } }, "2 Wimmelbilder + Charakterseite, 8 Seiten, Hardcover, mit Widmung."));
+    // Sammel-Runde 09.09.2026, Punkt A3: "Hardcover" -> "Softcover" (Hardcover-Variante kommt
+    // spaeter zurueck, siehe entscheidung.js TIERS und index.html Preise-Sektion).
+    orderText.appendChild(h("p", { style: { margin: "6px 0 0", fontSize: "13px", lineHeight: "1.4" } }, "2 Wimmelbilder + Charakterseite, 8 Seiten, Softcover, mit Widmung."));
     orderText.appendChild(h("p", { class: "h-black", style: { margin: "8px 0 0", fontSize: "20px" } }, "49 €"));
     orderCard.appendChild(orderText);
     wrap.appendChild(orderCard);
