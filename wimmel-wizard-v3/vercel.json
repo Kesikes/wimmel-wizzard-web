@@ -2,5 +2,10 @@
   "rewrites": [
     { "source": "/app", "destination": "/app.html" },
     { "source": "/app/:path*", "destination": "/app.html" }
-  ]
+  ],
+  "functions": {
+    "api/fal-proxy.js": { "maxDuration": 60 },
+    "api/claude-proxy.js": { "maxDuration": 60 },
+    "api/transcribe-proxy.js": { "maxDuration": 60 }
+  }
 }

@@ -13,6 +13,20 @@
 // experimentelles Opt-in) umgestellt: nano-banana-pro/edit für den Szenen-
 // Edit-Pfad, und 4K/21:9 als Szenen-Default (siehe Kommentare unten an den
 // jeweiligen Stellen). Alles andere unverändert aus dem Original übernommen.
+//
+// BUGFIX (Sammel-Runde 10.09.2026, Prioritaet 1: wiederholtes "Load failed" beim Foto-Upload-Weg,
+// ein reiner Netzwerk-/Verbindungsfehler des BROWSERS, kein von uns kontrolliert zurueckgegebener
+// Fehler -- unsere eigenen res.status(...).json({error:...})-Antworten unten wuerden nie als "Load
+// failed" beim Client ankommen). Ursache: es gab bisher KEIN explizites maxDuration fuer diese
+// Funktion, Vercel killt eine Serverless-Function-Ausfuehrung nach Ablauf ihres Default-Zeitlimits
+// (je nach Plan/Konfiguration bereits nach 10s) OHNE eine echte HTTP-Antwort zu senden -- die
+// Verbindung wird einfach abgebrochen, was der Browser als rohen Netzwerkfehler meldet (in Safari
+// wortwoertlich "Load failed"). Ein einzelner nano-banana-2/edit- bzw. nano-banana-pro/edit-Aufruf
+// (erst recht mit mehreren image_urls) kann durchaus laenger als 10s dauern. Jetzt explizit auf 60s
+// gesetzt (siehe vercel.json "functions"-Block, gilt fuer alle drei api/*.js-Funktionen) -- 60s ist
+// der maximal zulaessige Wert auf dem Hobby-Tarif, sollte den ueberwiegenden Teil dieser Timeouts
+// beheben. Falls "Load failed" danach im Live-Test immer noch auftritt, ist das ein Hinweis, dass
+// selbst 60s nicht reichen und ein Pro-Tarif (bis 300s) noetig waere.
 
 // LoRA v5 (wmlstil_v5_final_training.zip, 110 Bild/Caption-Paare: 80 Original + 30 neue Seiten-/
 // 3-4-/Rückansicht-Beispiele mit echten Referenzbildern erzeugt, siehe dev-tools/scenario-runner.js

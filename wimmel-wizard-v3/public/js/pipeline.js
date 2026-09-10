@@ -362,8 +362,36 @@ function kontextInstruction(raw) {
   return raw + ". Keep everything else in the image exactly the same: same pose, same character identity, same composition, same background. Match the exact hand-drawn illustration style of the reference image(s): thick black marker outlines, flat solid colors, round minimal faces with simple dot eyes, graphic-recording sketchnote style. No text, no captions, no signage, no written words anywhere in the image.";
 }
 
+// BUGFIX (Sammel-Runde 10.09.2026, Prioritaet 1: "Wimmelbild-Generierung komplett falsch, Stil UND
+// Charaktere" + "Foto-Upload zeigt eine Person, die nichts mit dem hochgeladenen Foto zu tun hat").
+// Root Cause (per Nutzer-Bildvergleich bestaetigt: ein "erfolgreicher", fehlerfreier Durchlauf
+// lieferte einen sichtbaren Mund, Ohren und einen anime-artigen Look statt wmlstil): dieser Prompt
+// ging bisher fest davon aus, dass NEBEN dem Foto IMMER ein zweites Bild mitgeschickt wird ("The
+// second attached image is a REQUIRED style reference ...", siehe charakter.js
+// generateCharacterImageFromPhoto(), die bisher styleRefUrls: styleReferenceUrls() mitschickte).
+// Genau dieses Muster verbietet die Spezifikation (Abschnitt 1) ausdruecklich: "Kein separates
+// Stil-Referenzbild verwenden ... hat sich als riskant erwiesen (Personen aus dem Referenzbild
+// wurden trotz 'ignore identity'-Anweisung uebernommen und verdraengten echte Charaktere). Die
+// Charakterbilder allein sind stiltreu genug." Das mitgeschickte zweite Bild war entweder das
+// generische Marketing-Asset (wizzelwim-family-hero.png, NICHT im strengen wmlstil-Detailgrad
+// gezeichnet) oder -- schlimmer -- eine bereits fertige, VOELLIG ANDERE Person aus demselben
+// Haushalt: das Modell hat in beiden Faellen offenbar teilweise Identitaet/Stil von diesem
+// zweiten Bild uebernommen statt nur vom eigentlichen Foto zu zeichnen. Jetzt: reiner
+// Ein-Bild-Edit-Prompt (nur noch "the attached photo"), genau das in der Spezifikation
+// bestaetigte Muster ("editImageUrl = Referenzbild, KI erzeugt wmlstil-Version", kein zweites
+// Bild). Die inhaltlichen Stil-Detailregeln (flache Farben, Punktaugen, kein Mund, etc.) bleiben
+// unveraendert -- die waren nie das Problem, nur die "zweites Bild als Stilvorlage"-Rahmung.
+// WICHTIG: jedes so generierte Charakterbild wird spaeter 1:1 als Referenzbild fuer die
+// Szenen-Komposition weiterverwendet (siehe szene.js runGeneration(): s.people.filter(status
+// done).imageUrl) -- ein hier falsch gezeichneter Charakter wird von composeSceneImage() dann
+// treu in der FALSCHEN Optik in die Szene uebernommen (sceneComposeInstruction() verlangt explizit
+// "keeping their identity and design EXACTLY the same as their reference"). Das erklaert, warum
+// auch das komplette Wimmelbild (Stil UND Charaktere) betroffen war, obwohl scenePrompt()/
+// sceneComposeInstruction() selbst Punkt fuer Punkt spezifikationskonform sind (erneut gegen
+// Abschnitt 2 der Spezifikation geprueft, siehe Kommentare dort) -- der Fehler lag ausschliesslich
+// hier im Charakter-Foto-Pfad, nicht in der Szenen-Logik.
 function photoStyleInstruction() {
-  return "The first attached image is a photo of a real person. The second attached image is a REQUIRED style reference showing the exact target illustration style. Redraw the person from the first photo so it looks EXACTLY like the second reference image's style was used to draw them – same reduction level, same line weight, same simplicity. Do not photorealistically render any part of them. Rules, no exceptions: flat solid colors only, absolutely no texture/shading/gradients/highlights anywhere. Hair is 1-2 large flat solid-color blobs with a single outline, never individual strands or highlights. Clothing is flat solid-color shapes with at most one simple seam line, never fabric folds, knit texture, or patterns. Thick uniform black outlines everywhere. Face: plain round shape, two small dot eyes, one short vertical line for a nose, absolutely nothing else on the face (no mouth, no eyebrows, no blush, no visible ears, no earrings or piercings, no glasses unless the reference shows them). No visible neck. Full body, standing, front view, plain white background. Only keep the person's actual hair color, clothing colors, and one distinctive feature (if any) from the photo – everything else about the rendering must match the flat, minimal reference style, not the photo's realism.";
+  return "The attached image is a photo of a real person. Redraw this person in a completely different, flat, minimal, hand-drawn illustration style – do not photorealistically render any part of them. Rules, no exceptions: flat solid colors only, absolutely no texture/shading/gradients/highlights anywhere. Hair is 1-2 large flat solid-color blobs with a single outline, never individual strands or highlights. Clothing is flat solid-color shapes with at most one simple seam line, never fabric folds, knit texture, or patterns. Thick uniform black outlines everywhere. Face: plain round shape, two small dot eyes, one short vertical line for a nose, absolutely nothing else on the face (no mouth, no eyebrows, no blush, no visible ears, no earrings or piercings, no glasses unless the photo clearly shows them). No visible neck. Full body, standing, front view, plain white background. Only keep the person's actual hair color, clothing colors, and one distinctive feature (if any) from the photo – everything else about the rendering must be simplified down to this flat, minimal style, not the photo's realism.";
 }
 
 // Stift-Werkzeug: zwei Modi, Wortlaut exakt aus der Spezifikation Abschnitt 4.

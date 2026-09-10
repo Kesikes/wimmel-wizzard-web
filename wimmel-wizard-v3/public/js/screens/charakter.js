@@ -333,22 +333,16 @@ async function generateExtraViewsAndFinish(person, frontResult, sceneDescription
   Router.goScreen("charakterblatt");
 }
 
-// NEU (B9/B10): liefert das/die Referenzbild(er), die Pipeline.photoStyleInstruction() als "REQUIRED
-// style reference" braucht (siehe pipeline.js-Kommentar dort: der Edit-Aufruf bekommt IMMER zwei
-// Bilder -- das hochgeladene Foto UND ein Referenzbild im Zielstil, sonst rutscht das Ergebnis
-// Richtung Fotorealismus statt des flachen wmlstil). Bevorzugt ein bereits FERTIG GEZEICHNETES Bild
-// derselben Familie/desselben Buchs (garantiert exakt denselben Stil, weil es aus genau demselben
-// Modell/Prompt-Pfad stammt) -- faellt nur beim allerersten Charakter eines frischen Haushalts (noch
-// niemand fertig) auf die feste Marketing-Asset-Grafik zurueck. fal-proxy.js akzeptiert dafuer sowohl
-// https-URLs (fal.media, bereits generierte Bilder) als auch /assets/-Pfade unserer eigenen Domain
-// (isImageRef()-Pruefung dort verlangt eine absolute https-URL -- window.location.origin macht
-// daraus zur Laufzeit eine, unabhaengig davon, unter welcher Domain die App gerade laeuft).
-function styleReferenceUrls() {
-  const s = AppState.data;
-  const doneWithImage = s.people.find((p) => p.status === "done" && p.imageUrl);
-  if (doneWithImage) return [doneWithImage.imageUrl];
-  return [window.location.origin + assetPath("wizzelwim-family-hero.png")];
-}
+// ENTFERNT (Sammel-Runde 10.09.2026, Prioritaet-1-Bugfix): styleReferenceUrls() lieferte bisher ein
+// zweites Referenzbild (entweder eine bereits fertige, ANDERE Person desselben Haushalts oder das
+// generische Marketing-Asset wizzelwim-family-hero.png), das an generateCharacterImageFromPhoto()
+// als styleRefUrls mitgegeben wurde. Genau das verbietet die Spezifikation (Abschnitt 1) ausdruecklich
+// als "hat sich als riskant erwiesen (Personen aus dem Referenzbild wurden ... uebernommen und
+// verdraengten echte Charaktere)" -- bestaetigter Root Cause fuer "Foto-Upload zeigt eine Person, die
+// nichts mit dem hochgeladenen Foto zu tun hat" UND (nachgelagert, da diese Bilder als Szenen-
+// Referenz weiterverwendet werden) fuer "Wimmelbild komplett falsch, Stil UND Charaktere". Siehe
+// ausfuehrlichen Kommentar bei Pipeline.photoStyleInstruction() in pipeline.js. Ersatzlos entfernt,
+// nicht nur den Aufruf: die Funktion hatte keinen anderen Zweck/Aufrufer.
 
 // NEU (B9/B10): Foto-Pendant zu generateCharacterImage() -- selbes Muster (Buttons deaktivieren
 // waehrend der Generierung, Fehler sichtbar anzeigen, danach ueber generateExtraViewsAndFinish()
@@ -364,7 +358,7 @@ async function generateCharacterImageFromPhoto(person, photoDataUri, buttons) {
   activeButtons.forEach((b) => { b.dataset.prevText = b.textContent; b.disabled = true; b.textContent = "Ich zeichne …"; b.style.opacity = "0.75"; });
   try {
     const sceneDescription = Pipeline.charInSceneFromChips({ role: person.role, age: person.age, chipLabels: [], extraEnParts: [], noteEn: "" });
-    const result = await Pipeline.generateImage(Pipeline.photoStyleInstruction(), "char", { editImageUrl: photoDataUri, styleRefUrls: styleReferenceUrls() });
+    const result = await Pipeline.generateImage(Pipeline.photoStyleInstruction(), "char", { editImageUrl: photoDataUri });
     resetUploadedPhoto();
     await generateExtraViewsAndFinish(person, result, sceneDescription);
   } catch (e) {
