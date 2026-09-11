@@ -1045,6 +1045,91 @@ async function composeSceneImage({ heroSpecs, theme, situations }) {
   return { best, promptText, instruction, candidates };
 }
 
+// buildCharacterVerifyPrompt(): NEU (Sammel-Runde 11.09.2026, Fund 1+2+4-korrigiert: "Mund-Bug
+// weiterhin bestaetigt, diesmal sehr deutlich", "Haar-Rendering-Artefakt: Bei einer Figur zieht sich
+// ein Zopf ueber die komplette Bildhoehe, voellig unproportional", "Frontansicht-Bug ist gravierender
+// als gedacht -- die Frontansicht selbst rendert unvollstaendig (nur ein Haar-Artefakt, kein
+// vollstaendiger Kopf/Koerper)", UND, nach Root-Cause-Analyse dieser Runde als GENERIERUNGS- statt
+// Anzeige-Fehler bestaetigt: "Charakterblatt zeigt fuenf verschiedene, offensichtlich unterschiedliche
+// Gesichter gleichzeitig" -- Beweis: person.imageUrl wird auf dem Charakterblatt nur dann als <img>
+// gerendert, wenn es tatsaechlich gesetzt ist (siehe charakter.js Screens.charakterblatt.render(),
+// "if (person.imageUrl) { ... }" umschliesst den GESAMTEN Seite/Ruecken/3-4-Thumbnail-Block) -- die
+// Nutzerin sah dort konsistente Seite/Ruecken/3-4-Ansichten, was nur moeglich ist, wenn imageUrl
+// selbst gesetzt war. Der Fallback auf assetPath("wizzelwim-family-hero.png") (das generische
+// Marketing-Bild mit einer Menschenmenge, das den "fuenf Gesichter"-Fund oberflaechlich erklaeren
+// koennte) greift nur bei einem LEEREN imageUrl -- in diesem Fall war imageUrl also ein echtes,
+// vom Modell tatsaechlich so gezeichnetes Bild. Kein Anzeige-/Zuordnungsfehler, sondern ein
+// Generierungsfehler: das Modell hat bei diesem Seed ein Bild mit mehreren Gesichtern statt einer
+// einzelnen Figur gezeichnet.
+//
+// Bisher gab es fuer die CHARAKTER-Frontansicht (anders als fuer fertige Wimmelbild-Szenen, siehe
+// buildVerifyPrompt() oben) UEBERHAUPT KEINEN Verify-Check -- ein einziger generateImage()-Aufruf
+// wurde ungeprueft direkt als Referenzbild fuer alle weiteren Ansichten (Seite/Ruecken/3-4, siehe
+// generateExtraViewsAndFinish() in charakter.js) UND fuer alle spaeteren Wimmelbild-Szenen
+// (composeSceneImage() oben) weiterverwendet. Ein hier durchrutschender Fehler pflanzt sich dadurch
+// in JEDES nachfolgende Bild dieser Figur fort -- hoehere Tragweite als ein einzelner
+// Szenen-Verstoss. Vier Pruef-Fragen, bewusst als eigene, von buildVerifyPrompt() UNABHAENGIGE
+// Funktion (andere Aufnahme-Situation: ein einzelnes Referenzbild vor moeglichst neutralem
+// Hintergrund statt einer bevoelkerten Szene): single_ok (genau eine Figur, keine
+// Mehrfach-Gesichter/-Koerper -- deckt den "fuenf Gesichter"-Fund ab), complete_ok (vollstaendiger
+// Kopf UND Koerper, kein Fragment/abgeschnittenes Rendering/Artefakt-Rest -- deckt den
+// Zopf-Artefakt-Fund ab), mouth_ok (kein sichtbarer Mund), style_ok (durchgehend wmlstil-Stil). Alle
+// vier folgen der "*_ok"-Namenskonvention, damit countViolations() (bereits generisch) sie ohne
+// Aenderung mitzaehlt.
+function buildCharacterVerifyPrompt() {
+  return "Zeigt dieses Bild GENAU EINE einzelne Figur (eine Person oder ein Tier), vollständig und fehlerfrei gezeichnet? Prüfe besonders: Ist nur EIN Gesicht/EIN Körper zu sehen (nicht mehrere verschiedene Gesichter oder Körper gleichzeitig im Bild)? Ist ein VOLLSTÄNDIGER Kopf UND Körper zu sehen, ohne abgeschnittene Stellen, fehlende Körperteile oder unklare Kritzel-/Farbflecken-Artefakte (z. B. ein einzelner, unproportional langer Haarstrang ohne erkennbaren Kopf/Körper darunter)? Hat diese Figur einen sichtbaren Mund? Ist das Bild durchgehend in einem flachen, minimalistischen Illustrationsstil mit dicken schwarzen Umrisslinien, einfachen runden Köpfen und flächigen Farben gezeichnet — NICHT realistisch, NICHT malerisch/gemalt, NICHT stark schattiert oder fotografisch? Antworte NUR als JSON-Objekt mit genau diesen vier Feldern: {\"single_ok\": true/false, \"complete_ok\": true/false, \"mouth_ok\": true/false, \"style_ok\": true/false} — single_ok ist nur dann true, wenn wirklich nur eine einzige Figur mit einem Gesicht und einem Körper zu sehen ist; complete_ok ist nur dann true, wenn Kopf und Körper vollständig und ohne Artefakte/Fragmente gezeichnet sind; mouth_ok ist nur dann true, wenn die Figur KEINEN sichtbaren Mund hat; style_ok ist nur dann true, wenn das Bild ausnahmslos in diesem flachen wmlstil-Stil gezeichnet ist.";
+}
+
+// composeCharacterImage(): NEU (Sammel-Runde 11.09.2026, Aufgabe "Verify-Check für Charakter-
+// Frontansicht"). Analog zu composeSceneImage() oben (2 Kandidaten mit neuen Seeds, je ein
+// Verify-Call, bei Bedarf automatisch ein dritter Kandidat, wenn keiner der ersten beiden perfekt
+// ausfällt) -- ABER mit einem bewusst ABWEICHENDEN letzten Schritt: composeSceneImage() gibt am Ende
+// IMMER den besten verfügbaren Kandidaten zurück, auch wenn er noch Verstöße hat (ein Szenenbild ist
+// ein Einzelstück; ein späterer erneuter "Zaubern"-Lauf generiert ohnehin ein komplett neues).
+// composeCharacterImage() dagegen WIRFT einen Fehler, wenn auch der beste Kandidat noch Verstöße hat.
+// Grund: dieses Bild wird nicht nur einmal gezeigt, sondern als Referenzbild für ALLE Zusatz-Ansichten
+// (Seite/Rücken/3-4) UND für JEDE spätere Wimmelbild-Szene dieser Figur weiterverwendet -- ein hier
+// durchgewunkener Fehler pflanzt sich in das GESAMTE Buch fort, nicht nur in ein einzelnes Bild. Das
+// entspricht direkt der Nutzer-Vorgabe dieser Runde: "Bei einem fehlgeschlagenen Ergebnis: Fehler
+// anzeigen und neu generieren lassen, statt fehlerhaft weiterzuverarbeiten." generate(seed) ist ein
+// vom Aufrufer übergebener Callback (statt hier fix generateImage() aufzurufen), da es zwei
+// verschiedene Erzeugungswege gibt, die beide denselben Verify-Retry brauchen: Chips-Text-zu-Bild
+// (generateCharacterImage() in charakter.js) UND Foto-Weg (generateCharacterImageFromPhoto(), seit dem
+// Prioritaet-1-Bugfix ebenfalls reiner Text-zu-Bild-Aufruf, siehe Kommentar dort). Wirft: Error mit
+// benutzerverständlicher, konkret benannter Fehler-Meldung, wenn kein Kandidat perfekt ausfällt --
+// Aufrufer fängt das im bereits bestehenden catch-Block ab (charakter.js generateCharacterImage()/
+// generateCharacterImageFromPhoto() zeigen den Fehler bereits an und setzen die Buttons zurück, exakt
+// das vom Nutzer gewünschte "Fehler anzeigen und neu generieren lassen").
+async function composeCharacterImage(generate) {
+  const verifyPrompt = buildCharacterVerifyPrompt();
+
+  async function generateAndVerify(seed) {
+    const cand = await generate(seed);
+    const verifyOut = await verifyImage(cand.url, verifyPrompt);
+    const scored = countViolations(verifyOut);
+    return Object.assign({}, cand, { violations: scored.violations, verify: scored.parsed });
+  }
+
+  const seedA = Math.floor(Math.random() * 1e9);
+  const seedB = Math.floor(Math.random() * 1e9);
+  let candidates = await Promise.all([generateAndVerify(seedA), generateAndVerify(seedB)]);
+
+  if (!candidates.some((c) => c.violations === 0)) {
+    const seedC = Math.floor(Math.random() * 1e9);
+    const candC = await generateAndVerify(seedC);
+    candidates = candidates.concat([candC]);
+  }
+
+  const best = candidates.reduce((a, b) => (b.violations < a.violations ? b : a));
+  if (best.violations > 0) {
+    const failedChecks = best.verify
+      ? Object.keys(best.verify).filter((k) => /_ok$/.test(k) && best.verify[k] === false).join(", ")
+      : "unbekannt";
+    throw new Error("das Ergebnis war leider nicht sauber genug (" + failedChecks + ")");
+  }
+  return best;
+}
+
 /* ---------------- Bild-Upload ---------------- */
 function resizeImageToDataUri(file, maxDim, quality) {
   maxDim = maxDim || 1024; quality = quality || 0.85;
@@ -1145,5 +1230,6 @@ window.Pipeline = {
   sizePx, regionLabel, situationPlacementText, stripEmotionWords, autoSituations,
   densityInstruction, imageRefMapping, allCharactersRule, buildVerifyPrompt,
   scenePrompt, sceneComposeInstruction, composeSceneImage,
+  buildCharacterVerifyPrompt, composeCharacterImage,
   SCENE_STYLE_BLOCK, FILL_EMPTY_SPACE_RULE, COHERENCE_RULE, ZERO_TEXT_RULE, EMOTION_WORDS_RULE,
 };

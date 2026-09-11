@@ -1364,15 +1364,45 @@ function penSafeImageUrl(url) {
 // Browsers eine eigene Same-Origin-Ressource, Canvas-Tainting entfaellt komplett. Deshalb jetzt
 // async (der Proxy-Ladevorgang braucht einen Netzwerk-Roundtrip) -- der einzige Aufrufer,
 // applyPenEdit() unten, awaited das bereits entsprechend um.
+// GEAENDERT (Sammel-Runde 11.09.2026, Fund 3: "Antwort war kein gültiges JSON (Status 413): Request
+// Entity Too Large FUNCTION_PAYLOAD_TOO_LARGE"). Root Cause: dieses Composite wurde bisher in voller
+// Original-Aufloesung (Szenenbilder laufen ueber "4K"/21:9, siehe fal-proxy.js) verlustfrei als PNG
+// exportiert und als data:-URI im JSON-Body an api/fal-proxy.js geschickt -- Vercel erlaubt fuer den
+// gesamten Request-Body einer Function aber HART nur 4.5MB (vercel.com/docs/functions/limitations,
+// "Request body size", nicht konfigurierbar, wird schon von der Plattform VOR unserem Handler-Code
+// abgelehnt -- die bestehende serverseitige 4_000_000-Zeichen-Pruefung weiter unten in fal-proxy.js
+// greift bei diesem Fehlerbild also gar nicht erst, da die Anfrage nie dort ankommt). Ein 4K/21:9-
+// PNG-Screenshot liegt bei diesem Bildinhalt leicht im zweistelligen MB-Bereich, als Base64-String
+// (+33%) erst recht. Gleiches Prinzip wie beim bereits bestehenden Foto-Upload-Pfad
+// (Pipeline.resizeImageToDataUri(), max. 1024px/JPEG q0.85 -- siehe Kommentar bei dessen Aufrufer in
+// charakter.js), hier aber als eigene Variante, weil die Quelle bereits ein <canvas> ist (kein
+// File-Objekt, FileReader waere hier unpassend) und ein Szenenbild wegen der vielen kleinen
+// Wimmelbild-Vignetten eine hoehere Obergrenze braucht als ein Portraitfoto, damit die Kringel-
+// Markierung noch klar einem einzelnen Objekt zuzuordnen ist. MAX_DIM 1800 statt 1024, plus ein
+// Sicherheitsnetz, das die JPEG-Qualitaet in Schritten weiter absenkt, falls das Ergebnis trotzdem
+// noch zu gross waere (deutlich seltener Fall, aber besser ein etwas komprimierteres Bild als ein
+// erneuter 413-Fehler).
 async function captureAnnotatedImage(canvas, img) {
   const proxied = await loadImage(penSafeImageUrl(img.src));
+  const srcW = proxied.naturalWidth || proxied.width || canvas.width;
+  const srcH = proxied.naturalHeight || proxied.height || canvas.height;
+  const MAX_DIM = 1800;
+  const scale = Math.min(1, MAX_DIM / Math.max(srcW, srcH));
   const off = document.createElement("canvas");
-  off.width = proxied.naturalWidth || proxied.width || canvas.width;
-  off.height = proxied.naturalHeight || proxied.height || canvas.height;
+  off.width = Math.max(1, Math.round(srcW * scale));
+  off.height = Math.max(1, Math.round(srcH * scale));
   const octx = off.getContext("2d");
   octx.drawImage(proxied, 0, 0, off.width, off.height);
   octx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, off.width, off.height);
-  return off.toDataURL("image/png");
+  let quality = 0.85;
+  let dataUri = off.toDataURL("image/jpeg", quality);
+  // 3.5MB Ziel-Obergrenze fuer den reinen Bild-String -- laesst Spielraum unter dem harten 4.5MB-
+  // Gesamt-Body-Limit fuer den restlichen JSON-Umbau (prompt, kind, ...).
+  while (dataUri.length > 3.5 * 1024 * 1024 && quality > 0.35) {
+    quality -= 0.15;
+    dataUri = off.toDataURL("image/jpeg", quality);
+  }
+  return dataUri;
 }
 
 // NEU (Punkt D): ein gemeinsames Re-Entry-Gate fuer beide Ergebnis-Ansichten (mobil + Desktop

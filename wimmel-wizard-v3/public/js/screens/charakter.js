@@ -353,7 +353,15 @@ async function generateCharacterImage(person, buttons) {
     const extraEnParts = hairEn ? [hairEn] : [];
     const prompt = Pipeline.charPromptFromChips({ role: person.role, age: person.age, chipLabels, extraEnParts, noteEn });
     const sceneDescription = Pipeline.charInSceneFromChips({ role: person.role, age: person.age, chipLabels, extraEnParts, noteEn });
-    const result = await Pipeline.generateImage(prompt, "char");
+    // GEAENDERT (Sammel-Runde 11.09.2026, Aufgabe "Verify-Check fuer Charakter-Frontansicht" --
+    // siehe ausfuehrlichen Kommentar an Pipeline.composeCharacterImage() in pipeline.js). Vorher ein
+    // einziger, ungeprueft weiterverwendeter Pipeline.generateImage()-Aufruf -- jetzt 2(-3)
+    // Kandidaten mit Verify-Retry, wirft einen Fehler statt ein fehlerhaftes Bild (sichtbarer Mund,
+    // falscher Stil, unvollstaendiges Rendering/Artefakt, oder mehrere Gesichter/Koerper statt
+    // einer einzelnen Figur) durchzuwinken. Der Fehler landet im bestehenden catch-Block unten,
+    // der ihn bereits sichtbar anzeigt und die Buttons zuruecksetzt -- exakt "Fehler anzeigen und
+    // neu generieren lassen".
+    const result = await Pipeline.composeCharacterImage((seed) => Pipeline.generateImage(prompt, "char", { seed }));
     charGenBusy = false;
     await generateExtraViewsAndFinish(person, result, sceneDescription);
   } catch (e) {
@@ -450,7 +458,10 @@ async function generateCharacterImageFromPhoto(person, photoDataUri, buttons) {
     const extraEnParts = traitsEn ? [traitsEn] : [];
     const prompt = Pipeline.charPromptFromChips({ role: person.role, age: person.age, chipLabels: [], extraEnParts, noteEn: "" });
     const sceneDescription = Pipeline.charInSceneFromChips({ role: person.role, age: person.age, chipLabels: [], extraEnParts, noteEn: "" });
-    const result = await Pipeline.generateImage(prompt, "char");
+    // GEAENDERT (Sammel-Runde 11.09.2026): siehe identischer Kommentar in generateCharacterImage()
+    // oben -- derselbe neue Verify-Retry-Mechanismus, da dieser Foto-Pfad seit dem
+    // Prioritaet-1-Bugfix ebenfalls ein reiner Text-zu-Bild-Aufruf ist (kein editImageUrl mehr).
+    const result = await Pipeline.composeCharacterImage((seed) => Pipeline.generateImage(prompt, "char", { seed }));
     resetUploadedPhoto();
     charGenBusy = false;
     await generateExtraViewsAndFinish(person, result, sceneDescription);

@@ -23,9 +23,18 @@ const PINS = [
     body: "Ab da liegt es auf dem Couchtisch, und jemand sucht eine halbe Stunde die Katze." }
 ];
 
-// Desktop-Positionen exakt aus referenz/Desktop-v4-OatlyWimmel.dc.html (PINS-Array) —
-// bewusst andere x/y als mobil, weil rechts der 56%-Textspalte Platz ist.
-const DESKTOP_PIN_POS = [{ x: 57, y: 47 }, { x: 63, y: 79 }, { x: 70, y: 40 }, { x: 77, y: 83 }, { x: 88, y: 29 }];
+// GEAENDERT (Sammel-Runde 11.09.2026, Nutzer-Fund: "Positionierung der nummerierten Punkte im
+// Hero-Bild falsch"). Die alten Werte (aus referenz/Desktop-v4-OatlyWimmel.dc.html uebernommen)
+// haben nicht zu den tatsaechlich abgebildeten Szenen in assets/hero-wimmelhaus.png gepasst. Neu
+// per Pixel-Messung am Bild bestimmt (2835x1203px Original, Marker testweise eingezeichnet und
+// visuell gegen die Grafik geprueft) und exakt auf die vom Nutzer vorgegebene Zuordnung gemappt:
+// 1 unten links beim Mikrofon (Aufnahme-Szene, ~590/960px), 2 bei Oma beim Vorlesen (~1030/380px),
+// 3 bei der Zaubermaschine (~1780/930px), 4 beim fertigen Buch (Bücherstapel, ~2460/930px),
+// 5 bei der Paketübergabe an der Haustür (~2490/420px). Werte sind Prozent der Bildgröße (das Bild
+// selbst laeuft per object-fit:cover volle Sektionsbreite/740px Höhe, siehe index.html) -- bei
+// schmaleren Desktop-Breiten (nahe der 1024px-Grenze) kann der Rand leicht angeschnitten werden,
+// das betraf aber schon die alten x=88-Werte genauso und ist kein neues Problem dieser Aenderung.
+const DESKTOP_PIN_POS = [{ x: 21, y: 80 }, { x: 36, y: 32 }, { x: 63, y: 77 }, { x: 87, y: 77 }, { x: 88, y: 35 }];
 
 const OCCASIONS = [
   { key: "geburtstag", label: "Geburtstag", line: "Geburtstag, okay. Garten voller Kinder, ein Kuchen, ein Hund der damit abhaut. Ich fange schon mal an." },
