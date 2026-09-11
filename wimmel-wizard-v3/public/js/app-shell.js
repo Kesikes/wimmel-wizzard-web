@@ -74,15 +74,13 @@ function syncHeaderSpacing() {
 function renderBottomBar() {
   const idx = Router.screenIndex();
   const barEl = document.getElementById("bottom-bar");
-  const weiterBtnEl = document.getElementById("btn-weitermachen");
   // NEU (Sammel-Runde 2, Punkt 1: "'Charaktere weitermachen'-Button am Dashboard entfernen --
   // direkter Klick auf die 'Charaktere'-Kachel reicht"). Die komplette Bottom-Bar (Zurueck-Pfeil,
-  // der rote "Charaktere weitermachen"-Button, Hinweistext) und ihr Desktop-Pendant
-  // (#btn-weitermachen im Header) ausgeblendet, nicht nur der eine Button -- ein Zurueck-Pfeil ohne
-  // zugehoerigen Weiter-Button und ohne Hinweistext waere ein seltsamer Rest gewesen, und "zurueck"
-  // fuehrt vom Dashboard ohnehin nur zur Landingpage, die bereits ueber das Logo im Header erreichbar
-  // ist. Der eigentliche Sprung zu "Charaktere" passiert wie gewuenscht ausschliesslich noch ueber
-  // die anklickbare Dashboard-Kachel (siehe dashboard.js).
+  // der rote "Charaktere weitermachen"-Button, Hinweistext) ausgeblendet, nicht nur der eine Button
+  // -- ein Zurueck-Pfeil ohne zugehoerigen Weiter-Button und ohne Hinweistext waere ein seltsamer
+  // Rest gewesen, und "zurueck" fuehrt vom Dashboard ohnehin nur zur Landingpage, die bereits ueber
+  // das Logo im Header erreichbar ist. Der eigentliche Sprung zu "Charaktere" passiert wie gewuenscht
+  // ausschliesslich noch ueber die anklickbare Dashboard-Kachel (siehe dashboard.js).
   // .with-bottom-bar reserviert unten 185px Platz (main.css --bottom-bar-space) fuer die fixierte
   // Bottom-Bar -- ohne diesen Toggle bliebe auf dem Dashboard eine leere Luecke uebrig, obwohl die
   // Bar selbst gar nicht mehr angezeigt wird.
@@ -95,15 +93,18 @@ function renderBottomBar() {
   // zugehoerigen Weiter-Button waere ein seltsamer Rest, und die Navigation bleibt trotzdem ueber die
   // immer sichtbare Rail/Desktop-Nav moeglich. Screens.zaubern selbst navigiert bei Erfolg/Fehler
   // ohnehin schon eigenstaendig (runGeneration()/errorBox "Nochmal versuchen", siehe szene.js).
+  // GEAENDERT (Sammel-Runde 11.09.2026, letzter Punkt: "entferne auch den Button im Header mit
+  // 'Weitermachen' auf jeder Seite"). #btn-weitermachen (Desktop-Header-Pendant zur Bottom-Bar) ist
+  // ersatzlos entfernt (siehe app.html) -- die Bottom-Bar selbst ist jetzt auf ALLEN Breakpoints
+  // sichtbar (siehe app.css, .bottom-bar-Regel), es gibt also keinen zweiten Button mehr, der hier
+  // separat verwaltet werden muesste.
   const appShellEl = document.getElementById("app");
   if (appShellEl) appShellEl.classList.toggle("with-bottom-bar", idx !== 0 && idx !== 4);
   if (idx === 0 || idx === 4) {
     if (barEl) barEl.style.display = "none";
-    if (weiterBtnEl) weiterBtnEl.style.display = "none";
     return;
   }
   if (barEl) barEl.style.display = "";
-  if (weiterBtnEl) weiterBtnEl.style.display = "";
   let n = NEXT[idx] || NEXT[0];
   // NEU (Sammel-Runde 09.09.2026, Punkt B6: "bei 'Wer soll noch mitspielen?' zeigt die Bottom-Bar
   // faelschlich 'Figur zeichnen lassen' -- Zeichnen passiert aber erst im naechsten Schritt").
@@ -119,14 +120,11 @@ function renderBottomBar() {
     if (override) n = override;
   }
   const nextBtn = document.getElementById("btn-next");
-  const weiterBtn = document.getElementById("btn-weitermachen");
   nextBtn.disabled = false;
   nextBtn.textContent = n.l;
   nextBtn.style.opacity = "1";
   nextBtn.style.background = idx === 9 ? "var(--blue)" : "var(--red)";
   nextBtn.style.color = idx === 9 ? "var(--ink)" : "var(--paper)";
-  weiterBtn.disabled = false;
-  weiterBtn.style.opacity = "1";
   // GEAENDERT (Live-Test 07.09.2026): NEXT[1] (Charakter-Screen) hat jetzt einen expliziten
   // <br>-Zeilenumbruch ("Ich speichere..." / "Wichtig: ..."). textContent wuerde das <br> als
   // Text anzeigen statt als Umbruch zu wirken -- innerHTML statt textContent, unbedenklich, da
@@ -146,12 +144,17 @@ function renderBottomBar() {
   // Standard-Navigation laeuft (siehe charakter.js) -- so gibt es pro Screen nur noch einen
   // eindeutigen "weiter"-Button, der immer dasselbe tut.
   const mod = Screens[Router.current];
+  // GEAENDERT (Sammel-Runde 11.09.2026, letzter Punkt): "weiterBtn" gab es hier frueher als
+  // zweites Element neben "nextBtn" (der jetzt entfernte Desktop-Header-Button, siehe app.html/
+  // app.css) -- Screen-Module, die onNext({ nextBtn, weiterBtn, ... }) destrukturieren
+  // (charakter.js, szene.js, entscheidung.js), bekommen "weiterBtn" jetzt einfach nicht mehr
+  // mitgegeben (bleibt dort undefined); alle bestehenden Aufrufer filtern das ohnehin schon per
+  // ".filter(Boolean)", bevor sie Buttons waehrend einer Aktion deaktivieren -- keine weitere
+  // Anpassung dort noetig.
   const goNext = (mod && typeof mod.onNext === "function")
-    ? () => mod.onNext({ nextBtn, weiterBtn, defaultGoNext })
+    ? () => mod.onNext({ nextBtn, defaultGoNext })
     : defaultGoNext;
   nextBtn.onclick = goNext;
-  // Desktop-Header "Weitermachen" uebernimmt die Funktion der (dort ausgeblendeten) Bottom-Bar
-  weiterBtn.onclick = goNext;
 
   document.getElementById("btn-back").onclick = () => {
     if (idx <= 0) { window.location.href = "/"; return; }

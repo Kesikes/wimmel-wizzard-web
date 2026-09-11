@@ -276,26 +276,24 @@ let charGenBusy = false;
 function charGenErrorEl(id) { return document.getElementById(id); }
 
 // NEU (Sammel-Runde 11.09.2026, Punkt 1: "orangenen 'Ich zeichne...'-Button im Header
-// entfernen"). Vorher bekam der Desktop-Header-Button (#btn-weitermachen, sichtbar nur ab
-// 1024px, siehe app.css) waehrend der Generierung GENAUSO wie der Bottom-Bar-Button die
-// Beschriftung "Ich zeichne ..." -- fuer eine Desktop-Nutzerin, die diesen Button sonst nur
-// staendig sichtbar und neutral beschriftet als "Weitermachen" kennt, wirkte das wie ein neuer,
-// ploetzlich auftauchender oranger Button. Jetzt: der Header-Button (id "btn-weitermachen")
-// wird waehrend der Generierung weiterhin deaktiviert und abgedunkelt (verhindert versehentliche
-// Doppel-Klicks), behaelt dabei aber seine feste Beschriftung "Weitermachen" -- nur der
-// Bottom-Bar-Button (mobil) zeigt noch den Text-Wechsel. Der eigentliche Re-Entry-Schutz
-// (charGenBusy) haengt ohnehin nicht vom Button-Zustand ab, ein Klick waehrend der Generierung
-// loest also unabhaengig davon nichts aus.
+// entfernen"). Der damalige Desktop-Header-Button (#btn-weitermachen) bekam waehrend der
+// Generierung GENAUSO wie der Bottom-Bar-Button die Beschriftung "Ich zeichne ..." -- fuer eine
+// Desktop-Nutzerin, die diesen Button sonst nur staendig sichtbar und neutral beschriftet als
+// "Weitermachen" kannte, wirkte das wie ein neuer, ploetzlich auftauchender oranger Button. Damals
+// behielt der Header-Button deshalb bewusst seine feste Beschriftung ("isHeaderBtn"-Sonderfall).
+// ENTFERNT (Sammel-Runde 11.09.2026, letzter Punkt: "entferne auch den Button im Header mit
+// 'Weitermachen' auf jeder Seite"): #btn-weitermachen existiert seitdem gar nicht mehr (siehe
+// app.html/app-shell.js) -- der Sonderfall hier ist damit gegenstandslos, ALLE uebergebenen Buttons
+// bekommen jetzt einheitlich den Text-Wechsel.
 function setBusyButtons(buttons, busy) {
   (buttons || []).filter(Boolean).forEach((b) => {
-    const isHeaderBtn = b.id === "btn-weitermachen";
     if (busy) {
-      if (!isHeaderBtn) { b.dataset.prevText = b.textContent; b.textContent = "Ich zeichne …"; }
+      b.dataset.prevText = b.textContent; b.textContent = "Ich zeichne …";
       b.disabled = true;
       b.style.opacity = "0.75";
     } else {
       b.disabled = false;
-      if (!isHeaderBtn) b.textContent = b.dataset.prevText || b.textContent;
+      b.textContent = b.dataset.prevText || b.textContent;
       b.style.opacity = "1";
     }
   });

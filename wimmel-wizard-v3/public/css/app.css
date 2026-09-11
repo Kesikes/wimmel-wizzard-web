@@ -26,7 +26,14 @@
   position: fixed; left: 50%; bottom: 0; z-index: 70; width: 100%; max-width: var(--container-max);
   transform: translateX(-50%); background: var(--paper); border-top: 4px solid var(--ink); padding: 10px 14px 12px;
 }
-@media (min-width: 1024px) { .bottom-bar { display: none; } }
+/* GEAENDERT (Sammel-Runde 11.09.2026, letzter Punkt: "entferne auch den Button im Header mit
+   'Weitermachen' auf jeder Seite"). Vorher war .bottom-bar ab 1024px per display:none ausgeblendet
+   -- #btn-weitermachen im Header war auf Desktop der EINZIGE "weiter"-Button (siehe app-shell.js
+   Kommentar dort, jetzt entfernt). Ohne diesen Header-Button braeuchte Desktop sonst ueberhaupt
+   keinen "weiter"-Button mehr (nur noch einzeln anklickbare Rail-Reiter oben) -- stattdessen bleibt
+   .bottom-bar jetzt auf ALLEN Breakpoints sichtbar, ein einheitlicher Ablauf mobil wie Desktop.
+   .app-shell.with-bottom-bar (main.css) reserviert bereits ungebunden an einen Breakpoint den
+   noetigen Platz darunter, das greift dadurch jetzt automatisch auch auf Desktop. */
 
 /* ---- Wiederkehrende Screen-Atome ---- */
 .scr-pad { padding: 18px 14px 0; }
@@ -80,7 +87,6 @@ textarea.field { min-height: 108px; resize: none; padding: 11px; line-height: 1.
   #desktop-nav { display: flex; gap: 8px; margin-left: 18px; }
   #desktop-nav .rail-btn { min-height: 36px; font-size: 11px; padding: 9px 12px; }
   #app-saved-label { display: inline; }
-  #btn-weitermachen { display: inline-flex; }
 
   main#screen-root { max-width: var(--desktop-max); margin: 0 auto; }
   .scr-pad { max-width: 430px; }
