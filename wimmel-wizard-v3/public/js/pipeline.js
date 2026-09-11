@@ -454,6 +454,13 @@ function kontextInstruction(raw) {
 function photoStyleInstruction() {
   return "wmlstil. The attached image is a photo of a real person. Redraw this person entirely in the flat, minimal, hand-drawn wmlstil illustration style used throughout this book – graphic recording sketchnote style – do not photorealistically render any part of them. Rules, no exceptions: flat solid colors only, absolutely no texture/shading/gradients/highlights anywhere. Hair is 1-2 large flat solid-color blobs with a single outline, never individual strands or highlights. Clothing is flat solid-color shapes with at most one simple seam line, never fabric folds, knit texture, or patterns. Thick uniform black outlines everywhere. Face: plain round shape, two small dot eyes, one short vertical line for a nose, absolutely nothing else on the face (no mouth, no eyebrows, no blush, no visible ears, no earrings or piercings, no glasses unless the photo clearly shows them). No visible neck. Full body, standing, front view, plain white background. Only keep the person's actual hair color, clothing colors, and one distinctive feature (if any) from the photo – everything else about the rendering must be simplified down to this flat, minimal, graphic recording sketchnote style, not the photo's realism.";
 }
+// UEBERHOLT (Sammel-Runde 11.09.2026, siehe ausfuehrlicher Kommentar an describePhotoTraits()
+// unten): photoStyleInstruction() wird vom regulaeren Foto-Pfad NICHT mehr aufgerufen -- ein
+// frischer Live-Test NACH diesem A1/A2-Fix zeigte weiterhin einen komplett falschen (nicht
+// wmlstil-) Stil, weil fal-ai/nano-banana-2/edit strukturell kein LoRA laden kann und sich bei
+// einem reinen Prompt-Text-Anker offenbar zu nah am fotorealistischen Ausgangsbild haelt. Bleibt
+// hier stehen (weiterhin exportiert, siehe window.Pipeline unten) als Referenz/fuer moegliche
+// zukuenftige Experimente mit diesem Endpoint, ist aber kein Teil des aktuellen Produktpfads mehr.
 
 // NEU (Sammel-Runde 10.09.2026, Punkt A3: "charInSceneFromChips()-Aufruf im Foto-Pfad mit den
 // tatsaechlichen Merkmalen befuellen statt leer"). Der Foto-Pfad hat bewusst KEINE Chip-/Notiz-UI
@@ -474,6 +481,55 @@ function photoStyleInstruction() {
 //   Vorsichtsmassnahme wie in Punkt B2/B3 fuer imageRefMapping()/heroActionBits gefordert).
 function traitBitFromPhotoDescription(description) {
   const trimmed = String(description || "").trim();
+  if (!trimmed) return "";
+  const firstSentence = trimmed.split(/(?<=[.!?])\s/)[0].replace(/[.!?]+$/, "").trim();
+  const capped = firstSentence.length > 160 ? firstSentence.slice(0, 160).trim() : firstSentence;
+  return stripEmotionWords(capped);
+}
+
+// BUGFIX (Sammel-Runde 11.09.2026, "Foto-Upload-Pfad: Stil ist komplett falsch, nicht nur
+// ungenau"). Frischer Live-Test NACH dem A1/A2-Fix (photoStyleInstruction() oben, voller
+// wmlstil-Stil-Regelblock inkl. "graphic recording sketchnote style") zeigt denselben Fehler wie
+// VOR diesem Fix: kein wmlstil, sondern ein komplett anderer, unpassender Look -- ausdruecklich
+// UNABHAENGIG von der Bildschwierigkeit (Testfoto bewusst ein schwieriger Instagram-Reel-
+// Screenshot mit UI-Overlays/Text, siehe Nutzer-Rueckmeldung: "es geht nicht darum, dass Details
+// ... nicht exakt passen -- der Stil selbst ist komplett falsch ... das ist die eigentliche
+// Anforderung, nicht ein leichteres Testfoto"). Root Cause jetzt endgueltig eingekreist statt nur
+// vermutet: der bisherige Foto-Pfad lief komplett ueber fal-ai/nano-banana-2/edit (reiner
+// Bild-Editier-Endpoint) und verliess sich AUSSCHLIESSLICH auf einen Text-Prompt als Stil-Anker.
+// Bestaetigt gegen das offizielle fal.ai-Schema (siehe Kommentar an LORA_URL/useProModel in
+// fal-proxy.js): dieser Endpoint hat KEIN "loras"-Feld, kann unser trainiertes wmlstil-LoRA also
+// STRUKTURELL gar nicht laden -- ein reiner Prompt-Text-Anker ist bei diesem
+// Google-Gemini-3.1-Flash-Image-basierten Editier-Modell offensichtlich zu schwach, um ein reales
+// Foto (erst recht ein "kontaminiertes" mit fremdem UI-Text) verlaesslich in den trainierten Stil
+// zu ueberfuehren -- das Modell bleibt zu nah am fotorealistischen Ausgangsbild. Der Chips-Weg
+// dagegen ist laut derselben Nutzer-Diagnose stabil zuverlaessig im Stil, weil er ueber
+// fal-ai/flux-lora LAEUFT MIT unserem echten trainierten LoRA + Trigger-Wort "wmlstil" (siehe
+// generateCharacterImage() in charakter.js + der falBody-Zweig OHNE imageUrl in fal-proxy.js) --
+// das ist der einzige Weg in dieser Codebasis, der den Stil technisch GARANTIERT statt ihn nur per
+// Prompt zu erbitten.
+// FIX: der Foto-Pfad nutzt das Foto ab jetzt NICHT mehr fuer den eigentlichen Bild-Editier-Aufruf,
+// sondern nur noch fuer EINEN kurzen Vision-Beschreibungsaufruf -- ueber denselben, bereits
+// bestehenden openrouter/router/vision-Endpoint, den auch der Verify-Retry-Mechanismus nutzt
+// (siehe verifyImage()/fal-proxy.js mode:"verify", kein neuer Provider/Secret noetig). Diese
+// Funktion liest daraus NUR Haarfarbe/-laenge/-textur + eine Besonderheit als kurzen englischen
+// Satz heraus (UI-Overlays/Text im Foto werden dabei explizit zu ignorieren gebeten -- direkte
+// Antwort auf den Testfoto-Befund). Das eigentliche Bild wird DANACH ueber genau denselben
+// LoRA-Pfad wie beim Chips-Weg erzeugt (siehe charakter.js generateCharacterImageFromPhoto():
+// charPromptFromChips() + generateImage() OHNE editImageUrl) -- der Stil ist dadurch strukturell
+// derselbe wie beim bereits bestaetigt zuverlaessigen Chips-Weg, unabhaengig von der
+// Bildschwierigkeit. Tradeoff, bewusst in Kauf genommen (entspricht ausdruecklich der
+// Nutzer-Vorgabe oben): die Detail-TREUE zum Foto haengt jetzt von der Qualitaet dieser kurzen
+// Vision-Beschreibung ab (kann bei einem schwierigen Foto ungenauer sein als ein direkter
+// Bild-Edit), aber der STIL ist ab jetzt technisch garantiert statt nur erbeten. Kein stiller
+// Fallback bei einem fehlgeschlagenen Vision-Aufruf (kein try/catch hier) -- ein Fehler wandert
+// unveraendert zum bestehenden generischen "Zeichnen hat nicht geklappt: ..."-Fehlerpfad in
+// charakter.js, sichtbar fuer die Nutzerin, statt ein zweifelhaftes Ergebnis stillschweigend
+// durchzuwinken.
+async function describePhotoTraits(photoDataUri) {
+  const prompt = "Look ONLY at the real person in this photo. Completely ignore any on-screen app UI elements, buttons, icons, captions, subtitles, stickers, filters, or text overlays anywhere in the image -- describe only the actual physical person underneath them. In ONE short sentence (max 25 words), state: their hair color, hair length (short/medium/long), hair texture (straight/curly/wavy), and at most one other clearly visible distinguishing feature (e.g. glasses, a beard, a red jacket, a headscarf). Do not mention facial expression, emotion, age, gender, or anything about the background or any UI element. Reply with ONLY that one plain sentence -- no JSON, no preamble, no extra commentary.";
+  const raw = await verifyImage(photoDataUri, prompt);
+  const trimmed = String(raw || "").trim();
   if (!trimmed) return "";
   const firstSentence = trimmed.split(/(?<=[.!?])\s/)[0].replace(/[.!?]+$/, "").trim();
   const capped = firstSentence.length > 160 ? firstSentence.slice(0, 160).trim() : firstSentence;
@@ -1043,7 +1099,7 @@ window.Pipeline = {
   transcribeAudio, moderateText, sceneChat,
   charSheetViewPrompt, charSheetViewPromptFromChips, threeQuarterEditInstruction,
   sideViewEditInstruction, backViewEditInstruction,
-  kontextInstruction, photoStyleInstruction, traitBitFromPhotoDescription,
+  kontextInstruction, photoStyleInstruction, traitBitFromPhotoDescription, describePhotoTraits,
   PEN_INSTRUCTION_REMOVE, PEN_INSTRUCTION_REDO,
   resizeImageToDataUri, generateImage, verifyImage, countViolations,
   // Szenen-Komposition (neu, siehe Modul-Abschnitt oben)

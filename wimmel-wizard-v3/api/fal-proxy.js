@@ -22,11 +22,30 @@
 // (je nach Plan/Konfiguration bereits nach 10s) OHNE eine echte HTTP-Antwort zu senden -- die
 // Verbindung wird einfach abgebrochen, was der Browser als rohen Netzwerkfehler meldet (in Safari
 // wortwoertlich "Load failed"). Ein einzelner nano-banana-2/edit- bzw. nano-banana-pro/edit-Aufruf
-// (erst recht mit mehreren image_urls) kann durchaus laenger als 10s dauern. Jetzt explizit auf 60s
-// gesetzt (siehe vercel.json "functions"-Block, gilt fuer alle drei api/*.js-Funktionen) -- 60s ist
-// der maximal zulaessige Wert auf dem Hobby-Tarif, sollte den ueberwiegenden Teil dieser Timeouts
-// beheben. Falls "Load failed" danach im Live-Test immer noch auftritt, ist das ein Hinweis, dass
-// selbst 60s nicht reichen und ein Pro-Tarif (bis 300s) noetig waere.
+// (erst recht mit mehreren image_urls) kann durchaus laenger als 10s dauern. Damals explizit auf
+// 60s gesetzt (Hobby-Tarif-Maximum zum Zeitpunkt dieses Fixes) -- sollte den ueberwiegenden Teil
+// dieser Timeouts beheben, mit dem ausdruecklichen Hinweis: "Falls 'Load failed' danach im
+// Live-Test immer noch auftritt, ist das ein Hinweis, dass selbst 60s nicht reichen und ein
+// Pro-Tarif (bis 300s) noetig waere."
+// GENAU DAS ist im Live-Test der Sammel-Runde 11.09.2026 wieder aufgetreten -- diesmal beim
+// bisher stabilen Chips-Weg ("Zeichnen hat nicht geklappt: Load failed", ausgeloest von der
+// generateImage()-Textzu-Bild-Anfrage in charakter.js generateCharacterImage(), NICHT von einer
+// der drei parallelen Zusatz-Ansichten -- die haben ihr eigenes Promise.allSettled-Fangnetz und
+// wuerden nie diese Fehlermeldung ausloesen). Vor einem Tarif-Upgrade gepruefte, guenstigere
+// Erklaerung (Live-Abruf der aktuellen Vercel-Dokumentation, docs zuletzt aktualisiert am
+// 24.08.2026): Vercel hat die Hobby-Tarif-Grenzen inzwischen angehoben. Mit "Fluid Compute"
+// (seit einiger Zeit fuer NEUE Projekte automatisch aktiv, https://vercel.com/docs/fluid-compute)
+// liegt maxDuration auf dem Hobby-Tarif jetzt bei Default UND Maximum 300s (5 Minuten) -- nicht
+// mehr nur 60s wie zum Zeitpunkt des urspruenglichen Fixes. Die bisherige maxDuration:60 in
+// vercel.json war also vermutlich eine SELBST gesetzte, inzwischen unnoetig enge Grenze, keine
+// von Vercel erzwungene. Jetzt auf 300 angehoben (siehe vercel.json) -- kein Tarif-Upgrade
+// erforderlich, sofern Fluid Compute fuer dieses Projekt aktiv ist (Standard bei allen neu
+// angelegten Projekten). Falls "Load failed" TROTZDEM weiterhin auftritt, ist das ein Hinweis,
+// dass entweder Fluid Compute fuer dieses konkrete Projekt nicht aktiv ist (in den Vercel-
+// Projekteinstellungen unter "Functions" pruefbar) oder dass tatsaechlich ein anderer Fehler
+// vorliegt (z.B. fal.ai-seitige Rate-Limitierung/Ueberlastung) -- in dem Fall lohnt sich ein Blick
+// in die Vercel-Funktionslogs (Projekt -> "Logs"/"Observability") fuer den genauen Zeitpunkt des
+// Fehlers.
 
 // LoRA v5 (wmlstil_v5_final_training.zip, 110 Bild/Caption-Paare: 80 Original + 30 neue Seiten-/
 // 3-4-/Rückansicht-Beispiele mit echten Referenzbildern erzeugt, siehe dev-tools/scenario-runner.js

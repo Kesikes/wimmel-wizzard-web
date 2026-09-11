@@ -401,10 +401,30 @@ async function generateCharacterImageFromPhoto(person, photoDataUri, buttons) {
   charGenBusy = true;
   const activeButtons = (buttons || []).filter(Boolean);
   activeButtons.forEach((b) => { b.dataset.prevText = b.textContent; b.disabled = true; b.textContent = "Ich zeichne …"; b.style.opacity = "0.75"; });
+  // BUGFIX (Sammel-Runde 11.09.2026, "Foto-Upload-Pfad: Stil ist komplett falsch, nicht nur
+  // ungenau" -- siehe ausfuehrlichen Kommentar an Pipeline.describePhotoTraits() in pipeline.js).
+  // Vorher lief die eigentliche Bild-Generierung hier direkt ueber Pipeline.generateImage(
+  // Pipeline.photoStyleInstruction(), "char", { editImageUrl: photoDataUri }) -- also ueber den
+  // LoRA-losen fal-ai/nano-banana-2/edit-Bild-Editier-Pfad, mit dem Foto selbst als Eingabebild.
+  // Ein frischer Live-Test zeigte: das reicht nicht, der Stil bleibt komplett falsch, auch mit dem
+  // bereits zuvor verstaerkten Stil-Regelblock -- ein reiner Prompt-Text-Anker ist bei diesem
+  // Editier-Modell zu schwach. Jetzt zweistufig, genau wie der bereits bestaetigt zuverlaessige
+  // Chips-Weg: (1) das Foto wird NUR fuer einen kurzen Vision-Beschreibungsaufruf verwendet
+  // (describePhotoTraits() -- extrahiert Haare/eine Besonderheit als kurzen englischen Satz,
+  // ignoriert dabei bewusst UI-Overlays/Text im Foto), (2) das eigentliche Bild entsteht DANACH
+  // ueber denselben LoRA-Text-zu-Bild-Pfad wie beim Chips-Weg (charPromptFromChips() +
+  // generateImage() OHNE editImageUrl) -- der Stil ist dadurch technisch derselbe wie beim
+  // Chips-Weg, nicht nur ein weiteres Mal per Prompt erbeten. Das hochgeladene Foto fliesst also
+  // nicht mehr direkt in die Bild-Pixel des Ergebnisses ein, nur noch in diese eine kurze
+  // Text-Beschreibung -- das deckt sich weiterhin mit dem Versprechen auf der Karte ("wird nur
+  // für dein Bild benutzt und danach gelöscht"), eher noch staerker (das Original-Foto wird nie
+  // an den eigentlichen Bild-Generator weitergereicht).
   try {
-    const result = await Pipeline.generateImage(Pipeline.photoStyleInstruction(), "char", { editImageUrl: photoDataUri });
-    const traitBit = Pipeline.traitBitFromPhotoDescription(result.description);
-    const sceneDescription = Pipeline.charInSceneFromChips({ role: person.role, age: person.age, chipLabels: [], extraEnParts: traitBit ? [traitBit] : [], noteEn: "" });
+    const traitsEn = await Pipeline.describePhotoTraits(photoDataUri);
+    const extraEnParts = traitsEn ? [traitsEn] : [];
+    const prompt = Pipeline.charPromptFromChips({ role: person.role, age: person.age, chipLabels: [], extraEnParts, noteEn: "" });
+    const sceneDescription = Pipeline.charInSceneFromChips({ role: person.role, age: person.age, chipLabels: [], extraEnParts, noteEn: "" });
+    const result = await Pipeline.generateImage(prompt, "char");
     resetUploadedPhoto();
     charGenBusy = false;
     await generateExtraViewsAndFinish(person, result, sceneDescription);
