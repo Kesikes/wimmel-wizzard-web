@@ -338,13 +338,19 @@
         <div style="flex:1; min-width:0;"><h3 class="h-black" style="font-size:17px; letter-spacing:-.02em; margin:0 0 3px;">Poster</h3><p style="font-size:13px; line-height:1.4; font-weight:500; margin:0;">1 Wimmelbild, DIN A2</p></div>
         <span class="h-black" style="flex:none; font-size:18px; background: var(--ink); color: var(--paper); padding:6px 9px; transform: rotate(2.2deg);">29 €</span>
       </div>
-      <!-- Sammel-Runde 09.09.2026, Punkt A3: Produktangebot vorerst auf Poster + Mini-Wimmelbuch
-           (Softcover) reduziert -- die dritte Stufe "Wimmelbuch, 89 €, 5 Bilder, gebunden" ist raus,
-           Hardcover kommt spaeter. Gleiche Reduktion in entscheidung.js (TIERS) und checkout.js
-           (Material-Text Hard->Softcover) vorgenommen. -->
       <div style="display:flex; gap:12px; align-items:center; border:4px solid var(--ink); padding:14px; background: var(--paper); transform: rotate(.96deg); box-shadow: -4px 5px 0 var(--ink);">
         <div style="flex:1; min-width:0;"><h3 class="h-black" style="font-size:17px; letter-spacing:-.02em; margin:0 0 3px;">Mini-Wimmelbuch</h3><p style="font-size:13px; line-height:1.4; font-weight:500; margin:0;">2 Bilder + Charakterseite, 8 Seiten, Softcover</p></div>
         <span class="h-black" style="flex:none; font-size:18px; background: var(--ink); color: var(--paper); padding:6px 9px; transform: rotate(-1.6deg);">49 €</span>
+      </div>
+      <!-- GEAENDERT (Sammel-Runde 11.09.2026, Punkt 16: "Großes Wimmelbuch (Hardcover) wieder mit
+           aufnehmen, aber mit 'Coming Soon'-Kennzeichnung statt komplett entfernt"). War seit
+           Sammel-Runde 09.09.2026 (Punkt A3) komplett raus -- jetzt wieder sichtbar, aber gedaempft
+           (opacity) und mit grauem "Coming Soon"-Badge statt Preis-Badge markiert, damit klar ist,
+           dass diese Stufe noch nicht bestellbar ist. Gleiche Ergaenzung in entscheidung.js
+           (TIERS, dort zusaetzlich als comingSoon:true nicht auswaehlbar). -->
+      <div style="display:flex; gap:12px; align-items:center; border:4px solid var(--ink); padding:14px; background: var(--paper); opacity:.55; transform: rotate(-.5deg); box-shadow: 4px 5px 0 var(--ink);">
+        <div style="flex:1; min-width:0;"><h3 class="h-black" style="font-size:17px; letter-spacing:-.02em; margin:0 0 3px;">Großes Wimmelbuch</h3><p style="font-size:13px; line-height:1.4; font-weight:500; margin:0;">5 Bilder + Charakterseite, gebunden, Hardcover</p></div>
+        <span class="h-black" style="flex:none; font-size:12px; letter-spacing:.06em; text-transform:uppercase; background: rgba(26,26,24,.55); color: var(--paper); padding:6px 9px; transform: rotate(2deg);">Coming Soon</span>
       </div>
     </div>
   </section>

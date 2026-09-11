@@ -3,14 +3,16 @@
    Texte wörtlich aus referenz/App-Flow-v4-OatlyWimmel.dc.html.
    ========================================================================== */
 
-// Sammel-Runde 09.09.2026, Punkt A3: dritte Stufe "Wimmelbuch" (89 €, 5 Bilder, gebunden/Hardcover)
-// vorerst entfernt -- Produktangebot ist auf der Landingpage (index.html) auf Poster +
-// Mini-Wimmelbuch (Softcover) reduziert, damit hier im Flow dieselben zwei Optionen stehen (sonst
-// koennte man im App-Flow etwas waehlen, das auf der Marketingseite gar nicht mehr beworben wird).
-// Hardcover/5-Bilder-Stufe kommt spaeter zurueck.
+// GEAENDERT (Sammel-Runde 11.09.2026, Punkt 16: "Großes Wimmelbuch (Hardcover) wieder mit
+// aufnehmen, aber mit 'Coming Soon'-Kennzeichnung statt komplett entfernt"). Die dritte Stufe
+// (Sammel-Runde 09.09.2026, Punkt A3, damals komplett entfernt) ist jetzt wieder SICHTBAR, aber
+// ueber comingSoon:true als nicht auswaehlbar markiert (siehe render() unten: kein onClick-Effekt,
+// eigenes gedaempftes Aussehen + "Coming Soon"-Tag statt der normalen gruenen/blauen Tags). Gleiche
+// Ergaenzung auf der Landingpage (index.html, Preise-Sektion).
 const TIERS = [
   { name: "Poster", price: "29 €", body: "Ein Bild, groß gedruckt. Fertig – keine weiteren Schritte.", tag: "sofort fertig" },
-  { name: "Mini-Wimmelbuch", price: "49 €", body: "2 Bilder + Charakterseite, 8 Seiten, Softcover. Du hast alles schon zusammen.", tag: "alles da" }
+  { name: "Mini-Wimmelbuch", price: "49 €", body: "2 Bilder + Charakterseite, 8 Seiten, Softcover. Du hast alles schon zusammen.", tag: "alles da" },
+  { name: "Großes Wimmelbuch", price: "89 €", body: "5 Bilder + Charakterseite, gebunden, Hardcover. Kommt bald.", tag: "Coming Soon", comingSoon: true }
 ];
 
 Screens.entscheidung = {
@@ -25,12 +27,32 @@ Screens.entscheidung = {
     const list = h("div", { style: { display: "flex", flexDirection: "column", gap: "12px" } });
     TIERS.forEach((t, i) => {
       const on = s.tier === i;
+      // GEAENDERT (Punkt 16): comingSoon-Stufen sind sichtbar, aber bewusst NICHT auswaehlbar --
+      // eigenes gedaempftes Aussehen (reduzierte Deckkraft, cursor:not-allowed, kein Klick-Handler,
+      // "Coming Soon"-Tag in gedecktem Grau statt der normalen roten/blauen Tags) statt sie wie eine
+      // normale, aktivierbare Option aussehen zu lassen -- verhindert, dass jemand versehentlich eine
+      // noch nicht bestellbare Stufe waehlt und erst beim Bestellen merkt, dass nichts passiert.
       const btn = h("button", {
         type: "button",
-        style: { position: "relative", display: "block", width: "100%", cursor: "pointer", color: "inherit", padding: "16px", border: "4px solid var(--ink)", transform: "rotate(" + rot(i, ROT6_APP) + "deg)", background: on ? "var(--yellow)" : "var(--paper)", boxShadow: on ? "6px 7px 0 var(--ink)" : "4px 5px 0 var(--ink)" },
-        onClick: () => { AppState.update({ tier: i }); rerender(); }
+        disabled: !!t.comingSoon,
+        style: {
+          position: "relative", display: "block", width: "100%", color: "inherit", padding: "16px", border: "4px solid var(--ink)",
+          transform: "rotate(" + rot(i, ROT6_APP) + "deg)",
+          cursor: t.comingSoon ? "not-allowed" : "pointer",
+          opacity: t.comingSoon ? ".55" : "1",
+          background: t.comingSoon ? "var(--paper)" : (on ? "var(--yellow)" : "var(--paper)"),
+          boxShadow: (!t.comingSoon && on) ? "6px 7px 0 var(--ink)" : "4px 5px 0 var(--ink)"
+        },
+        onClick: t.comingSoon ? null : () => { AppState.update({ tier: i }); rerender(); }
       });
-      const tag = h("span", { class: "h-black", style: { position: "absolute", top: "-13px", right: "12px", fontSize: "9px", letterSpacing: ".08em", padding: "4px 7px", border: "3px solid var(--ink)", background: on ? "var(--red)" : "var(--blue)", color: on ? "var(--paper)" : "var(--ink)" } }, t.tag);
+      const tag = h("span", {
+        class: "h-black",
+        style: {
+          position: "absolute", top: "-13px", right: "12px", fontSize: "9px", letterSpacing: ".08em", padding: "4px 7px", border: "3px solid var(--ink)",
+          background: t.comingSoon ? "rgba(26,26,24,.55)" : (on ? "var(--red)" : "var(--blue)"),
+          color: t.comingSoon ? "var(--paper)" : (on ? "var(--paper)" : "var(--ink)")
+        }
+      }, t.tag);
       btn.appendChild(tag);
       const top = h("span", { style: { display: "flex", alignItems: "baseline", gap: "8px" } });
       top.appendChild(h("span", { class: "h-black", style: { fontSize: "18px", lineHeight: "1", letterSpacing: "-.03em" } }, t.name));

@@ -565,10 +565,18 @@ function buildAddPersonForm(s) {
   const isFirst = s.people.length === 0;
 
   wrap.appendChild(h("p", { class: "kicker kicker-yellow", style: { transform: "rotate(-2deg)" } }, isFirst ? "Erste Person" : "Person " + (s.people.length + 1)));
-  wrap.appendChild(h("h1", { class: "h1-scr", style: { fontSize: "31px" } }, [
-    document.createTextNode(isFirst ? "Wer soll" : "Wer soll"), h("br"), document.createTextNode("noch"), h("br"),
-    h("span", { style: { color: "var(--red)" } }, "mitspielen?")
-  ]));
+  // BUGFIX (Sammel-Runde 2, Punkt 2: "'mitspielen' scheint doppelt aufzutauchen -- bitte Text
+  // prüfen"). Kein echtes doppeltes DOM-Element gefunden (per Render-Test nachgeprueft: "mitspielen"
+  // kommt nur genau einmal im Text vor) -- der eigentliche Fehler war ein wirkungsloser Ternary:
+  // "isFirst ? 'Wer soll' : 'Wer soll'" lieferte in BEIDEN Faellen denselben Text, und das Wort
+  // "noch" wurde IMMER angehaengt, auch fuer die allererste Person ("Wer soll noch mitspielen?" --
+  // "noch" ergibt dort inhaltlich keinen Sinn, es gibt ja noch niemanden). Vermutlich das, was als
+  // "komisch doppelt/zu viel" wahrgenommen wurde. Jetzt inhaltlich korrekt unterschieden: erste
+  // Person ohne "noch", jede weitere Person MIT "noch".
+  wrap.appendChild(h("h1", { class: "h1-scr", style: { fontSize: "31px" } }, isFirst
+    ? [document.createTextNode("Wer soll"), h("br"), h("span", { style: { color: "var(--red)" } }, "mitspielen?")]
+    : [document.createTextNode("Wer soll"), h("br"), document.createTextNode("noch"), h("br"), h("span", { style: { color: "var(--red)" } }, "mitspielen?")]
+  ));
   wrap.appendChild(h("p", { class: "caveat-sub" }, "Name reicht zum Start. Rolle hilft uns später beim Zeichnen."));
 
   const panel = h("div", { style: { marginTop: "18px", border: "4px solid var(--ink)", background: "var(--paper)", boxShadow: "6px 7px 0 var(--ink)", padding: "16px" } });
@@ -776,10 +784,21 @@ Screens.charakterblatt = {
         // Bestaetigung markiert die Person als fertig — das war vorher nirgends
         // verdrahtet (siehe Status-Hinweis: Fortschritt ist ohne echte Pipeline
         // nur eine lokale State-Markierung, kein generiertes Bild).
+        // GEAENDERT (Sammel-Runde 2, Punkt 3: "Nach 'Passt so' nicht zurueck zum Dashboard, sondern
+        // zur Charakterblatt-Uebersicht -- von dort aus weiter zur naechsten Person ODER weiter zur
+        // Geschichte"). Vorher sprang das hier automatisch entweder direkt zur naechsten offenen
+        // Person (Merkmale-Formular, komplett OHNE Zwischenstopp auf der Uebersicht) oder, falls
+        // niemand mehr offen war, zurueck zum Dashboard -- die eigentlich schon vorhandene Galerie
+        // (currentPeopleGrid()/das Grid weiter unten auf DIESEM Screen) wurde so nie gezeigt. Jetzt:
+        // currentPersonId bleibt bewusst auf der GERADE bestaetigten Person stehen (nicht auf der
+        // naechsten offenen) -- Screens.charakterblatt.render() zeigt so weiterhin ihre fertige
+        // Charakterseite ganz oben, PLUS darunter die Galerie aller Personen. Von dort aus kann die
+        // Nutzerin selbst entscheiden: eine offene Kachel antippen (-> naechste Person), die
+        // Bottom-Bar "Weiter zur Geschichte" (NEXT[2], unveraendert vom bestehenden Bottom-Bar-System)
+        // nutzen, oder ueber die "+"-Kachel eine weitere Person anlegen.
         const people = AppState.data.people.map((p) => (p.id === person.id ? { ...p, status: "done" } : p));
-        const next = people.find((p) => p.status === "open");
-        AppState.update({ people, charMode: null, currentPersonId: next ? next.id : null });
-        Router.goScreen(next ? "charakter" : "dashboard");
+        AppState.update({ people, charMode: null });
+        Router.goScreen("charakterblatt");
       }
     }, "Passt so"));
     wrap.appendChild(btnRow);

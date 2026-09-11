@@ -12,6 +12,10 @@ const NEXT = [
   { l: "Figur zeichnen lassen", s: "Ich speichere nach jeder Eingabe.<br>Wichtig: Auch Zauberer machen Fehler – und manchmal mache ich mir auch einfach nur einen Spaß.<br>Aber wir können alles wieder ändern." },
   { l: "Weiter zur Geschichte", s: "Personen kannst du später ergänzen" },
   { l: "Los, zaubern", s: "dauert 2–4 Minuten, du kannst weggehen" },
+  // TOT (Sammel-Runde 11.09.2026, Punkt 9): dieser Eintrag wird nicht mehr angezeigt --
+  // renderBottomBar() blendet die komplette Bottom-Bar fuer idx 4 (Zaubern) jetzt aus, siehe dort.
+  // Bewusst NICHT aus dem Array entfernt: NEXT ist positional zu SCREEN_ORDER indiziert, ein Entfernen
+  // wuerde alle nachfolgenden Eintraege um einen Index verschieben.
   { l: "Bild ansehen", s: "ich melde mich, wenn es fertig ist" },
   { l: "Bild ist fertig!", s: "nachbessern geht jederzeit noch" },
   { l: "Mini-Wimmelbuch nehmen", s: "aufhören ist auch eine gute Wahl" },
@@ -61,6 +65,37 @@ function syncHeaderSpacing() {
 
 function renderBottomBar() {
   const idx = Router.screenIndex();
+  const barEl = document.getElementById("bottom-bar");
+  const weiterBtnEl = document.getElementById("btn-weitermachen");
+  // NEU (Sammel-Runde 2, Punkt 1: "'Charaktere weitermachen'-Button am Dashboard entfernen --
+  // direkter Klick auf die 'Charaktere'-Kachel reicht"). Die komplette Bottom-Bar (Zurueck-Pfeil,
+  // der rote "Charaktere weitermachen"-Button, Hinweistext) und ihr Desktop-Pendant
+  // (#btn-weitermachen im Header) ausgeblendet, nicht nur der eine Button -- ein Zurueck-Pfeil ohne
+  // zugehoerigen Weiter-Button und ohne Hinweistext waere ein seltsamer Rest gewesen, und "zurueck"
+  // fuehrt vom Dashboard ohnehin nur zur Landingpage, die bereits ueber das Logo im Header erreichbar
+  // ist. Der eigentliche Sprung zu "Charaktere" passiert wie gewuenscht ausschliesslich noch ueber
+  // die anklickbare Dashboard-Kachel (siehe dashboard.js).
+  // .with-bottom-bar reserviert unten 185px Platz (main.css --bottom-bar-space) fuer die fixierte
+  // Bottom-Bar -- ohne diesen Toggle bliebe auf dem Dashboard eine leere Luecke uebrig, obwohl die
+  // Bar selbst gar nicht mehr angezeigt wird.
+  // GEAENDERT (Sammel-Runde 11.09.2026, Punkt 9: "'Bild ansehen'-Button unten entfernen
+  // (funktionslos)"). Der Zaubern-Screen (idx 4) zeigte in der Bottom-Bar bisher einen Weiter-Button
+  // mit Beschriftung "Bild ansehen" (NEXT[4]) -- der aber schlicht zu "ergebnis" navigierte, egal ob
+  // die Generierung ueberhaupt schon fertig war (kein echter Zusammenhang zum tatsaechlichen
+  // Zauber-Fortschritt, daher "funktionslos"). Gleiches Muster wie beim Dashboard (idx 0) oben:
+  // komplette Bottom-Bar ausgeblendet statt nur des einen Buttons -- ein Zurueck-Pfeil ohne
+  // zugehoerigen Weiter-Button waere ein seltsamer Rest, und die Navigation bleibt trotzdem ueber die
+  // immer sichtbare Rail/Desktop-Nav moeglich. Screens.zaubern selbst navigiert bei Erfolg/Fehler
+  // ohnehin schon eigenstaendig (runGeneration()/errorBox "Nochmal versuchen", siehe szene.js).
+  const appShellEl = document.getElementById("app");
+  if (appShellEl) appShellEl.classList.toggle("with-bottom-bar", idx !== 0 && idx !== 4);
+  if (idx === 0 || idx === 4) {
+    if (barEl) barEl.style.display = "none";
+    if (weiterBtnEl) weiterBtnEl.style.display = "none";
+    return;
+  }
+  if (barEl) barEl.style.display = "";
+  if (weiterBtnEl) weiterBtnEl.style.display = "";
   let n = NEXT[idx] || NEXT[0];
   // NEU (Sammel-Runde 09.09.2026, Punkt B6: "bei 'Wer soll noch mitspielen?' zeigt die Bottom-Bar
   // faelschlich 'Figur zeichnen lassen' -- Zeichnen passiert aber erst im naechsten Schritt").

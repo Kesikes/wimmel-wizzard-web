@@ -149,10 +149,12 @@ const AppState = {
     this.save();
   },
 
-  // Hilfsfunktionen fuer haeufige Ableitungen. Sammel-Runde 09.09.2026, Punkt A3: dritte Stufe
-  // "Wimmelbuch" (89 €) entfernt (siehe entscheidung.js TIERS) -- Array hier synchron gekuerzt.
+  // GEAENDERT (Sammel-Runde 11.09.2026, Punkt 16): dritte Stufe "Großes Wimmelbuch" (89 €) ist in
+  // entscheidung.js TIERS wieder sichtbar (dort als comingSoon:true, nicht auswaehlbar) -- Array
+  // hier defensiv synchron ergaenzt, damit priceForTier(2) nicht still undefined liefert, falls der
+  // Tier-Index jemals doch gesetzt wird.
   priceForTier(tier) {
-    return ["29 €", "49 €"][tier];
+    return ["29 €", "49 €", "89 €"][tier];
   },
   currentPrice() {
     return this.priceForTier(this.data.tier);

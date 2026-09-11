@@ -87,7 +87,7 @@ Screens.szene = {
       // unabhaengig von der Anzeige-Reihenfolge im WAYS-Array (siehe Modul-Kommentar oben).
       if (on) {
         let panel = null;
-        if (w.way === 0) panel = buildThemeGrid();
+        if (w.way === 0) panel = buildThemeGrid(rerender);
         if (w.way === 1) panel = buildRecordPanel();
         if (w.way === 2) panel = buildChatPanel();
         if (panel) {
@@ -127,8 +127,24 @@ Screens.szene = {
 // keine zwei Buttons mit ueberlappender Funktion. Wege 0 ("Thema wählen") und 1 ("Geschichte
 // aufnehmen") navigieren weiterhin selbst direkt weiter (siehe buildThemeGrid()/buildRecordPanel()
 // onClick) -- dort greift weiterhin defaultGoNext, unveraendert.
+// GEAENDERT (Sammel-Runde 11.09.2026, Punkt 4: "Themenauswahl soll nicht sofort rendern -- erst
+// bei explizitem Tap auf 'Los zaubern' unten"). Weg 0 (Thema-Kacheln) navigierte bisher selbst
+// direkt beim Antippen einer Kachel weiter (siehe buildThemeGrid() onClick, jetzt entschaerft: nur
+// noch AppState.update() + rerender()). Diese Validierung hier ist der neue, alleinige Ausloeser
+// fuer die eigentliche Weiternavigation bei Weg 0 -- analog zum bereits bestehenden Muster fuer
+// Weg 2 (Chat) weiter unten (leere Eingabe -> sichtbarer Fehlertext statt stillem Nichtstun).
 Screens.szene.onNext = ({ nextBtn, weiterBtn, defaultGoNext }) => {
   const s = AppState.data;
+  if (s.sceneWay === 0) {
+    const themeErrorP = document.getElementById("scene-theme-error");
+    if (!s.sceneTheme) {
+      if (themeErrorP) { themeErrorP.style.display = "block"; }
+      return;
+    }
+    if (themeErrorP) themeErrorP.style.display = "none";
+    defaultGoNext();
+    return;
+  }
   if (s.sceneWay !== 2) { defaultGoNext(); return; }
   const errorP = document.getElementById("scene-chat-error");
   const hasUserReply = (s.sceneChatMessages || []).some((m) => m.role === "user");
@@ -137,7 +153,17 @@ Screens.szene.onNext = ({ nextBtn, weiterBtn, defaultGoNext }) => {
     return;
   }
   if (errorP) errorP.style.display = "none";
-  return sendChatTurn("Das reicht mir erstmal, bitte mach jetzt weiter.", { buttons: [nextBtn, weiterBtn], skipModeration: true });
+  // GEAENDERT (Sammel-Runde 11.09.2026, Punkt 8: "Nach 'Los zaubern' im Chat-Modus soll die
+  // Generierung direkt starten"). Vorher wurde hier sendChatTurn() aufgerufen und ERST bei
+  // erfolgreichem add_scene-Tool-Call (siehe sendChatTurn() weiter unten) zu "zaubern" navigiert --
+  // antwortete das Modell stattdessen nur konversationell (z.B. noch eine Rueckfrage), passierte
+  // rein gar nichts sichtbares, die Nutzerin blieb ratlos auf dem Chat-Screen stehen. Jetzt:
+  // Navigation zu "zaubern" passiert SOFORT bei diesem Tap (wie bei den Wegen 0/1 auch), das
+  // Fertigstellen des Gespraechs (finalizeChatScene(), siehe unten) laeuft dort im Hintergrund,
+  // WAEHREND der Lade-Screen schon sichtbar ist -- fuehlt sich fuer die Nutzerin wie ein direkter
+  // Start an, mit sichtbarem Fehler-Fallback (showError() in Screens.zaubern), falls das Modell doch
+  // noch eine Rueckfrage braucht, statt eines stillen Haengenbleibens.
+  Router.goScreen("zaubern");
 };
 
 // NEU (Punkt C17): ueberschreibt die Bottom-Bar-Beschriftung fuer Weg 2 (gleiches Erweiterungs-
@@ -157,24 +183,44 @@ Screens.szene.nextLabel = () => {
   return { l: "Los, zaubern", s: "sag mir gern noch mehr, bevor du weitermachst" };
 };
 
-function buildThemeGrid() {
+// GEAENDERT (Sammel-Runde 11.09.2026, Punkt 4: "Themenauswahl soll nicht sofort rendern -- erst
+// bei explizitem Tap auf 'Los zaubern' unten"). Vorher navigierte ein Kachel-Klick SOFORT zu
+// "zaubern" (Generierung startete, ohne dass die Nutzerin nochmal bestaetigen konnte/musste). Jetzt
+// merkt sich ein Klick nur noch die Auswahl (AppState.update() + rerender(), rerender() ist die
+// lokale Re-Render-Funktion aus Screens.szene.render() oben, als Parameter durchgereicht) -- die
+// eigentliche Weiternavigation passiert erst ueber die Bottom-Bar ("Los, zaubern"), siehe
+// Screens.szene.onNext() weiter oben. Die ausgewaehlte Kachel bekommt jetzt eine sichtbare
+// "angeklickt"-Farbe (blau), sonst haette die Nutzerin nach dem Klick keinerlei Rueckmeldung mehr,
+// welches Thema gerade gewaehlt ist (frueher war das unnoetig, weil sofort weiternavigiert wurde).
+function buildThemeGrid(rerender) {
+  const s = AppState.data;
+  const wrap = h("div", {});
   const grid = h("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginTop: "20px" } });
   THEMES.forEach((label, i) => {
+    const selected = s.sceneTheme === label;
     grid.appendChild(h("button", {
       type: "button",
       style: {
         cursor: "pointer", fontFamily: "'Archivo Black',sans-serif", fontSize: "13px", lineHeight: "1.05", letterSpacing: "-.02em",
         textTransform: "uppercase", textAlign: "left", padding: "16px 12px", minHeight: "84px", border: "4px solid var(--ink)",
-        color: "var(--ink)", transform: "rotate(" + rot(i, ROT6_APP) + "deg)", background: THEME_BG, boxShadow: "4px 5px 0 var(--ink)"
+        color: "var(--ink)", transform: "rotate(" + rot(i, ROT6_APP) + "deg)",
+        background: selected ? "var(--blue)" : THEME_BG, boxShadow: selected ? "6px 7px 0 var(--ink)" : "4px 5px 0 var(--ink)"
       },
       // GEAENDERT (Punkt C17, Sammel-Runde 09.09.2026): raeumt sceneChatTheme/sceneUserSituations
       // auf, falls vorher (in einer fruehen Sitzung) schon mal Weg 2 (Chat) probiert wurde --
       // runGeneration() (Screens.zaubern) bevorzugt sonst faelschlich ein noch gespeichertes,
       // veraltetes sceneChatTheme gegenueber der hier gerade frisch gewaehlten festen THEMES-Karte.
-      onClick: () => { AppState.update({ sceneTheme: label, sceneChatTheme: null, sceneUserSituations: [] }); Router.goScreen("zaubern"); }
+      onClick: () => {
+        AppState.update({ sceneTheme: label, sceneChatTheme: null, sceneUserSituations: [] });
+        const errorP = document.getElementById("scene-theme-error");
+        if (errorP) errorP.style.display = "none";
+        if (typeof rerender === "function") rerender();
+      }
     }, label));
   });
-  return grid;
+  wrap.appendChild(grid);
+  wrap.appendChild(h("p", { id: "scene-theme-error", style: { display: "none", color: "var(--red)", fontSize: "13px", marginTop: "10px" } }, "Bitte wähle erst ein Thema aus, bevor du weiter zauberst."));
+  return wrap;
 }
 
 // UMGEBAUT (Feature C18, Sammel-Runde 09.09.2026: "echte Audioaufnahme implementieren, daraus ein
@@ -452,11 +498,46 @@ async function buildThemeFromLocation(locationLabel, locationType) {
   };
 }
 
+// NEU (Sammel-Runde 11.09.2026, Punkt 8: "Nach 'Los zaubern' im Chat-Modus soll die Generierung
+// direkt starten"). Wird jetzt NICHT mehr von Screens.szene.onNext() aus aufgerufen (das navigiert
+// inzwischen sofort zu "zaubern", siehe dort), sondern von Screens.zaubern.render()/runGeneration()
+// weiter unten -- das eigentliche Fertigstellen des Gespraechs (feste Abschluss-Nachricht senden,
+// auf add_scene warten) passiert also WAEHREND der Lade-Screen schon sichtbar ist, nicht mehr davor.
+// Gibt true zurueck, wenn add_scene erfolgreich kam (sceneChatTheme/sceneUserSituations sind dann
+// gesetzt), sonst false (Modell wollte noch etwas anderes sagen/fragen -- KEIN stiller Fallback,
+// runGeneration() zeigt in diesem Fall eine sichtbare Fehlermeldung statt einfach zu generieren).
+async function finalizeChatScene() {
+  const s = AppState.data;
+  const finalText = "Das reicht mir erstmal, bitte mach jetzt weiter.";
+  const messages = (s.sceneChatMessages || []).concat([{ role: "user", content: finalText }]);
+  const doneCharacters = (s.people || []).filter((p) => p.status === "done").map((p) => ({ name: p.name, description: p.sceneDescription || p.role }));
+  const context = { characters: doneCharacters, sceneIndex: (s.images || []).length + 1, sceneTarget: 5 };
+  const result = await Pipeline.sceneChat(messages, context);
+  if (result.tool_call && result.tool_call.name === "add_scene") {
+    const input = result.tool_call.input || {};
+    const rawSituations = Array.isArray(input.situations_en) ? input.situations_en : [];
+    const situations = rawSituations.map((text) => ({ en: text, de: text }));
+    const theme = await buildThemeFromLocation(input.location_label, input.location_type);
+    const finalMessages = messages.concat(result.reply ? [{ role: "assistant", content: result.reply }] : []);
+    AppState.update({
+      sceneUserSituations: situations,
+      sceneTheme: input.location_label || s.sceneTheme,
+      sceneChatTheme: theme,
+      sceneChatMessages: finalMessages
+    });
+    return true;
+  }
+  // Modell antwortet stattdessen konversationell (z.B. eine letzte Rueckfrage) -- Verlauf trotzdem
+  // sichern (kein Datenverlust), aber KEIN Thema erzwingen/raten.
+  AppState.update({ sceneChatMessages: messages.concat(result.reply ? [{ role: "assistant", content: result.reply }] : []) });
+  return false;
+}
+
 // NEU (Punkt C17): zentrale Sende-Funktion, sowohl fuer echte Nutzer-Nachrichten (Senden-Button im
-// Chat-Panel) als auch fuer die synthetische Abschluss-Nachricht ueber die Bottom-Bar (siehe
-// Screens.szene.onNext() oben). skipModeration=true NUR fuer diese eine, selbst geschriebene, feste
-// Abschluss-Nachricht -- Punkt B8 verlangt, EINGEGEBENEN Freitext zu pruefen, nicht von der
-// Anwendung selbst erzeugte Steuer-Nachrichten.
+// Chat-Panel) als auch fuer wiederholtes Senden nach einer blockierten Moderation. skipModeration=
+// true NUR fuer die selbst geschriebene, feste Abschluss-Nachricht in finalizeChatScene() oben --
+// Punkt B8 verlangt, EINGEGEBENEN Freitext zu pruefen, nicht von der Anwendung selbst erzeugte
+// Steuer-Nachrichten.
 async function sendChatTurn(userText, { buttons, skipModeration } = {}) {
   const errorP = document.getElementById("scene-chat-error");
   const sendBtn = document.getElementById("scene-chat-send");
@@ -527,10 +608,26 @@ async function sendChatTurn(userText, { buttons, skipModeration } = {}) {
       Router.goScreen("zaubern");
       return;
     }
-    // Normale Gespraechs-Antwort (kein add_scene/confirm_result) -- Chat geht weiter.
+    // GEAENDERT (Sammel-Runde 11.09.2026, Punkt 6: "Chat-Ansicht springt immer wieder zum Anfang
+    // zurueck -- sollte an der aktuellen Position bleiben"). Vorher: Router.goScreen("szene") bei
+    // JEDER normalen Antwort -- das reisst den kompletten Screen ab und baut ihn neu auf
+    // (renderScreen() in app-shell.js macht root.innerHTML=""), wodurch der Chat-Thread als neuer,
+    // leerer DOM-Knoten bei scrollTop=0 (ganz oben) entsteht und NIE wieder auf scrollHeight gesetzt
+    // wurde -- die sichtbare Ursache des "springt zum Anfang zurueck"-Bugs. Jetzt: die Antwort wird
+    // direkt in den bereits gemounteten Thread eingehaengt (gleiches Muster wie die Nutzer-Nachricht
+    // oben), kein Screen-Teardown noetig. Nebeneffekt: das behebt gleichzeitig einen Teil von Punkt 7
+    // (Mikrofon bleibt offen) -- der Mikro-Button (buildVoiceButton()) wird dadurch bei einer
+    // laufenden Konversation nicht mehr bei jeder Antwort neu erzeugt und verliert so nicht mehr
+    // seine recognition-Instanz mitten in einer laufenden Aufnahme.
     const newMessages = messages.concat([{ role: "assistant", content: result.reply || "…" }]);
     AppState.update({ sceneChatMessages: newMessages });
-    Router.goScreen("szene");
+    if (thread) {
+      const replyBubble = h("div", { style: { alignSelf: "flex-start", maxWidth: "88%", border: "3px solid var(--ink)", padding: "9px 12px", fontSize: "13px", lineHeight: "1.4", background: "var(--blue)", color: "var(--ink)" } }, result.reply || "…");
+      thread.appendChild(replyBubble);
+      thread.scrollTop = thread.scrollHeight;
+    }
+    if (typingHint) typingHint.style.display = "none";
+    activeButtons.forEach((b) => { b.disabled = false; });
   } catch (e) {
     if (errorP) { errorP.textContent = "Antwort hat nicht geklappt: " + (e && e.message ? e.message : String(e)) + " — bitte nochmal versuchen."; errorP.style.display = "block"; }
     // Die Nutzer-Nachricht bleibt im Verlauf erhalten (schon oben in sceneChatMessages gespeichert)
@@ -554,6 +651,12 @@ function buildVoiceButton(ta, stateKey) {
   }
   let recognition = null;
   let listening = false;
+  // NEU (Sammel-Runde 11.09.2026, Punkte 5+7: "Spracheingabe bricht nach kurzer Zeit automatisch
+  // ab" / "Mikrofon bleibt nach Spracheingabe offen, schliesst nicht automatisch"). baseText/
+  // finalTranscript sammeln den Text ueber MEHRERE onresult-Ereignisse hinweg -- noetig, weil unten
+  // jetzt recognition.continuous=true gesetzt wird (siehe dort).
+  let baseText = "";
+  let finalTranscript = "";
   const idleLabel = "🎤 Sprechen statt tippen";
   const btn = h("button", {
     type: "button", class: "h-black",
@@ -566,9 +669,29 @@ function buildVoiceButton(ta, stateKey) {
     btn.style.color = "var(--ink)";
   }
   btn.addEventListener("click", () => {
-    if (listening) { recognition && recognition.stop(); return; }
+    // GEAENDERT (Punkt 7): stop() alleine verlaesst sich darauf, dass der Browser zuverlaessig ein
+    // onend-Ereignis feuert -- auf manchen mobilen Browsern (v.a. iOS Safari/webkitSpeechRecognition)
+    // ist das bekanntermassen unzuverlaessig, das Mikro-Symbol blieb dann optisch auf "hoert zu"
+    // stehen, obwohl die Aufnahme laengst beendet war. setIdle() jetzt zusaetzlich SOFORT beim Klick
+    // aufgerufen, nicht erst im onend-Handler -- ein evtl. noch nachtraeglich eintreffendes
+    // finales onresult wird trotzdem verarbeitet (baseText/finalTranscript leben in dieser Closure
+    // weiter), nur die sichtbare "hoert zu"-Anzeige haengt nicht mehr von einem unzuverlaessigen
+    // Browser-Ereignis ab.
+    if (listening) {
+      if (recognition) recognition.stop();
+      setIdle();
+      return;
+    }
+    baseText = ta.value ? ta.value.trim() : "";
+    finalTranscript = "";
     recognition = new SR();
     recognition.lang = "de-DE";
+    // GEAENDERT (Punkt 5): ohne continuous=true beendet der Browser die Erkennung schon nach der
+    // ERSTEN kurzen Sprechpause von selbst (Standardverhalten bei continuous=false) -- genau das
+    // vom Nutzer beschriebene "bricht nach kurzer Zeit automatisch ab". Mit continuous=true laeuft
+    // die Erkennung ueber mehrere Saetze/Pausen hinweg weiter, bis die Nutzerin selbst erneut
+    // antippt (oder der Browser nach einer sehr viel laengeren Zeit abbricht).
+    recognition.continuous = true;
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
     recognition.onstart = () => {
@@ -579,9 +702,17 @@ function buildVoiceButton(ta, stateKey) {
     };
     recognition.onerror = setIdle;
     recognition.onend = setIdle;
+    // GEAENDERT (Punkt 5, Folge von continuous=true): ev.results[0][0] allein wuerde bei mehreren
+    // Saetzen immer nur die ALLERERSTE erkannte Aeusserung liefern -- jetzt werden alle neuen,
+    // finalen Ergebnisse ab ev.resultIndex eingesammelt und an den bei Aufnahmestart gemerkten
+    // baseText angehaengt.
     recognition.onresult = (ev) => {
-      const said = ev.results[0][0].transcript;
-      const merged = (ta.value ? ta.value.trim() + " " : "") + said;
+      for (let i = ev.resultIndex; i < ev.results.length; i++) {
+        if (ev.results[i].isFinal) {
+          finalTranscript += (finalTranscript ? " " : "") + ev.results[i][0].transcript;
+        }
+      }
+      const merged = (baseText ? baseText + " " : "") + finalTranscript;
       ta.value = merged;
       AppState.update({ [stateKey]: merged });
     };
@@ -804,28 +935,47 @@ Screens.zaubern = {
         showError("Es gibt noch keine fertig gezeichnete Person mit echtem Bild — bitte erst mindestens eine Figur im Charakter-Baustein zeichnen lassen.");
         return;
       }
-      // GEAENDERT (Punkt C17, Sammel-Runde 09.09.2026): der Chat-Weg (sceneWay 2) liefert einen frei
-      // erzaehlten Ort statt einer Auswahl aus der festen THEMES-Liste -- s.sceneChatTheme (siehe
-      // szene.js sendChatTurn()/buildThemeFromLocation()) enthaelt dafuer ein bereits fertiges,
-      // scenePrompt()-kompatibles Theme-Objekt. Nur wenn das NICHT gesetzt ist (Wege "Thema wählen"/
-      // "Geschichte aufnehmen"), greift wie bisher die feste THEME_META-Zuordnung ueber s.sceneTheme.
-      const theme = s.sceneChatTheme || Pipeline.THEME_META[s.sceneTheme];
-      if (!theme) {
-        showError("Kein Thema ausgewählt. Bitte zurück zur Szene-Auswahl.");
-        return;
-      }
       zauberBusy = true;
       try {
         setPhase("refs");
+        // NEU (Sammel-Runde 11.09.2026, Punkt 8: "Nach 'Los zaubern' im Chat-Modus soll die
+        // Generierung direkt starten"). Screens.szene.onNext() navigiert fuer Weg 2 (Chat) jetzt
+        // SOFORT hierher, OHNE vorher auf add_scene gewartet zu haben (siehe dortiger Kommentar) --
+        // das Fertigstellen des Gespraechs passiert deshalb erst hier, waehrend der Lade-Screen
+        // schon sichtbar ist. Nur noetig, wenn sceneChatTheme noch fehlt (Weg 2 UND add_scene kam
+        // noch nicht) -- bei Wegen 0/1 oder einem bereits abgeschlossenen Chat greift direkt die
+        // bestehende Theme-Aufloesung weiter unten.
+        if (s.sceneWay === 2 && !AppState.data.sceneChatTheme) {
+          const finalized = await finalizeChatScene();
+          if (!finalized) {
+            zauberBusy = false;
+            showError("WizzelWim hat noch eine kurze Rückfrage zur Szene — bitte zurück zum Gespräch und kurz antworten, dann nochmal auf „Los, zaubern“ tippen.");
+            return;
+          }
+        }
+        // GEAENDERT (Punkt C17, Sammel-Runde 09.09.2026): der Chat-Weg (sceneWay 2) liefert einen frei
+        // erzaehlten Ort statt einer Auswahl aus der festen THEMES-Liste -- s.sceneChatTheme (siehe
+        // szene.js finalizeChatScene()/buildThemeFromLocation()) enthaelt dafuer ein bereits fertiges,
+        // scenePrompt()-kompatibles Theme-Objekt. Nur wenn das NICHT gesetzt ist (Wege "Thema wählen"/
+        // "Geschichte aufnehmen"), greift wie bisher die feste THEME_META-Zuordnung ueber s.sceneTheme.
+        // GEAENDERT: liest jetzt AppState.data frisch (sNow) statt des am Render-Start eingefrorenen
+        // "s" -- finalizeChatScene() kann sceneChatTheme/sceneUserSituations gerade erst gesetzt haben.
+        const sNow = AppState.data;
+        const theme = sNow.sceneChatTheme || Pipeline.THEME_META[sNow.sceneTheme];
+        if (!theme) {
+          zauberBusy = false;
+          showError("Kein Thema ausgewählt. Bitte zurück zur Szene-Auswahl.");
+          return;
+        }
         // GEAENDERT (Feature #38, schliesst die bisherige Luecke "freie Geschichte -> Vignetten
         // automatisch"): vorher hier IMMER hartcodiert [] -- nur der Weg "Thema wählen" hatte damit
         // ueberhaupt einen Effekt auf die generierten Vignetten. s.sceneUserSituations kommt jetzt
-        // von ALLEN DREI Wegen (Chat: sendChatTurn(); Aufnahme: handleRecordingStopped(); "Thema
+        // von ALLEN DREI Wegen (Chat: finalizeChatScene(); Aufnahme: handleRecordingStopped(); "Thema
         // wählen" liefert weiterhin ein leeres Array, komplett aus der GAG_LIBRARY aufgefuellt).
         // GEAENDERT (Punkt C19): Ziel jetzt einheitlich 15 statt 16 (siehe pipeline.js
         // autoSituations()-Kommentar) -- fuer den Chat-Weg zaehlt v.a. die TRUNKIERUNG bei mehr als
         // 15 gelieferten Situationen (Anthropic erzwingt "minItems" im Tool-Schema nicht hart).
-        const situations = Pipeline.autoSituations(theme, s.sceneUserSituations || [], 15);
+        const situations = Pipeline.autoSituations(theme, sNow.sceneUserSituations || [], 15);
         setPhase("gen");
         // composeSceneImage() generiert intern beide Kandidaten UND prueft beide (siehe
         // pipeline.js) -- aus Sicht dieses Screens ist das ein einzelner Aufruf, daher springt
@@ -836,7 +986,10 @@ Screens.zaubern = {
         const result = await genPromise;
         setPhase("done");
         AppState.addImage({
-          title: s.sceneTheme, src: result.best.url,
+          // GEAENDERT: title jetzt aus sNow statt s -- bei sceneWay 2 (Chat) war s.sceneTheme beim
+          // ersten Render dieses Screens noch leer, sceneTheme wird ja erst durch
+          // finalizeChatScene() (oben) gesetzt.
+          title: sNow.sceneTheme, src: result.best.url,
           promptText: result.promptText, instruction: result.instruction,
           violations: result.best.violations, verify: result.best.verify, candidates: result.candidates
         });
@@ -875,9 +1028,14 @@ Screens.zaubern = {
     function renderJokeArea() {
       jokeArea.innerHTML = "";
       if (!s.jokesOn) {
+        // GEAENDERT (Sammel-Runde 11.09.2026, Punkt 10: "'Ich geh kurz weg'-Hinweis ebenfalls
+        // entfernen -- nur das 'Witz'-Feature bleibt"). Vorher stand hier zusaetzlich ein zweiter
+        // Button, der einfach zu "ergebnis" navigierte, OBWOHL die Generierung meist noch gar nicht
+        // fertig war (Screens.ergebnis.render() zeigte in dem Fall extra einen "noch kein Bild"-
+        // Wartehinweis, siehe Kommentar dort) -- verwirrend statt hilfreich. Jetzt nur noch der
+        // eine, tatsaechlich funktionierende Button.
         const row = h("div", { style: { display: "flex", gap: "9px" } });
         row.appendChild(h("button", { type: "button", class: "h-black", style: { flex: "1", minHeight: "48px", background: "var(--yellow)", border: "3px solid var(--ink)", fontSize: "13px", color: "var(--ink)" }, onClick: () => { AppState.update({ jokesOn: true }); renderJokeArea(); } }, "Witz, bitte"));
-        row.appendChild(h("button", { type: "button", class: "h-black", style: { flex: "1", minHeight: "48px", background: "rgba(26,26,24,.15)", border: "3px solid var(--paper)", fontSize: "13px", color: "var(--paper)" }, onClick: () => Router.goScreen("ergebnis") }, "Ich geh kurz weg"));
         jokeArea.appendChild(row);
       } else {
         if (!currentJoke) {
@@ -961,12 +1119,12 @@ Screens.ergebnis = {
     }
 
     const imgWrap = h("div", { style: { position: "relative", borderTop: "4px solid var(--ink)", borderBottom: "4px solid var(--ink)", background: "var(--ink)" } });
-    // crossOrigin=anonymous (Punkt D): noetig, damit captureAnnotatedImage() das Bild nachher auf ein
-    // eigenes Canvas zeichnen und per toDataURL() auslesen darf, ohne dass der Browser das Canvas als
-    // "tainted" (cross-origin, image.src zeigt auf fal.media) markiert -- siehe ausfuehrlicher
-    // Kommentar bei captureAnnotatedImage() weiter unten zur (noch nicht live verifizierten)
-    // CORS-Annahme.
-    const img = h("img", { src: image.src, alt: "Fertiges Wimmelbild", crossOrigin: "anonymous", style: { display: "block", width: "100%" } });
+    // GEAENDERT (Punkt 12, Sammel-Runde 11.09.2026: "Stift-Editing funktioniert nicht"): crossOrigin
+    // hier NICHT mehr noetig -- captureAnnotatedImage() zeichnet fuer die Pixel-Auslesung jetzt ein
+    // separates, ueber api/image-proxy.js nachgeladenes Same-Origin-Bild (siehe dortiger Kommentar),
+    // nicht mehr dieses hier sichtbare <img>. Das sichtbare <img> zeigt weiterhin direkt die
+    // fal.media-URL (fuer reine Anzeige unproblematisch, kein CORS-Thema).
+    const img = h("img", { src: image.src, alt: "Fertiges Wimmelbild", style: { display: "block", width: "100%" } });
     imgWrap.appendChild(img);
 
     const canvas = h("canvas", { style: { position: "absolute", inset: "0", width: "100%", height: "100%", touchAction: "none" } });
@@ -1041,8 +1199,9 @@ function buildDesktopErgebnis(s, image) {
 
   const left = h("div", { style: { position: "relative", background: "var(--ink)", padding: "26px 0 26px 32px", display: "flex", alignItems: "center" } });
   const imgBox = h("div", { style: { position: "relative", width: "100%", border: "4px solid var(--paper)" } });
-  // crossOrigin=anonymous: siehe Kommentar beim mobilen <img> in Screens.ergebnis.render() (Punkt D).
-  const dImg = h("img", { src: image.src, alt: "Fertiges Wimmelbild", crossOrigin: "anonymous", style: { display: "block", width: "100%" } });
+  // GEAENDERT (Punkt 12): crossOrigin nicht mehr noetig, siehe Kommentar beim mobilen <img> in
+  // Screens.ergebnis.render() und bei captureAnnotatedImage() weiter unten.
+  const dImg = h("img", { src: image.src, alt: "Fertiges Wimmelbild", style: { display: "block", width: "100%" } });
   imgBox.appendChild(dImg);
   const dCanvas = h("canvas", { style: { position: "absolute", inset: "0", width: "100%", height: "100%", touchAction: "none" } });
   dCanvas.classList.toggle("hidden", !s.penOn);
@@ -1172,23 +1331,43 @@ function setupFreehand(canvas, img) {
   };
 }
 
-// NEU (Punkt D): baut aus dem angezeigten Bild UND der Freihand-Markierung EIN flaches
-// Composite-Bild in der tatsaechlichen (natuerlichen) Aufloesung des Fotos -- das Canvas-Overlay
-// selbst ist nur in der angezeigten (moeglicherweise kleineren) CSS-Groesse gepixelt, die Markierung
-// wird hier proportional auf die volle Bildaufloesung hochskaliert, damit sie an der fal.ai-Edit-
-// Schnittstelle an der richtigen Stelle landet. WICHTIG, noch nicht live verifiziert: das <img>
-// braucht crossOrigin="anonymous" UND der fal.media-Server muesste dafuer CORS-Header setzen, sonst
-// gilt das Canvas als "tainted" und toDataURL() wirft einen SecurityError -- genau wie bei anderen
-// bisher unverifizierten Annahmen in dieser Codebasis (siehe composeSceneImage()-Kommentar zu ">5
-// Personen") ist das hier bewusst dokumentiert statt stillschweigend als sicher angenommen; siehe
-// try/catch in applyPenEdit() unten, das einen expliziten, sichtbaren Fehler zeigt statt eines
-// stillen Fehlschlags, falls genau das im Live-Test auftritt.
-function captureAnnotatedImage(canvas, img) {
+// NEU (Punkt 12, Sammel-Runde 11.09.2026: "Stift-Editing funktioniert nicht"). Laedt ein Bild ueber
+// eine gegebene URL als frisches Image-Objekt (Promise-Wrapper um das native load-Event). Wird
+// unten von captureAnnotatedImage() benutzt, um das Ausgangsbild ueber api/image-proxy.js
+// (Same-Origin, siehe dortiger Kommentar) statt direkt von fal.media zu laden.
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const im = new Image();
+    im.onload = () => resolve(im);
+    im.onerror = () => reject(new Error("Bild konnte für die Bearbeitung nicht geladen werden."));
+    im.src = src;
+  });
+}
+
+// NEU (Punkt 12): baut die Same-Origin-URL fuer api/image-proxy.js aus einer fal.media/fal.run-
+// Bild-URL. Nur fuer die interne Stift-Bearbeitung gebraucht -- die normale Bildanzeige (img/dImg
+// oben) bleibt unveraendert direkt auf fal.media verlinkt.
+function penSafeImageUrl(url) {
+  return "/api/image-proxy?url=" + encodeURIComponent(url);
+}
+
+// GEAENDERT (Punkt 12, Sammel-Runde 11.09.2026: "Stift-Editing funktioniert nicht" -- Live-Nachweis
+// des hier vorher als unverifiziert markierten CORS/Tainted-Canvas-Risikos, siehe fruehere Fassung
+// dieses Kommentars: "crossOrigin=anonymous ... noch nicht live verifiziert"). Bestaetigt: fal.media
+// setzt keine CORS-Header, die uns erlauben, die Pixel eines von dort geladenen Bilds per
+// toDataURL() wieder auszulesen -- das Canvas galt als "tainted", jeder Anwenden-Versuch schlug mit
+// einem SecurityError fehl. Fix: das Ausgangsbild wird jetzt NICHT mehr vom sichtbaren <img>
+// (fremde Domain) gezeichnet, sondern frisch ueber api/image-proxy.js geladen -- aus Sicht des
+// Browsers eine eigene Same-Origin-Ressource, Canvas-Tainting entfaellt komplett. Deshalb jetzt
+// async (der Proxy-Ladevorgang braucht einen Netzwerk-Roundtrip) -- der einzige Aufrufer,
+// applyPenEdit() unten, awaited das bereits entsprechend um.
+async function captureAnnotatedImage(canvas, img) {
+  const proxied = await loadImage(penSafeImageUrl(img.src));
   const off = document.createElement("canvas");
-  off.width = img.naturalWidth || img.width || canvas.width;
-  off.height = img.naturalHeight || img.height || canvas.height;
+  off.width = proxied.naturalWidth || proxied.width || canvas.width;
+  off.height = proxied.naturalHeight || proxied.height || canvas.height;
   const octx = off.getContext("2d");
-  octx.drawImage(img, 0, 0, off.width, off.height);
+  octx.drawImage(proxied, 0, 0, off.width, off.height);
   octx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, off.width, off.height);
   return off.toDataURL("image/png");
 }
@@ -1213,8 +1392,13 @@ async function applyPenEdit({ image, canvas, img, mark, mode, errorId, applyBtn,
   if (penApplyBusy) return;
   const errorEl = () => document.getElementById(errorId);
   const showError = (msg) => { const el = errorEl(); if (el) { el.textContent = msg; el.style.display = "block"; } };
-  if (!mark.hasMark()) {
-    showError("Bitte erst etwas auf dem Bild markieren.");
+  // GEAENDERT (Punkt 13): "Anwenden" verlangt jetzt NICHT mehr zwingend eine Markierung -- ein
+  // Freitext-Änderungswunsch allein reicht auch. Nur wenn WEDER eine Markierung NOCH Freitext
+  // vorliegt, gibt es (wie bisher) einen sichtbaren Fehler statt eines stillen Nichtstuns.
+  const hasMark = mark.hasMark();
+  const changeText = String(AppState.data.penChangeText || "").trim();
+  if (!hasMark && !changeText) {
+    showError("Bitte etwas auf dem Bild markieren oder oben beschreiben, was sich ändern soll.");
     return;
   }
   { const el = errorEl(); if (el) el.style.display = "none"; }
@@ -1223,13 +1407,43 @@ async function applyPenEdit({ image, canvas, img, mark, mode, errorId, applyBtn,
   buttons.forEach((b) => { b.disabled = true; });
   if (applyBtn) { applyBtn.dataset.prevText = applyBtn.textContent; applyBtn.textContent = "Wird bearbeitet …"; }
   try {
-    const composite = captureAnnotatedImage(canvas, img);
-    const instruction = mode === "redo" ? Pipeline.PEN_INSTRUCTION_REDO : Pipeline.PEN_INSTRUCTION_REMOVE;
+    // NEU (Punkt 13): ein eingetippter Änderungswunsch ist echter Nutzer-Freitext -- vor dem
+    // Versenden geprüft, gleiches fail-closed-Prinzip wie beim Chat-Freitext (Punkt B8, siehe
+    // moderateText()-Aufrufstellen in charakter.js/entscheidung.js/szene.js sendChatTurn()).
+    if (changeText) {
+      const flagged = await Pipeline.moderateText(changeText);
+      if (flagged) {
+        penApplyBusy = false;
+        buttons.forEach((b) => { b.disabled = false; });
+        if (applyBtn) applyBtn.textContent = applyBtn.dataset.prevText || "Anwenden";
+        showError("Das können wir für ein Kinderbuch leider nicht verwenden — magst du es anders formulieren?");
+        return;
+      }
+    }
+    // GEAENDERT (Punkt 12): captureAnnotatedImage() ist jetzt async (laedt das Ausgangsbild ueber
+    // api/image-proxy.js nach, siehe dortiger Kommentar) -- await ergaenzt. Faellt bei fehlender
+    // Markierung auf ein unveraendertes Composite zurueck (leeres Canvas-Overlay), unproblematisch.
+    const composite = await captureAnnotatedImage(canvas, img);
+    // NEU (Punkt 13): drei Faelle je nachdem, was vorliegt -- Markierung allein (bisheriges
+    // Verhalten, PEN_INSTRUCTION_REMOVE/REDO unveraendert), Freitext allein (neue generische
+    // Editier-Anweisung aus dem uebersetzten Freitext), oder beides kombiniert (PEN_INSTRUCTION_*
+    // als Basis, Freitext ergaenzt als praezisierende Zusatzangabe fuer das markierte Objekt).
+    let instruction;
+    if (hasMark && changeText) {
+      const changeEn = await Pipeline.translateFreeText(changeText);
+      instruction = (mode === "redo" ? Pipeline.PEN_INSTRUCTION_REDO : Pipeline.PEN_INSTRUCTION_REMOVE)
+        + " The user additionally describes the desired change like this: \"" + changeEn + "\" — use this description to guide exactly what the new version of the marked object should look like.";
+    } else if (hasMark) {
+      instruction = mode === "redo" ? Pipeline.PEN_INSTRUCTION_REDO : Pipeline.PEN_INSTRUCTION_REMOVE;
+    } else {
+      const changeEn = await Pipeline.translateFreeText(changeText);
+      instruction = "Apply exactly this change to the image: \"" + changeEn + "\" — keep everything else (all other characters, objects, composition, lighting) exactly unchanged, pixel-identical where not affected by this change.";
+    }
     const result = await Pipeline.generateImage(instruction, "scene", { editImageUrl: composite });
     AppState.updateImage(image.id, { src: result.url, violations: null, verify: null });
     mark.clear();
     penApplyBusy = false;
-    AppState.update({ penOn: false, penMode: null });
+    AppState.update({ penOn: false, penMode: null, penChangeText: "" });
     Router.goScreen("ergebnis");
   } catch (e) {
     penApplyBusy = false;
@@ -1270,6 +1484,25 @@ function buildPenPanel({ image, canvas, img, mark, errorId }) {
     mode === "redo"
       ? "kringel das Objekt ein, das anders werden soll — ich zeichne es neu, alles andere bleibt gleich."
       : "kringel das Objekt ein, das raus soll — ich entferne es komplett."));
+
+  // NEU (Sammel-Runde 11.09.2026, Punkt 13: "Zusätzlich zum großen 'Bild ist fertig'-Button eine
+  // Texteingabe-Möglichkeit für Änderungswünsche, kombinierbar mit Kringel/Antippen eines Details" --
+  // Nutzer-Entscheidung ueber AskUserQuestion: "Freitext + optional Kringel-Markierung zusammen").
+  // Freitextfeld liegt HIER im selben Panel wie die Markierungswerkzeuge, nicht als eigener,
+  // getrennter Screen-Bereich -- ein einziger "Anwenden"-Knopf (unten) deckt drei Faelle ab: nur
+  // Markierung (bisheriges Verhalten unveraendert), nur Freitext, oder beides kombiniert (siehe
+  // applyPenEdit() oben: baut je nach vorhandenen Eingaben eine passende Editier-Anweisung).
+  // AppState.data.penChangeText persistiert den Entwurf ueber die Modus-Umschalter-Re-Renders
+  // hinweg (removeBtn/redoBtn oben loesen ein volles Router.goScreen("ergebnis") aus, gleiches
+  // Muster wie sceneChatDraft in buildChatPanel()).
+  const changeTa = h("textarea", {
+    class: "field", id: errorId + "-change-text", style: { minHeight: "64px", fontSize: "13px" },
+    placeholder: "Was soll anders werden? (optional, auch ohne Markierung möglich)"
+  });
+  changeTa.value = s.penChangeText || "";
+  changeTa.addEventListener("input", () => AppState.update({ penChangeText: changeTa.value }));
+  wrap.appendChild(changeTa);
+  wrap.appendChild(h("div", { style: { height: "10px" } }));
 
   const btnRow = h("div", { style: { display: "flex", gap: "8px" } });
   const cancelBtn = h("button", {

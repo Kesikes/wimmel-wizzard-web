@@ -198,6 +198,47 @@ function charInSceneFromChips({ role, age, chipLabels, extraEnParts, noteEn }) {
   return bits.filter(Boolean).join(", ");
 }
 
+// NEU (Sammel-Runde 11.09.2026, Punkt 14: "Bildgenerierung wirft eine Fehlermeldung im
+// Zusammenhang mit 'JSON'"). Alle Server-Aufrufe unten (translate/transcribe/moderate/scene/
+// fal-proxy generateImage/verifyImage) hatten bisher je ein eigenes try{resp.json()}catch{throw
+// new Error("... war kein gültiges JSON.")} -- eine Meldung, die zwar ehrlich zeigt, DASS etwas
+// schiefging (kein stiller Fallback), aber keinerlei Hinweis WARUM: passiert z.B., wenn eine
+// Plattform-/Proxy-Ebene (Vercel selbst, ein CDN davor) eine Anfrage ablehnt, BEVOR unser eigener
+// Code ueberhaupt laeuft (z.B. Request-Body zu groß, Funktions-Timeout) -- die Antwort ist dann
+// oft eine rohe HTML-/Text-Fehlerseite statt unserem eigenen res.status(...).json({error:...}).
+// Gerade beim B3-Zeichenlimit-Fix (Sammel-Runde 10.09.2026: 6000 -> 16000) relevant, da ein sehr
+// langer Prompt zwar unsere EIGENE Grenze jetzt seltener reißt, aber ein besonders großes Foto
+// (data:-URI im Foto-Pfad) durchaus noch an eine PLATTFORM-Grenze stoßen kann, die unser eigener
+// Code gar nicht sieht. Gemeinsamer Helfer: liest den Rohtext EINMAL, versucht dann JSON.parse --
+// schlaegt das fehl, landet der HTTP-Status UND ein Ausschnitt des Rohtexts direkt in der
+// Fehlermeldung, die die Nutzerin sieht (Screens zeigen Fehlermeldungen bereits sichtbar an, siehe
+// showError()/errorP-Muster) -- macht ein evtl. naechstes Auftreten sofort diagnostizierbar, ohne
+// erst die Vercel-Logs durchsuchen zu muessen.
+// GEAENDERT: echte fetch()-Response-Objekte im Browser haben IMMER eine .text()-Methode -- der
+// diagnostische Pfad oben (Status + Rohtext-Ausschnitt in der Fehlermeldung) greift dort also
+// zuverlaessig. Die Test-Mocks dieser Codebasis (siehe outputs/test_*.js) bilden Response bewusst
+// nur minimal nach (nur {ok, status, json}), ohne eigene .text()-Methode -- ein direkter, ungeprueft-
+// er resp.text()-Aufruf wuerde dort synchron mit "resp.text is not a function" durchknallen, noch
+// bevor das eigene .catch() greifen kann. Deshalb defensiv: nur wenn resp.text() wirklich existiert,
+// den vollen diagnostischen Pfad nehmen -- sonst auf resp.json() zurueckfallen (bisheriges, in den
+// Tests bereits erprobtes Verhalten).
+async function parseJsonResponse(resp) {
+  if (typeof resp.text === "function") {
+    const raw = await resp.text().catch(() => "");
+    try {
+      return JSON.parse(raw);
+    } catch (e) {
+      const snippet = raw.trim().slice(0, 180) || "(leere Antwort)";
+      throw new Error("Antwort war kein gültiges JSON (Status " + resp.status + "): " + snippet);
+    }
+  }
+  try {
+    return await resp.json();
+  } catch (e) {
+    throw new Error("Antwort war kein gültiges JSON (Status " + (resp.status != null ? resp.status : "?") + ").");
+  }
+}
+
 // NEU (Live-Test 04.09.2026, schliesst die Freitext-Uebersetzungsluecke): ruft den neuen
 // claude-proxy-Modus "translate" auf (siehe api/claude-proxy.js) fuer beliebigen deutschen Freitext
 // (aktuell: charNote). Faellt bei Netzwerk-/API-Fehler auf die alte, schwaechere translate()
@@ -213,8 +254,7 @@ async function translateFreeText(text) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ mode: "translate", text: trimmed }),
     });
-    let data;
-    try { data = await resp.json(); } catch (e) { throw new Error("Antwort war kein gültiges JSON."); }
+    const data = await parseJsonResponse(resp);
     if (!resp.ok || data.error) throw new Error(data.error || ("Übersetzungs-Fehler " + resp.status));
     if (!data.text) throw new Error("Keine Übersetzung erhalten.");
     return data.text;
@@ -237,8 +277,7 @@ async function transcribeAudio(base64, mimeType) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ audioBase64: base64, mimeType: mimeType || "audio/webm" }),
   });
-  let data;
-  try { data = await resp.json(); } catch (e) { throw new Error("Antwort war kein gültiges JSON."); }
+  const data = await parseJsonResponse(resp);
   if (!resp.ok || data.error) throw new Error(data.error || ("Transkriptions-Fehler " + resp.status));
   return data.text || "";
 }
@@ -261,8 +300,7 @@ async function moderateText(text) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ mode: "moderate", text: trimmed }),
   });
-  let data;
-  try { data = await resp.json(); } catch (e) { throw new Error("Antwort war kein gültiges JSON."); }
+  const data = await parseJsonResponse(resp);
   if (!resp.ok || data.error) throw new Error(data.error || ("Prüf-Fehler " + resp.status));
   return !!data.flagged;
 }
@@ -282,8 +320,7 @@ async function sceneChat(messages, context) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ mode: "scene", messages, context: context || {} }),
   });
-  let data;
-  try { data = await resp.json(); } catch (e) { throw new Error("Antwort war kein gültiges JSON."); }
+  const data = await parseJsonResponse(resp);
   if (!resp.ok || data.error) throw new Error(data.error || ("Chat-Fehler " + resp.status));
   return { reply: data.reply || "", tool_call: data.tool_call || null };
 }
@@ -955,8 +992,7 @@ async function generateImage(prompt, kind, opts) {
       ...(opts.styleRefUrls && opts.styleRefUrls.length ? { styleRefUrls: opts.styleRefUrls } : {}),
     }),
   });
-  let data;
-  try { data = await resp.json(); } catch (e) { throw new Error("Antwort vom Bild-Server war kein gültiges JSON."); }
+  const data = await parseJsonResponse(resp);
   if (!resp.ok || data.error) throw new Error(data.error || ("Bild-Server-Fehler " + resp.status));
   if (!data.url) throw new Error("Bild-Server hat keine Bild-URL geliefert.");
   // description: siehe fal-proxy.js-Kommentar (Punkt A3) -- fal.ai's eigene kurze Beschreibung des
@@ -973,8 +1009,7 @@ async function verifyImage(imageUrl, verifyPrompt) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ mode: "verify", imageUrls: [imageUrl], verifyPrompt }),
   });
-  let data;
-  try { data = await resp.json(); } catch (e) { throw new Error("Verify-Antwort war kein gültiges JSON."); }
+  const data = await parseJsonResponse(resp);
   if (!resp.ok || data.error) throw new Error(data.error || ("Verify-Fehler " + resp.status));
   return data.output || "";
 }
