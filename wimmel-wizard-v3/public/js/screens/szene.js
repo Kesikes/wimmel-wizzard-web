@@ -738,73 +738,63 @@ function buildVoiceButton(ta, stateKey) {
 // gruppiert -- gleiches Muster wie GAG_LIBRARY oben (Themen-Pool zuerst, generischer Pool als
 // Auffüller, siehe pickJoke() unten), damit ein Weltraum-Bild auch Weltraum-Witze bekommt statt
 // immer derselben Bauernhof-Witze.
+// GEAENDERT (Sammel-Runde 11.09.2026, Punkt 6: "Witze-Liste ersetzen durch diese, jeder Witz nur
+// einmal"). Komplette, vom Nutzer uebergebene Liste ohne Themen-Zuordnung -- liegt deshalb
+// vollstaendig im "generic"-Pool statt in mehreren Themen-Pools wie vorher (farm/christmas/space/
+// castle/underwater/circus sind ersatzlos raus). pickJoke() unten braucht dafuer KEINE Anpassung:
+// die bestehende Pruefung "if (locId && JOKE_LIBRARY[locId])" ist bereits defensiv genug -- fuer
+// jedes Szenen-Thema (siehe THEME_META in pipeline.js: farm/generic/beach/mountains/city/park)
+// existiert jetzt einfach kein eigener Themen-Pool mehr, pickJoke() faellt automatisch und korrekt
+// auf den generischen Pool zurueck (zweite Zeile in pickJoke(): "if (locId !== 'generic')
+// pools.push(JOKE_LIBRARY.generic)"). Auf Duplikate geprueft (keine gefunden, jeder Witz kommt
+// in dieser Liste genau einmal vor).
 const JOKE_LIBRARY = {
-  farm: [
-    "Warum bringt die Kuh so gute Laune mit auf die Weide? Weil bei ihr immer Muh-sik läuft.",
-    "Wie nennt man ein Schaf, das die Treppe runterrollt? Eine Wollmütze mit Schwung.",
-    "Was sagt der Hahn, wenn die Sonne aufgeht? Nichts extra Kompliziertes – nur ziemlich laut.",
-    "Warum hat das Pferd auf dem Hof den Bus verpasst? Weil es lieber im eigenen Trab unterwegs ist.",
-    "Wieso können Hühner so schlecht rechnen? Weil sie beim Zählen immer wieder von vorne gackern.",
-    "Was ist orange, hängt am Feld und wartet auf den Herbst? Ein Kürbis mit sehr viel Geduld.",
-    "Warum ist die Vogelscheuche der entspannteste auf dem Hof? Weil für sie sowieso jeder Tag gleich aussieht."
-  ],
-  christmas: [
-    "Warum hat der Weihnachtsbaum nie kalte Füße? Weil er einen dicken Stamm anhat.",
-    "Was sagt der Schneemann zum anderen? Riechst du das auch – irgendwie nach Karotte?",
-    "Wie merkt man, dass der Weihnachtsmann gut organisiert ist? Er hat für jedes Haus eine eigene Liste.",
-    "Warum flüstern die Rentiere vor Heiligabend? Damit der Schlitten pünktlich einschläft.",
-    "Was macht ein Keks unterm Weihnachtsbaum? Er wartet geduldig, bis ihn jemand entdeckt.",
-    "Wieso ist der Adventskalender nie sauer? Weil für ihn jeder Tag ein kleines Türchen aufgeht."
-  ],
-  space: [
-    "Warum nimmt der Astronaut nie einen Regenschirm mit? Weil es im All höchstens Sternschnuppen regnet.",
-    "Was sagt ein Planet zum anderen? Nicht viel – dafür ist die Umlaufbahn einfach zu lang.",
-    "Wie hält der Mond seine Ordnung? Er geht jede Nacht einmal ganz um die Erde herum.",
-    "Warum ist im Weltraum nie etwas laut? Weil dort niemand da ist, der stören könnte.",
-    "Was macht ein Roboter, wenn ihm langweilig ist? Er zählt seine eigenen Schrauben.",
-    "Wieso sind Sterne so gute Zuhörer? Weil sie die ganze Nacht einfach nur dasitzen und funkeln."
-  ],
-  castle: [
-    "Warum hat der Ritter immer gute Laune? Weil bei ihm alles wie am Schnürchen – also am Kettenhemd – läuft.",
-    "Was sagt der Drache, bevor er frühstückt? Erstmal ordentlich durchpusten.",
-    "Wieso ist die Burgmauer nie einsam? Weil ständig jemand an ihr vorbeiläuft.",
-    "Was macht der Hofnarr, wenn ihm nichts einfällt? Er macht trotzdem einfach weiter.",
-    "Warum klappert die Ritterrüstung beim Gehen? Weil sie sich noch an das Laufen gewöhnen muss.",
-    "Wie nennt man einen Drachen, der nicht mehr fliegen will? Ziemlich bodenständig."
-  ],
-  underwater: [
-    "Was sagt ein Fisch zum anderen? Nicht viel – Fische sind eben wortkarg.",
-    "Warum trägt der Fisch nie eine Uhr? Weil er sowieso im eigenen Tempo schwimmt.",
-    "Wieso können Quallen so gut entspannen? Weil sie sich einfach treiben lassen.",
-    "Was macht eine Krabbe, wenn sie es eilig hat? Sie geht trotzdem seitwärts – nur etwas schneller.",
-    "Warum ist der Oktopus so gut organisiert? Weil er für alles gleich acht Hände frei hat.",
-    "Wie grüßen sich zwei Seepferdchen? Ganz gemütlich, im eigenen Tempo eben."
-  ],
-  circus: [
-    "Warum übt der Clown jeden Tag? Weil auch Quatschmachen eine Menge Training braucht.",
-    "Was sagt der Seiltänzer vor der Vorstellung? Hauptsache, das Gleichgewicht bleibt.",
-    "Wieso hat der Zirkusdirektor immer eine Trillerpfeife dabei? Für den Fall, dass etwas Wichtiges ansteht.",
-    "Was macht der Jongleur, wenn ihm ein Ball runterfällt? Er hebt ihn auf und macht einfach weiter.",
-    "Warum ist das Zirkuszelt nie leise? Weil dort immer irgendwo etwas Spannendes passiert.",
-    "Wie nennt man einen Löwen, der ganz brav sitzen bleibt? Bestens erzogen."
-  ],
-  // Funktioniert bei jedem Thema, unabhängig von der Szene -- Auffüller, falls ein Themen-Pool
-  // erschöpft ist (siehe pickJoke()), und Standard-Pool, solange noch kein Thema feststeht.
   generic: [
-    "Warum können Geister so schlecht lügen? Weil man immer direkt durch sie hindurchsieht.",
-    "Was sagt eine Ampel, kurz bevor sie duscht? Nicht hinsehen, ich werde jetzt rot.",
-    "Wie nennt man einen Bumerang, der nicht mehr zurückkommt? Einen Stock.",
-    "Warum können Bienen so gut rechnen? Weil sie im Bienenstock zur Schule gehen.",
-    "Wie heißt der Chef aller Vitamine? Vitamin B – weil er der Boss ist.",
-    "Was sagt ein Keks, wenn er traurig ist? Ich fühl mich gerade ziemlich zerbröselt.",
-    "Warum dürfen Bäume nie etwas falsch machen? Weil sie sonst gleich Wurzeln schlagen.",
-    "Wieso können Skelette so schlecht Geheimnisse für sich behalten? Weil man ihnen alles von den Rippen ablesen kann.",
-    "Was ist grün und steht vor der Tür? Ein Klopfsalat.",
-    "Warum sind Uhren nie stolz? Weil sie ständig nur nachschauen, wie spät es ist.",
-    "Was sagt eine Schnecke, die auf dem Rücken eines Igels sitzt? Wiiie schneeeell.",
-    "Wieso nehmen Wolken nie den Bus? Weil sie sowieso überall selbst hinschweben.",
-    "Was macht ein Buch am liebsten am Wochenende? Ausschlafen, mit allen Seiten offen.",
-    "Warum ist der Kühlschrank so ein guter Zuhörer? Weil er alles kühl abwägt, bevor er etwas sagt."
+    "Wissenschaftler haben herausgefunden … – Und sind wieder hineingegangen.",
+    "Was ist grün, schlau und stellt viele Fragen? – Günther Lauch.",
+    "Ich hab einem Hippster ins Bein geschossen – Jetzt hoppst'er.",
+    "Wie nennt man einen Hund, der zaubern kann? – Labrakadabrador.",
+    "„Man, ich versteh echt nicht, warum meine Pflanzen immer vertrocknen!?“ – Jochen, steht auf dem Schlauch.",
+    "Ich wollte eigentlich einen Witz über die Deutsche Bahn machen, aber ich glaube der kommt nicht an.",
+    "Wie nennt man ein helles Mammut? – Hellmut.",
+    "Warum summen Bienen? – Weil sie den Text nicht kennen.",
+    "Ich hab gestern meinen Besen verkauft. – I don't kehr.",
+    "Wohin geht ein Reh ohne Haare? – In die Reha-Klinik.",
+    "Wie heißt der Bruder von Elvis? – Zwölvis.",
+    "Wie heißt ein Spanier ohne Auto? – Carlos.",
+    "Ich wollte gerade Spiderman anrufen, aber er hatte kein Netz.",
+    "Bei welchem Arzt ist Pinocchio in Behandlung? – Beim Holz-Nasen-Ohren-Arzt.",
+    "Wie nennt man ein Rudel aggressiver Wölfe? – Wolfgang.",
+    "Welches Gebäck weiß auf alles eine Antwort? – Der Googlehupf.",
+    "Was steht auf dem Grab eines Mathematikers? – Damit hat er nicht gerechnet.",
+    "Was ist lila und sitzt in der Kirche in der ersten Reihe? – Eine Frommbeere.",
+    "Treffen sich zwei Jäger – Beide tot.",
+    "Kommt ein Skelett zum Arzt, sagt der Arzt: „Bisschen spät, was?“",
+    "Was ist klein, grün und dreieckig? – Das kleine grüne Dreieck.",
+    "Was sagt die Null zur Acht? – Schicker Gürtel.",
+    "Was macht die Knackwurst so knackig? – Das N.",
+    "Was sitzt auf dem Ast und weint? – Eine Heule.",
+    "Wie heißt der Bruder vom Werwolf? – Warumwolf.",
+    "Wer wohnt im Dschungel und schummelt immer? – Mogli.",
+    "Was ist weiß und stört beim Essen? – Eine Lawine.",
+    "Wenn sich ein Wissenschaftler ein Sandwich macht, ist es dann wissenschaftlich belegt?",
+    "Wieso können Skelette schlecht lügen? – Weil sie so gut zu durchschauen sind.",
+    "Wie nennt man ein Kaninchen im Fitnessstudio? – Pumpernickel.",
+    "Wo sind Elefanten heimisch? – In Rüsselsheim.",
+    "Warum klaut Robin Hood Deodorants? – Weil er es unter den Armen verteilt.",
+    "Wie lautet der Vorname vom Reh? – Kartoffelpü.",
+    "Was sagt der große Stift zum kleinen Stift? – Wachs mal Stift.",
+    "Ich habe den Joghurt fallen gelassen. Er war nicht mehr haltbar.",
+    "Gast zum Kellner: „Die Suppe war köstlich. Richten Sie dem Koch ein Kompliment aus.“ Kellner zum Koch: „Günther, du bist wunderschön!“",
+    "Wann gehen U-Boote unter? – Am Tag der offenen Tür.",
+    "Was macht ein arbeitsloser Schauspieler? – Spielt keine Rolle.",
+    "Wie nennt man ein Überraschungsessen? – Topf Secret.",
+    "Treffen sich zwei Unsichtbare, sagt der eine: „Dich habe ich ja schon lange nicht mehr gesehen!“",
+    "Wie nennt man einen unentschlossenen japanischen Krieger? – Nunja.",
+    "Was sitzt auf einem Baum und winkt? – Ein Huhu.",
+    "Was ist ein Keks unter einem Baum? Ein schattiges Plätzchen!",
+    "Ich habe mit der Pflanze ausgemacht, sie nur noch einmal im Monat zu gießen. Sie ist darauf eingegangen.",
+    "Was macht ein Clown im Büro? Faxen."
   ]
 };
 
@@ -847,9 +837,9 @@ function pickJoke(locId, used) {
 // composeSceneImage(), nicht Fake-Prozentzahlen wie vorher.
 function zauberSteps() {
   return [
-    { key: "refs", label: "Figuren aus euren Charakterblättern als Referenz geladen" },
+    { key: "refs", label: "Figuren aus euren Figurenblättern als Referenz geladen" },
     { key: "gen", label: "Drei Varianten der Szene werden gezeichnet" },
-    { key: "verify", label: "Qualitätsprüfung: Alle Personen da?" },
+    { key: "verify", label: "Qualitätsprüfung: Alle Figuren da?" },
     { key: "done", label: "Beste Variante ausgewählt" }
   ];
 }
@@ -869,6 +859,19 @@ Screens.zaubern = {
       h("span", { style: { color: "var(--yellow)" } }, "schnell.")
     ]));
     wrap.appendChild(h("p", { class: "caveat", style: { margin: "8px 0 0", fontSize: "20px", lineHeight: "1.12", color: "var(--paper-a90)" } }, "ich zeichne mehrere Varianten, prüfe sie und behalte die beste. das dauert – dafür sitzt es dann."));
+    // NEU (Sammel-Runde 11.09.2026, Punkt 7: "Load-Failed beim Zaubern, vermutlich iOS-Hintergrund-
+    // Drosselung"). Live-Verdacht: mobile Browser (v.a. iOS Safari) drosseln/pausieren offene
+    // Netzwerkverbindungen und Timer aggressiv, sobald der Bildschirm gesperrt wird oder der Tab in
+    // den Hintergrund wechselt -- bei einer 2-5 Minuten dauernden, durchgehend offenen Anfrage (siehe
+    // composeSceneImage() in pipeline.js) kann das zum "Load failed" fuehren, das bisher nur als
+    // generischer Fehler ankam. Sofort-Fix (dieser Absatz): deutlicher, unuebersehbarer Hinweis VOR
+    // dem Start, statt es nur im ohnehin schon vorhandenen "kannst weggehen"-Ton zu erwaehnen.
+    // Mittelfristiger Fix (siehe ausfuehrlicher Kommentar bei composeSceneImage() in pipeline.js):
+    // eine robustere Architektur mit kurzen, wiederholten Status-Abfragen statt einer einzigen langen
+    // offenen Verbindung ist der eigentlich richtige Weg, aber ein groesserer Umbau (fal.ai liefert
+    // aktuell synchron per fetch(), nicht über einen pollbaren Job-Status-Endpunkt) -- dieser
+    // Hinweistext ist der schnelle, sofort wirksame Teil der Abhilfe.
+    wrap.appendChild(h("p", { class: "h-black", style: { margin: "10px 0 0", fontSize: "12px", lineHeight: "1.45", color: "var(--ink)", background: "var(--yellow)", border: "3px solid var(--paper)", padding: "8px 10px", transform: "rotate(.6deg)" } }, "Wichtig: Bildschirm an lassen und diesen Tab offen halten, während gezaubert wird — sonst kann es auf manchen Handys mit „Load failed“ abbrechen."));
 
     // Design-Feedback (05.09.2026): der gestrichelte Ring drehte sich zwar schon (animation: spin),
     // aber bei einem gleichmäßig gestrichelten Kreis sieht eine Drehung optisch aus wie Stillstand
@@ -932,7 +935,7 @@ Screens.zaubern = {
         return spec;
       });
       if (!heroSpecs.length) {
-        showError("Es gibt noch keine fertig gezeichnete Person mit echtem Bild — bitte erst mindestens eine Figur im Charakter-Baustein zeichnen lassen.");
+        showError("Es gibt noch keine fertig gezeichnete Figur mit echtem Bild — bitte erst mindestens eine Figur im Figuren-Baustein zeichnen lassen.");
         return;
       }
       zauberBusy = true;
@@ -1013,7 +1016,7 @@ Screens.zaubern = {
 
     // NEU (Punkt D22): identischer Phase-1/Pilot-Hinweis wie auf der Landingpage (index.html,
     // Ehrlichkeitsblock, Punkt A4) -- an EINER Stelle formuliert, an zwei Stellen eingesetzt.
-    stayCard.appendChild(h("p", { style: { margin: "0 0 12px", fontSize: "12px", lineHeight: "1.5", color: "var(--paper-a90)" } }, "Noch eine ehrliche Sache: Bei den Bildern selbst stecken wir gerade in Phase eins, unserem Pilotprojekt. Die ersten Wimmelbilder kommen deshalb etwas kleiner daher als eigentlich geplant – größere Formate und noch mehr Wimmel-Trubel bauen wir schon."));
+    stayCard.appendChild(h("p", { style: { margin: "0 0 12px", fontSize: "12px", lineHeight: "1.5", color: "var(--paper-a90)" } }, "Jeder fängt erst mal klein an. Wenn wir merken, dass euch unser Produkt gefällt, verbessern wir es kontinuierlich und werden bald auch größere, wimmligere Bilder anbieten können."));
 
     // GEAENDERT (kuratierte Witzeliste, siehe JOKE_LIBRARY/pickJoke() oben): waehlt passend zum
     // gerade gewaehlten Szenen-Thema (s.sceneTheme -> locId), faellt ohne Thema auf den
@@ -1114,7 +1117,7 @@ Screens.ergebnis = {
       noticeBox.appendChild(h("p", { style: { margin: "0", fontSize: "12.5px", lineHeight: "1.45" } },
         !image.verify
           ? "Unsere automatische Qualitätsprüfung konnte dieses Bild nicht auswerten (technischer Fehler beim Prüf-Schritt) — wir wissen nicht sicher, ob alles passt. Bitte einmal selbst durchschauen, bevor du weitermachst."
-          : "Unsere automatische Qualitätsprüfung hat bei diesem Bild mögliche Abweichungen gefunden (z. B. eine fehlende Person oder ein sichtbarer Mund) — der beste von mehreren Versuchen wurde trotzdem gewählt. Bitte einmal selbst durchschauen, bevor du weitermachst."));
+          : "Unsere automatische Qualitätsprüfung hat bei diesem Bild mögliche Abweichungen gefunden (z. B. eine fehlende Figur oder ein sichtbarer Mund) — der beste von mehreren Versuchen wurde trotzdem gewählt. Bitte einmal selbst durchschauen, bevor du weitermachst."));
       wrap.appendChild(noticeBox);
     }
 

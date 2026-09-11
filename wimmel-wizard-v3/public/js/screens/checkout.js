@@ -24,7 +24,7 @@ Screens.bestellen = {
     orderText.appendChild(h("p", { class: "h-black", style: { fontSize: "16px", lineHeight: "1", letterSpacing: "-.02em" } }, "Mini-Wimmelbuch"));
     // Sammel-Runde 09.09.2026, Punkt A3: "Hardcover" -> "Softcover" (Hardcover-Variante kommt
     // spaeter zurueck, siehe entscheidung.js TIERS und index.html Preise-Sektion).
-    orderText.appendChild(h("p", { style: { margin: "6px 0 0", fontSize: "13px", lineHeight: "1.4" } }, "2 Wimmelbilder + Charakterseite, 8 Seiten, Softcover, mit Widmung."));
+    orderText.appendChild(h("p", { style: { margin: "6px 0 0", fontSize: "13px", lineHeight: "1.4" } }, "2 Wimmelbilder + Figurenseite, 8 Seiten, Softcover, mit Widmung."));
     orderText.appendChild(h("p", { class: "h-black", style: { margin: "8px 0 0", fontSize: "20px" } }, "49 €"));
     orderCard.appendChild(orderText);
     wrap.appendChild(orderCard);

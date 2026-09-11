@@ -12,7 +12,7 @@
 // dort gezeichneten Motiv passt.
 const PINS = [
   { x: 16, y: 68, mark: "1", kicker: "Punkt 1 von 5", title: "Erst kommt ihr.", rowTitle: "Wer mitspielen darf",
-    body: "Foto hochladen oder Merkmale antippen – Haare, Größe, Lieblingspulli. Jede Person wird eine echte Figur im Wimmelstil. Auch der Hund. Vor allem der Hund." },
+    body: "Foto hochladen oder Merkmale antippen – Haare, Größe, Lieblingspulli. Jede Figur entsteht echt im Wimmelstil. Auch der Hund. Vor allem der Hund." },
   { x: 38, y: 47, mark: "2", kicker: "Punkt 2 von 5", title: "Dann eure Geschichte.", rowTitle: "Wie du sie mir lieferst",
     body: "Kein Formular mit siebzehn Feldern. Thema wählen, ein paar Sätze tippen – oder abends beim Erzählen einfach das Mikro mitlaufen lassen. Ich mache eine Szene draus." },
   { x: 59, y: 72, mark: "3", kicker: "Punkt 3 von 5", title: "Ich zeichne. Ihr meckert.", rowTitle: "Zaubern und Nachbessern",
@@ -46,7 +46,7 @@ const OCCASIONS = [
 const FAQS = [
   { q: "Sieht mein Kind wirklich aus wie mein Kind?", a: "Mit Foto am ehesten: Ich zeichne daraus eine Wimmelstil-Version. Ohne Foto geht auch – dann wählst du Haare, Frisur, Kleidung. Passt etwas nicht, kannst du gezielt nachschärfen (\"T-Shirt blau statt gelb\") oder komplett neu zaubern. So oft du willst." },
   { q: "Muss ich Fotos hochladen?", a: "Nein. Fotos sind der schnellste Weg, aber nie Pflicht. Was du hochlädst, wird nur für dein Bild benutzt und danach gelöscht. Kein Training, kein Weiterverkauf, kein Kleingedrucktes." },
-  { q: "Wie lange dauert ein Bild?", a: "Deine Eingaben: ein paar Minuten. Das Zeichnen: zwei bis vier. Ich probiere mehrere Varianten und zeige dir nur die, die was geworden ist. Handy weglegen ist erlaubt, es ist gespeichert." },
+  { q: "Wie lange dauert ein Bild?", a: "Deine Eingaben: ein paar Minuten. Das Zeichnen: zwei bis vier. Ich probiere mehrere Varianten und zeige dir nur die, die was geworden ist. Dabei bitte Bildschirm an und den Tab offen lassen, sonst kann's abbrechen." },
   { q: "Kann ich am fertigen Bild noch was ändern?", a: "Ja. Mit dem Stift im Bild markieren, was weg soll. Einzelne Situationen neu zaubern. Der Rest der Szene bleibt genau so." },
   { q: "Was, wenn mir ein Bild schon reicht?", a: "Dann nimmst du das Poster und bist fertig. Völlig richtige Entscheidung. Wir schicken dir dann keine sieben Mails." }
 ];

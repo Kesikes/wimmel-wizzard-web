@@ -1,7 +1,51 @@
 // /api/fal-proxy.js — Vercel Serverless Function
 // Hält den fal.ai-API-Key serverseitig geheim. Der Browser des Kunden
 // schickt nur den fertigen Prompt her und bekommt die Bild-URL zurück.
-// Der Key liegt als Umgebungsvariable FAL_KEY im Vercel-Projekt (siehe DEPLOY-ANLEITUNG.md).
+// Der Key liegt als Umgebungsvariable FAL_KEY im Vercel-Projekt (Wichtig: im
+// v3-Vercel-Projekt "wimmel-wizard-v3" bisher NICHT gesetzt — muss dort
+// analog zum alten Projekt ergänzt werden, sonst schlägt jeder Aufruf mit
+// "FAL_KEY ist im Vercel-Projekt nicht gesetzt" fehl).
+//
+// PORTIERT aus dem alten Repo (api/fal-proxy.js, Commit-Stand beim Kopieren),
+// NICHT aus dem Gedächtnis neu geschrieben — siehe
+// wimmel-wizard-technische-spezifikation-final.md. Zwei Stellen wurden gemäß
+// der dort bestätigten Ergebnisse als NEUER STANDARD (nicht mehr nur
+// experimentelles Opt-in) umgestellt: nano-banana-pro/edit für den Szenen-
+// Edit-Pfad, und 4K/21:9 als Szenen-Default (siehe Kommentare unten an den
+// jeweiligen Stellen). Alles andere unverändert aus dem Original übernommen.
+//
+// BUGFIX (Sammel-Runde 10.09.2026, Prioritaet 1: wiederholtes "Load failed" beim Foto-Upload-Weg,
+// ein reiner Netzwerk-/Verbindungsfehler des BROWSERS, kein von uns kontrolliert zurueckgegebener
+// Fehler -- unsere eigenen res.status(...).json({error:...})-Antworten unten wuerden nie als "Load
+// failed" beim Client ankommen). Ursache: es gab bisher KEIN explizites maxDuration fuer diese
+// Funktion, Vercel killt eine Serverless-Function-Ausfuehrung nach Ablauf ihres Default-Zeitlimits
+// (je nach Plan/Konfiguration bereits nach 10s) OHNE eine echte HTTP-Antwort zu senden -- die
+// Verbindung wird einfach abgebrochen, was der Browser als rohen Netzwerkfehler meldet (in Safari
+// wortwoertlich "Load failed"). Ein einzelner nano-banana-2/edit- bzw. nano-banana-pro/edit-Aufruf
+// (erst recht mit mehreren image_urls) kann durchaus laenger als 10s dauern. Damals explizit auf
+// 60s gesetzt (Hobby-Tarif-Maximum zum Zeitpunkt dieses Fixes) -- sollte den ueberwiegenden Teil
+// dieser Timeouts beheben, mit dem ausdruecklichen Hinweis: "Falls 'Load failed' danach im
+// Live-Test immer noch auftritt, ist das ein Hinweis, dass selbst 60s nicht reichen und ein
+// Pro-Tarif (bis 300s) noetig waere."
+// GENAU DAS ist im Live-Test der Sammel-Runde 11.09.2026 wieder aufgetreten -- diesmal beim
+// bisher stabilen Chips-Weg ("Zeichnen hat nicht geklappt: Load failed", ausgeloest von der
+// generateImage()-Textzu-Bild-Anfrage in charakter.js generateCharacterImage(), NICHT von einer
+// der drei parallelen Zusatz-Ansichten -- die haben ihr eigenes Promise.allSettled-Fangnetz und
+// wuerden nie diese Fehlermeldung ausloesen). Vor einem Tarif-Upgrade gepruefte, guenstigere
+// Erklaerung (Live-Abruf der aktuellen Vercel-Dokumentation, docs zuletzt aktualisiert am
+// 24.08.2026): Vercel hat die Hobby-Tarif-Grenzen inzwischen angehoben. Mit "Fluid Compute"
+// (seit einiger Zeit fuer NEUE Projekte automatisch aktiv, https://vercel.com/docs/fluid-compute)
+// liegt maxDuration auf dem Hobby-Tarif jetzt bei Default UND Maximum 300s (5 Minuten) -- nicht
+// mehr nur 60s wie zum Zeitpunkt des urspruenglichen Fixes. Die bisherige maxDuration:60 in
+// vercel.json war also vermutlich eine SELBST gesetzte, inzwischen unnoetig enge Grenze, keine
+// von Vercel erzwungene. Jetzt auf 300 angehoben (siehe vercel.json) -- kein Tarif-Upgrade
+// erforderlich, sofern Fluid Compute fuer dieses Projekt aktiv ist (Standard bei allen neu
+// angelegten Projekten). Falls "Load failed" TROTZDEM weiterhin auftritt, ist das ein Hinweis,
+// dass entweder Fluid Compute fuer dieses konkrete Projekt nicht aktiv ist (in den Vercel-
+// Projekteinstellungen unter "Functions" pruefbar) oder dass tatsaechlich ein anderer Fehler
+// vorliegt (z.B. fal.ai-seitige Rate-Limitierung/Ueberlastung) -- in dem Fall lohnt sich ein Blick
+// in die Vercel-Funktionslogs (Projekt -> "Logs"/"Observability") fuer den genauen Zeitpunkt des
+// Fehlers.
 
 // LoRA v5 (wmlstil_v5_final_training.zip, 110 Bild/Caption-Paare: 80 Original + 30 neue Seiten-/
 // 3-4-/Rückansicht-Beispiele mit echten Referenzbildern erzeugt, siehe dev-tools/scenario-runner.js
@@ -11,6 +55,40 @@
 // Weg laufen. Alte LoRA-URL (v4) zur Referenz: https://v3b.fal.media/files/b/0aa36425/nJRUo6q_ooBzcjEy5KaWZ_pytorch_lora_weights.safetensors
 const LORA_URL =
   "https://v3b.fal.media/files/b/0aa5f3be/JhuEcl1_gByql8TcQ1Tqh_pytorch_lora_weights.safetensors";
+
+// NEU (Sammel-Runde 11.09.2026, "Lastverhalten vor Launch": Nutzer fragt gezielt nach
+// fal.ai-Concurrency-Limits bei parallelen Nutzerinnen). Live-Recherche in fal.ais eigener
+// Dokumentation (fal.ai/docs/documentation/model-apis/concurrency-limits, Stand 11.09.2026):
+// JEDER fal-Account hat ein globales Concurrency-Limit (wie viele Anfragen GLEICHZEITIG im Status
+// "IN_PROGRESS" sein duerfen) -- ein frischer Account startet bei 2, steigt automatisch mit
+// Guthaben-Kaeufen der letzten 4 Wochen, Selbstbedienungs-Obergrenze 40 (mehr nur auf Anfrage bei
+// fal). Wird das Limit erreicht, antwortet fal NICHT mit einem harten Fehler, sondern mit HTTP 429
+// (Typ "concurrent_requests_limit") -- die fal-eigenen SDKs (fal_client.run()/subscribe()) fangen
+// das automatisch mit exponentiellem Backoff ab (bis zu 10 Versuche bzw. serverseitige Queue ohne
+// Obergrenze), unser Code hier macht aber KEINE SDK-Aufrufe, sondern rohe fetch()-HTTP-Requests --
+// bisher OHNE jede Retry-Logik: ein 429 landete bisher 1:1 als harter 502-Fehler beim Client, genau
+// in dem Moment, wo mehrere Nutzerinnen gleichzeitig zeichnen/zaubern (jede Charaktergenerierung
+// loest bereits intern 4 parallele fal-Aufrufe aus, siehe generateExtraViewsAndFinish() in
+// charakter.js -- schon 1-2 gleichzeitige Nutzerinnen koennen das Standard-Limit von 2 reissen).
+// fetchFalWithRetry() faengt genau das jetzt ab: bei 429 mit exponentiellem Backoff (Basis 1s,
+// verdoppelt, gedeckelt bei 16s pro Versuch, bis zu 6 Versuche = max. ca. 63s zusaetzliche
+// Wartezeit) erneut versuchen, bevor als Fehler aufgegeben wird -- bleibt innerhalb des auf 300s
+// angehobenen maxDuration-Budgets (siehe vercel.json/Kommentar oben). Ersetzt keine echte
+// Erhoehung des Concurrency-Limits (dafuer muesste auf fal.ai Guthaben gekauft werden, siehe
+// https://fal.ai/dashboard/usage-billing/concurrency) -- macht kurzzeitige Lastspitzen aber
+// transparent fuer die Nutzerin ueberbrueckbar statt sie sofort als Fehler zu sehen.
+async function fetchFalWithRetry(url, options, maxRetries) {
+  maxRetries = maxRetries == null ? 6 : maxRetries;
+  for (let attempt = 0; ; attempt++) {
+    const resp = await fetch(url, options);
+    if (resp.status !== 429 || attempt >= maxRetries) return resp;
+    const retryAfterHeader = resp.headers && resp.headers.get ? resp.headers.get("retry-after") : null;
+    const backoffMs = retryAfterHeader && !isNaN(Number(retryAfterHeader))
+      ? Number(retryAfterHeader) * 1000
+      : Math.min(16000, 1000 * Math.pow(2, attempt));
+    await new Promise((r) => setTimeout(r, backoffMs));
+  }
+}
 
 module.exports = async (req, res) => {
   if (req.method !== "POST") {
@@ -59,7 +137,7 @@ module.exports = async (req, res) => {
     const ALLOWED_VERIFY_MODELS = ["google/gemini-2.5-flash", "google/gemini-2.5-pro", "anthropic/claude-sonnet-4.5"];
     const verifyModel = ALLOWED_VERIFY_MODELS.includes(body.verifyModel) ? body.verifyModel : "google/gemini-2.5-pro";
     try {
-      const resp = await fetch("https://fal.run/openrouter/router/vision", {
+      const resp = await fetchFalWithRetry("https://fal.run/openrouter/router/vision", {
         method: "POST",
         headers: { Authorization: "Key " + FAL_KEY, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -179,14 +257,13 @@ module.exports = async (req, res) => {
   const testAspectRatio = typeof body.aspectRatio === "string" && /^[0-9]{1,2}:[0-9]{1,2}$/.test(body.aspectRatio)
     ? body.aspectRatio
     : undefined;
-  // EXPERIMENTAL (Nano-Banana-Pro-Test, Audit Abschnitt 14): optionaler Endpoint-Override, NUR für den
-  // Bild-Edit-Pfad (imageUrl gesetzt). Testet fal-ai/nano-banana-pro/edit (wirbt mit Mehrpersonen-
-  // Identitätskonsistenz bis 5 Personen) als reinen Endpoint-Austausch gegen die bisherige
-  // nano-banana-2/edit, gleiche image_urls/Parameter. Kein Teil des regulären Produktpfads (der Client
-  // setzt body.model nie auf diesen Wert) – nur für gezielte manuelle Testaufrufe über
-  // generateImage(..., extra). Ohne dieses Feld bleibt das bisherige Verhalten (nano-banana-2/edit)
-  // unverändert.
-  const useProModel = body.model === "nano_banana_pro" && !!imageUrl;
+  // v3-Update (siehe wimmel-wizard-technische-spezifikation-final.md, Abschnitt 1+2): nano-banana-pro/edit
+  // ist beim Mehrpersonen-Szenentest zuverlässiger als -2 und ist jetzt der STANDARD für den Szenen-
+  // Edit-Pfad (kind === "scene", imageUrl gesetzt) — nicht mehr nur ein experimenteller Opt-in-Test.
+  // Charakter-Generierung (kind === "char") bleibt bei nano-banana-2/edit (Spezifikation Abschnitt 1:
+  // "nano-banana-2/edit ... für Szenen: nano-banana-pro/edit"). body.model bleibt als expliziter
+  // Override erhalten, falls ein Test doch das jeweils andere Modell erzwingen soll.
+  const useProModel = !!imageUrl && (kind === "scene" ? body.model !== "nano_banana_2" : body.model === "nano_banana_pro");
 
   if (!prompt) {
     res.status(400).json({ error: "Kein Prompt übergeben." });
@@ -197,9 +274,22 @@ module.exports = async (req, res) => {
   // über 2000 Zeichen erzeugt (im Test: 2481) und wurde von diesem MVP-Missbrauchsschutz fälschlich
   // als "zu lang" abgelehnt (400-Fehler, sichtbar als extrem schnelle/leere "Generierung" statt eines
   // echten Fehlers). Das ist keine fal.ai-Grenze, sondern nur unsere eigene defensive Obergrenze –
-  // auf 6000 angehoben, damit dichte 15+-Situationen-Szenen (das gewünschte "Wimmeln") nicht mehr
-  // künstlich blockiert werden.
-  if (prompt.length > 6000) {
+  // damals auf 6000 angehoben.
+  // WEITER ERHOEHT (Sammel-Runde 10.09.2026, Punkt B3: "Zeichen-Limit pruefen/erhoehen, bevor es bei
+  // längeren Freitexten reißt"). Seit der 6000er-Grenze sind mehrere neue, potenziell lange
+  // Freitext-Quellen dazugekommen, die alle in denselben Szenen-Prompt einfliessen: der echte
+  // Mehrzug-Chat (C17, sendChatTurn()/sceneChat() -- ein laengeres Gespraech kann mehr und
+  // ausfuehrlichere situations_en liefern als die kuratierte GAG_LIBRARY), die echte
+  // Audio-Transkription (C18 -- eine mehrminuetige vorgelesene Gute-Nacht-Geschichte transkribiert
+  // zu einem entsprechend langen Text) und jetzt (Punkt A3) auch fal.ai's eigene Bildbeschreibung
+  // pro Foto-Charakter. Keines dieser Freitextfelder hat ein hartes Zeichenlimit im Frontend (siehe
+  // z.B. das charNote-Textarea/scene-chat-input in charakter.js/szene.js) -- 5 Charaktere mit
+  // jeweils einer laengeren, echten Notiz PLUS 15 laengere, chat-generierte Vignetten koennten den
+  // alten 6000er-Deckel in einem realistischen (nicht nur missbraeuchlichen) Fall erreichen oder
+  // ueberschreiten. Auf 16000 angehoben -- immer noch eine bewusst endliche Obergrenze (echter
+  // Missbrauchsschutz gegen z.B. ein absichtlich zehntausende Zeichen langes charNote bleibt
+  // bestehen), aber mit deutlich mehr Sicherheitsabstand zum realistischen Wimmelbuch-Normalfall.
+  if (prompt.length > 16000) {
     res.status(400).json({ error: "Prompt zu lang." });
     return;
   }
@@ -221,8 +311,10 @@ module.exports = async (req, res) => {
     ? {
         prompt,
         image_urls: [imageUrl, ...styleRefUrls],
-        aspect_ratio: testAspectRatio || (kind === "char" ? "3:4" : "16:9"),
-        resolution: testResolution || "1K",
+        // v3-Update (Spezifikation Abschnitt 2): Szenen jetzt standardmäßig 4K/21:9 statt 1K/16:9 —
+        // war vorher nur über testResolution/testAspectRatio manuell erzwingbar.
+        aspect_ratio: testAspectRatio || (kind === "char" ? "3:4" : "21:9"),
+        resolution: testResolution || (kind === "char" ? "1K" : "4K"),
         output_format: "png",
         num_images: 1,
         ...(seed !== undefined ? { seed } : {}),
@@ -246,7 +338,7 @@ module.exports = async (req, res) => {
     : "https://fal.run/fal-ai/flux-lora";
 
   try {
-    const resp = await fetch(falEndpoint, {
+    const resp = await fetchFalWithRetry(falEndpoint, {
       method: "POST",
       headers: { Authorization: "Key " + FAL_KEY, "Content-Type": "application/json" },
       body: JSON.stringify(falBody),
@@ -264,7 +356,19 @@ module.exports = async (req, res) => {
       res.status(502).json({ error: "fal.ai hat kein Bild geliefert." });
       return;
     }
-    res.status(200).json({ url, seed: typeof data.seed === "number" ? data.seed : seed });
+    // NEU (Sammel-Runde 10.09.2026, Punkt A3: "charInSceneFromChips()-Aufruf im Foto-Pfad mit den
+    // tatsaechlichen Merkmalen befuellen statt leer"). Der Foto-Pfad hat keine Chip-/Notiz-UI (siehe
+    // charakter.js buildFotoPanel()) -- es gibt dort schlicht keine vom Menschen eingegebenen
+    // Merkmale, die wir "befuellen" koennten, ohne sie zu ERRATEN (genau das hatte der urspruengliche
+    // Code-Kommentar an dieser Stelle bewusst vermeiden wollen). fal.ai liefert bei image_urls-Edit-
+    // Aufrufen (Nano Banana 2/Pro) aber bereits ein eigenes "description"-Feld mit: eine kurze
+    // englische Beschreibung dessen, was das Modell TATSAECHLICH gezeichnet hat (nicht von uns
+    // geraten, sondern vom selben Modell, das auch das Bild erzeugt hat) -- bisher wurde dieses Feld
+    // hier einfach verworfen. Jetzt durchgereicht, damit der Foto-Pfad (siehe pipeline.js
+    // generateImage()/charakter.js generateCharacterImageFromPhoto()) daraus einen echten,
+    // bild-basierten sceneDescription-Zusatz bauen kann statt eines leeren Strings. Leerer String,
+    // wenn fal.ai kein description liefert (z.B. beim Text-zu-Bild-Pfad) -- kein Fehlerfall.
+    res.status(200).json({ url, seed: typeof data.seed === "number" ? data.seed : seed, description: typeof data.description === "string" ? data.description : "" });
   } catch (e) {
     res.status(502).json({ error: "Verbindung zu fal.ai fehlgeschlagen: " + String(e) });
   }

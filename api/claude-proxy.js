@@ -18,6 +18,29 @@
 
 const MODEL = "claude-sonnet-5";
 
+// NEU (Sammel-Runde 11.09.2026, "Lastverhalten vor Launch": Nutzer fragt nach Verhalten bei
+// mehreren gleichzeitigen Nutzerinnen). Gleiches Prinzip wie fetchFalWithRetry() in fal-proxy.js --
+// Anthropic beantwortet ein ueberschrittenes Rate-Limit ebenfalls mit HTTP 429 (meist samt
+// "retry-after"-Header), unser Code machte bisher KEINEN Retry-Versuch, sondern reichte das direkt
+// als harten 502-Fehler an den Client durch. Bei Sonnet-Modellen liegt das Standard-Tier-1-Limit
+// bei 50 Anfragen/Minute (Live-Recherche Anthropic-Doku, 11.09.2026) -- bei mehreren gleichzeitigen
+// Nutzerinnen (jede loest pro Generierungsschritt 1-2 Aufrufe hierher aus: Moderation, Uebersetzung,
+// Szenen-Chat) ist das eher unwahrscheinlich zu reissen als das deutlich niedrigere fal.ai-
+// Concurrency-Limit, aber derselbe Schutz kostet nichts und verhindert unnoetige sichtbare Fehler
+// bei kurzen Lastspitzen.
+async function fetchAnthropicWithRetry(url, options, maxRetries) {
+  maxRetries = maxRetries == null ? 5 : maxRetries;
+  for (let attempt = 0; ; attempt++) {
+    const resp = await fetch(url, options);
+    if (resp.status !== 429 || attempt >= maxRetries) return resp;
+    const retryAfterHeader = resp.headers && resp.headers.get ? resp.headers.get("retry-after") : null;
+    const backoffMs = retryAfterHeader && !isNaN(Number(retryAfterHeader))
+      ? Number(retryAfterHeader) * 1000
+      : Math.min(16000, 1000 * Math.pow(2, attempt));
+    await new Promise((r) => setTimeout(r, backoffMs));
+  }
+}
+
 const SHARED_RULES = `
 Antworte in deinen Chat-Nachrichten IMMER nur mit normalem Fließtext ohne Markdown, ohne Sternchen, ohne Aufzählungen – deine Antwort wird 1:1 als Chat-Bubble angezeigt. Kurze Nachrichten (1–3 Sätze), warmherzig, neugierig, mit einer Prise Leichtigkeit, nie corporate, nie überdreht. Maximal ein Emoji pro Nachricht, nicht in jeder Nachricht. Du bist kein Formular: verbinde zusammengehörige Fragen in einem natürlichen Satz, statt sie einzeln stur abzuarbeiten, und reagiere auf das, was der Nutzer erzählt, bevor du weiterfragst.
 Schreibe alle strukturierten Feldwerte (Haare, Kleidung, Merkmal, Ort, Geschichte) auf Englisch, auch wenn die Unterhaltung mit dem Nutzer auf Deutsch läuft – der Client übersetzt/baut daraus den Bild-Prompt.
@@ -174,6 +197,98 @@ module.exports = async (req, res) => {
 
   const body = req.body || {};
 
+  // ---- Modus "joke" ENTFERNT (Design-Feedback 05.09.2026: "Strategiewechsel von
+  // Live-Generierung zu kuratierter, von Hand geprüfter Liste ... aktuelle Witze ergeben keinen
+  // Sinn"). Wurde vom Client (Pipeline.fetchJokes(), pipeline.js) ohnehin nirgends aufgerufen --
+  // Witze kommen jetzt ausschließlich aus der kuratierten JOKE_LIBRARY in public/js/screens/
+  // szene.js, kein Live-API-Aufruf mehr nötig.
+
+  // ---- Modus (NEU, Live-Test 04.09.2026): Uebersetzung fuer das freie Notizfeld ----
+  // Grund: Pipeline.translate() (Client, pipeline.js) ist ein reines Woerterbuch (DICT), das nur
+  // fuer die 10 festen CHIPS-Labels (dort ueber CHIP_TRANSLATIONS abgesichert) verlaesslich ist.
+  // Fuer das freie "Was ist noch besonders an ihr?"-Notizfeld (beliebiger Text) hat der Live-Test
+  // bestaetigt, dass unbekannte Woerter (z.B. "trägt", "Loch") unuebersetzt im Bild-Prompt landen --
+  // genau das historische Risiko aus dem fal-proxy.js-Kommentar (deutsche Wortfetzen koennen vom
+  // Bildmodell woertlich als Text ins Bild geschrieben werden). Gleiche Absicherung wie bei den 10
+  // CHIPS (dort per fester Tabelle), hier per echtem Uebersetzungsaufruf, da eine feste Tabelle bei
+  // freiem Text nicht funktioniert. Einzelner, zustandsloser Aufruf, kein Tool-Calling, knapp
+  // gehalten (wie ein Prompt-Fragment, kein vollstaendiger Satz).
+  if (body.mode === "translate") {
+    const text = String(body.text || "").slice(0, 300).trim();
+    if (!text) {
+      res.status(200).json({ text: "" });
+      return;
+    }
+    try {
+      const resp = await fetchAnthropicWithRetry("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+        body: JSON.stringify({
+          model: MODEL,
+          max_tokens: 120,
+          system: "Du übersetzt ein kurzes deutsches Beschreibungsfragment für einen Bildgenerierungs-Prompt ins Englische. Antworte AUSSCHLIESSLICH mit der Übersetzung selbst, als knappes Prompt-Fragment (kein vollständiger Satz, keine Anführungszeichen, kein Markdown, keine Erklärung, kein Text davor oder danach). Beispiel: Eingabe 'trägt immer eine karierte Jacke' -> Ausgabe 'always wearing a plaid jacket'. Beispiel: Eingabe 'hat ein Loch in der Hose vom Klettern' -> Ausgabe 'has a hole in the pants from climbing'.",
+          messages: [{ role: "user", content: text }],
+        }),
+      });
+      if (!resp.ok) {
+        const txt = await resp.text().catch(() => "");
+        res.status(502).json({ error: "Anthropic-Fehler " + resp.status + ": " + txt.slice(0, 200) });
+        return;
+      }
+      const data = await resp.json();
+      const translated = ((data.content && data.content[0] && data.content[0].text) || "").trim().replace(/^["']|["']$/g, "");
+      if (!translated) {
+        res.status(502).json({ error: "Keine Übersetzung erhalten." });
+        return;
+      }
+      res.status(200).json({ text: translated });
+    } catch (e) {
+      res.status(502).json({ error: "Verbindung zu Anthropic fehlgeschlagen: " + String(e) });
+    }
+    return;
+  }
+
+  // ---- Modus (NEU, Sammel-Runde 09.09.2026, Punkt B8: "Inhaltsmoderation fürs Freitextfeld") ----
+  // Grund (aus der Aufgabenbeschreibung übernommen): den eingegebenen Freitext vor der Verwendung
+  // durch einen einfachen Prüf-Aufruf schicken (über den ohnehin vorhandenen ANTHROPIC_API_KEY,
+  // ähnlich dem Vision-Verify-Mechanismus von fal-proxy.js -- dort prüft ein Vision-Modell ein
+  // fertiges Bild gegen eine Checkliste, hier prüft ein einzelner, zustandsloser Text-Aufruf einen
+  // Freitext gegen eine einzige Ja/Nein-Frage). Bewusst SEHR knapp gehalten (max_tokens: 5, ein
+  // einzelnes Wort als Antwort erwartet) -- kein Gespräch, kein Tool-Calling, keine Begründung.
+  if (body.mode === "moderate") {
+    const text = String(body.text || "").slice(0, 2000).trim();
+    if (!text) {
+      res.status(200).json({ flagged: false });
+      return;
+    }
+    try {
+      const resp = await fetchAnthropicWithRetry("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+        body: JSON.stringify({
+          model: MODEL,
+          max_tokens: 5,
+          system: "Du prüfst kurze Nutzereingaben für ein Kinderprodukt (ein personalisiertes Bilderbuch für Kinder). Enthält der folgende Text anstößige Inhalte, Waffen, Gewalt oder anderweitig Unangemessenes für ein Kinderprodukt? Antworte AUSSCHLIESSLICH mit dem einzigen Wort 'Ja' oder 'Nein' – keine Erklärung, keine Satzzeichen, kein weiterer Text.",
+          messages: [{ role: "user", content: text }],
+        }),
+      });
+      if (!resp.ok) {
+        const txt = await resp.text().catch(() => "");
+        res.status(502).json({ error: "Anthropic-Fehler " + resp.status + ": " + txt.slice(0, 200) });
+        return;
+      }
+      const data = await resp.json();
+      const answer = ((data.content && data.content[0] && data.content[0].text) || "").trim().toLowerCase();
+      // Bewusst per startsWith statt exaktem "===" (fängt "ja", "ja.", "ja!" etc. gleichermaßen ab,
+      // falls das Modell doch minimal von der angeforderten Ein-Wort-Antwort abweicht).
+      const flagged = answer.startsWith("ja");
+      res.status(200).json({ flagged });
+    } catch (e) {
+      res.status(502).json({ error: "Verbindung zu Anthropic fehlgeschlagen: " + String(e) });
+    }
+    return;
+  }
+
   // ---- Modus 1: Foto-Merkmalsextraktion (kein Chatverlauf, ein einzelner Vision-Aufruf) ----
   if (body.mode === "extract_traits") {
     const imageDataUri = String(body.imageDataUri || "");
@@ -189,7 +304,7 @@ module.exports = async (req, res) => {
       return;
     }
     try {
-      const resp = await fetch("https://api.anthropic.com/v1/messages", {
+      const resp = await fetchAnthropicWithRetry("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: { "x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
         body: JSON.stringify({
@@ -258,7 +373,7 @@ module.exports = async (req, res) => {
   const tool = mode === "character" ? ADD_CHARACTER_TOOL : ADD_SCENE_TOOL;
 
   try {
-    const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    const resp = await fetchAnthropicWithRetry("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
         "x-api-key": ANTHROPIC_KEY,

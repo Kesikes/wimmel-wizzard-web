@@ -105,6 +105,18 @@ const DEFAULT_STATE = {
   savedAt: null
 };
 
+// NEU (Sammel-Runde 11.09.2026, Punkt 2: "Freitext-Feld für zusätzliche Merkmale behält den
+// Inhalt beim Anlegen einer zweiten Figur"). charMode/charHairColor/charHairTexture/
+// charHairLength/charBesonderheit/charNote sind kein Feld EINZELNER Personen, sondern ein
+// einziger, global im State liegender "Entwurf" fuer das gerade offene Merkmale-Formular (siehe
+// buildChipsPanel()/buildFotoPanel() in charakter.js) -- addPerson() hat bisher nur people/
+// currentPersonId aktualisiert, den Entwurf aber nie zurueckgesetzt. Ergebnis: eine zweite Figur
+// startete das Merkmale-Formular mit den Chip-/Freitext-Werten der ERSTEN Figur, inkl. der
+// gemeldeten Freitext-Notiz. CHAR_DRAFT_FIELDS listet alle betroffenen Felder zentral auf, damit
+// addPerson() und setCurrentPerson() (unten) sie konsistent zuruecksetzen koennen, sobald
+// tatsaechlich zu einer ANDEREN Figur gewechselt wird.
+const CHAR_DRAFT_FIELDS = { charMode: null, charHairColor: null, charHairTexture: null, charHairLength: null, charBesonderheit: null, charNote: "" };
+
 // Einfacher, universell unterstuetzter Deep-Clone (ohne Abhaengigkeit von
 // structuredClone, das in manchen aelteren Umgebungen fehlt) - der State
 // enthaelt nur JSON-vertraegliche Werte (Strings, Zahlen, Arrays, Objekte).
@@ -208,8 +220,36 @@ const AppState = {
     while (this.data.people.some((p) => p.id === id)) { id = base + "-" + n; n++; }
     const person = { id, name: String(name || "").trim(), role: role || null, age: age != null ? age : null, isPet: !!isPet, status: "open" };
     const people = this.data.people.concat([person]);
-    this.update({ people, currentPersonId: id });
+    // BUGFIX (Sammel-Runde 11.09.2026, Punkt 2, siehe CHAR_DRAFT_FIELDS-Kommentar oben): den
+    // Merkmale-Entwurf (inkl. Freitext-Notiz) zuruecksetzen, wenn eine ZWEITE/weitere Figur
+    // angelegt wird -- vorher blieben Chip-Auswahl und Freitext der vorherigen Figur stehen.
+    this.update(Object.assign({}, CHAR_DRAFT_FIELDS, { people, currentPersonId: id }));
     return person;
+  },
+  // NEU (Sammel-Runde 11.09.2026, Punkt 2): zentrale Stelle fuer einen expliziten Wechsel der
+  // "aktuell bearbeiteten" Person ausserhalb des Neu-Anlegens (z.B. Klick auf eine andere
+  // Person-Kachel in der Galerie, oder automatisches Nachziehen der naechsten offenen Person) --
+  // setzt den Merkmale-Entwurf ebenfalls zurueck, aber NUR bei einem echten Wechsel (sonst wuerde
+  // ein blosses Re-Render mitten in der Eingabe die eigene, gerade erst eingetippte Notiz wieder
+  // loeschen).
+  setCurrentPerson(id) {
+    if (this.data.currentPersonId === id) return;
+    this.update(Object.assign({}, CHAR_DRAFT_FIELDS, { currentPersonId: id }));
+  },
+  // NEU (Sammel-Runde 11.09.2026, Punkt 4: "Lösch-Funktion für Figuren auf dem Charakterblatt
+  // ergänzen"). Entfernt eine Figur vollstaendig aus people. Bereits fertig generierte
+  // Wimmelbilder (images) referenzieren die an der Generierung beteiligten Figuren nur ueber die
+  // zum Generierungszeitpunkt KOPIERTEN imageUrl/sceneDescription-Werte (siehe heroSpecs-Aufbau in
+  // szene.js runGeneration()), nicht ueber eine lebende Personen-ID -- ein geloeschtes Bild-Vorbild
+  // aendert also nichts an bereits fertigen Wimmelbildern, die werden nicht nachtraeglich neu
+  // gezeichnet. currentPersonId wird zurueckgesetzt (inkl. Merkmale-Entwurf, CHAR_DRAFT_FIELDS),
+  // WENN die geloeschte Figur gerade die aktuell bearbeitete war -- sonst bliebe ein State-Zeiger
+  // auf eine nicht mehr existierende Person stehen.
+  deletePerson(id) {
+    const people = this.data.people.filter((p) => p.id !== id);
+    const patch = { people };
+    if (this.data.currentPersonId === id) Object.assign(patch, CHAR_DRAFT_FIELDS, { currentPersonId: null });
+    this.update(patch);
   },
   // NEU (Pipeline-Anbindung): generischer Patch auf eine einzelne Person, z.B. um nach echter
   // Bildgenerierung imageUrl/sceneDescription zu speichern, ohne dass jede Aufrufstelle das

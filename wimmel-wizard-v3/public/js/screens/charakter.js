@@ -69,8 +69,8 @@ Screens.charakter = {
       return;
     }
     const personIndex = s.people.findIndex((p) => p.id === person.id);
-    if (s.currentPersonId !== person.id) AppState.update({ currentPersonId: person.id });
-    wrap.appendChild(h("p", { class: "kicker kicker-yellow", style: { transform: "rotate(-2deg)" } }, "Person " + (personIndex + 1) + " von " + s.people.length + " · " + person.name));
+    AppState.setCurrentPerson(person.id);
+    wrap.appendChild(h("p", { class: "kicker kicker-yellow", style: { transform: "rotate(-2deg)" } }, "Figur " + (personIndex + 1) + " von " + s.people.length + " · " + person.name));
     wrap.appendChild(h("h1", { class: "h1-scr", style: { fontSize: "31px" } }, [
       document.createTextNode("Wie soll"), h("br"), document.createTextNode("ich sie"), h("br"),
       h("span", { style: { color: "var(--red)" } }, "zeichnen?")
@@ -275,6 +275,32 @@ function hairPhraseEn(s, isPet) {
 let charGenBusy = false;
 function charGenErrorEl(id) { return document.getElementById(id); }
 
+// NEU (Sammel-Runde 11.09.2026, Punkt 1: "orangenen 'Ich zeichne...'-Button im Header
+// entfernen"). Vorher bekam der Desktop-Header-Button (#btn-weitermachen, sichtbar nur ab
+// 1024px, siehe app.css) waehrend der Generierung GENAUSO wie der Bottom-Bar-Button die
+// Beschriftung "Ich zeichne ..." -- fuer eine Desktop-Nutzerin, die diesen Button sonst nur
+// staendig sichtbar und neutral beschriftet als "Weitermachen" kennt, wirkte das wie ein neuer,
+// ploetzlich auftauchender oranger Button. Jetzt: der Header-Button (id "btn-weitermachen")
+// wird waehrend der Generierung weiterhin deaktiviert und abgedunkelt (verhindert versehentliche
+// Doppel-Klicks), behaelt dabei aber seine feste Beschriftung "Weitermachen" -- nur der
+// Bottom-Bar-Button (mobil) zeigt noch den Text-Wechsel. Der eigentliche Re-Entry-Schutz
+// (charGenBusy) haengt ohnehin nicht vom Button-Zustand ab, ein Klick waehrend der Generierung
+// loest also unabhaengig davon nichts aus.
+function setBusyButtons(buttons, busy) {
+  (buttons || []).filter(Boolean).forEach((b) => {
+    const isHeaderBtn = b.id === "btn-weitermachen";
+    if (busy) {
+      if (!isHeaderBtn) { b.dataset.prevText = b.textContent; b.textContent = "Ich zeichne …"; }
+      b.disabled = true;
+      b.style.opacity = "0.75";
+    } else {
+      b.disabled = false;
+      if (!isHeaderBtn) b.textContent = b.dataset.prevText || b.textContent;
+      b.style.opacity = "1";
+    }
+  });
+}
+
 async function generateCharacterImage(person, buttons) {
   if (charGenBusy) return;
   const s = AppState.data;
@@ -296,7 +322,7 @@ async function generateCharacterImage(person, buttons) {
   { const errorP = charGenErrorEl("char-gen-error"); if (errorP) errorP.style.display = "none"; }
   charGenBusy = true;
   const activeButtons = (buttons || []).filter(Boolean);
-  activeButtons.forEach((b) => { b.dataset.prevText = b.textContent; b.disabled = true; b.textContent = "Ich zeichne …"; b.style.opacity = "0.75"; });
+  setBusyButtons(activeButtons, true);
   // NEU (Punkt B8, Sammel-Runde 09.09.2026: "Inhaltsmoderation fürs Freitextfeld"). Prüft die freie
   // Notiz VOR ihrer Verwendung (vor dem Übersetzen/Prompt-Bau) über Pipeline.moderateText() --
   // eigener try/catch statt im Haupt-try unten, damit die Fehlermeldung nicht doppelt mit dem
@@ -310,14 +336,14 @@ async function generateCharacterImage(person, buttons) {
       if (flagged) {
         const errorP = charGenErrorEl("char-gen-error");
         if (errorP) { errorP.textContent = "Diese Notiz enthält Inhalte, die wir für ein Kinderprodukt nicht verwenden können — magst du sie anpassen?"; errorP.style.display = "block"; }
-        activeButtons.forEach((b) => { b.disabled = false; b.textContent = b.dataset.prevText || b.textContent; b.style.opacity = "1"; });
+        setBusyButtons(activeButtons, false);
         charGenBusy = false;
         return;
       }
     } catch (modErr) {
       const errorP = charGenErrorEl("char-gen-error");
       if (errorP) { errorP.textContent = "Prüfung der Notiz hat gerade nicht geklappt: " + (modErr && modErr.message ? modErr.message : String(modErr)) + " — bitte nochmal versuchen."; errorP.style.display = "block"; }
-      activeButtons.forEach((b) => { b.disabled = false; b.textContent = b.dataset.prevText || b.textContent; b.style.opacity = "1"; });
+      setBusyButtons(activeButtons, false);
       charGenBusy = false;
       return;
     }
@@ -337,7 +363,7 @@ async function generateCharacterImage(person, buttons) {
       errorP.textContent = "Zeichnen hat nicht geklappt: " + (e && e.message ? e.message : String(e)) + " — nochmal versuchen?";
       errorP.style.display = "block";
     }
-    activeButtons.forEach((b) => { b.disabled = false; b.textContent = b.dataset.prevText || b.textContent; b.style.opacity = "1"; });
+    setBusyButtons(activeButtons, false);
   }
 }
 
@@ -400,7 +426,7 @@ async function generateCharacterImageFromPhoto(person, photoDataUri, buttons) {
   { const errorP = charGenErrorEl("char-photo-error"); if (errorP) errorP.style.display = "none"; }
   charGenBusy = true;
   const activeButtons = (buttons || []).filter(Boolean);
-  activeButtons.forEach((b) => { b.dataset.prevText = b.textContent; b.disabled = true; b.textContent = "Ich zeichne …"; b.style.opacity = "0.75"; });
+  setBusyButtons(activeButtons, true);
   // BUGFIX (Sammel-Runde 11.09.2026, "Foto-Upload-Pfad: Stil ist komplett falsch, nicht nur
   // ungenau" -- siehe ausfuehrlichen Kommentar an Pipeline.describePhotoTraits() in pipeline.js).
   // Vorher lief die eigentliche Bild-Generierung hier direkt ueber Pipeline.generateImage(
@@ -435,7 +461,7 @@ async function generateCharacterImageFromPhoto(person, photoDataUri, buttons) {
       errorP.textContent = "Zeichnen hat nicht geklappt: " + (e && e.message ? e.message : String(e)) + " — nochmal versuchen?";
       errorP.style.display = "block";
     }
-    activeButtons.forEach((b) => { b.disabled = false; b.textContent = b.dataset.prevText || b.textContent; b.style.opacity = "1"; });
+    setBusyButtons(activeButtons, false);
   }
 }
 
@@ -483,7 +509,7 @@ Screens.charakter.onNext = ({ nextBtn, weiterBtn, defaultGoNext }) => {
 Screens.charakter.nextLabel = () => {
   const person = AppState.currentPerson();
   if (person) return null;
-  return { l: "Person anlegen", s: "Rolle hilft uns spaeter beim Zeichnen. Alter ist optional." };
+  return { l: "Figur anlegen", s: "Rolle hilft uns spaeter beim Zeichnen. Alter ist optional." };
 };
 
 // NEU (B9/B10, Sammel-Runde 09.09.2026: "Foto-Upload echt umsetzen"). Vorher rein dekorativ (kein
@@ -599,7 +625,7 @@ function buildAddPersonForm(s) {
   const wrap = h("div", {});
   const isFirst = s.people.length === 0;
 
-  wrap.appendChild(h("p", { class: "kicker kicker-yellow", style: { transform: "rotate(-2deg)" } }, isFirst ? "Erste Person" : "Person " + (s.people.length + 1)));
+  wrap.appendChild(h("p", { class: "kicker kicker-yellow", style: { transform: "rotate(-2deg)" } }, isFirst ? "Erste Figur" : "Figur " + (s.people.length + 1)));
   // BUGFIX (Sammel-Runde 2, Punkt 2: "'mitspielen' scheint doppelt aufzutauchen -- bitte Text
   // prüfen"). Kein echtes doppeltes DOM-Element gefunden (per Render-Test nachgeprueft: "mitspielen"
   // kommt nur genau einmal im Text vor) -- der eigentliche Fehler war ein wirkungsloser Ternary:
@@ -757,9 +783,9 @@ Screens.charakterblatt = {
       if (donePeople.length) person = donePeople[donePeople.length - 1];
     }
     if (!person) { Router.goScreen("charakter"); return; }
-    if (s.currentPersonId !== person.id) AppState.update({ currentPersonId: person.id });
+    AppState.setCurrentPerson(person.id);
 
-    wrap.appendChild(h("p", { class: "kicker kicker-red", style: { transform: "rotate(1.5deg)" } }, "Charakterblatt · " + person.name));
+    wrap.appendChild(h("p", { class: "kicker kicker-red", style: { transform: "rotate(1.5deg)" } }, "Figurenblatt · " + person.name));
     wrap.appendChild(h("h1", { class: "h1-scr", style: { fontSize: "31px", marginBottom: "14px" } }, [document.createTextNode("Erkennst"), h("br"), document.createTextNode("du sie?")]));
 
     // NEU (Pipeline-Anbindung): zeigt das tatsaechlich generierte Bild (person.imageUrl), falls
@@ -852,6 +878,26 @@ Screens.charakterblatt = {
     }, "Passt so"));
     wrap.appendChild(btnRow);
 
+    // NEU (Sammel-Runde 11.09.2026, Punkt 4: "Lösch-Funktion für Figuren auf dem Charakterblatt
+    // ergänzen"). Bisher liess sich eine einmal angelegte Figur nirgends mehr entfernen (z.B. bei
+    // einem Tippfehler im Namen, versehentlich doppelt angelegten Figuren, oder einfach "die wollen
+    // wir doch nicht mitspielen lassen"). Bewusst als eigener, optisch zurueckhaltender Text-Button
+    // UNTER der Haupt-Button-Reihe (gleiches Muster wie "↺ von vorne starten" im Dashboard), NICHT
+    // als dritter gleichwertiger Button neben "Nachschärfen"/"Passt so" -- eine destruktive,
+    // unwiderrufliche Aktion soll nicht so leicht wie die beiden anderen (nicht-destruktiven)
+    // Aktionen antippbar sein. window.confirm() als einfache, aber wirksame Bestaetigung (gleiches
+    // Muster wie der bestehende Reset-Button) -- kein eigenes Modal-UI noetig.
+    wrap.appendChild(h("button", {
+      type: "button",
+      style: { display: "block", marginTop: "10px", background: "none", border: "none", padding: "4px 2px", cursor: "pointer", fontFamily: "'Archivo',sans-serif", fontSize: "12px", fontWeight: "700", letterSpacing: ".03em", textDecoration: "underline", color: "var(--red)" },
+      onClick: () => {
+        if (window.confirm(person.name + " wirklich löschen? Das kann nicht rückgängig gemacht werden.")) {
+          AppState.deletePerson(person.id);
+          rerender();
+        }
+      }
+    }, person.name + " löschen"));
+
     if (s.charEditOpen) wrap.appendChild(buildCharEditPanel(person));
 
     const peopleGrid = currentPeopleGrid();
@@ -868,7 +914,7 @@ Screens.charakterblatt = {
           background: p.done ? "var(--blue)" : "rgba(26,26,24,.05)",
           boxShadow: p.done ? "4px 5px 0 var(--ink)" : "none"
         },
-        onClick: () => { AppState.update({ currentPersonId: p.key }); Router.goScreen(p.done ? "charakterblatt" : "charakter"); }
+        onClick: () => { AppState.setCurrentPerson(p.key); Router.goScreen(p.done ? "charakterblatt" : "charakter"); }
       });
       tile.appendChild(h("span", { class: "h-black", style: { display: "block", fontSize: "22px", lineHeight: "1" } }, p.mark));
       tile.appendChild(h("span", { style: { display: "block", marginTop: "5px", fontFamily: "'Archivo',sans-serif", fontSize: "11px", fontWeight: "700", letterSpacing: ".04em", textTransform: "uppercase" } }, p.name));
@@ -883,10 +929,10 @@ Screens.charakterblatt = {
         cursor: "pointer", padding: "14px 6px", textAlign: "center", color: "inherit",
         border: "4px dashed rgba(26,26,24,.45)", background: "rgba(26,26,24,.05)"
       },
-      onClick: () => { AppState.update({ currentPersonId: null }); Router.goScreen("charakter"); }
+      onClick: () => { AppState.setCurrentPerson(null); Router.goScreen("charakter"); }
     });
     addTile.appendChild(h("span", { class: "h-black", style: { display: "block", fontSize: "22px", lineHeight: "1" } }, "+"));
-    addTile.appendChild(h("span", { style: { display: "block", marginTop: "5px", fontFamily: "'Archivo',sans-serif", fontSize: "11px", fontWeight: "700", letterSpacing: ".04em", textTransform: "uppercase" } }, "Person"));
+    addTile.appendChild(h("span", { style: { display: "block", marginTop: "5px", fontFamily: "'Archivo',sans-serif", fontSize: "11px", fontWeight: "700", letterSpacing: ".04em", textTransform: "uppercase" } }, "Figur"));
     grid.appendChild(addTile);
     wrap.appendChild(grid);
 
@@ -954,7 +1000,7 @@ async function applyCharEdit(person, buttons) {
     const flagged = await Pipeline.moderateText(text);
     if (flagged) {
       charGenBusy = false;
-      activeButtons.forEach((b) => { b.disabled = false; b.textContent = b.dataset.prevText || b.textContent; b.style.opacity = "1"; });
+      setBusyButtons(activeButtons, false);
       const el = charGenErrorEl("char-edit-error");
       if (el) { el.textContent = "Das können wir für ein Kinderbuch leider nicht verwenden — magst du es anders formulieren?"; el.style.display = "block"; }
       return;
@@ -967,7 +1013,7 @@ async function applyCharEdit(person, buttons) {
     await generateExtraViewsAndFinish(person, result, person.sceneDescription);
   } catch (e) {
     charGenBusy = false;
-    activeButtons.forEach((b) => { b.disabled = false; b.textContent = b.dataset.prevText || b.textContent; b.style.opacity = "1"; });
+    setBusyButtons(activeButtons, false);
     const el = charGenErrorEl("char-edit-error");
     if (el) { el.textContent = "Bearbeiten hat nicht geklappt: " + (e && e.message ? e.message : String(e)) + " — nochmal versuchen?"; el.style.display = "block"; }
   }

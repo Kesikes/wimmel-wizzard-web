@@ -953,10 +953,23 @@ function sceneComposeInstruction(promptText) {
 // aus den Kommentaren in api/fal-proxy.js uebernommen (dort im Live-Test-Protokoll wörtlich
 // referenziert: "mouths_ok: false bei beiden Kandidaten", "heroes_ok: alle vorhanden") — countViolations()
 // unten zaehlt jedes "*_ok": false-Feld als Verstoss, unabhaengig vom genauen Namen.
+//
+// ERGAENZT (Sammel-Runde 11.09.2026, Punkt 8, laut Nutzer "vermutlich wichtigster Fund dieser
+// Liste"): der Verify-Check fragte bisher NUR heroes_ok (alle Figuren vorhanden?) und mouths_ok
+// (kein sichtbarer Mund?) ab -- es gab KEINE Pruefung, ob der generelle Zeichenstil des Bildes
+// ueberhaupt zu wmlstil passt. Das erklaert den beobachteten Fall "Kandidat mit 0-1 Verstoessen,
+// aber komplett stilistisch falsch (z.B. realistisch/gemalt statt flach/wmlstil)": ein Kandidat
+// konnte bisher heroes_ok:true UND mouths_ok:true bekommen, selbst wenn er in einem voellig
+// falschen Stil gezeichnet war -- style-Verstoesse wurden schlicht nicht erfasst und flossen daher
+// auch nicht in die Kandidaten-Auswahl (composeSceneImage() unten waehlt den Kandidaten mit den
+// WENIGSTEN Verstoessen) ein. Neue dritte Frage "style_ok" schliesst diese Luecke -- dank des
+// bereits generischen "*_ok"-Zaehlmusters in countViolations() reicht es, das Feld hier im Prompt
+// zu ergaenzen; an der Auswahl-Logik selbst muss nichts geaendert werden, style_ok:false wird
+// automatisch als vollwertiger Verstoss gezaehlt und fliesst in den min(violations)-Vergleich ein.
 function buildVerifyPrompt(heroSpecs) {
   const n = heroSpecs.length;
   const names = heroSpecs.map((s) => s.name).join(", ");
-  return "Sind alle " + n + " benannten Charaktere (" + names + ") je genau einmal erkennbar vorhanden? Hat irgendeine Figur im ganzen Bild einen sichtbaren Mund? Antworte NUR als JSON-Objekt mit genau diesen zwei Feldern: {\"heroes_ok\": true/false, \"mouths_ok\": true/false} — heroes_ok ist nur dann true, wenn wirklich alle " + n + " genannten Charaktere je genau einmal zu erkennen sind; mouths_ok ist nur dann true, wenn KEINE Figur im ganzen Bild einen sichtbaren Mund hat.";
+  return "Sind alle " + n + " benannten Charaktere (" + names + ") je genau einmal erkennbar vorhanden? Hat irgendeine Figur im ganzen Bild einen sichtbaren Mund? Ist das GESAMTE Bild durchgehend in einem flachen, minimalistischen Illustrationsstil mit dicken schwarzen Umrisslinien, einfachen runden Köpfen und flächigen Farben gezeichnet — NICHT realistisch, NICHT malerisch/gemalt, NICHT stark schattiert oder fotografisch, und ohne einzelne Figuren oder Bildbereiche, die in einem abweichenden, detaillierteren oder weicheren Stil gezeichnet sind? Antworte NUR als JSON-Objekt mit genau diesen drei Feldern: {\"heroes_ok\": true/false, \"mouths_ok\": true/false, \"style_ok\": true/false} — heroes_ok ist nur dann true, wenn wirklich alle " + n + " genannten Charaktere je genau einmal zu erkennen sind; mouths_ok ist nur dann true, wenn KEINE Figur im ganzen Bild einen sichtbaren Mund hat; style_ok ist nur dann true, wenn das komplette Bild ausnahmslos in diesem flachen wmlstil-Stil gezeichnet ist.";
 }
 
 // composeSceneImage(): implementiert Spezifikation Abschnitt 3: 2 Kandidaten (gleicher Prompt,
@@ -977,6 +990,31 @@ function buildVerifyPrompt(heroSpecs) {
 // -- das wuerde die ohnehin schon lange Wartezeit (2-4 Minuten laut Spezifikation) routinemaessig
 // weiter verlaengern, obwohl der Normalfall (mind. ein Kandidat perfekt) laut Live-Test durchaus
 // vorkommt.
+// GEPRUEFT, NICHT UMGESETZT (Sammel-Runde 11.09.2026, Punkt 7b: "mittelfristig pruefen, ob die
+// Generierung robuster als reines Status-Polling in kurzen Abstaenden umgesetzt werden kann, statt
+// einer langen offenen Verbindung" -- Hintergrund: vermutete iOS-Hintergrund-Drosselung als
+// Ursache fuer "Load failed" beim Zaubern). Aktuell laeuft die gesamte Kette hier synchron ueber
+// EINE einzige, lange offene Verbindung: Browser --fetch()--> api/fal-proxy.js (Vercel-Function,
+// bis zu 300s, siehe vercel.json) --fetch()--> https://fal.run/... (fal.ai's SYNCHRONER
+// "blockiert bis fertig"-Endpunkt). Genau dieses Muster ist anfaellig fuer Drosselung/Abbruch,
+// wenn der Tab in den Hintergrund geht oder der Bildschirm sperrt (Timer/Netzwerk-Verbindungen
+// werden von mobilen Browsern, v.a. iOS Safari, in diesem Zustand aggressiv pausiert/gekappt).
+// Recherche-Ergebnis (fal.ai-Doku, /docs/documentation/model-apis/inference/queue, 11.09.2026):
+// fal.ai bietet dafuer bereits eine fertige Alternative -- die asynchrone Queue-API unter
+// https://queue.fal.run/<model>: POST submit() liefert sofort eine request_id zurueck, GET
+// .../requests/{id}/status kann danach in kurzen Abstaenden (z.B. alle 2-3s) abgefragt werden,
+// bis "COMPLETED", GET .../requests/{id} liefert dann das Ergebnis. Das wuerde das
+// Verbindungsproblem strukturell loesen: statt einer einzigen, minutenlangen offenen Anfrage nur
+// noch viele kurze (Sekunden-lange) Anfragen, die auch nach einer kurzen Drosselung/einem
+// Tab-Wechsel einfach beim naechsten Poll weiterlaufen, ohne den urspruenglichen Fortschritt zu
+// verlieren. UMSETZUNG ABSICHTLICH NICHT TEIL DIESER RUNDE: das ist kein kleiner Parameter-Fix,
+// sondern ein echter Architektur-Umbau -- api/fal-proxy.js braeuchte neue Modi (submit/status/
+// result statt eines einzigen blockierenden Aufrufs), UND der komplette Client-seitige Ablauf in
+// dieser Datei/szene.js (composeSceneImage() + der 2-3-Kandidaten-Verify-Retry-Logik weiter unten,
+// die selbst schon aus mehreren sequentiellen fal.run-Aufrufen besteht) muesste auf ein
+// Polling-Modell umgestellt werden. Empfehlung: als eigene, dedizierte Aufgabe einplanen, nicht
+// nebenbei -- der sofortige Hinweistext auf dem Zaubern-Screen (szene.js, Punkt 7a) ist die
+// kurzfristige Abhilfe fuer denselben Befund.
 async function composeSceneImage({ heroSpecs, theme, situations }) {
   const refHeroes = heroSpecs.slice(0, 5);
   const refUrls = refHeroes.map((s) => s.imageUrl).filter(Boolean);

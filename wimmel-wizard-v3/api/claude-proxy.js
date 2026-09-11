@@ -18,6 +18,29 @@
 
 const MODEL = "claude-sonnet-5";
 
+// NEU (Sammel-Runde 11.09.2026, "Lastverhalten vor Launch": Nutzer fragt nach Verhalten bei
+// mehreren gleichzeitigen Nutzerinnen). Gleiches Prinzip wie fetchFalWithRetry() in fal-proxy.js --
+// Anthropic beantwortet ein ueberschrittenes Rate-Limit ebenfalls mit HTTP 429 (meist samt
+// "retry-after"-Header), unser Code machte bisher KEINEN Retry-Versuch, sondern reichte das direkt
+// als harten 502-Fehler an den Client durch. Bei Sonnet-Modellen liegt das Standard-Tier-1-Limit
+// bei 50 Anfragen/Minute (Live-Recherche Anthropic-Doku, 11.09.2026) -- bei mehreren gleichzeitigen
+// Nutzerinnen (jede loest pro Generierungsschritt 1-2 Aufrufe hierher aus: Moderation, Uebersetzung,
+// Szenen-Chat) ist das eher unwahrscheinlich zu reissen als das deutlich niedrigere fal.ai-
+// Concurrency-Limit, aber derselbe Schutz kostet nichts und verhindert unnoetige sichtbare Fehler
+// bei kurzen Lastspitzen.
+async function fetchAnthropicWithRetry(url, options, maxRetries) {
+  maxRetries = maxRetries == null ? 5 : maxRetries;
+  for (let attempt = 0; ; attempt++) {
+    const resp = await fetch(url, options);
+    if (resp.status !== 429 || attempt >= maxRetries) return resp;
+    const retryAfterHeader = resp.headers && resp.headers.get ? resp.headers.get("retry-after") : null;
+    const backoffMs = retryAfterHeader && !isNaN(Number(retryAfterHeader))
+      ? Number(retryAfterHeader) * 1000
+      : Math.min(16000, 1000 * Math.pow(2, attempt));
+    await new Promise((r) => setTimeout(r, backoffMs));
+  }
+}
+
 const SHARED_RULES = `
 Antworte in deinen Chat-Nachrichten IMMER nur mit normalem Fließtext ohne Markdown, ohne Sternchen, ohne Aufzählungen – deine Antwort wird 1:1 als Chat-Bubble angezeigt. Kurze Nachrichten (1–3 Sätze), warmherzig, neugierig, mit einer Prise Leichtigkeit, nie corporate, nie überdreht. Maximal ein Emoji pro Nachricht, nicht in jeder Nachricht. Du bist kein Formular: verbinde zusammengehörige Fragen in einem natürlichen Satz, statt sie einzeln stur abzuarbeiten, und reagiere auf das, was der Nutzer erzählt, bevor du weiterfragst.
 Schreibe alle strukturierten Feldwerte (Haare, Kleidung, Merkmal, Ort, Geschichte) auf Englisch, auch wenn die Unterhaltung mit dem Nutzer auf Deutsch läuft – der Client übersetzt/baut daraus den Bild-Prompt.
@@ -197,7 +220,7 @@ module.exports = async (req, res) => {
       return;
     }
     try {
-      const resp = await fetch("https://api.anthropic.com/v1/messages", {
+      const resp = await fetchAnthropicWithRetry("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: { "x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
         body: JSON.stringify({
@@ -239,7 +262,7 @@ module.exports = async (req, res) => {
       return;
     }
     try {
-      const resp = await fetch("https://api.anthropic.com/v1/messages", {
+      const resp = await fetchAnthropicWithRetry("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: { "x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
         body: JSON.stringify({
@@ -281,7 +304,7 @@ module.exports = async (req, res) => {
       return;
     }
     try {
-      const resp = await fetch("https://api.anthropic.com/v1/messages", {
+      const resp = await fetchAnthropicWithRetry("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: { "x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
         body: JSON.stringify({
@@ -350,7 +373,7 @@ module.exports = async (req, res) => {
   const tool = mode === "character" ? ADD_CHARACTER_TOOL : ADD_SCENE_TOOL;
 
   try {
-    const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    const resp = await fetchAnthropicWithRetry("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
         "x-api-key": ANTHROPIC_KEY,

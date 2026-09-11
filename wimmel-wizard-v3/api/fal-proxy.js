@@ -56,6 +56,40 @@
 const LORA_URL =
   "https://v3b.fal.media/files/b/0aa5f3be/JhuEcl1_gByql8TcQ1Tqh_pytorch_lora_weights.safetensors";
 
+// NEU (Sammel-Runde 11.09.2026, "Lastverhalten vor Launch": Nutzer fragt gezielt nach
+// fal.ai-Concurrency-Limits bei parallelen Nutzerinnen). Live-Recherche in fal.ais eigener
+// Dokumentation (fal.ai/docs/documentation/model-apis/concurrency-limits, Stand 11.09.2026):
+// JEDER fal-Account hat ein globales Concurrency-Limit (wie viele Anfragen GLEICHZEITIG im Status
+// "IN_PROGRESS" sein duerfen) -- ein frischer Account startet bei 2, steigt automatisch mit
+// Guthaben-Kaeufen der letzten 4 Wochen, Selbstbedienungs-Obergrenze 40 (mehr nur auf Anfrage bei
+// fal). Wird das Limit erreicht, antwortet fal NICHT mit einem harten Fehler, sondern mit HTTP 429
+// (Typ "concurrent_requests_limit") -- die fal-eigenen SDKs (fal_client.run()/subscribe()) fangen
+// das automatisch mit exponentiellem Backoff ab (bis zu 10 Versuche bzw. serverseitige Queue ohne
+// Obergrenze), unser Code hier macht aber KEINE SDK-Aufrufe, sondern rohe fetch()-HTTP-Requests --
+// bisher OHNE jede Retry-Logik: ein 429 landete bisher 1:1 als harter 502-Fehler beim Client, genau
+// in dem Moment, wo mehrere Nutzerinnen gleichzeitig zeichnen/zaubern (jede Charaktergenerierung
+// loest bereits intern 4 parallele fal-Aufrufe aus, siehe generateExtraViewsAndFinish() in
+// charakter.js -- schon 1-2 gleichzeitige Nutzerinnen koennen das Standard-Limit von 2 reissen).
+// fetchFalWithRetry() faengt genau das jetzt ab: bei 429 mit exponentiellem Backoff (Basis 1s,
+// verdoppelt, gedeckelt bei 16s pro Versuch, bis zu 6 Versuche = max. ca. 63s zusaetzliche
+// Wartezeit) erneut versuchen, bevor als Fehler aufgegeben wird -- bleibt innerhalb des auf 300s
+// angehobenen maxDuration-Budgets (siehe vercel.json/Kommentar oben). Ersetzt keine echte
+// Erhoehung des Concurrency-Limits (dafuer muesste auf fal.ai Guthaben gekauft werden, siehe
+// https://fal.ai/dashboard/usage-billing/concurrency) -- macht kurzzeitige Lastspitzen aber
+// transparent fuer die Nutzerin ueberbrueckbar statt sie sofort als Fehler zu sehen.
+async function fetchFalWithRetry(url, options, maxRetries) {
+  maxRetries = maxRetries == null ? 6 : maxRetries;
+  for (let attempt = 0; ; attempt++) {
+    const resp = await fetch(url, options);
+    if (resp.status !== 429 || attempt >= maxRetries) return resp;
+    const retryAfterHeader = resp.headers && resp.headers.get ? resp.headers.get("retry-after") : null;
+    const backoffMs = retryAfterHeader && !isNaN(Number(retryAfterHeader))
+      ? Number(retryAfterHeader) * 1000
+      : Math.min(16000, 1000 * Math.pow(2, attempt));
+    await new Promise((r) => setTimeout(r, backoffMs));
+  }
+}
+
 module.exports = async (req, res) => {
   if (req.method !== "POST") {
     res.status(405).json({ error: "Nur POST erlaubt." });
@@ -103,7 +137,7 @@ module.exports = async (req, res) => {
     const ALLOWED_VERIFY_MODELS = ["google/gemini-2.5-flash", "google/gemini-2.5-pro", "anthropic/claude-sonnet-4.5"];
     const verifyModel = ALLOWED_VERIFY_MODELS.includes(body.verifyModel) ? body.verifyModel : "google/gemini-2.5-pro";
     try {
-      const resp = await fetch("https://fal.run/openrouter/router/vision", {
+      const resp = await fetchFalWithRetry("https://fal.run/openrouter/router/vision", {
         method: "POST",
         headers: { Authorization: "Key " + FAL_KEY, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -304,7 +338,7 @@ module.exports = async (req, res) => {
     : "https://fal.run/fal-ai/flux-lora";
 
   try {
-    const resp = await fetch(falEndpoint, {
+    const resp = await fetchFalWithRetry(falEndpoint, {
       method: "POST",
       headers: { Authorization: "Key " + FAL_KEY, "Content-Type": "application/json" },
       body: JSON.stringify(falBody),

@@ -4,14 +4,22 @@
    Texte/Werte aus referenz/App-Flow-v4-OatlyWimmel.dc.html (NEXT-Array).
    ========================================================================== */
 
-const RAIL_LABELS = ["Dashboard", "Charakter", "Charakterblatt", "Szene", "Zaubern", "Ergebnis", "Und jetzt?", "Widmung", "Bestellen", "Fertig"];
+// GEAENDERT (Sammel-Runde 11.09.2026, Punkt 3: "Terminologie durchgängig 'Figur'/'Figuren'
+// statt 'Charakter'/'Person'"): Rail-Beschriftungen sind reine Anzeige-Labels (die Routing-Namen
+// in router.js/SCREEN_ORDER -- "charakter"/"charakterblatt" -- bleiben unveraendert, das sind
+// interne IDs, keine Nutzertexte).
+const RAIL_LABELS = ["Dashboard", "Figur", "Figurenblatt", "Szene", "Zaubern", "Ergebnis", "Und jetzt?", "Widmung", "Bestellen", "Fertig"];
 
 // Bottom-Bar-Texte je Screen-Index, wortwoertlich aus der Referenz (NEXT-Array)
 const NEXT = [
-  { l: "Charaktere weitermachen", s: "nichts davon ist verbindlich" },
+  { l: "Figuren weitermachen", s: "nichts davon ist verbindlich" },
   { l: "Figur zeichnen lassen", s: "Ich speichere nach jeder Eingabe.<br>Wichtig: Auch Zauberer machen Fehler – und manchmal mache ich mir auch einfach nur einen Spaß.<br>Aber wir können alles wieder ändern." },
-  { l: "Weiter zur Geschichte", s: "Personen kannst du später ergänzen" },
-  { l: "Los, zaubern", s: "dauert 2–4 Minuten, du kannst weggehen" },
+  { l: "Weiter zur Geschichte", s: "Figuren kannst du später ergänzen" },
+  // GEAENDERT (Sammel-Runde 11.09.2026, Punkt 7: "Load-Failed beim Zaubern, vermutlich iOS-
+  // Hintergrund-Drosselung"). "du kannst weggehen" widersprach direkt dem neuen Hinweis auf dem
+  // Zaubern-Screen selbst (Bildschirm an/Tab offen lassen, siehe szene.js) -- ein Hinweistext, der
+  // dem naechsten genau das Gegenteil sagt, waere keine Verbesserung.
+  { l: "Los, zaubern", s: "dauert 2–4 Minuten, Bildschirm an lassen" },
   // TOT (Sammel-Runde 11.09.2026, Punkt 9): dieser Eintrag wird nicht mehr angezeigt --
   // renderBottomBar() blendet die komplette Bottom-Bar fuer idx 4 (Zaubern) jetzt aus, siehe dort.
   // Bewusst NICHT aus dem Array entfernt: NEXT ist positional zu SCREEN_ORDER indiziert, ein Entfernen

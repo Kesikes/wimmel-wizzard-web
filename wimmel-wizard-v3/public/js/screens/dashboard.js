@@ -59,7 +59,7 @@ Screens.dashboard = {
       type: "button",
       style: { display: "inline-block", marginTop: "10px", background: "none", border: "none", padding: "4px 2px", cursor: "pointer", fontFamily: "'Archivo',sans-serif", fontSize: "12px", fontWeight: "700", letterSpacing: ".03em", textDecoration: "underline", color: "var(--ink-a55)" },
       onClick: () => {
-        if (window.confirm("Wirklich von vorne anfangen? Alle Personen und Wimmelbilder werden zurückgesetzt.")) {
+        if (window.confirm("Wirklich von vorne anfangen? Alle Figuren und Wimmelbilder werden zurückgesetzt.")) {
           AppState.reset();
           Router.navigate("/app", { replace: true });
         }
@@ -79,7 +79,7 @@ Screens.dashboard = {
       ring: totalChars ? Math.round((doneChars / totalChars) * 100) : 0,
       ringLabel: totalChars === 0 ? "+" : doneChars + "/" + totalChars,
       shadow: "var(--red)",
-      title: "Charaktere",
+      title: "Figuren",
       body: charakterBody(s, doneChars, totalChars),
       onClick: () => Router.goScreen("charakter")
     }));
@@ -144,7 +144,7 @@ function buildDesktopDashboard(s) {
   const dDoneImages = AppState.doneImagesCount();
   const stand = h("div", { style: { border: "4px solid var(--ink)", background: "var(--blue)", padding: "18px" } });
   stand.appendChild(h("p", { class: "h-black", style: { margin: "0 0 12px", fontSize: "12px", letterSpacing: ".08em" } }, "Stand jetzt"));
-  stand.appendChild(standRow("Charaktere", dDoneChars + " von " + dTotalChars));
+  stand.appendChild(standRow("Figuren", dDoneChars + " von " + dTotalChars));
   stand.appendChild(standRow("Wimmelbilder", dDoneImages + " von " + IMAGE_TARGET));
   stand.appendChild(standRow("Produkt", TIERS[s.tier].name + " · " + TIERS[s.tier].price));
   stand.appendChild(h("p", { class: "caveat", style: { margin: "12px 0 0", fontSize: "20px", lineHeight: "1.1" } }, "nichts davon ist verbindlich."));
@@ -161,7 +161,7 @@ function buildDesktopDashboard(s) {
   if (dDoneChars > 0) {
     charCard.appendChild(h("span", { class: "h-black", style: { position: "absolute", top: "-14px", left: "16px", background: "var(--red)", color: "var(--paper)", fontSize: "10px", letterSpacing: ".1em", padding: "5px 9px", transform: "rotate(-2deg)" } }, "hier weitermachen"));
   }
-  charCard.appendChild(h("span", { class: "h-black", style: { display: "block", fontSize: "26px", lineHeight: "1", letterSpacing: "-.03em" } }, "Charaktere"));
+  charCard.appendChild(h("span", { class: "h-black", style: { display: "block", fontSize: "26px", lineHeight: "1", letterSpacing: "-.03em" } }, "Figuren"));
   charCard.appendChild(h("span", { style: { display: "block", margin: "10px 0 16px", fontSize: "15px", lineHeight: "1.5" } }, charakterBody(s, dDoneChars, dTotalChars)));
   const peopleRow = h("span", { style: { display: "flex", gap: "8px" } });
   s.people.forEach((p) => {
