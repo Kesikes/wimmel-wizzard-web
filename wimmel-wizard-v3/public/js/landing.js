@@ -35,8 +35,16 @@ const OCCASIONS = [
   { key: "einfachso", label: "Einfach so", line: "Einfach so. Mein Favorit. Ein Samstag wie jeder andere – genau deshalb lohnt er sich als Buch." }
 ];
 
+// GEAENDERT (Sammel-Runde 11.09.2026, Punkt 1: "Textversprechen entfernen, kein Feature bauen" --
+// betrifft laut Nutzer-Vorgabe ausdruecklich beide Wege, nicht nur einen). Die erste FAQ-Antwort
+// machte fuer den Foto-Weg dasselbe falsche "zwei bis drei Vorschläge, du tippst den besten an"-
+// Versprechen wie der jetzt korrigierte Hinweistext im Foto-Panel (siehe charakter.js
+// buildFotoPanel()) -- tatsaechlich liefert die Generierung (Foto- UND Merkmale-Weg) immer genau
+// EIN Ergebnis, keine Auswahl. Jetzt durch eine zutreffende Beschreibung ersetzt, die zugleich das
+// neue "Nachschärfen"-Feature (Punkt 2, gezielte Freitext-Korrektur statt Neu-Wuerfeln) erwaehnt --
+// der "Ohne Foto"-Teil der Antwort war schon vorher zutreffend und blieb unveraendert.
 const FAQS = [
-  { q: "Sieht mein Kind wirklich aus wie mein Kind?", a: "Mit Foto am ehesten: Ich mache zwei bis drei Vorschläge, du tippst den besten an. Ohne Foto geht auch – dann wählst du Haare, Frisur, Kleidung. Passt es nicht, zaubern wir neu. So oft du willst." },
+  { q: "Sieht mein Kind wirklich aus wie mein Kind?", a: "Mit Foto am ehesten: Ich zeichne daraus eine Wimmelstil-Version. Ohne Foto geht auch – dann wählst du Haare, Frisur, Kleidung. Passt etwas nicht, kannst du gezielt nachschärfen (\"T-Shirt blau statt gelb\") oder komplett neu zaubern. So oft du willst." },
   { q: "Muss ich Fotos hochladen?", a: "Nein. Fotos sind der schnellste Weg, aber nie Pflicht. Was du hochlädst, wird nur für dein Bild benutzt und danach gelöscht. Kein Training, kein Weiterverkauf, kein Kleingedrucktes." },
   { q: "Wie lange dauert ein Bild?", a: "Deine Eingaben: ein paar Minuten. Das Zeichnen: zwei bis vier. Ich probiere mehrere Varianten und zeige dir nur die, die was geworden ist. Handy weglegen ist erlaubt, es ist gespeichert." },
   { q: "Kann ich am fertigen Bild noch was ändern?", a: "Ja. Mit dem Stift im Bild markieren, was weg soll. Einzelne Situationen neu zaubern. Der Rest der Szene bleibt genau so." },

@@ -32,6 +32,15 @@ const DEFAULT_STATE = {
   charHairLength: null, // Index in HAIR_LENGTH
   charBesonderheit: null, // Label-String aus CHIPS, oder null
   charNote: "",
+  // NEU (Sammel-Runde 11.09.2026, "'Nachschärfen' braucht echte Anpassungs-Möglichkeit"): das
+  // "Nachschärfen"-Panel auf dem Charakterblatt-Screen (Screens.charakterblatt, siehe charakter.js
+  // applyCharEdit()) -- gleiches Zwischenspeicher-/Persistenz-Prinzip wie penOn/penChangeText beim
+  // Stift-Werkzeug: charEditOpen haelt das Panel ueber Re-Renders offen, charEditText den
+  // Freitext-Entwurf ("z.B. T-Shirt blau statt gelb"), bevor er ueber Pipeline.moderateText()/
+  // translateFreeText() + kontextInstruction() als gezielte Bild-Korrektur an das bestehende
+  // Charakterbild geschickt wird (statt es komplett neu zu wuerfeln).
+  charEditOpen: false,
+  charEditText: "",
 
   // Wimmelbilder: leer, bis die Nutzerin selbst eines anlegt (ueber Szene -> Zaubern)
   images: [],

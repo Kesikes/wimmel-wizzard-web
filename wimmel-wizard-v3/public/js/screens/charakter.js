@@ -520,6 +520,13 @@ function buildFotoPanel(person) {
   panel.appendChild(statusP);
   panel.appendChild(h("p", { class: "h-black", style: { fontSize: "17px", lineHeight: "1", letterSpacing: "-.02em", display: uploadedPhotoDataUri ? "none" : "block" } }, "Foto hier ablegen"));
   panel.appendChild(h("p", { class: "caveat", style: { margin: "8px 0 14px", fontSize: "19px", display: uploadedPhotoDataUri ? "none" : "block" } }, "ein Gesicht reicht. Handyfoto ist völlig okay."));
+  // NEU (Sammel-Runde 11.09.2026, Punkt 3: "Hinweis auf ruhigen Hintergrund ergaenzen -- zu viele
+  // Objekte/Ablenkungen im Hintergrund koennen das Ergebnis verschlechtern"). Direkter Bezug zum
+  // gerade erst gefixten Foto-Stil-Problem (describePhotoTraits() in pipeline.js): die Vision-
+  // Beschreibung, aus der die Merkmale gezogen werden, wird bei einem unruhigen/vollen Hintergrund
+  // (oder wie im Testfoto: UI-Overlays/Text) tendenziell ungenauer -- ein ruhiges Foto hilft dem
+  // Ergebnis wirklich, ist also kein reiner Kosmetik-Hinweis.
+  panel.appendChild(h("p", { class: "caveat", style: { margin: "0 0 14px", fontSize: "16px", lineHeight: "1.2", color: "rgba(26,26,24,.65)", display: uploadedPhotoDataUri ? "none" : "block" } }, "am besten mit ruhigem Hintergrund — zu viele Objekte drumherum können das Ergebnis verschlechtern."));
 
   const pickBtn = h("button", {
     type: "button",
@@ -533,7 +540,15 @@ function buildFotoPanel(person) {
   const errorP = h("p", { id: "char-photo-error", style: { margin: "12px 0 0", fontSize: "12px", color: "var(--red)", display: "none" } }, "");
   panel.appendChild(errorP);
 
-  panel.appendChild(h("p", { style: { margin: "14px 0 0", fontSize: "12px", lineHeight: "1.4", color: "rgba(26,26,24,.7)" } }, "Wir zeigen dir danach drei Vorschläge im Wimmelstil. Das Original löschen wir sofort danach — es bleibt nur in diesem Browser-Tab und wird nirgends gespeichert."));
+  // GEAENDERT (Sammel-Runde 11.09.2026, Punkt 1: "Textversprechen entfernen, kein Feature bauen").
+  // Der Satz "Wir zeigen dir danach drei Vorschläge im Wimmelstil" beschrieb ein urspruenglich
+  // geplantes, nie gebautes Feature (Mehrfachauswahl) -- tatsaechlich liefert die Generierung immer
+  // genau EIN Ergebnis, keine Auswahl aus mehreren Vorschlaegen. Satz ersatzlos entfernt statt das
+  // Feature nachzubauen (ausdruecklicher Nutzer-Wunsch). Die Datenschutz-Aussage danach
+  // ("Original löschen wir sofort danach ...") bleibt unveraendert stehen -- die stimmt weiterhin
+  // (seit dem Stil-Fix oben sogar noch staerker: das Foto geht nie mehr in den eigentlichen
+  // Bild-Generator, nur in einen kurzen Beschreibungsaufruf, siehe describePhotoTraits()).
+  panel.appendChild(h("p", { style: { margin: "14px 0 0", fontSize: "12px", lineHeight: "1.4", color: "rgba(26,26,24,.7)" } }, "Das Original löschen wir sofort danach — es bleibt nur in diesem Browser-Tab und wird nirgends gespeichert."));
 
   fileInput.addEventListener("change", async () => {
     const file = fileInput.files && fileInput.files[0];
@@ -797,7 +812,21 @@ Screens.charakterblatt = {
     }
 
     const btnRow = h("div", { style: { display: "flex", gap: "10px", marginTop: "18px" } });
-    btnRow.appendChild(h("button", { type: "button", class: "h-black", style: { flex: "1", minHeight: "50px", background: "var(--paper)", border: "3px solid var(--ink)", fontSize: "13px", color: "inherit" }, onClick: () => Router.goScreen("charakter") }, "Nachschärfen"));
+    // GEAENDERT (Sammel-Runde 11.09.2026, Punkt 2: "'Nachschärfen' braucht echte Anpassungs-
+    // Möglichkeit, nicht nur Neu-Generieren"). Vorher navigierte dieser Button direkt zurueck zum
+    // Merkmale/Foto-Screen (Router.goScreen("charakter")) -- dort gibt es aber nur komplettes
+    // Neu-Wuerfeln (generateCharacterImage()/generateCharacterImageFromPhoto() erzeugen immer ein
+    // komplett neues Bild), keine gezielte Korrektur einzelner Details. Jetzt oeffnet/schliesst der
+    // Button stattdessen ein Freitext-Panel direkt auf DIESEM Screen (buildCharEditPanel()/
+    // applyCharEdit() unten) -- vom Prinzip wie das Stift-Werkzeug beim Wimmelbild
+    // (kontextInstruction() + editImageUrl auf dem BESTEHENDEN Bild statt Neu-Generierung), nur
+    // ohne Markierungswerkzeug: ein einzelner Charakter vor weissem Hintergrund braucht keine
+    // Objekt-Auswahl per Kringel, "T-Shirt blau statt gelb" ist als Text bereits eindeutig genug.
+    btnRow.appendChild(h("button", {
+      type: "button", class: "h-black",
+      style: { flex: "1", minHeight: "50px", background: s.charEditOpen ? "var(--yellow)" : "var(--paper)", border: "3px solid var(--ink)", fontSize: "13px", color: "inherit" },
+      onClick: () => { AppState.update({ charEditOpen: !s.charEditOpen }); rerender(); }
+    }, s.charEditOpen ? "Nachschärfen schließen" : "Nachschärfen"));
     btnRow.appendChild(h("button", {
       type: "button", class: "h-black", style: { flex: "1", minHeight: "50px", background: "var(--ink)", color: "var(--paper)", border: "3px solid var(--ink)", fontSize: "13px" },
       onClick: () => {
@@ -822,6 +851,8 @@ Screens.charakterblatt = {
       }
     }, "Passt so"));
     wrap.appendChild(btnRow);
+
+    if (s.charEditOpen) wrap.appendChild(buildCharEditPanel(person));
 
     const peopleGrid = currentPeopleGrid();
     wrap.appendChild(h("h2", { class: "h-black", style: { margin: "28px 0 3px", fontSize: "21px", lineHeight: ".95", letterSpacing: "-.03em" } }, "Wer spielt mit?"));
@@ -860,5 +891,84 @@ Screens.charakterblatt = {
     wrap.appendChild(grid);
 
     root.appendChild(wrap);
+
+    // NEU (Punkt 2): gleiches Re-Render-Muster wie Screens.charakter.render() oben -- haelt das
+    // Nachschärfen-Panel beim Auf-/Zuklappen offen, ohne per Router.goScreen() den ganzen Screen
+    // (inkl. Scrollposition) neu aufzubauen.
+    function rerender() { root.innerHTML = ""; Screens.charakterblatt.render(root); }
   }
 };
+
+// NEU (Sammel-Runde 11.09.2026, Punkt 2). Das "Nachschärfen"-Panel -- Freitext-Änderungswunsch +
+// Anwenden-Button, vom Prinzip wie buildPenPanel() in szene.js, aber bewusst OHNE Markierungs-
+// werkzeug (siehe Kommentar an der Button-Umstellung oben in Screens.charakterblatt.render()).
+function buildCharEditPanel(person) {
+  const s = AppState.data;
+  const wrap = h("div", { style: { marginTop: "12px", padding: "14px", border: "3px solid var(--ink)", background: "var(--paper)" } });
+  wrap.appendChild(h("p", { style: { margin: "0 0 10px", fontSize: "11.5px", lineHeight: "1.4", color: "rgba(26,26,24,.65)" } },
+    "beschreibe genau, was sich ändern soll — der Rest von " + person.name + " bleibt gleich."));
+  const ta = h("textarea", {
+    class: "field", id: "char-edit-text", style: { minHeight: "64px", fontSize: "13px" },
+    placeholder: "z. B. T-Shirt blau statt gelb"
+  });
+  ta.value = s.charEditText || "";
+  ta.addEventListener("input", () => AppState.update({ charEditText: ta.value }));
+  wrap.appendChild(ta);
+  wrap.appendChild(h("div", { style: { height: "10px" } }));
+  const applyBtn = h("button", {
+    type: "button", class: "h-black",
+    style: { display: "block", width: "100%", minHeight: "44px", fontSize: "12px", border: "3px solid var(--ink)", background: "var(--yellow)", color: "var(--ink)", cursor: "pointer" }
+  }, "Anwenden");
+  applyBtn.addEventListener("click", () => applyCharEdit(person, [applyBtn]));
+  wrap.appendChild(applyBtn);
+  wrap.appendChild(h("p", { id: "char-edit-error", style: { margin: "8px 0 0", fontSize: "12px", color: "var(--red)", display: "none" } }, ""));
+  return wrap;
+}
+
+// NEU (Sammel-Runde 11.09.2026, Punkt 2). Gezielte Korrektur des BESTEHENDEN Charakterbilds statt
+// kompletter Neu-Generierung -- nutzt Pipeline.kontextInstruction() (pipeline.js, bis hierhin
+// vorbereitet aber ungenutzt exportiert -- der eigene Kommentar an sceneComposeInstruction() dort
+// verweist ausdruecklich auf "das bestaetigte Muster aus kontextInstruction() fuer
+// Charakter-Edits") zusammen mit editImageUrl: person.imageUrl (Bild-Editier-Pfad, kein
+// Text-zu-Bild-Neuwurf). Gleiches fail-closed-Moderationsmuster wie applyPenEdit() (szene.js) /
+// generateCharacterImage() oben: ein problematischer Änderungswunsch blockiert sichtbar statt
+// stillschweigend durchzulaufen. Nach Erfolg laufen die Zusatz-Ansichten (Seite/Rücken/3-4) ueber
+// dieselbe generateExtraViewsAndFinish()-Funktion wie bei der Erstgenerierung NEU aus dem
+// geänderten Frontbild -- sonst wuerden sie nicht mehr zum korrigierten Bild passen. charGenBusy
+// ist bewusst dasselbe gemeinsame Re-Entry-Gate wie bei den anderen beiden Generierungswegen (C6):
+// eine Korrektur soll nicht parallel zu einer laufenden Neu-Generierung (oder einer zweiten
+// Korrektur) fuer dieselbe Person starten koennen.
+async function applyCharEdit(person, buttons) {
+  if (charGenBusy) return;
+  const errorP = charGenErrorEl("char-edit-error");
+  const text = String(AppState.data.charEditText || "").trim();
+  if (!text) {
+    if (errorP) { errorP.textContent = "Bitte beschreiben, was sich ändern soll."; errorP.style.display = "block"; }
+    return;
+  }
+  { const el = charGenErrorEl("char-edit-error"); if (el) el.style.display = "none"; }
+  charGenBusy = true;
+  const activeButtons = (buttons || []).filter(Boolean);
+  activeButtons.forEach((b) => { b.dataset.prevText = b.textContent; b.disabled = true; b.textContent = "Wird bearbeitet …"; b.style.opacity = "0.75"; });
+  try {
+    const flagged = await Pipeline.moderateText(text);
+    if (flagged) {
+      charGenBusy = false;
+      activeButtons.forEach((b) => { b.disabled = false; b.textContent = b.dataset.prevText || b.textContent; b.style.opacity = "1"; });
+      const el = charGenErrorEl("char-edit-error");
+      if (el) { el.textContent = "Das können wir für ein Kinderbuch leider nicht verwenden — magst du es anders formulieren?"; el.style.display = "block"; }
+      return;
+    }
+    const changeEn = await Pipeline.translateFreeText(text);
+    const instruction = Pipeline.kontextInstruction("Apply exactly this change to the character: \"" + changeEn + "\"");
+    const result = await Pipeline.generateImage(instruction, "char", { editImageUrl: person.imageUrl });
+    charGenBusy = false;
+    AppState.update({ charEditOpen: false, charEditText: "" });
+    await generateExtraViewsAndFinish(person, result, person.sceneDescription);
+  } catch (e) {
+    charGenBusy = false;
+    activeButtons.forEach((b) => { b.disabled = false; b.textContent = b.dataset.prevText || b.textContent; b.style.opacity = "1"; });
+    const el = charGenErrorEl("char-edit-error");
+    if (el) { el.textContent = "Bearbeiten hat nicht geklappt: " + (e && e.message ? e.message : String(e)) + " — nochmal versuchen?"; el.style.display = "block"; }
+  }
+}
