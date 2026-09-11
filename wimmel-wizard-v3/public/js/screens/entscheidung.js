@@ -3,16 +3,18 @@
    Texte wörtlich aus referenz/App-Flow-v4-OatlyWimmel.dc.html.
    ========================================================================== */
 
-// GEAENDERT (Sammel-Runde 11.09.2026, Punkt 16: "Großes Wimmelbuch (Hardcover) wieder mit
-// aufnehmen, aber mit 'Coming Soon'-Kennzeichnung statt komplett entfernt"). Die dritte Stufe
-// (Sammel-Runde 09.09.2026, Punkt A3, damals komplett entfernt) ist jetzt wieder SICHTBAR, aber
-// ueber comingSoon:true als nicht auswaehlbar markiert (siehe render() unten: kein onClick-Effekt,
-// eigenes gedaempftes Aussehen + "Coming Soon"-Tag statt der normalen gruenen/blauen Tags). Gleiche
-// Ergaenzung auf der Landingpage (index.html, Preise-Sektion).
+// GEAENDERT (Sammel-Runde 11.09.2026, "Kleinere Änderung, Preis-/Produkttexte"): komplette neue
+// Copy, identisch zur Landingpage-Preissektion (index.html) -- "ab X €" statt Festpreis (versch.
+// Größen/Optionen je Stufe), Stufe 2 UND 3 beide "Wimmelbuch" genannt (Unterscheidung ueber die
+// Beschreibung). Die alten Eck-Tags ("sofort fertig"/"alles da") sind raus -- sie bezogen sich auf
+// die alte, jetzt ueberholte Kurzbeschreibung und die Landingpage-Karten haben ohnehin nie solche
+// Tags gehabt; fuer ein einheitliches Bild jetzt genauso schlicht wie dort. comingSoon:true (Stufe
+// 3) bleibt bestehen, jetzt aber mit echtem Overlay statt nur gedaempfter Karte + Eck-Badge (siehe
+// render() unten) -- gleiches Overlay-Muster wie auf der Landingpage.
 const TIERS = [
-  { name: "Poster", price: "29 €", body: "Ein Bild, groß gedruckt. Fertig – keine weiteren Schritte.", tag: "sofort fertig" },
-  { name: "Mini-Wimmelbuch", price: "49 €", body: "2 Bilder + Charakterseite, 8 Seiten, Softcover. Du hast alles schon zusammen.", tag: "alles da" },
-  { name: "Großes Wimmelbuch", price: "89 €", body: "5 Bilder + Charakterseite, gebunden, Hardcover. Kommt bald.", tag: "Coming Soon", comingSoon: true }
+  { name: "Poster", price: "ab 19 €", body: "ab 1 Wimmelbild, verschiedene Größen, mit oder ohne Rahmen." },
+  { name: "Wimmelbuch", price: "ab 29 €", body: "ab 2 Wimmelbildern, verschiedene Größen, Softcover und Softseiten." },
+  { name: "Wimmelbuch", price: "ab 49 €", body: "ab 5 Wimmelbildern, verschiedene Größen, Kartonseiten.", comingSoon: true }
 ];
 
 Screens.entscheidung = {
@@ -27,10 +29,10 @@ Screens.entscheidung = {
     const list = h("div", { style: { display: "flex", flexDirection: "column", gap: "12px" } });
     TIERS.forEach((t, i) => {
       const on = s.tier === i;
-      // GEAENDERT (Punkt 16): comingSoon-Stufen sind sichtbar, aber bewusst NICHT auswaehlbar --
-      // eigenes gedaempftes Aussehen (reduzierte Deckkraft, cursor:not-allowed, kein Klick-Handler,
-      // "Coming Soon"-Tag in gedecktem Grau statt der normalen roten/blauen Tags) statt sie wie eine
-      // normale, aktivierbare Option aussehen zu lassen -- verhindert, dass jemand versehentlich eine
+      // GEAENDERT (Punkt 16 + Sammel-Runde 11.09.2026 Preis-/Produkttexte): comingSoon-Stufen sind
+      // sichtbar, aber bewusst NICHT auswaehlbar -- ein echtes Overlay (siehe weiter unten) statt nur
+      // einer gedaempften Karte + Eck-Badge macht das jetzt genauso deutlich wie auf der Landingpage
+      // (index.html, Preise-Sektion, gleiches Muster). Verhindert, dass jemand versehentlich eine
       // noch nicht bestellbare Stufe waehlt und erst beim Bestellen merkt, dass nichts passiert.
       const btn = h("button", {
         type: "button",
@@ -39,31 +41,34 @@ Screens.entscheidung = {
           position: "relative", display: "block", width: "100%", color: "inherit", padding: "16px", border: "4px solid var(--ink)",
           transform: "rotate(" + rot(i, ROT6_APP) + "deg)",
           cursor: t.comingSoon ? "not-allowed" : "pointer",
-          opacity: t.comingSoon ? ".55" : "1",
-          background: t.comingSoon ? "var(--paper)" : (on ? "var(--yellow)" : "var(--paper)"),
-          boxShadow: (!t.comingSoon && on) ? "6px 7px 0 var(--ink)" : "4px 5px 0 var(--ink)"
+          background: on ? "var(--yellow)" : "var(--paper)",
+          boxShadow: on ? "6px 7px 0 var(--ink)" : "4px 5px 0 var(--ink)",
+          overflow: "hidden"
         },
         onClick: t.comingSoon ? null : () => { AppState.update({ tier: i }); rerender(); }
       });
-      const tag = h("span", {
-        class: "h-black",
-        style: {
-          position: "absolute", top: "-13px", right: "12px", fontSize: "9px", letterSpacing: ".08em", padding: "4px 7px", border: "3px solid var(--ink)",
-          background: t.comingSoon ? "rgba(26,26,24,.55)" : (on ? "var(--red)" : "var(--blue)"),
-          color: t.comingSoon ? "var(--paper)" : (on ? "var(--paper)" : "var(--ink)")
-        }
-      }, t.tag);
-      btn.appendChild(tag);
+      const inner = h("div", { style: { opacity: t.comingSoon ? ".3" : "1" } });
       const top = h("span", { style: { display: "flex", alignItems: "baseline", gap: "8px" } });
       top.appendChild(h("span", { class: "h-black", style: { fontSize: "18px", lineHeight: "1", letterSpacing: "-.03em" } }, t.name));
-      top.appendChild(h("span", { class: "h-black", style: { marginLeft: "auto", fontSize: "18px" } }, t.price));
-      btn.appendChild(top);
-      btn.appendChild(h("span", { style: { display: "block", marginTop: "7px", textAlign: "left", fontSize: "13px", lineHeight: "1.4" } }, t.body));
+      top.appendChild(h("span", { class: "h-black", style: { marginLeft: "auto", fontSize: "16px" } }, t.price));
+      inner.appendChild(top);
+      inner.appendChild(h("span", { style: { display: "block", marginTop: "7px", textAlign: "left", fontSize: "13px", lineHeight: "1.4" } }, t.body));
+      btn.appendChild(inner);
+      if (t.comingSoon) {
+        const overlay = h("div", { style: { position: "absolute", inset: "0", display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(242,237,225,.55)" } });
+        overlay.appendChild(h("span", { class: "h-black", style: { fontSize: "13px", letterSpacing: ".06em", textTransform: "uppercase", background: "rgba(26,26,24,.9)", color: "var(--paper)", padding: "8px 14px", transform: "rotate(-3deg)", boxShadow: "3px 4px 0 var(--ink)" } }, "Coming Soon"));
+        btn.appendChild(overlay);
+      }
       list.appendChild(btn);
     });
     wrap.appendChild(list);
 
-    wrap.appendChild(h("p", { class: "caveat", style: { margin: "18px 0 0", fontSize: "20px", lineHeight: "1.15", textAlign: "center" } }, "wenn du hier aufhörst, ist das völlig okay. wirklich."));
+    // NEU (Sammel-Runde 11.09.2026, Preis-/Produkttexte, Punkt 1: "Darunter ergänzen: 'Jedes Buch
+    // ein Unikat'"). Gleicher Satz + gleiche Platzierung (direkt unter der Preisliste) wie auf der
+    // Landingpage.
+    wrap.appendChild(h("p", { class: "caveat", style: { margin: "16px 0 0", fontSize: "21px", lineHeight: "1.1", textAlign: "center" } }, "Jedes Buch ein Unikat."));
+
+    wrap.appendChild(h("p", { class: "caveat", style: { margin: "10px 0 0", fontSize: "20px", lineHeight: "1.15", textAlign: "center" } }, "wenn du hier aufhörst, ist das völlig okay. wirklich."));
 
     root.appendChild(wrap);
     function rerender() { root.innerHTML = ""; Screens.entscheidung.render(root); }

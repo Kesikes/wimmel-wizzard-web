@@ -139,8 +139,8 @@
     </a>
     <div class="ticker-wrap" style="background: var(--red); color: var(--paper); border-top: 4px solid var(--ink); border-bottom: 4px solid var(--ink); padding: 10px 0;">
       <div class="ticker-track ticker-red" style="font-size: 12px; letter-spacing: .04em; animation-duration: 30s;">
-        <span>Kein Stockfoto ✦ Kein Template ✦ Hundert Prozent individualisiert ✦ Der erste KI-unterstützte Wimmelbuch-Generator ✦&nbsp;</span>
-        <span>Kein Stockfoto ✦ Kein Template ✦ Hundert Prozent individualisiert ✦ Der erste KI-unterstützte Wimmelbuch-Generator ✦&nbsp;</span>
+        <span>Kein Stockfoto ✦ Kein Template ✦ Hundert Prozent individualisiert ✦ Der erste KI-unterstützte Wimmelbuch-Generator ✦ Jedes Buch (D)ein Einzelstück ✦&nbsp;</span>
+        <span>Kein Stockfoto ✦ Kein Template ✦ Hundert Prozent individualisiert ✦ Der erste KI-unterstützte Wimmelbuch-Generator ✦ Jedes Buch (D)ein Einzelstück ✦&nbsp;</span>
       </div>
     </div>
   </section>
@@ -202,7 +202,7 @@
        visuell passendes Ergebnis (~12.2px gerendert). -->
   <div class="ticker-wrap mobile-only" style="background: var(--red); color: var(--paper); border-top: 4px solid var(--ink); border-bottom: 4px solid var(--ink); padding: 15px 0; transform: rotate(-1.6deg) scale(1.22); margin: -30px 0 0; position: relative; z-index: 6;">
     <div class="ticker-track ticker-red" style="font-size: 10px; letter-spacing: .04em;">
-      <span>Kein Stockfoto ✦ Kein Template ✦ Hundert Prozent individualisiert ✦ Der erste KI-unterstützte Wimmelbuch-Generator ✦ Kein Stockfoto ✦ Kein Template ✦ Hundert Prozent individualisiert ✦ Der erste KI-unterstützte Wimmelbuch-Generator ✦&nbsp;</span>
+      <span>Kein Stockfoto ✦ Kein Template ✦ Hundert Prozent individualisiert ✦ Der erste KI-unterstützte Wimmelbuch-Generator ✦ Jedes Buch (D)ein Einzelstück ✦ Kein Stockfoto ✦ Kein Template ✦ Hundert Prozent individualisiert ✦ Der erste KI-unterstützte Wimmelbuch-Generator ✦ Jedes Buch (D)ein Einzelstück ✦&nbsp;</span>
     </div>
   </div>
   <!-- Bottom-Margin von vorher 12px auf 0 (per Live-Test): das rote Band folgt jetzt direkt auf das
@@ -330,29 +330,39 @@
   </section>
 
   <!-- Preise -->
+  <!-- GEAENDERT (Sammel-Runde 11.09.2026, "Kleinere Änderung, Preis-/Produkttexte"): komplett neue
+       3-Stufen-Copy -- Preise jetzt als "ab X €" (verschiedene Größen/Optionen je Stufe, kein
+       Festpreis mehr), Stufe 2 UND 3 beide "Wimmelbuch" genannt (Unterscheidung ueber die
+       Beschreibung: Bilderzahl/Seitenmaterial), Stufe 3 per echtem Overlay (nicht nur gedaempfte
+       Karte + Eck-Badge wie zuvor) als "nur ein Ausblick, noch nicht bestellbar" markiert -- die
+       Karte selbst bleibt dahinter sichtbar (Vorgeschmack), aber durch das Overlay optisch und
+       tatsaechlich (kein Link/Button, war auf der Landingpage ohnehin nie klickbar) nicht
+       antippbar/bestellbar. Gleiche Copy + gleiches Overlay-Muster jetzt auch auf dem "Und
+       jetzt?"-Screen (entscheidung.js TIERS) wiederholt. -->
   <section style="margin-top: 40px; background: var(--blue); border-top: 4px solid var(--ink); border-bottom: 4px solid var(--ink); padding: 26px 14px 28px;">
     <h2 class="h-black" style="margin: 0 0 4px; font-size: 28px; line-height: .9; letter-spacing: -.04em;">Was kostet<br />der Spaß?</h2>
     <p class="caveat" style="margin: 0 0 18px; font-size: 20px; line-height: 1.1;">entscheiden musst du erst, wenn du dein erstes Bild gesehen hast. wirklich.</p>
     <div style="display: flex; flex-direction: column; gap: 12px;">
       <div style="display:flex; gap:12px; align-items:center; border:4px solid var(--ink); padding:14px; background: var(--paper); transform: rotate(-1.32deg); box-shadow: 4px 5px 0 var(--ink);">
-        <div style="flex:1; min-width:0;"><h3 class="h-black" style="font-size:17px; letter-spacing:-.02em; margin:0 0 3px;">Poster</h3><p style="font-size:13px; line-height:1.4; font-weight:500; margin:0;">1 Wimmelbild, DIN A2</p></div>
-        <span class="h-black" style="flex:none; font-size:18px; background: var(--ink); color: var(--paper); padding:6px 9px; transform: rotate(2.2deg);">29 €</span>
+        <div style="flex:1; min-width:0;"><h3 class="h-black" style="font-size:17px; letter-spacing:-.02em; margin:0 0 3px;">Poster</h3><p style="font-size:13px; line-height:1.4; font-weight:500; margin:0;">ab 1 Wimmelbild, verschiedene Größen, mit oder ohne Rahmen</p></div>
+        <span class="h-black" style="flex:none; font-size:16px; background: var(--ink); color: var(--paper); padding:6px 9px; transform: rotate(2.2deg);">ab 19 €</span>
       </div>
       <div style="display:flex; gap:12px; align-items:center; border:4px solid var(--ink); padding:14px; background: var(--paper); transform: rotate(.96deg); box-shadow: -4px 5px 0 var(--ink);">
-        <div style="flex:1; min-width:0;"><h3 class="h-black" style="font-size:17px; letter-spacing:-.02em; margin:0 0 3px;">Mini-Wimmelbuch</h3><p style="font-size:13px; line-height:1.4; font-weight:500; margin:0;">2 Bilder + Charakterseite, 8 Seiten, Softcover</p></div>
-        <span class="h-black" style="flex:none; font-size:18px; background: var(--ink); color: var(--paper); padding:6px 9px; transform: rotate(-1.6deg);">49 €</span>
+        <div style="flex:1; min-width:0;"><h3 class="h-black" style="font-size:17px; letter-spacing:-.02em; margin:0 0 3px;">Wimmelbuch</h3><p style="font-size:13px; line-height:1.4; font-weight:500; margin:0;">ab 2 Wimmelbildern, verschiedene Größen, Softcover und Softseiten</p></div>
+        <span class="h-black" style="flex:none; font-size:16px; background: var(--ink); color: var(--paper); padding:6px 9px; transform: rotate(-1.6deg);">ab 29 €</span>
       </div>
-      <!-- GEAENDERT (Sammel-Runde 11.09.2026, Punkt 16: "Großes Wimmelbuch (Hardcover) wieder mit
-           aufnehmen, aber mit 'Coming Soon'-Kennzeichnung statt komplett entfernt"). War seit
-           Sammel-Runde 09.09.2026 (Punkt A3) komplett raus -- jetzt wieder sichtbar, aber gedaempft
-           (opacity) und mit grauem "Coming Soon"-Badge statt Preis-Badge markiert, damit klar ist,
-           dass diese Stufe noch nicht bestellbar ist. Gleiche Ergaenzung in entscheidung.js
-           (TIERS, dort zusaetzlich als comingSoon:true nicht auswaehlbar). -->
-      <div style="display:flex; gap:12px; align-items:center; border:4px solid var(--ink); padding:14px; background: var(--paper); opacity:.55; transform: rotate(-.5deg); box-shadow: 4px 5px 0 var(--ink);">
-        <div style="flex:1; min-width:0;"><h3 class="h-black" style="font-size:17px; letter-spacing:-.02em; margin:0 0 3px;">Großes Wimmelbuch</h3><p style="font-size:13px; line-height:1.4; font-weight:500; margin:0;">5 Bilder + Charakterseite, gebunden, Hardcover</p></div>
-        <span class="h-black" style="flex:none; font-size:12px; letter-spacing:.06em; text-transform:uppercase; background: rgba(26,26,24,.55); color: var(--paper); padding:6px 9px; transform: rotate(2deg);">Coming Soon</span>
+      <!-- Stufe 3: echtes Overlay statt nur gedaempfter Karte -- siehe Modul-Kommentar oben. -->
+      <div style="position:relative; border:4px solid var(--ink); padding:14px; background: var(--paper); transform: rotate(-.5deg); box-shadow: 4px 5px 0 var(--ink); overflow:hidden;">
+        <div style="display:flex; gap:12px; align-items:center; opacity:.3;">
+          <div style="flex:1; min-width:0;"><h3 class="h-black" style="font-size:17px; letter-spacing:-.02em; margin:0 0 3px;">Wimmelbuch</h3><p style="font-size:13px; line-height:1.4; font-weight:500; margin:0;">ab 5 Wimmelbildern, verschiedene Größen, Kartonseiten</p></div>
+          <span class="h-black" style="flex:none; font-size:16px; background: var(--ink); color: var(--paper); padding:6px 9px; transform: rotate(2deg);">ab 49 €</span>
+        </div>
+        <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background: rgba(242,237,225,.55);">
+          <span class="h-black" style="font-size:13px; letter-spacing:.06em; text-transform:uppercase; background: rgba(26,26,24,.9); color: var(--paper); padding:8px 14px; transform: rotate(-3deg); box-shadow: 3px 4px 0 var(--ink);">Coming Soon</span>
+        </div>
       </div>
     </div>
+    <p class="caveat" style="margin: 18px 0 0; font-size: 21px; line-height: 1.1; text-align: center;">Jedes Buch ein Unikat.</p>
   </section>
 
   <!-- FAQ -->

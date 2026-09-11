@@ -83,7 +83,7 @@ const DEFAULT_STATE = {
   penOn: false,
 
   // Entscheidung / Widmung / Bestellung
-  tier: 1, // 0 Poster, 1 Mini-Wimmelbuch (Stufe "Wimmelbuch"/89€ vorerst entfernt, siehe A3)
+  tier: 1, // 0 Poster, 1 Wimmelbuch (ab 2 Bildern), 2 Wimmelbuch (ab 5 Bildern, comingSoon -- siehe entscheidung.js TIERS)
   dedication: "",
   payMethod: 0,
 
@@ -149,12 +149,13 @@ const AppState = {
     this.save();
   },
 
-  // GEAENDERT (Sammel-Runde 11.09.2026, Punkt 16): dritte Stufe "Großes Wimmelbuch" (89 €) ist in
-  // entscheidung.js TIERS wieder sichtbar (dort als comingSoon:true, nicht auswaehlbar) -- Array
-  // hier defensiv synchron ergaenzt, damit priceForTier(2) nicht still undefined liefert, falls der
-  // Tier-Index jemals doch gesetzt wird.
+  // GEAENDERT (Sammel-Runde 11.09.2026, Preis-/Produkttexte): Preise jetzt als "ab X €" statt
+  // Festpreis -- synchron zur neuen Copy in entscheidung.js TIERS/index.html Preise-Sektion (versch.
+  // Größen/Optionen je Stufe, kein einzelner Festpreis mehr). Dritte Stufe (comingSoon:true, nicht
+  // auswaehlbar) bleibt defensiv im Array, damit priceForTier(2) nicht still undefined liefert,
+  // falls der Tier-Index jemals doch gesetzt wird.
   priceForTier(tier) {
-    return ["29 €", "49 €", "89 €"][tier];
+    return ["ab 19 €", "ab 29 €", "ab 49 €"][tier];
   },
   currentPrice() {
     return this.priceForTier(this.data.tier);
