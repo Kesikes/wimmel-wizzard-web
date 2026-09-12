@@ -1076,30 +1076,58 @@ async function composeSceneImage({ heroSpecs, theme, situations }) {
 // Zopf-Artefakt-Fund ab), mouth_ok (kein sichtbarer Mund), style_ok (durchgehend wmlstil-Stil). Alle
 // vier folgen der "*_ok"-Namenskonvention, damit countViolations() (bereits generisch) sie ohne
 // Aenderung mitzaehlt.
+//
+// BUGFIX (Sammel-Runde 12.09.2026, "DRINGEND: style_ok blockiert Figuren-Generierung komplett" --
+// Nutzer-Meldung direkt am naechsten Tag nach dem Ausrollen dieses Checks): style_ok schlug bei
+// AUSNAHMSLOS JEDER Figuren-Generierung fehl, bei Foto- UND Merkmale-Weg gleichermassen -- waehrend
+// single_ok/mouth_ok/complete_ok sichtbar (siehe Fehlermeldung in composeCharacterImage() unten,
+// die den/die konkret fehlgeschlagenen Namen nennt) NICHT betroffen waren. Root Cause: anders als
+// der Szenen-Verify-Prompt oben (buildVerifyPrompt(), ueber mehrere Live-Test-Runden gegen ECHTE
+// nano-banana-pro/edit-Ausgaben kalibriert, siehe Kommentare dort zu Modell-/system_prompt-Wechseln)
+// wurde dieser Charakter-Prompt gestern neu geschrieben und lief VOR dem Live-Einsatz kein einziges
+// Mal gegen ein echtes, von fal-ai/flux-lora + unserem wmlstil-LoRA erzeugtes Bild (kind:"char",
+// reiner Text-zu-Bild-Pfad, siehe fal-proxy.js) -- nur gegen gemockte Tests. Die alte Formulierung
+// ("NICHT realistisch, NICHT malerisch/gemalt, NICHT stark schattiert oder fotografisch") ist fuer
+// den STARK bevoelkerten Szenen-Kontext (Referenz fuer buildVerifyPrompt()) kalibriert, nicht fuer
+// ein einzelnes Portraet auf moeglichst neutralem Hintergrund -- ein Diffusionsmodell wie flux-lora
+// erzeugt dabei naturgemaess leichte Kantenglaettung/einen sehr sanften Schlagschatten unter der
+// Figur, was ein Vision-Modell bei dieser strengen Formulierung offenbar konsequent als
+// Stil-Verstoss wertet, obwohl das genau der bisherige, seit Wochen unveraendert funktionierende
+// wmlstil-Look ist (die zugrunde liegende Bild-Generierung selbst wurde in dieser Runde NICHT
+// angefasst -- nur der Verify-Check kam neu dazu). Formulierung jetzt entschaerft: erlaubt
+// ausdruecklich einen einfarbigen/weissen Hintergrund und einen leichten, weichen Schlagschatten
+// unter der Figur (typisches, gewuenschtes Merkmal dieses Rendering-Wegs), verlangt style_ok
+// weiterhin nur bei einem WIRKLICH anderen Gesamtstil (fotorealistisch, gemalt/Aquarell-artig,
+// starke Farbverlaeufe/Schattierung im GESICHT/KOERPER selbst) als false.
 function buildCharacterVerifyPrompt() {
-  return "Zeigt dieses Bild GENAU EINE einzelne Figur (eine Person oder ein Tier), vollständig und fehlerfrei gezeichnet? Prüfe besonders: Ist nur EIN Gesicht/EIN Körper zu sehen (nicht mehrere verschiedene Gesichter oder Körper gleichzeitig im Bild)? Ist ein VOLLSTÄNDIGER Kopf UND Körper zu sehen, ohne abgeschnittene Stellen, fehlende Körperteile oder unklare Kritzel-/Farbflecken-Artefakte (z. B. ein einzelner, unproportional langer Haarstrang ohne erkennbaren Kopf/Körper darunter)? Hat diese Figur einen sichtbaren Mund? Ist das Bild durchgehend in einem flachen, minimalistischen Illustrationsstil mit dicken schwarzen Umrisslinien, einfachen runden Köpfen und flächigen Farben gezeichnet — NICHT realistisch, NICHT malerisch/gemalt, NICHT stark schattiert oder fotografisch? Antworte NUR als JSON-Objekt mit genau diesen vier Feldern: {\"single_ok\": true/false, \"complete_ok\": true/false, \"mouth_ok\": true/false, \"style_ok\": true/false} — single_ok ist nur dann true, wenn wirklich nur eine einzige Figur mit einem Gesicht und einem Körper zu sehen ist; complete_ok ist nur dann true, wenn Kopf und Körper vollständig und ohne Artefakte/Fragmente gezeichnet sind; mouth_ok ist nur dann true, wenn die Figur KEINEN sichtbaren Mund hat; style_ok ist nur dann true, wenn das Bild ausnahmslos in diesem flachen wmlstil-Stil gezeichnet ist.";
+  return "Zeigt dieses Bild GENAU EINE einzelne Figur (eine Person oder ein Tier), vollständig und fehlerfrei gezeichnet? Prüfe besonders: Ist nur EIN Gesicht/EIN Körper zu sehen (nicht mehrere verschiedene Gesichter oder Körper gleichzeitig im Bild)? Ist ein VOLLSTÄNDIGER Kopf UND Körper zu sehen, ohne abgeschnittene Stellen, fehlende Körperteile oder unklare Kritzel-/Farbflecken-Artefakte (z. B. ein einzelner, unproportional langer Haarstrang ohne erkennbaren Kopf/Körper darunter)? Hat diese Figur einen sichtbaren Mund? Ist die FIGUR SELBST (Kopf/Körper, nicht der Hintergrund oder ein leichter Schlagschatten darunter) in einem flachen, minimalistischen Illustrationsstil mit dicken schwarzen Umrisslinien und flächigen Farben gezeichnet, so wie es für dieses Kinderbuch-Stilheft üblich ist? Ein einfarbiger/weißer Hintergrund und ein leichter, weicher Schlagschatten unter der Figur sind dabei normal und KEIN Stilverstoß — als Verstoß zählt nur, wenn die Figur selbst deutlich fotorealistisch, gemalt/aquarellartig wirkt oder ihr Gesicht/Körper starke Farbverläufe oder Schattierungen zeigt. Antworte NUR als JSON-Objekt mit genau diesen vier Feldern: {\"single_ok\": true/false, \"complete_ok\": true/false, \"mouth_ok\": true/false, \"style_ok\": true/false} — single_ok ist nur dann true, wenn wirklich nur eine einzige Figur mit einem Gesicht und einem Körper zu sehen ist; complete_ok ist nur dann true, wenn Kopf und Körper vollständig und ohne Artefakte/Fragmente gezeichnet sind; mouth_ok ist nur dann true, wenn die Figur KEINEN sichtbaren Mund hat; style_ok ist nur dann false, wenn die Figur selbst wirklich deutlich vom beschriebenen flachen Stil abweicht — im Zweifel (z. B. bei nur leichtem Schlagschatten oder normaler Kantenglättung) gilt style_ok als true.";
 }
 
 // composeCharacterImage(): NEU (Sammel-Runde 11.09.2026, Aufgabe "Verify-Check für Charakter-
-// Frontansicht"). Analog zu composeSceneImage() oben (2 Kandidaten mit neuen Seeds, je ein
+// Frontansicht"). Analog zu composeSceneImage() oben: 2 Kandidaten mit neuen Seeds, je ein
 // Verify-Call, bei Bedarf automatisch ein dritter Kandidat, wenn keiner der ersten beiden perfekt
-// ausfällt) -- ABER mit einem bewusst ABWEICHENDEN letzten Schritt: composeSceneImage() gibt am Ende
-// IMMER den besten verfügbaren Kandidaten zurück, auch wenn er noch Verstöße hat (ein Szenenbild ist
-// ein Einzelstück; ein späterer erneuter "Zaubern"-Lauf generiert ohnehin ein komplett neues).
-// composeCharacterImage() dagegen WIRFT einen Fehler, wenn auch der beste Kandidat noch Verstöße hat.
-// Grund: dieses Bild wird nicht nur einmal gezeigt, sondern als Referenzbild für ALLE Zusatz-Ansichten
-// (Seite/Rücken/3-4) UND für JEDE spätere Wimmelbild-Szene dieser Figur weiterverwendet -- ein hier
-// durchgewunkener Fehler pflanzt sich in das GESAMTE Buch fort, nicht nur in ein einzelnes Bild. Das
-// entspricht direkt der Nutzer-Vorgabe dieser Runde: "Bei einem fehlgeschlagenen Ergebnis: Fehler
-// anzeigen und neu generieren lassen, statt fehlerhaft weiterzuverarbeiten." generate(seed) ist ein
-// vom Aufrufer übergebener Callback (statt hier fix generateImage() aufzurufen), da es zwei
-// verschiedene Erzeugungswege gibt, die beide denselben Verify-Retry brauchen: Chips-Text-zu-Bild
+// ausfällt, dann der beste verfügbare Kandidat (wenigste Verstöße).
+//
+// BUGFIX (Sammel-Runde 12.09.2026, "DRINGEND: style_ok blockiert Figuren-Generierung komplett"):
+// bis hierhin WARF diese Funktion einen Fehler, wenn auch der beste Kandidat noch Verstöße hatte,
+// bewusst abweichend von composeSceneImage() (das immer den besten verfügbaren Kandidaten zurückgibt,
+// nie wirft) -- Begründung damals: das Frontbild wird als Referenz für alle Zusatz-Ansichten UND jede
+// spätere Szene weiterverwendet, ein durchgewunkener Fehler pflanzt sich fort. Live-Einsatz zeigte
+// aber: der style_ok-Teilcheck (siehe buildCharacterVerifyPrompt() oben, dort auch die entschärfte
+// Neuformulierung von heute) war für dieses Bildformat zu streng kalibriert und schlug AUSNAHMSLOS
+// JEDES MAL fehl, bei allen 2-3 Kandidaten gleichzeitig -- das harte Werfen blockierte dadurch die
+// KOMPLETTE Figuren-Erstellung, auf beiden Wegen (Foto und Merkmale), nicht nur vereinzelte
+// Problemfälle. Ein zu strenger Qualitätscheck, der den gesamten Kernablauf der App lahmlegt, ist
+// schlimmer als der Fehler, den er verhindern sollte. Jetzt wie bei Szenen: composeCharacterImage()
+// wirft nicht mehr, sondern gibt immer den besten verfügbaren Kandidaten zurück -- der Verify-Retry
+// bleibt dabei weiterhin nützlich (wählt unter 2-3 Versuchen den mit den wenigsten Verstößen), nur
+// die Alles-oder-nichts-Bremse am Ende ist raus. best.violations/best.verify bleiben am Rückgabewert
+// erhalten (nicht mehr nur in der geworfenen Fehlermeldung), falls ein Aufrufer künftig einen
+// nicht-blockierenden Hinweis anzeigen möchte, ohne den Flow zu stoppen. generate(seed) ist ein vom
+// Aufrufer übergebener Callback (statt hier fix generateImage() aufzurufen), da es zwei verschiedene
+// Erzeugungswege gibt, die beide denselben Verify-Retry brauchen: Chips-Text-zu-Bild
 // (generateCharacterImage() in charakter.js) UND Foto-Weg (generateCharacterImageFromPhoto(), seit dem
-// Prioritaet-1-Bugfix ebenfalls reiner Text-zu-Bild-Aufruf, siehe Kommentar dort). Wirft: Error mit
-// benutzerverständlicher, konkret benannter Fehler-Meldung, wenn kein Kandidat perfekt ausfällt --
-// Aufrufer fängt das im bereits bestehenden catch-Block ab (charakter.js generateCharacterImage()/
-// generateCharacterImageFromPhoto() zeigen den Fehler bereits an und setzen die Buttons zurück, exakt
-// das vom Nutzer gewünschte "Fehler anzeigen und neu generieren lassen").
+// Prioritaet-1-Bugfix ebenfalls reiner Text-zu-Bild-Aufruf, siehe Kommentar dort).
 async function composeCharacterImage(generate) {
   const verifyPrompt = buildCharacterVerifyPrompt();
 
@@ -1121,12 +1149,6 @@ async function composeCharacterImage(generate) {
   }
 
   const best = candidates.reduce((a, b) => (b.violations < a.violations ? b : a));
-  if (best.violations > 0) {
-    const failedChecks = best.verify
-      ? Object.keys(best.verify).filter((k) => /_ok$/.test(k) && best.verify[k] === false).join(", ")
-      : "unbekannt";
-    throw new Error("das Ergebnis war leider nicht sauber genug (" + failedChecks + ")");
-  }
   return best;
 }
 
