@@ -7,6 +7,8 @@
     "api/fal-proxy.js": { "maxDuration": 300 },
     "api/claude-proxy.js": { "maxDuration": 300 },
     "api/transcribe-proxy.js": { "maxDuration": 300 },
-    "api/image-proxy.js": { "maxDuration": 30 }
+    "api/image-proxy.js": { "maxDuration": 30 },
+    "api/char-job-start.js": { "maxDuration": 30 },
+    "api/char-job-status.js": { "maxDuration": 30 }
   }
 }

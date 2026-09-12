@@ -1152,6 +1152,66 @@ async function composeCharacterImage(generate) {
   return best;
 }
 
+/* ---------------- Start-plus-Abfrage (EXPERIMENTELL, Machbarkeitstest) ---------------- */
+// NEU (Sammel-Runde 12.09.2026, "Warteschlangen-Umbau: Figuren-Pfad als Machbarkeitstest"). Siehe
+// ausführlichen Architektur-Kommentar in api/lib/char-job-engine.js (Poll- statt Webhook-Modell,
+// warum). Client-Gegenstück zu api/char-job-start.js/api/char-job-status.js: statt EINES langen
+// composeCharacterImage()-Aufrufs (der die ganze Zeit über eine offene Verbindung braucht, siehe
+// "Load failed"-Befund bei iOS-Bildschirmsperre) ein kurzer Start-Aufruf, danach kurze
+// Status-Abfragen in Intervallen -- jede einzelne Anfrage dauert nur Sekundenbruchteile, übersteht
+// also problemlos eine kurze Unterbrechung (Bildschirmsperre zwischen zwei Polls), ohne dass die
+// gesamte, mehrminütige Generierung neu starten müsste.
+//
+// NICHT TEIL DES REGULÄREN PRODUKTPFADS: wird aktuell von KEINEM Screen aus aufgerufen (charakter.js
+// nutzt weiterhin composeCharacterImage() synchron, siehe dortige generateCharacterImage()/
+// generateCharacterImageFromPhoto()). Erst wenn dieser Mechanismus live gegen eine echte
+// Upstash-Redis-Anbindung getestet wurde (siehe Setup-Hinweis in api/lib/kv.js -- die
+// Marketplace-Integration muss im Vercel-Dashboard eingerichtet werden, das kann nicht von hier aus
+// passieren), wird er an den eigentlichen "Figur zeichnen"-Ablauf angeschlossen. Bis dahin bewusst
+// nur eine eigenständige, für sich getestete Fähigkeit (siehe test_char_job_polling_0912.js).
+async function startCharacterJob(prompt) {
+  const resp = await fetch("/api/char-job-start", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt }),
+  });
+  const data = await parseJsonResponse(resp);
+  if (!resp.ok || data.error) throw new Error(data.error || ("Start-Fehler " + resp.status));
+  if (!data.jobId) throw new Error("Start-Antwort hatte keine jobId.");
+  return data.jobId;
+}
+
+async function pollCharacterJobOnce(jobId) {
+  const resp = await fetch("/api/char-job-status?jobId=" + encodeURIComponent(jobId));
+  const data = await parseJsonResponse(resp);
+  if (!resp.ok || data.error) throw new Error(data.error || ("Status-Fehler " + resp.status));
+  if (!data.job) throw new Error("Status-Antwort hatte keinen Job.");
+  return data.job;
+}
+
+// runCharacterJobPolling(prompt, opts): startet den Job und pollt in festen Abständen (Default 7s,
+// analog zum Nutzer-Vorschlag "alle 5-10 Sekunden"), bis der Job "done" oder "error" meldet.
+// opts.onJobId(jobId): wird einmal aufgerufen, sobald der Job gestartet ist -- ein Aufrufer kann die
+// jobId z.B. in AppState/localStorage ablegen, um nach einem Reload (siehe "visibilitychange"-Idee
+// des Nutzers) an genau diesem Job weiterzupollen, statt neu zu starten. opts.onUpdate(job): bei
+// jedem Poll mit dem aktuellen Job-Stand, für eine optionale Fortschrittsanzeige. opts.signal: ein
+// AbortSignal, um den Poll-Loop von außen sauber abzubrechen (z.B. wenn die Nutzerin währenddessen
+// wegnavigiert). Liefert im Erfolgsfall dieselbe Form wie composeCharacterImage() ({url, seed,
+// violations, verify}) zurück, damit ein künftiger Umstieg in charakter.js ohne Formatänderung
+// auskäme.
+async function runCharacterJobPolling(prompt, opts) {
+  opts = opts || {};
+  const intervalMs = opts.intervalMs || 7000;
+  const jobId = await startCharacterJob(prompt);
+  if (opts.onJobId) opts.onJobId(jobId);
+  for (;;) {
+    if (opts.signal && opts.signal.aborted) throw new Error("Abgebrochen.");
+    const job = await pollCharacterJobOnce(jobId);
+    if (opts.onUpdate) opts.onUpdate(job);
+    if (job.status === "done") return { url: job.resultUrl, seed: job.resultSeed, violations: job.resultViolations, verify: job.resultVerify };
+    if (job.status === "error") throw new Error(job.error || "Generierung fehlgeschlagen.");
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+}
+
 /* ---------------- Bild-Upload ---------------- */
 function resizeImageToDataUri(file, maxDim, quality) {
   maxDim = maxDim || 1024; quality = quality || 0.85;
@@ -1253,5 +1313,6 @@ window.Pipeline = {
   densityInstruction, imageRefMapping, allCharactersRule, buildVerifyPrompt,
   scenePrompt, sceneComposeInstruction, composeSceneImage,
   buildCharacterVerifyPrompt, composeCharacterImage,
+  startCharacterJob, pollCharacterJobOnce, runCharacterJobPolling,
   SCENE_STYLE_BLOCK, FILL_EMPTY_SPACE_RULE, COHERENCE_RULE, ZERO_TEXT_RULE, EMOTION_WORDS_RULE,
 };
