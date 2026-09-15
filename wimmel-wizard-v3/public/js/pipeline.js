@@ -839,6 +839,47 @@ function densityInstruction(theme) {
   return "In the background layer (kept to roughly " + SCENE_LAYERS.background.maxHeightPct + "% of the image height or smaller), densely populate the scene: " + parts.join(", ") + " — each one doing their own tiny activity or little visual joke, true busy seek-and-find picture-book density.";
 }
 
+// NEU (Punkt 1: Figurenbibliothek fuer Hintergrundfiguren, Sammel-Runde 15.09.2026 Fortsetzung --
+// Kuratierung/Stichproben-Pruefung siehe Wimmelbuchprojekt/build-group-sheet.sh und
+// generate-gap-character.sh, alle 13 Blaetter einzeln gegen die Stilregeln geprueft). 13 kuratierte
+// Gruppen-Blaetter (je 5-7 Einzelfiguren, im selben wmlstil erzeugt) liegen als statische Assets im
+// Projekt (public/assets/bgchars/bgchars-1.png ... bgchars-13.png, auf 1800px Breite verkleinert --
+// die 4K-Originale waren mit ~15MB pro Blatt unnoetig gross fuer ein reines Referenzbild, das nur
+// server-seitig von fal.ai abgerufen wird, nie vom Kunden-Browser geladen). Eigenes statisches Asset
+// statt fal.ai-Hosting der Generierungs-Ergebnisse: keine Ablauf-/TTL-Frage, kein zusaetzlicher
+// Persistenz-Mechanismus noetig, funktioniert genau wie die bestehenden Marketing-Assets
+// (wizzelwim-family-hero.png etc., siehe assetPath()).
+// Zweck: der Szenen-Edit-Aufruf bekommt zusaetzlich zu den benannten Helden-Referenzbildern ein paar
+// dieser Blaetter mit, damit das Modell fuer EINEN TEIL der Hintergrundfiguren auf bereits feste,
+// stilgeprüfte Designs zurueckgreifen kann statt bei jeder Szene komplett neu zu erfinden.
+// Repetitions-Mathematik (siehe Chat-Antwort auf Nutzerfrage "sind 44 Figuren genug?"): bei
+// zufaelliger Auswahl von k=3-4 Blaettern aus N=13 pro Szene liegt die Wiederholwahrscheinlichkeit
+// eines einzelnen Blatts bei ca. 23-31% pro generierter Szene -- genug Variation ueber viele Szenen.
+const BACKGROUND_CHARACTER_LIBRARY = Array.from({ length: 13 }, (_, i) => "bgchars/bgchars-" + (i + 1) + ".png");
+
+// backgroundCharAssetUrl(): fal-proxy.js' isImageRef() verlangt eine ABSOLUTE http(s)-URL oder eine
+// data:-URI (siehe dortiger Kommentar) -- assetPath() liefert bewusst nur einen root-relativen Pfad
+// ("/assets/..."), das reicht fuer <img src> im Browser, aber NICHT fuer den JSON-Body an
+// /api/fal-proxy (fal.ai selbst muss das Bild serverseitig abrufen koennen, kennt "/assets/..." ohne
+// Host nicht). window.location.origin ergaenzt den fehlenden Host zur Laufzeit.
+function backgroundCharAssetUrl(name) {
+  return window.location.origin + assetPath(name);
+}
+
+// pickBackgroundCharacterSheets(n): zufaellige, doppelfreie Auswahl von n Blaettern aus der
+// Bibliothek. Math.random() bewusst wie an anderer Stelle in dieser Datei (seedA/seedB/seedC in
+// composeSceneImage()) -- keine Reproduzierbarkeit noetig, jede generierte Szene darf/soll
+// unterschiedliche Hintergrundfiguren-Blaetter bekommen.
+function pickBackgroundCharacterSheets(n) {
+  const pool = BACKGROUND_CHARACTER_LIBRARY.slice();
+  const picked = [];
+  while (picked.length < n && pool.length) {
+    const idx = Math.floor(Math.random() * pool.length);
+    picked.push(pool.splice(idx, 1)[0]);
+  }
+  return picked.map(backgroundCharAssetUrl);
+}
+
 // NEU: Stil-Regelblock, einmal kompakt (Spezifikation Abschnitt 2, wörtlich übersetzt aus der
 // dort gegebenen deutschen Aufzählung: "runde Köpfe, Punktaugen, ein Nasenstrich, niemals ein
 // Mund, keine Ohren, kein sichtbarer Hals ..., dünne Gliedmaßen ohne Gelenke, dicke schwarze
@@ -850,6 +891,29 @@ const SCENE_STYLE_BLOCK = "Every character in the scene, named heroes and backgr
 // keine eigene Übersetzung/Umformulierung nötig.
 const FILL_EMPTY_SPACE_RULE = "Fill all empty space – sky, ground, water – with additional small background characters, animals, and objects. No large empty or negative space anywhere in the scene.";
 const COHERENCE_RULE = "The whole scene is ONE continuous space seen from a slightly elevated angle, unbroken – no gaps, no floating patches, no collage look.";
+
+// NEU (Nutzer-Ergaenzung zu Punkt 2, direkt bei der Umsetzung mit eingebaut statt nachtraeglich):
+// zwei Zusatz-Regeln, eigene Formulierung nach demselben Muster wie EMOTION_WORDS_RULE unten (keine
+// woertliche Spezifikations-Vorgabe, sondern eine vom Nutzer explizit begruendete Ergaenzung).
+//
+// DEPTH_COHERENCE_RULE: Nutzer-Begruendung -- das implizite Perspektiv-Verstaendnis des Modells
+// allein sei nicht zuverlaessig genug, sobald gleichzeitig so viele explizite Groessen-/
+// Ebenen-Vorgaben im Prompt stehen (SCENE_LAYERS' maxHeightPct pro Ebene) -- gleiches Muster wie bei
+// den Emotionswoertern, wo "sollte eigentlich klar sein" sich als nicht robust genug erwiesen hat
+// (siehe EMOTION_WORDS_RULE-Kommentar). Ergaenzt COHERENCE_RULE (die nur "ein durchgehender Raum,
+// keine Collage" sagt) um die fehlende Groessen-Kontinuitaet zwischen den Ebenen. Wortlaut vom
+// Nutzer vorgegeben, unveraendert uebernommen.
+const DEPTH_COHERENCE_RULE = "Depth and scale must be spatially coherent: characters transition smoothly from large in the foreground to small in the background along continuous receding ground. Never place a foreground-sized character immediately next to a background-sized character with no spatial separation between them – each character's size must match its actual distance within the single continuous scene.";
+
+// HEAD_SCALE_CONSISTENCY_RULE: Nutzer-Begruendung -- SCENE_LAYERS' Hoehenvorgaben (20%/14%/7%)
+// beziehen sich auf die GESAMTE Figur; bei unterschiedlichen Figurentypen (Kind vs. Erwachsener)
+// innerhalb derselben Tiefenebene wuerde das zu unterschiedlich grossen KOEPFEN fuehren -- der Kopf
+// traegt aber das eigentliche Stil-Erkennungsmerkmal (Punktaugen, Nasenstrich, siehe
+// SCENE_STYLE_BLOCK) und sollte deshalb innerhalb einer Ebene moeglichst einheitlich gross bleiben.
+// Alters-/Groessenunterschiede sollen sich stattdessen ueber Koerper-/Proportionsunterschiede
+// ausdruecken. Wortlaut vom Nutzer vorgegeben, unveraendert uebernommen.
+const HEAD_SCALE_CONSISTENCY_RULE = "Within each depth layer, character heads should be roughly consistent in size regardless of character type (child, adult, elderly) – differences in age/height are expressed through body proportions, not head scale.";
+
 const ZERO_TEXT_RULE = "Absolutely zero text, letters, signage or lettering anywhere in this image, of any kind, for any reason.";
 
 // NEU: die Spezifikation beschreibt hier eine REGEL ("keine Emotionswörter, stattdessen
@@ -891,6 +955,18 @@ const SAFE_MARGIN_RULE = "Keep the outer 6% of the image at the very top and the
 // beim Situationstext.
 function imageRefMapping(heroSpecs) {
   return heroSpecs.map((spec, i) => "Reference image " + (i + 1) + " shows " + spec.name + ": " + stripEmotionWords(describeHero(spec)) + ".").join(" ");
+}
+
+// NEU (Punkt 1, Fortsetzung): erklaert dem Modell, was die Referenzbilder NACH den benannten Helden
+// sind -- ohne diesen Satz wuerden sie faelschlich als weitere benannte Helden gelesen
+// (imageRefMapping() oben nummeriert nur die echten Helden, die Bibliotheks-Blaetter haengen in
+// image_urls direkt dahinter, siehe buildSceneComposeInputs() unten). startIndex ist 1-basiert, wie
+// imageRefMapping()'s eigene Nummerierung (heroSpecs.length + 1).
+function backgroundLibraryInstruction(startIndex, count) {
+  if (!count) return "";
+  const endIndex = startIndex + count - 1;
+  const range = count === 1 ? ("Reference image " + startIndex) : ("Reference images " + startIndex + " through " + endIndex);
+  return range + " show a library of additional background-character designs — NOT named heroes, no names or identities attached to them. Use them as design inspiration (face, hairstyle, clothing, colors) for SOME of the small background and midground characters in this scene, drawn in the exact same style as shown. You do not need to include every character from these sheets, and you should still invent further original background characters yourself to fill out the required density.";
 }
 
 // NEU: "Alle-Charaktere-müssen-vorkommen"-Regel, verallgemeinert von der Spezifikations-Formulierung
@@ -952,12 +1028,16 @@ const SCENE_TOTAL_CHARACTER_TARGET_RULE = "Populate the whole scene with roughly
 // restlichen 1-2 explizit dem Mittelgrund zugeordnet, bleiben aber weiterhin laut
 // allCharactersRule() Pflicht-Bestandteil der Szene (nur eben nicht mehr zwingend gross/vorne).
 const FOREGROUND_HERO_CAP = 3;
-function scenePrompt({ heroSpecs, theme, situations }) {
+function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount }) {
   const kw = "wmlstil, " + (theme.type === "cutaway"
     ? theme.en + " building cutaway scene, multiple floors and areas visible"
     : theme.en + " landscape scene");
   const sentences = [];
   sentences.push(imageRefMapping(heroSpecs));
+  // NEU (Punkt 1, Fortsetzung): direkt nach der Helden-Zuordnung, bevor irgendetwas anderes ueber
+  // Referenzbilder gesagt wird -- sonst koennte das Modell die nachfolgenden Bibliotheks-Blaetter
+  // (image_urls-Reihenfolge, siehe buildSceneComposeInputs()) faelschlich als weitere Helden lesen.
+  sentences.push(backgroundLibraryInstruction(heroSpecs.length + 1, bgCharacterCount || 0));
   // Punkt B2 (siehe Kommentar bei imageRefMapping() oben): dieselbe Filterung hier, zweite Stelle,
   // an der describeHero() ungefiltert in den Prompt eingesetzt wurde.
   const foregroundHeroes = heroSpecs.slice(0, FOREGROUND_HERO_CAP);
@@ -973,6 +1053,8 @@ function scenePrompt({ heroSpecs, theme, situations }) {
   sentences.push(SCENE_STYLE_BLOCK);
   sentences.push(FILL_EMPTY_SPACE_RULE);
   sentences.push(COHERENCE_RULE);
+  sentences.push(DEPTH_COHERENCE_RULE);
+  sentences.push(HEAD_SCALE_CONSISTENCY_RULE);
   sentences.push(SAFE_MARGIN_RULE);
   sentences.push(EMOTION_WORDS_RULE);
   sentences.push(allCharactersRule(heroSpecs));
@@ -1006,10 +1088,16 @@ function sceneComposeInstruction(promptText) {
 // bereits generischen "*_ok"-Zaehlmusters in countViolations() reicht es, das Feld hier im Prompt
 // zu ergaenzen; an der Auswahl-Logik selbst muss nichts geaendert werden, style_ok:false wird
 // automatisch als vollwertiger Verstoss gezaehlt und fliesst in den min(violations)-Vergleich ein.
+//
+// ERGAENZT (Nutzer-Auftrag, Punkt 2 Kalibrierungs-Testrunden: "bitte beide Aspekte explizit mit
+// pruefen"): zwei weitere Fragen fuer die beiden neuen Regeln DEPTH_COHERENCE_RULE (raeumliche
+// Tiefen-Kohaerenz) und HEAD_SCALE_CONSISTENCY_RULE (einheitliche Kopfgroesse pro Tiefenebene) oben
+// -- gleiches "*_ok"-Namensmuster, automatisch von countViolations() mitgezaehlt, keine Aenderung an
+// der Auswahl-Logik noetig.
 function buildVerifyPrompt(heroSpecs) {
   const n = heroSpecs.length;
   const names = heroSpecs.map((s) => s.name).join(", ");
-  return "Sind alle " + n + " benannten Charaktere (" + names + ") je genau einmal erkennbar vorhanden? Hat irgendeine Figur im ganzen Bild einen sichtbaren Mund? Ist das GESAMTE Bild durchgehend in einem flachen, minimalistischen Illustrationsstil mit dicken schwarzen Umrisslinien, einfachen runden Köpfen und flächigen Farben gezeichnet — NICHT realistisch, NICHT malerisch/gemalt, NICHT stark schattiert oder fotografisch, und ohne einzelne Figuren oder Bildbereiche, die in einem abweichenden, detaillierteren oder weicheren Stil gezeichnet sind? Antworte NUR als JSON-Objekt mit genau diesen drei Feldern: {\"heroes_ok\": true/false, \"mouths_ok\": true/false, \"style_ok\": true/false} — heroes_ok ist nur dann true, wenn wirklich alle " + n + " genannten Charaktere je genau einmal zu erkennen sind; mouths_ok ist nur dann true, wenn KEINE Figur im ganzen Bild einen sichtbaren Mund hat; style_ok ist nur dann true, wenn das komplette Bild ausnahmslos in diesem flachen wmlstil-Stil gezeichnet ist.";
+  return "Sind alle " + n + " benannten Charaktere (" + names + ") je genau einmal erkennbar vorhanden? Hat irgendeine Figur im ganzen Bild einen sichtbaren Mund? Ist das GESAMTE Bild durchgehend in einem flachen, minimalistischen Illustrationsstil mit dicken schwarzen Umrisslinien, einfachen runden Köpfen und flächigen Farben gezeichnet — NICHT realistisch, NICHT malerisch/gemalt, NICHT stark schattiert oder fotografisch, und ohne einzelne Figuren oder Bildbereiche, die in einem abweichenden, detaillierteren oder weicheren Stil gezeichnet sind? Ist die räumliche Tiefe im Bild durchgehend plausibel — gehen die Figurengrößen kontinuierlich von groß im Vordergrund zu klein im Hintergrund über, ohne dass irgendwo eine vordergrund-große Figur unvermittelt direkt neben einer deutlich kleineren, hintergrund-großen Figur steht, ohne erkennbaren räumlichen Abstand zwischen beiden? Sind die Kopfgrößen innerhalb derselben Tiefenebene (Vordergrund/Mittelgrund/Hintergrund) über verschiedene Figurentypen hinweg (Kind, Erwachsener, älterer Mensch) ungefähr einheitlich groß, sodass sich Alters-/Größenunterschiede über Körperproportionen ausdrücken statt über unterschiedlich große Köpfe? Antworte NUR als JSON-Objekt mit genau diesen fünf Feldern: {\"heroes_ok\": true/false, \"mouths_ok\": true/false, \"style_ok\": true/false, \"depth_coherence_ok\": true/false, \"head_scale_ok\": true/false} — heroes_ok ist nur dann true, wenn wirklich alle " + n + " genannten Charaktere je genau einmal zu erkennen sind; mouths_ok ist nur dann true, wenn KEINE Figur im ganzen Bild einen sichtbaren Mund hat; style_ok ist nur dann true, wenn das komplette Bild ausnahmslos in diesem flachen wmlstil-Stil gezeichnet ist; depth_coherence_ok ist nur dann true, wenn die Größenübergänge zwischen den Tiefenebenen durchgehend räumlich plausibel sind, ohne abrupte Größensprünge zwischen benachbarten Figuren; head_scale_ok ist nur dann true, wenn die Kopfgrößen innerhalb jeder einzelnen Tiefenebene unabhängig vom Figurentyp ungefähr einheitlich sind.";
 }
 
 // composeSceneImage(): implementiert Spezifikation Abschnitt 3: 2 Kandidaten (gleicher Prompt,
@@ -1055,14 +1143,34 @@ function buildVerifyPrompt(heroSpecs) {
 // Polling-Modell umgestellt werden. Empfehlung: als eigene, dedizierte Aufgabe einplanen, nicht
 // nebenbei -- der sofortige Hinweistext auf dem Zaubern-Screen (szene.js, Punkt 7a) ist die
 // kurzfristige Abhilfe fuer denselben Befund.
-async function composeSceneImage({ heroSpecs, theme, situations }) {
+// NEU (Punkt 1, Fortsetzung): gemeinsamer Aufbau der Szenen-Referenzbilder/Prompt-Bausteine, vorher
+// fast identisch dupliziert in composeSceneImage() (unten) UND runSceneJobPolling() (dem
+// tatsaechlichen produktiven Pfad seit der Warteschlangen-Umstellung, Aufgabe #5) -- jetzt EINE
+// Stelle, an der die Hintergrundfiguren-Bibliothek eingehaengt wird, statt beide Aufrufer einzeln
+// pflegen zu muessen und dabei auseinanderlaufen zu lassen.
+// bgBudget: 13-Referenzbild-Deckel insgesamt fuer styleRefUrls (siehe fal-proxy.js
+// styleRefUrls.slice(0,13)) minus bereits verwendete Helden-Referenzbilder = wieviel Platz fuer
+// Bibliotheks-Blaetter noch bleibt (bei bis zu 4 Helden-Stilreferenzen also mind. 9 -- wir nutzen
+// bewusst nur 3-4 davon, siehe Kommentar bei BACKGROUND_CHARACTER_LIBRARY oben zur
+// Repetitions-Mathematik).
+function buildSceneComposeInputs({ heroSpecs, theme, situations }) {
   const refHeroes = heroSpecs.slice(0, 5);
-  const refUrls = refHeroes.map((s) => s.imageUrl).filter(Boolean);
-  const editImageUrl = refUrls[0];
-  const styleRefUrls = refUrls.slice(1);
-  const promptText = scenePrompt({ heroSpecs: refHeroes, theme, situations });
+  const heroRefUrls = refHeroes.map((s) => s.imageUrl).filter(Boolean);
+  const editImageUrl = heroRefUrls[0];
+  const heroStyleRefUrls = heroRefUrls.slice(1);
+  const bgBudget = Math.max(0, 13 - heroStyleRefUrls.length);
+  const bgCount = Math.min(bgBudget, 3 + Math.round(Math.random())); // 3 oder 4 Blaetter
+  const bgUrls = bgCount > 0 ? pickBackgroundCharacterSheets(bgCount) : [];
+  const styleRefUrls = heroStyleRefUrls.concat(bgUrls);
+  const promptText = scenePrompt({ heroSpecs: refHeroes, theme, situations, bgCharacterCount: bgUrls.length });
   const instruction = sceneComposeInstruction(promptText);
   const verifyPrompt = buildVerifyPrompt(refHeroes);
+  return { refHeroes, editImageUrl, styleRefUrls, promptText, instruction, verifyPrompt };
+}
+
+async function composeSceneImage({ heroSpecs, theme, situations }) {
+  const { editImageUrl, styleRefUrls, promptText, instruction, verifyPrompt } =
+    buildSceneComposeInputs({ heroSpecs, theme, situations });
 
   async function generateAndVerify(seed) {
     const cand = await generateImage(instruction, "scene", { seed, editImageUrl, styleRefUrls });
@@ -1328,13 +1436,8 @@ async function pollSceneJobOnce(jobId) {
 async function runSceneJobPolling({ heroSpecs, theme, situations }, opts) {
   opts = opts || {};
   const intervalMs = opts.intervalMs || 7000;
-  const refHeroes = heroSpecs.slice(0, 5);
-  const refUrls = refHeroes.map((s) => s.imageUrl).filter(Boolean);
-  const editImageUrl = refUrls[0];
-  const styleRefUrls = refUrls.slice(1);
-  const promptText = scenePrompt({ heroSpecs: refHeroes, theme, situations });
-  const instruction = sceneComposeInstruction(promptText);
-  const verifyPrompt = buildVerifyPrompt(refHeroes);
+  const { editImageUrl, styleRefUrls, promptText, instruction, verifyPrompt } =
+    buildSceneComposeInputs({ heroSpecs, theme, situations });
 
   const jobId = opts.existingJobId || await startSceneJob({ instruction, verifyPrompt, editImageUrl, styleRefUrls });
   if (opts.onJobId) opts.onJobId(jobId);
@@ -1457,9 +1560,12 @@ window.Pipeline = {
   SCENE_LAYERS, sceneLayerText, stripEmotionWords, autoSituations,
   densityInstruction, imageRefMapping, allCharactersRule, buildVerifyPrompt,
   scenePrompt, sceneComposeInstruction, composeSceneImage,
+  BACKGROUND_CHARACTER_LIBRARY, backgroundCharAssetUrl, pickBackgroundCharacterSheets,
+  backgroundLibraryInstruction, buildSceneComposeInputs,
   buildCharacterVerifyPrompt, composeCharacterImage,
   startCharacterJob, pollCharacterJobOnce, runCharacterJobPolling,
   startSceneJob, pollSceneJobOnce, runSceneJobPolling,
   SCENE_STYLE_BLOCK, FILL_EMPTY_SPACE_RULE, COHERENCE_RULE, ZERO_TEXT_RULE, EMOTION_WORDS_RULE,
   SAFE_MARGIN_RULE, SCENE_TOTAL_CHARACTER_TARGET_RULE,
+  DEPTH_COHERENCE_RULE, HEAD_SCALE_CONSISTENCY_RULE,
 };
