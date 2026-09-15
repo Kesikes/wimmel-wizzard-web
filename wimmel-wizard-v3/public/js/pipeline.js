@@ -1017,6 +1017,22 @@ function autoSituations(theme, existing, target) {
 // runterskalieren.
 const SCENE_TOTAL_CHARACTER_TARGET_RULE = "Populate the whole scene with roughly 30 to 50 individual characters in total, combining the named heroes with the midground and background layers described below — a genuinely busy, richly populated seek-and-find scene, not a sparse one.";
 
+// NEU (Nutzer-Auftrag, direkte Reaktion auf Live-Test-Befund Task #18: bei jeder Szene mit mehr als
+// einer Figur driften vor allem die frei erfundenen Figuren vom wmlstil ab -- sichtbarer Mund war
+// dabei der EINE Verstoss, den der Nutzer nach Ansicht der Testbilder als nicht akzeptabel einstuft
+// ("Ohren und Hals finde ich akzeptabel. Mund sollte nicht da sein"). Bisher stand die Mund-Regel nur
+// als EIN Halbsatz mitten in SCENE_STYLE_BLOCK, umgeben von vielen anderen Stil-Details (Umriss,
+// Schattierung, Gliedmassen etc.) -- bei einem sehr langen Szenen-Prompt (15-20 Vignetten,
+// Dichte-Anweisungen) geht ein einzelner Halbsatz in der Mitte leicht unter. Jetzt: eigene, kurze,
+// unmissverstaendliche Regel, die NUR die Mund-Frage behandelt (kein Konkurrieren mit anderen
+// Stil-Details um Aufmerksamkeit) und an ZWEI Stellen platziert wird -- vorne in scenePrompt()
+// (direkt nach dem Themen-Stichwort, vor allem anderen: Primacy) UND nochmal ganz am Ende von
+// sceneComposeInstruction() (das letzte, was das Modell vor der Generierung liest: Recency) --
+// "Sandwich"-Platzierung fuer die eine wirklich harte Regel, statt sie in SCENE_STYLE_BLOCK
+// untergehen zu lassen. Ob und wie stark das hilft, ist noch nicht final bestaetigt -- naechster
+// Diagnose-Schritt laut Nutzer-Anweisung, noch nicht als geloest markiert (siehe Task #18).
+const NO_MOUTH_EMPHASIS = "CRITICAL, above every other style detail in this image: absolutely no character anywhere — named hero, midground, or background, no matter how small or freely invented — may have a visible mouth, lips, teeth, tongue, or any mouth-shaped line or opening. Every single face in this entire image shows only two small dot eyes and one short vertical nose line, nothing below that. If in doubt while drawing any character, leave the lower half of the face blank rather than add any kind of mouth.";
+
 // scenePrompt(): NEU synthetisiert nach Spezifikation Abschnitt 2 (siehe Modul-Kommentar oben).
 // heroSpecs: Array von CharacterSpec (makeCharacterSpec()), je mit .name und gefuelltem
 // identityCore/defaultOutfit. theme: ein THEME_META[...]-Eintrag. situations: Array wie von
@@ -1033,6 +1049,9 @@ function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount }) {
     ? theme.en + " building cutaway scene, multiple floors and areas visible"
     : theme.en + " landscape scene");
   const sentences = [];
+  // NEU: ganz vorne, noch vor der Helden-Zuordnung -- Primacy-Haelfte des Mund-Sandwiches (siehe
+  // Kommentar bei NO_MOUTH_EMPHASIS oben).
+  sentences.push(NO_MOUTH_EMPHASIS);
   sentences.push(imageRefMapping(heroSpecs));
   // NEU (Punkt 1, Fortsetzung): direkt nach der Helden-Zuordnung, bevor irgendetwas anderes ueber
   // Referenzbilder gesagt wird -- sonst koennte das Modell die nachfolgenden Bibliotheks-Blaetter
@@ -1067,7 +1086,11 @@ function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount }) {
 // scenePrompt() um die Anweisung, wie die mitgeschickten Referenzbilder zu benutzen sind (Identitaet
 // fix, Pose frei) -- analog zum bestaetigten Muster aus kontextInstruction() fuer Charakter-Edits.
 function sceneComposeInstruction(promptText) {
-  return promptText + " The attached reference images show the exact established design of each named character listed above by reference-image number — their face, proportions, hair color, clothing and identifying details. Draw each one into this new scene keeping their identity and design EXACTLY the same as their reference (same face, same proportions, same hair, same clothing colors); only their pose changes to match the action described above — dynamic, natural poses that actively show them taking part in the scene, never simply copied standing still from the reference. Every other character in the scene, including all small background characters, must be drawn in the exact same flat-color, thick black marker outline, graphic-recording sketchnote illustration style as the reference images, applied consistently across the entire image — no character anywhere in the picture may be drawn in a more detailed, more realistic, differently line-weighted, shaded, gradient, or softly airbrushed style.";
+  return promptText + " The attached reference images show the exact established design of each named character listed above by reference-image number — their face, proportions, hair color, clothing and identifying details. Draw each one into this new scene keeping their identity and design EXACTLY the same as their reference (same face, same proportions, same hair, same clothing colors); only their pose changes to match the action described above — dynamic, natural poses that actively show them taking part in the scene, never simply copied standing still from the reference. Every other character in the scene, including all small background characters, must be drawn in the exact same flat-color, thick black marker outline, graphic-recording sketchnote illustration style as the reference images, applied consistently across the entire image — no character anywhere in the picture may be drawn in a more detailed, more realistic, differently line-weighted, shaded, gradient, or softly airbrushed style."
+    // NEU: ganz am Ende, das Letzte, was das Modell vor der Generierung liest -- Recency-Haelfte des
+    // Mund-Sandwiches (siehe Kommentar bei NO_MOUTH_EMPHASIS oben). Bewusst knapper/direkter als die
+    // Version vorne im Prompt, damit es als abschliessende Erinnerung wirkt statt als Wiederholung.
+    + " One rule overrides every other style consideration in this image: no mouth, ever, on any character, anywhere — not open, not closed, not smiling, not even a simple line for one. If in doubt, leave the lower half of the face blank.";
 }
 
 // buildVerifyPrompt(): NEU, generalisiert von der Spezifikations-Frage (Abschnitt 3, dort am
@@ -1567,5 +1590,5 @@ window.Pipeline = {
   startSceneJob, pollSceneJobOnce, runSceneJobPolling,
   SCENE_STYLE_BLOCK, FILL_EMPTY_SPACE_RULE, COHERENCE_RULE, ZERO_TEXT_RULE, EMOTION_WORDS_RULE,
   SAFE_MARGIN_RULE, SCENE_TOTAL_CHARACTER_TARGET_RULE,
-  DEPTH_COHERENCE_RULE, HEAD_SCALE_CONSISTENCY_RULE,
+  DEPTH_COHERENCE_RULE, HEAD_SCALE_CONSISTENCY_RULE, NO_MOUTH_EMPHASIS,
 };
