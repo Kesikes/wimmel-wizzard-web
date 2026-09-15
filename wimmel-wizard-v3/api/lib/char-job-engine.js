@@ -31,12 +31,16 @@
 // {
 //   jobId, prompt, status: "in_progress" | "done" | "error", error,
 //   candidates: [{ seed, genRequestId, genStatus, url,
-//                  verifyRequestId, verifyStatus, violations, verify }, ...],  // waechst auf bis zu 3
+//                  verifyRequestId, verifyStatus, violations, verify, verifyError }, ...],  // waechst auf bis zu 3
 //   resultUrl, resultSeed, resultViolations, resultVerify,
 //   createdAt, updatedAt
 // }
-// genStatus/verifyStatus je: "pending" (noch nicht abgefragt/submitted) | "polling" (submitted,
-// warten auf COMPLETED) | "done" | "error".
+// genStatus je: "pending" (noch nicht abgefragt/submitted) | "polling" (submitted, warten auf
+// COMPLETED) | "done" | "error". verifyStatus je: "pending" | "done" | "error" -- KEIN "polling"
+// mehr (siehe Bugfix 15.09.2026 unten: Verify laeuft synchron innerhalb eines einzelnen
+// Fortschritts-Durchlaufs, nicht mehr ueber die Warteschlange). verifyError enthaelt bei
+// verifyStatus "error" die Fehlermeldung (fuer Debugging -- vorher stillschweigend verschluckt,
+// genau das hat den Live-Test-Fund vom 15.09.2026 zunaechst schwer nachvollziehbar gemacht).
 //
 // Jeder Aufruf von advanceCharacterJob() macht GENAU EINEN Fortschritts-Schritt pro noch offenem
 // Kandidaten (nicht die komplette Kette auf einmal) -- absichtlich klein gehalten, damit ein
@@ -116,8 +120,41 @@ async function falQueueResult(model, requestId, FAL_KEY) {
 function newCandidate(seed) {
   return {
     seed, genRequestId: null, genStatus: "pending", url: null,
-    verifyRequestId: null, verifyStatus: "pending", violations: null, verify: null,
+    verifyRequestId: null, verifyStatus: "pending", violations: null, verify: null, verifyError: null,
   };
+}
+
+// callFalVerifySync(): BUGFIX (Live-Test-Fund 15.09.2026) -- der erste Live-Test gegen die echte
+// fal.ai-API zeigte, dass der Verify-Aufruf (openrouter/router/vision) bei JEDEM Kandidaten
+// fehlschlug, obwohl die Bildgenerierung selbst (die die Warteschlange nachweislich unterstuetzt)
+// einwandfrei lief -- ein Muster wie beim style_ok-Vorfall ("schlaegt konsequent fehl" deutet auf
+// einen systematischen statt einen qualitativen Fehler hin). Root Cause: dieses Modell ist ein
+// OpenRouter-Pass-Through und unterstuetzt vermutlich den asynchronen queue.fal.run-Warteschlangen-
+// Modus gar nicht -- der bestehende, produktive Verify-Aufruf in fal-proxy.js nutzt seit jeher
+// konsequent den SYNCHRONEN fal.run-Endpunkt fuer genau dieses Modell, nie die Warteschlange. Jetzt
+// hier analog uebernommen. Unproblematisch fuer das 30s-Zeitbudget von char-job-status.js: der
+// Sync-Aufruf dauert im Produktivpfad nur wenige Sekunden -- nur die (potenziell mehrminuetige)
+// Bildgenerierung selbst braucht wirklich die Warteschlange, nicht der schnelle Vision-Check danach.
+async function callFalVerifySync(imageUrl, prompt, FAL_KEY) {
+  const resp = await fetch("https://fal.run/" + VERIFY_MODEL, {
+    method: "POST",
+    headers: falHeaders(FAL_KEY),
+    body: JSON.stringify({
+      image_urls: [imageUrl],
+      prompt,
+      system_prompt: "You are a meticulous visual QA checker for a children's illustration style guide. Carefully scan the ENTIRE image before answering. You may add reasoning before the JSON, but keep it to brief keywords or short phrases only — the JSON object itself must always fit within your response and be the very last thing in your answer, with no markdown formatting.",
+      model: "google/gemini-2.5-pro",
+      temperature: 0,
+      reasoning: true,
+      max_tokens: 1200,
+    }),
+  });
+  if (!resp.ok) {
+    const txt = await resp.text().catch(() => "");
+    throw new Error("fal.ai Vision-Fehler " + resp.status + ": " + txt.slice(0, 200));
+  }
+  const data = await resp.json();
+  return (data && data.output) || "";
 }
 
 function charGenerateBody(prompt, seed) {
@@ -184,50 +221,30 @@ async function advanceCharacterJob(job, { FAL_KEY }) {
     }
   }
 
-  // Schritt 2: sobald ALLE aktuell bekannten Kandidaten mit der Generierung durch sind (done ODER
-  // error -- ein fehlgeschlagener Kandidat blockiert die anderen nicht), Verify fuer die
-  // erfolgreichen Kandidaten anstossen, die noch keinen Verify-Versuch haben.
+  // Schritt 2 (BUGFIX 15.09.2026, siehe callFalVerifySync()-Kommentar oben): sobald ALLE aktuell
+  // bekannten Kandidaten mit der Generierung durch sind (done ODER error -- ein fehlgeschlagener
+  // Kandidat blockiert die anderen nicht), Verify fuer die erfolgreichen Kandidaten SYNCHRON
+  // abrufen, die noch keinen Verify-Versuch haben. Kein separater Polling-Zwischenschritt mehr
+  // noetig -- der Sync-Aufruf wird innerhalb dieses einen Fortschritts-Durchlaufs fertig.
   const allGenSettled = next.candidates.every((c) => c.genStatus === "done" || c.genStatus === "error");
   if (allGenSettled) {
     const verifyPrompt = buildCharacterVerifyPrompt();
     for (const cand of next.candidates) {
       if (cand.genStatus !== "done" || cand.verifyStatus !== "pending") continue;
       try {
-        const reqId = await submitFalQueue(VERIFY_MODEL, {
-          image_urls: [cand.url],
-          prompt: verifyPrompt,
-          system_prompt: "You are a meticulous visual QA checker for a children's illustration style guide. Carefully scan the ENTIRE image before answering. You may add reasoning before the JSON, but keep it to brief keywords or short phrases only — the JSON object itself must always fit within your response and be the very last thing in your answer, with no markdown formatting.",
-          model: "google/gemini-2.5-pro",
-          temperature: 0,
-          reasoning: true,
-          max_tokens: 1200,
-        }, FAL_KEY);
-        cand.verifyRequestId = reqId;
-        cand.verifyStatus = "polling";
-      } catch (e) {
-        cand.verifyStatus = "error";
-      }
-    }
-  }
-
-  // Schritt 3: offene Verify-Kandidaten pruefen/abholen.
-  for (const cand of next.candidates) {
-    if (cand.verifyStatus !== "polling") continue;
-    try {
-      const st = await falQueueStatus(VERIFY_MODEL, cand.verifyRequestId, FAL_KEY);
-      if (st.status === "COMPLETED") {
-        const result = await falQueueResult(VERIFY_MODEL, cand.verifyRequestId, FAL_KEY);
-        const scored = countViolations(result && result.output);
+        const output = await callFalVerifySync(cand.url, verifyPrompt, FAL_KEY);
+        const scored = countViolations(output);
         cand.violations = scored.violations;
         cand.verify = scored.parsed;
         cand.verifyStatus = "done";
+      } catch (e) {
+        cand.verifyStatus = "error";
+        cand.verifyError = e && e.message ? e.message : String(e);
       }
-    } catch (e) {
-      cand.verifyStatus = "error";
     }
   }
 
-  // Schritt 4: sobald ALLE Kandidaten (Generierung UND Verify) durchgelaufen sind, entscheiden --
+  // Schritt 3: sobald ALLE Kandidaten (Generierung UND Verify) durchgelaufen sind, entscheiden --
   // dritten Kandidaten nachschieben (wie composeCharacterImage()s Verhalten bei Bedarf, hoechstens
   // EINMAL) oder Job abschliessen (besten verfuegbaren waehlen -- siehe Bugfix vom 12.09.2026: NIE
   // hart abbrechen, immer ein Ergebnis liefern, auch wenn keiner perfekt ist).
@@ -277,6 +294,6 @@ function finalizeJob(job, usableCandidates) {
 module.exports = {
   FLUX_MODEL, VERIFY_MODEL,
   buildCharacterVerifyPrompt, countViolations,
-  submitFalQueue, falQueueStatus, falQueueResult,
+  submitFalQueue, falQueueStatus, falQueueResult, callFalVerifySync,
   createCharacterJob, advanceCharacterJob,
 };
