@@ -20,6 +20,23 @@ function falHeaders(FAL_KEY) {
   return { Authorization: "Key " + FAL_KEY, "Content-Type": "application/json" };
 }
 
+// falBaseAppId(): GEFUNDEN per Live-Test 15.09.2026 direkt nach dem Szenen-Deploy -- alle 3
+// Generierungs-Kandidaten scheiterten mit "fal.ai Queue-Status-Fehler 405" (davor unsichtbar, siehe
+// genError-Bugfix direkt zuvor, der diese Meldung erst sichtbar gemacht hat). Ursache laut fal.ai-
+// Dokumentation (docs.fal.ai/model-apis/model-endpoints/queue, per Websuche bestaetigt): manche
+// Modelle bieten mehrere Faehigkeiten unter Unterpfaden an (Beispiel dort: "fal-ai/flux/dev") -- der
+// Unterpfad gehoert NUR in den Submit-Aufruf, NICHT in die Status-/Ergebnis-Abfrage, die stattdessen
+// die BASIS-App-ID (nur "namespace/modellname", ohne Unterpfad) erwartet. SCENE_MODEL
+// ("fal-ai/nano-banana-pro/edit") hat genau so einen Unterpfad ("/edit") -- FLUX_MODEL
+// ("fal-ai/flux-lora", Figuren-Pfad) hat KEINEN, weshalb der Figuren-Pfad davon nie betroffen war und
+// im Machbarkeitstest fehlerfrei lief. submitFalQueue() bekommt weiterhin das volle model (mit
+// Unterpfad) -- falQueueStatus()/falQueueResult() kappen jetzt selbst auf die ersten zwei
+// Pfadsegmente, bevor sie die URL bauen, damit kein Aufrufer das von sich aus wissen/beachten muss.
+function falBaseAppId(model) {
+  const parts = String(model).split("/");
+  return parts.slice(0, 2).join("/");
+}
+
 async function submitFalQueue(model, body, FAL_KEY) {
   const resp = await fetch("https://queue.fal.run/" + model, {
     method: "POST", headers: falHeaders(FAL_KEY), body: JSON.stringify(body),
@@ -34,7 +51,7 @@ async function submitFalQueue(model, body, FAL_KEY) {
 }
 
 async function falQueueStatus(model, requestId, FAL_KEY) {
-  const resp = await fetch("https://queue.fal.run/" + model + "/requests/" + requestId + "/status", {
+  const resp = await fetch("https://queue.fal.run/" + falBaseAppId(model) + "/requests/" + requestId + "/status", {
     headers: { Authorization: "Key " + FAL_KEY },
   });
   if (!resp.ok) {
@@ -45,7 +62,7 @@ async function falQueueStatus(model, requestId, FAL_KEY) {
 }
 
 async function falQueueResult(model, requestId, FAL_KEY) {
-  const resp = await fetch("https://queue.fal.run/" + model + "/requests/" + requestId, {
+  const resp = await fetch("https://queue.fal.run/" + falBaseAppId(model) + "/requests/" + requestId, {
     headers: { Authorization: "Key " + FAL_KEY },
   });
   if (!resp.ok) {
@@ -97,7 +114,7 @@ function countViolations(verifyOutputText) {
 }
 
 module.exports = {
-  VERIFY_MODEL, falHeaders,
+  VERIFY_MODEL, falHeaders, falBaseAppId,
   submitFalQueue, falQueueStatus, falQueueResult, callFalVerifySync,
   countViolations,
 };
