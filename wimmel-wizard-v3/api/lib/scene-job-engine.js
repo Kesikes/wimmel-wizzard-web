@@ -44,7 +44,7 @@ const SCENE_MODEL = "fal-ai/nano-banana-pro/edit";
 
 function newCandidate(seed) {
   return {
-    seed, genRequestId: null, genStatus: "pending", url: null,
+    seed, genRequestId: null, genStatus: "pending", url: null, genError: null,
     verifyStatus: "pending", violations: null, verify: null, verifyError: null,
   };
 }
@@ -104,11 +104,23 @@ async function advanceSceneJob(job, { FAL_KEY }) {
         const result = await falQueueResult(SCENE_MODEL, cand.genRequestId, FAL_KEY);
         const url = result && result.images && result.images[0] && result.images[0].url;
         if (url) { cand.url = url; cand.genStatus = "done"; }
-        else { cand.genStatus = "error"; }
+        else { cand.genStatus = "error"; cand.genError = "fal.ai lieferte COMPLETED, aber kein images[0].url (Ergebnis: " + JSON.stringify(result).slice(0, 300) + ")"; }
+      } else if (st.status === "ERROR" || st.status === "FAILED") {
+        // GEFUNDEN (Live-Test 15.09.2026, direkt nach dem Deploy des Szenen-Poll-Pfads): der
+        // vorherige Code prüfte NUR auf "COMPLETED" -- ein von fal.ai gemeldeter generierungs-
+        // seitiger Fehlerstatus (ERROR/FAILED, kein Netzwerk-/HTTP-Fehler) fiel durch alle Zweige
+        // durch und blieb fuer immer "polling", ohne dass genError je gesetzt wurde. Live gesehen:
+        // alle 3 Kandidaten landeten am Ende bei genStatus:"error" OHNE jede Fehlermeldung, weil der
+        // catch()-Block (siehe unten) das ebenfalls nicht abdeckte -- exakt dasselbe Muster wie der
+        // verifyError-Bugfix vom selben Tag (schweigend verschluckte Fehler erschweren die Diagnose
+        // enorm). Jetzt: fal.ai's eigene Fehlermeldung (falls vorhanden) wird uebernommen.
+        cand.genStatus = "error";
+        cand.genError = "fal.ai meldete Generierungs-Status '" + st.status + "': " + JSON.stringify(st).slice(0, 300);
       }
       // IN_QUEUE/IN_PROGRESS: bleibt "polling", naechster Aufruf prueft erneut.
     } catch (e) {
       cand.genStatus = "error";
+      cand.genError = e && e.message ? e.message : String(e);
     }
   }
 
@@ -164,7 +176,11 @@ async function advanceSceneJob(job, { FAL_KEY }) {
 function finalizeJob(job, usableCandidates) {
   if (!usableCandidates.length) {
     job.status = "error";
-    job.error = "Keiner der Generierungsversuche war erfolgreich — bitte nochmal versuchen.";
+    // GEAENDERT (Live-Test-Fund 15.09.2026, siehe genError-Kommentar oben): die erste konkrete
+    // Fehlermeldung eines Kandidaten (Generierung oder Verify) wird jetzt mit ausgegeben, statt nur
+    // der generischen Meldung -- sonst bleibt der eigentliche technische Grund unsichtbar.
+    const firstErr = job.candidates.map((c) => c.genError || c.verifyError).find(Boolean);
+    job.error = "Keiner der Generierungsversuche war erfolgreich — bitte nochmal versuchen." + (firstErr ? " (Details: " + firstErr + ")" : "");
     return;
   }
   const best = usableCandidates.reduce((a, b) => (b.violations < a.violations ? b : a));
