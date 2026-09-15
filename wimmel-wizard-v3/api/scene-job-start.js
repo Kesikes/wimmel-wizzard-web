@@ -1,0 +1,68 @@
+// /api/scene-job-start.js — NEU (Sammel-Runde 15.09.2026, "Warteschlangen-Architektur auf
+// Szenen-Pfad uebertragen"). Siehe ausfuehrlichen Architektur-Kommentar in api/lib/scene-job-engine.js
+// fuer das Gesamtbild. Analog zu api/char-job-start.js: tut bewusst WENIG -- nur die ersten 2
+// Kandidaten bei fal.ai einreihen (submitFalQueue() -- ein schneller, einzelner POST-Aufruf, keine
+// lange Wartezeit) und einen Job-Datensatz in KV ablegen. Die eigentliche Fortschritts-Arbeit passiert
+// ausschliesslich in scene-job-status.js bei jedem Poll.
+//
+// WICHTIG: instruction/verifyPrompt kommen FERTIG vom Client (siehe pipeline.js
+// runSceneJobPolling()) -- diese Funktion kennt weder heroSpecs noch theme/situations, nur die
+// bereits zusammengebauten Textbausteine plus die Referenzbild-URLs. Das haelt diesen Endpunkt
+// simpel und vermeidet, dass die umfangreiche Szenen-Prompt-Logik aus pipeline.js hier ein zweites
+// Mal nachgebaut werden muesste (siehe Kommentar in scene-job-engine.js).
+const { kvSetJson } = require("./lib/kv");
+const { createSceneJob } = require("./lib/scene-job-engine");
+
+const JOB_TTL_SECONDS = 60 * 60;
+
+// isImageRef(): 1:1 identisch zur Pruef-Funktion in api/fal-proxy.js -- akzeptiert entweder eine
+// normale https-URL (ein bereits generiertes Charakterbild) oder eine data:image/…-Base64-URI.
+function isImageRef(v) {
+  return typeof v === "string" && (/^https?:\/\//.test(v) || /^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(v));
+}
+
+module.exports = async (req, res) => {
+  if (req.method !== "POST") {
+    res.status(405).json({ error: "Nur POST erlaubt." });
+    return;
+  }
+  const FAL_KEY = process.env.FAL_KEY;
+  if (!FAL_KEY) {
+    res.status(500).json({ error: "Server-Fehler: FAL_KEY ist im Vercel-Projekt nicht gesetzt." });
+    return;
+  }
+
+  const body = req.body || {};
+  const instruction = String(body.instruction || "").trim();
+  const verifyPrompt = String(body.verifyPrompt || "").trim();
+  const editImageUrl = body.editImageUrl;
+  const styleRefUrls = (Array.isArray(body.styleRefUrls) ? body.styleRefUrls : []).filter(isImageRef).slice(0, 13);
+
+  if (!instruction) {
+    res.status(400).json({ error: "Keine instruction übergeben." });
+    return;
+  }
+  // Gleiche Obergrenze wie der bestehende, synchrone Pfad (fal-proxy.js) — siehe dortige Kommentare
+  // zur Herleitung (Missbrauchsschutz, kein reales fal.ai-Limit).
+  if (instruction.length > 16000) {
+    res.status(400).json({ error: "instruction zu lang." });
+    return;
+  }
+  if (!verifyPrompt) {
+    res.status(400).json({ error: "Keine verifyPrompt übergeben." });
+    return;
+  }
+  if (!isImageRef(editImageUrl)) {
+    res.status(400).json({ error: "editImageUrl fehlt oder ungültig — mindestens ein Charakterbild als Referenz ist erforderlich." });
+    return;
+  }
+
+  const jobId = "sj_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 10);
+  try {
+    const job = await createSceneJob({ jobId, instruction, verifyPrompt, editImageUrl, styleRefUrls, FAL_KEY });
+    await kvSetJson("scenejob:" + jobId, job, JOB_TTL_SECONDS);
+    res.status(200).json({ jobId });
+  } catch (e) {
+    res.status(502).json({ error: "Konnte Generierung nicht starten: " + (e && e.message ? e.message : String(e)) });
+  }
+};

@@ -47,9 +47,20 @@
 // einzelner Funktionsaufruf (aus char-job-status.js, selbst mit maxDuration 30s völlig ausreichend)
 // nie laenger braucht als ein paar fal.ai-Statusabfragen, auch wenn der Client mal eine Weile nicht
 // gepollt hat und mehrere Schritte gleichzeitig faellig waeren.
+//
+// UMBAU (Sammel-Runde 15.09.2026, "Warteschlangen-Architektur auf Szenen-Pfad uebertragen"): die
+// generische fal.ai-Warteschlangen-/Verify-Plumbing (submitFalQueue/falQueueStatus/falQueueResult/
+// callFalVerifySync/countViolations) ist jetzt nach api/lib/fal-queue.js ausgelagert, geteilt mit dem
+// neuen api/lib/scene-job-engine.js -- beides serverseitige Node-Module, ein require() ist hier
+// (anders als bei pipeline.js, siehe Kommentar unten) unproblematisch und reduziert das Risiko
+// abweichender Kopien (siehe Verify-Bugfix vom selben Tag, urspruenglicher Anlass fuer diese
+// Aufraeumung). Nur noch die CHARAKTER-spezifische Zustandsmaschine (createCharacterJob/
+// advanceCharacterJob/finalizeJob) und der Charakter-Verify-Prompt bleiben hier.
+const {
+  VERIFY_MODEL, submitFalQueue, falQueueStatus, falQueueResult, callFalVerifySync, countViolations,
+} = require("./fal-queue");
 
 const FLUX_MODEL = "fal-ai/flux-lora";
-const VERIFY_MODEL = "openrouter/router/vision";
 
 // LORA_URL: DUPLIKAT von api/fal-proxy.js (dort mit ausfuehrlichem Trainings-Hintergrund
 // kommentiert) -- bewusst dupliziert statt cross-required, damit diese neue, noch experimentelle
@@ -59,62 +70,14 @@ const VERIFY_MODEL = "openrouter/router/vision";
 const LORA_URL =
   "https://v3b.fal.media/files/b/0aa5f3be/JhuEcl1_gByql8TcQ1Tqh_pytorch_lora_weights.safetensors";
 
-// buildCharacterVerifyPrompt()/countViolations(): DUPLIKAT der client-seitigen Logik in
-// pipeline.js (dort ausfuehrlich kommentiert, inkl. der Entschaerfung vom 12.09.2026 nach dem
-// style_ok-Vorfall) -- nicht per require() geteilt, weil pipeline.js ein Browser-Modul ist
-// (window.Pipeline = {...}, setzt document/window voraus), nicht direkt in Node einbindbar. MUSS
-// manuell synchron gehalten werden, falls der Verify-Prompt/die Zaehl-Logik dort nochmal angepasst
-// wird.
+// buildCharacterVerifyPrompt(): DUPLIKAT der client-seitigen Logik in pipeline.js (dort ausfuehrlich
+// kommentiert, inkl. der Entschaerfung vom 12.09.2026 nach dem style_ok-Vorfall) -- nicht per
+// require() geteilt, weil pipeline.js ein Browser-Modul ist (window.Pipeline = {...}, setzt
+// document/window voraus), nicht direkt in Node einbindbar. MUSS manuell synchron gehalten werden,
+// falls der Verify-Prompt dort nochmal angepasst wird (siehe test_char_job_polling_0912.js, das
+// diese Parität automatisch per Regex-Vergleich gegen pipeline.js prueft).
 function buildCharacterVerifyPrompt() {
   return "Zeigt dieses Bild GENAU EINE einzelne Figur (eine Person oder ein Tier), vollständig und fehlerfrei gezeichnet? Prüfe besonders: Ist nur EIN Gesicht/EIN Körper zu sehen (nicht mehrere verschiedene Gesichter oder Körper gleichzeitig im Bild)? Ist ein VOLLSTÄNDIGER Kopf UND Körper zu sehen, ohne abgeschnittene Stellen, fehlende Körperteile oder unklare Kritzel-/Farbflecken-Artefakte (z. B. ein einzelner, unproportional langer Haarstrang ohne erkennbaren Kopf/Körper darunter)? Hat diese Figur einen sichtbaren Mund? Ist die FIGUR SELBST (Kopf/Körper, nicht der Hintergrund oder ein leichter Schlagschatten darunter) in einem flachen, minimalistischen Illustrationsstil mit dicken schwarzen Umrisslinien und flächigen Farben gezeichnet, so wie es für dieses Kinderbuch-Stilheft üblich ist? Ein einfarbiger/weißer Hintergrund und ein leichter, weicher Schlagschatten unter der Figur sind dabei normal und KEIN Stilverstoß — als Verstoß zählt nur, wenn die Figur selbst deutlich fotorealistisch, gemalt/aquarellartig wirkt oder ihr Gesicht/Körper starke Farbverläufe oder Schattierungen zeigt. Antworte NUR als JSON-Objekt mit genau diesen vier Feldern: {\"single_ok\": true/false, \"complete_ok\": true/false, \"mouth_ok\": true/false, \"style_ok\": true/false} — single_ok ist nur dann true, wenn wirklich nur eine einzige Figur mit einem Gesicht und einem Körper zu sehen ist; complete_ok ist nur dann true, wenn Kopf und Körper vollständig und ohne Artefakte/Fragmente gezeichnet sind; mouth_ok ist nur dann true, wenn die Figur KEINEN sichtbaren Mund hat; style_ok ist nur dann false, wenn die Figur selbst wirklich deutlich vom beschriebenen flachen Stil abweicht — im Zweifel (z. B. bei nur leichtem Schlagschatten oder normaler Kantenglättung) gilt style_ok als true.";
-}
-function countViolations(verifyOutputText) {
-  const match = String(verifyOutputText || "").match(/\{[\s\S]*\}/);
-  if (!match) return { violations: 99, parsed: null };
-  let parsed;
-  try { parsed = JSON.parse(match[0]); } catch (e) { return { violations: 99, parsed: null }; }
-  let violations = 0;
-  Object.keys(parsed).forEach((k) => { if (/_ok$/.test(k) && parsed[k] === false) violations++; });
-  return { violations, parsed };
-}
-
-function falHeaders(FAL_KEY) {
-  return { Authorization: "Key " + FAL_KEY, "Content-Type": "application/json" };
-}
-
-async function submitFalQueue(model, body, FAL_KEY) {
-  const resp = await fetch("https://queue.fal.run/" + model, {
-    method: "POST", headers: falHeaders(FAL_KEY), body: JSON.stringify(body),
-  });
-  if (!resp.ok) {
-    const txt = await resp.text().catch(() => "");
-    throw new Error("fal.ai Queue-Submit-Fehler " + resp.status + ": " + txt.slice(0, 200));
-  }
-  const data = await resp.json();
-  if (!data || !data.request_id) throw new Error("fal.ai Queue-Submit hat keine request_id geliefert.");
-  return data.request_id;
-}
-
-async function falQueueStatus(model, requestId, FAL_KEY) {
-  const resp = await fetch("https://queue.fal.run/" + model + "/requests/" + requestId + "/status", {
-    headers: { Authorization: "Key " + FAL_KEY },
-  });
-  if (!resp.ok) {
-    const txt = await resp.text().catch(() => "");
-    throw new Error("fal.ai Queue-Status-Fehler " + resp.status + ": " + txt.slice(0, 200));
-  }
-  return resp.json();
-}
-
-async function falQueueResult(model, requestId, FAL_KEY) {
-  const resp = await fetch("https://queue.fal.run/" + model + "/requests/" + requestId, {
-    headers: { Authorization: "Key " + FAL_KEY },
-  });
-  if (!resp.ok) {
-    const txt = await resp.text().catch(() => "");
-    throw new Error("fal.ai Queue-Ergebnis-Fehler " + resp.status + ": " + txt.slice(0, 200));
-  }
-  return resp.json();
 }
 
 function newCandidate(seed) {
@@ -122,39 +85,6 @@ function newCandidate(seed) {
     seed, genRequestId: null, genStatus: "pending", url: null,
     verifyRequestId: null, verifyStatus: "pending", violations: null, verify: null, verifyError: null,
   };
-}
-
-// callFalVerifySync(): BUGFIX (Live-Test-Fund 15.09.2026) -- der erste Live-Test gegen die echte
-// fal.ai-API zeigte, dass der Verify-Aufruf (openrouter/router/vision) bei JEDEM Kandidaten
-// fehlschlug, obwohl die Bildgenerierung selbst (die die Warteschlange nachweislich unterstuetzt)
-// einwandfrei lief -- ein Muster wie beim style_ok-Vorfall ("schlaegt konsequent fehl" deutet auf
-// einen systematischen statt einen qualitativen Fehler hin). Root Cause: dieses Modell ist ein
-// OpenRouter-Pass-Through und unterstuetzt vermutlich den asynchronen queue.fal.run-Warteschlangen-
-// Modus gar nicht -- der bestehende, produktive Verify-Aufruf in fal-proxy.js nutzt seit jeher
-// konsequent den SYNCHRONEN fal.run-Endpunkt fuer genau dieses Modell, nie die Warteschlange. Jetzt
-// hier analog uebernommen. Unproblematisch fuer das 30s-Zeitbudget von char-job-status.js: der
-// Sync-Aufruf dauert im Produktivpfad nur wenige Sekunden -- nur die (potenziell mehrminuetige)
-// Bildgenerierung selbst braucht wirklich die Warteschlange, nicht der schnelle Vision-Check danach.
-async function callFalVerifySync(imageUrl, prompt, FAL_KEY) {
-  const resp = await fetch("https://fal.run/" + VERIFY_MODEL, {
-    method: "POST",
-    headers: falHeaders(FAL_KEY),
-    body: JSON.stringify({
-      image_urls: [imageUrl],
-      prompt,
-      system_prompt: "You are a meticulous visual QA checker for a children's illustration style guide. Carefully scan the ENTIRE image before answering. You may add reasoning before the JSON, but keep it to brief keywords or short phrases only — the JSON object itself must always fit within your response and be the very last thing in your answer, with no markdown formatting.",
-      model: "google/gemini-2.5-pro",
-      temperature: 0,
-      reasoning: true,
-      max_tokens: 1200,
-    }),
-  });
-  if (!resp.ok) {
-    const txt = await resp.text().catch(() => "");
-    throw new Error("fal.ai Vision-Fehler " + resp.status + ": " + txt.slice(0, 200));
-  }
-  const data = await resp.json();
-  return (data && data.output) || "";
 }
 
 function charGenerateBody(prompt, seed) {
@@ -221,11 +151,12 @@ async function advanceCharacterJob(job, { FAL_KEY }) {
     }
   }
 
-  // Schritt 2 (BUGFIX 15.09.2026, siehe callFalVerifySync()-Kommentar oben): sobald ALLE aktuell
-  // bekannten Kandidaten mit der Generierung durch sind (done ODER error -- ein fehlgeschlagener
-  // Kandidat blockiert die anderen nicht), Verify fuer die erfolgreichen Kandidaten SYNCHRON
-  // abrufen, die noch keinen Verify-Versuch haben. Kein separater Polling-Zwischenschritt mehr
-  // noetig -- der Sync-Aufruf wird innerhalb dieses einen Fortschritts-Durchlaufs fertig.
+  // Schritt 2 (BUGFIX 15.09.2026, siehe callFalVerifySync()-Kommentar in fal-queue.js): sobald ALLE
+  // aktuell bekannten Kandidaten mit der Generierung durch sind (done ODER error -- ein
+  // fehlgeschlagener Kandidat blockiert die anderen nicht), Verify fuer die erfolgreichen
+  // Kandidaten SYNCHRON abrufen, die noch keinen Verify-Versuch haben. Kein separater
+  // Polling-Zwischenschritt mehr noetig -- der Sync-Aufruf wird innerhalb dieses einen
+  // Fortschritts-Durchlaufs fertig.
   const allGenSettled = next.candidates.every((c) => c.genStatus === "done" || c.genStatus === "error");
   if (allGenSettled) {
     const verifyPrompt = buildCharacterVerifyPrompt();

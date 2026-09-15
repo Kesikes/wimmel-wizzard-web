@@ -831,10 +831,11 @@ function pickJoke(locId, used) {
 // NEU (Pipeline-Anbindung): LOAD_STEPS war vorher eine feste Demo-Anzeige (immer "Variante 2 von 3",
 // immer "41 Situationen") unabhaengig vom echten Fortschritt. Jetzt ein Phasen-Array, dessen "mark"
 // live per updateSteps() (siehe render()) gesetzt wird -- "✓" abgeschlossen, "◐" laeuft gerade,
-// "○" noch nicht dran. composeSceneImage() liefert selbst keine Zwischen-Fortschritts-Events (die
-// zwei Promise.all()-Bloecke dort laufen jeweils parallel, nicht sequentiell meldbar) -- die Phasen
-// hier sind daher grobe, aber ehrliche Naeherungen an den tatsaechlichen Ablauf in pipeline.js
-// composeSceneImage(), nicht Fake-Prozentzahlen wie vorher.
+// "○" noch nicht dran. GEAENDERT (Sammel-Runde 15.09.2026, Punkt 3): seit der Umstellung auf
+// Pipeline.runSceneJobPolling() liefert der Job-Status bei jedem Poll echte Kandidaten-Zustaende
+// (genStatus/verifyStatus je Kandidat) -- runGeneration()s onUpdate-Callback wertet das aus und
+// schaltet "gen"/"verify" jetzt anhand des TATSAECHLICHEN Fortschritts um, nicht mehr anhand eines
+// Fake-Timers (setTimeout(...,20000), vorher hier).
 function zauberSteps() {
   return [
     { key: "refs", label: "Figuren aus euren Figurenblättern als Referenz geladen" },
@@ -980,13 +981,24 @@ Screens.zaubern = {
         // 15 gelieferten Situationen (Anthropic erzwingt "minItems" im Tool-Schema nicht hart).
         const situations = Pipeline.autoSituations(theme, sNow.sceneUserSituations || [], 15);
         setPhase("gen");
-        // composeSceneImage() generiert intern beide Kandidaten UND prueft beide (siehe
-        // pipeline.js) -- aus Sicht dieses Screens ist das ein einzelner Aufruf, daher springt
-        // die Phasenanzeige hier direkt von "gen" zu "verify" kurz bevor das Ergebnis da ist statt
-        // waehrenddessen live mitzulaufen (composeSceneImage() liefert keine Zwischen-Events).
-        const genPromise = Pipeline.composeSceneImage({ heroSpecs, theme, situations });
-        setTimeout(() => { if (zauberBusy) setPhase("verify"); }, 20000);
-        const result = await genPromise;
+        // GEAENDERT (Sammel-Runde 15.09.2026, Punkt 3: "Warteschlangen-Architektur auf den
+        // Szenen-Pfad uebertragen"): statt der bisherigen composeSceneImage() (eine einzige, 2-5
+        // Minuten offen gehaltene fetch()-Verbindung -- siehe genau dieser Grund im Warnhinweis
+        // oben "Bildschirm an lassen ... sonst Load failed") ruft dieser Screen jetzt
+        // Pipeline.runSceneJobPolling() auf: startet den Job serverseitig (api/scene-job-start.js),
+        // fragt danach alle paar Sekunden kurz den Stand ab (api/scene-job-status.js) statt eine
+        // lange Verbindung offen zu halten -- genau das Muster, das schon fuer den Figuren-Pfad live
+        // bestaetigt wurde (siehe runCharacterJobPolling() in pipeline.js). ECHTE Fortschritts-Events
+        // jetzt moeglich (siehe onUpdate unten) statt des vorherigen Fake-setTimeout(...,20000).
+        // composeSceneImage() bleibt unveraendert in pipeline.js als eigenstaendig getestete
+        // Referenz-/Fallback-Funktion erhalten, wird aber im Produktpfad nicht mehr aufgerufen.
+        const result = await Pipeline.runSceneJobPolling({ heroSpecs, theme, situations }, {
+          onUpdate: (job) => {
+            if (!zauberBusy || !job || !job.candidates) return;
+            const allGenSettled = job.candidates.every((c) => c.genStatus === "done" || c.genStatus === "error");
+            setPhase(allGenSettled ? "verify" : "gen");
+          },
+        });
         setPhase("done");
         AppState.addImage({
           // GEAENDERT: title jetzt aus sNow statt s -- bei sceneWay 2 (Chat) war s.sceneTheme beim

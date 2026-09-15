@@ -1247,6 +1247,72 @@ async function runCharacterJobPolling(prompt, opts) {
   }
 }
 
+/* ---------------- Start-plus-Abfrage: Szenen-Pfad (Sammel-Runde 15.09.2026) ----------------
+   LIVE GETESTET UND ANGESCHLOSSEN, wie zwischen Nutzer und mir vereinbart: erst der Figuren-Pfad als
+   Machbarkeitstest, live bestaetigt (siehe runCharacterJobPolling() oben), DANACH dasselbe Muster auf
+   den Szenen-Pfad uebertragen. Server-Gegenstueck: api/scene-job-start.js + api/scene-job-status.js +
+   api/lib/scene-job-engine.js (siehe dortiger Architektur-Kommentar). szene.js (runGeneration())
+   nutzt diesen Mechanismus jetzt als REGULÄREN Weg, composeSceneImage() bleibt nur noch als
+   eigenstaendig getestete Referenz/Fallback-Funktion erhalten (siehe dortiger Kommentar), wird aber
+   im Produktpfad nicht mehr aufgerufen. */
+async function startSceneJob({ instruction, verifyPrompt, editImageUrl, styleRefUrls }) {
+  const resp = await fetch("/api/scene-job-start", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ instruction, verifyPrompt, editImageUrl, styleRefUrls }),
+  });
+  const data = await parseJsonResponse(resp);
+  if (!resp.ok || data.error) throw new Error(data.error || ("Start-Fehler " + resp.status));
+  if (!data.jobId) throw new Error("Start-Antwort hatte keine jobId.");
+  return data.jobId;
+}
+
+async function pollSceneJobOnce(jobId) {
+  const resp = await fetch("/api/scene-job-status?jobId=" + encodeURIComponent(jobId));
+  const data = await parseJsonResponse(resp);
+  if (!resp.ok || data.error) throw new Error(data.error || ("Status-Fehler " + resp.status));
+  if (!data.job) throw new Error("Status-Antwort hatte keinen Job.");
+  return data.job;
+}
+
+// runSceneJobPolling({heroSpecs, theme, situations}, opts): Szenen-Pendant zu
+// runCharacterJobPolling() -- baut die Prompt-Bausteine GENAU WIE composeSceneImage() client-seitig
+// (scenePrompt()/sceneComposeInstruction()/buildVerifyPrompt()/die Referenzbild-Liste aus
+// heroSpecs[i].imageUrl, siehe composeSceneImage()-Kommentar oben zur Reihenfolge/dem 5er-Deckel),
+// schickt aber nur die FERTIGEN Textbausteine + Referenzbild-URLs an /api/scene-job-start statt eine
+// lange offene Verbindung zu fal.ai offen zu halten -- die eigentliche Prompt-Logik bleibt komplett
+// hier im Browser, der Server bekommt nur das fertige Ergebnis (siehe Kommentar in
+// api/lib/scene-job-engine.js, warum das so gewaehlt wurde). Liefert dieselbe Form wie
+// composeSceneImage() zurueck ({best:{url,seed,violations,verify}, promptText, instruction,
+// candidates}), damit der Umstieg in szene.js ohne Formatänderung an den nachgelagerten Stellen
+// (AppState.addImage()) auskommt.
+async function runSceneJobPolling({ heroSpecs, theme, situations }, opts) {
+  opts = opts || {};
+  const intervalMs = opts.intervalMs || 7000;
+  const refHeroes = heroSpecs.slice(0, 5);
+  const refUrls = refHeroes.map((s) => s.imageUrl).filter(Boolean);
+  const editImageUrl = refUrls[0];
+  const styleRefUrls = refUrls.slice(1);
+  const promptText = scenePrompt({ heroSpecs: refHeroes, theme, situations });
+  const instruction = sceneComposeInstruction(promptText);
+  const verifyPrompt = buildVerifyPrompt(refHeroes);
+
+  const jobId = opts.existingJobId || await startSceneJob({ instruction, verifyPrompt, editImageUrl, styleRefUrls });
+  if (opts.onJobId) opts.onJobId(jobId);
+  for (;;) {
+    if (opts.signal && opts.signal.aborted) throw new Error("Abgebrochen.");
+    const job = await pollSceneJobOnce(jobId);
+    if (opts.onUpdate) opts.onUpdate(job);
+    if (job.status === "done") {
+      return {
+        best: { url: job.resultUrl, seed: job.resultSeed, violations: job.resultViolations, verify: job.resultVerify },
+        promptText, instruction, candidates: job.candidates,
+      };
+    }
+    if (job.status === "error") throw new Error(job.error || "Generierung fehlgeschlagen.");
+    await waitWithVisibilityWakeup(intervalMs);
+  }
+}
+
 /* ---------------- Bild-Upload ---------------- */
 function resizeImageToDataUri(file, maxDim, quality) {
   maxDim = maxDim || 1024; quality = quality || 0.85;
@@ -1349,5 +1415,6 @@ window.Pipeline = {
   scenePrompt, sceneComposeInstruction, composeSceneImage,
   buildCharacterVerifyPrompt, composeCharacterImage,
   startCharacterJob, pollCharacterJobOnce, runCharacterJobPolling,
+  startSceneJob, pollSceneJobOnce, runSceneJobPolling,
   SCENE_STYLE_BLOCK, FILL_EMPTY_SPACE_RULE, COHERENCE_RULE, ZERO_TEXT_RULE, EMOTION_WORDS_RULE,
 };

@@ -9,6 +9,8 @@
     "api/transcribe-proxy.js": { "maxDuration": 300 },
     "api/image-proxy.js": { "maxDuration": 30 },
     "api/char-job-start.js": { "maxDuration": 30 },
-    "api/char-job-status.js": { "maxDuration": 30 }
+    "api/char-job-status.js": { "maxDuration": 30 },
+    "api/scene-job-start.js": { "maxDuration": 30 },
+    "api/scene-job-status.js": { "maxDuration": 30 }
   }
 }
