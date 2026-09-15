@@ -1162,13 +1162,14 @@ async function composeCharacterImage(generate) {
 // also problemlos eine kurze Unterbrechung (Bildschirmsperre zwischen zwei Polls), ohne dass die
 // gesamte, mehrminütige Generierung neu starten müsste.
 //
-// NICHT TEIL DES REGULÄREN PRODUKTPFADS: wird aktuell von KEINEM Screen aus aufgerufen (charakter.js
-// nutzt weiterhin composeCharacterImage() synchron, siehe dortige generateCharacterImage()/
-// generateCharacterImageFromPhoto()). Erst wenn dieser Mechanismus live gegen eine echte
-// Upstash-Redis-Anbindung getestet wurde (siehe Setup-Hinweis in api/lib/kv.js -- die
-// Marketplace-Integration muss im Vercel-Dashboard eingerichtet werden, das kann nicht von hier aus
-// passieren), wird er an den eigentlichen "Figur zeichnen"-Ablauf angeschlossen. Bis dahin bewusst
-// nur eine eigenständige, für sich getestete Fähigkeit (siehe test_char_job_polling_0912.js).
+// LIVE GETESTET UND ANGESCHLOSSEN (Sammel-Runde 15.09.2026): der Machbarkeitstest lief erfolgreich
+// gegen die echte, jetzt eingerichtete Upstash-Redis-Anbindung (siehe api/lib/kv.js) -- inklusive
+// eines dabei gefundenen und behobenen Bugs (Verify lief anfangs faelschlich ueber die
+// fal.ai-Warteschlange statt synchron, siehe Kommentar in api/lib/char-job-engine.js). charakter.js
+// (generateCharacterImage()/generateCharacterImageFromPhoto()) nutzt diesen Mechanismus jetzt als
+// REGULÄREN Weg, composeCharacterImage() bleibt nur noch als eigenstaendig getestete Referenz/
+// Fallback-Funktion erhalten (siehe dortiger Kommentar), wird aber im Produktpfad nicht mehr
+// aufgerufen.
 async function startCharacterJob(prompt) {
   const resp = await fetch("/api/char-job-start", {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt }),
@@ -1187,20 +1188,54 @@ async function pollCharacterJobOnce(jobId) {
   return data.job;
 }
 
-// runCharacterJobPolling(prompt, opts): startet den Job und pollt in festen Abständen (Default 7s,
-// analog zum Nutzer-Vorschlag "alle 5-10 Sekunden"), bis der Job "done" oder "error" meldet.
-// opts.onJobId(jobId): wird einmal aufgerufen, sobald der Job gestartet ist -- ein Aufrufer kann die
-// jobId z.B. in AppState/localStorage ablegen, um nach einem Reload (siehe "visibilitychange"-Idee
-// des Nutzers) an genau diesem Job weiterzupollen, statt neu zu starten. opts.onUpdate(job): bei
-// jedem Poll mit dem aktuellen Job-Stand, für eine optionale Fortschrittsanzeige. opts.signal: ein
+// waitWithVisibilityWakeup(ms): wie ein normales setTimeout-Warten, ABER löst sofort aus, sobald der
+// Tab/die App wieder sichtbar wird (document.visibilitychange), auch wenn das reguläre Intervall
+// noch nicht abgelaufen ist -- genau der vom Nutzer gewünschte Effekt ("Beim Wiederöffnen der
+// App/des Tabs ... aktiv nachfragen, ob der gespeicherte Auftrag inzwischen fertig ist"), ohne dass
+// dafür eine eigene jobId-Wiederaufnahme nach komplettem Tab-Schließen nötig ist -- deckt den
+// häufigeren Fall ab (App im Hintergrund/Bildschirm gesperrt, Tab bleibt aber offen). Fällt sicher
+// auf ein normales Timeout zurück, wenn document/visibilitychange nicht verfügbar ist (z.B. in
+// Tests via jsdom ohne vollständige Visibility-API).
+function waitWithVisibilityWakeup(ms) {
+  return new Promise((resolve) => {
+    let done = false;
+    function finish() {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      if (typeof document !== "undefined" && document.removeEventListener) {
+        document.removeEventListener("visibilitychange", onVisible);
+      }
+      resolve();
+    }
+    function onVisible() {
+      if (document.visibilityState === "visible") finish();
+    }
+    const timer = setTimeout(finish, ms);
+    if (typeof document !== "undefined" && document.addEventListener) {
+      document.addEventListener("visibilitychange", onVisible);
+    }
+  });
+}
+
+// runCharacterJobPolling(prompt, opts): startet den Job (oder setzt einen bereits laufenden über
+// opts.existingJobId fort) und pollt in Abständen (Default 7s, analog zum Nutzer-Vorschlag "alle
+// 5-10 Sekunden", aber mit Sofort-Aufwachen bei Sichtbarkeits-Wechsel, siehe
+// waitWithVisibilityWakeup() oben), bis der Job "done" oder "error" meldet.
+// opts.existingJobId: wenn gesetzt, wird KEIN neuer Job gestartet, sondern direkt an dieser jobId
+// weitergepollt (für eine spätere Wiederaufnahme nach komplettem Tab-Schließen/Reload, z.B. über
+// eine in localStorage abgelegte jobId -- von charakter.js aktuell noch nicht genutzt, aber hier
+// bereits vorbereitet). opts.onJobId(jobId): wird aufgerufen, sobald die jobId feststeht (ob neu
+// gestartet oder übernommen) -- ein Aufrufer kann sie z.B. in localStorage ablegen. opts.onUpdate(job):
+// bei jedem Poll mit dem aktuellen Job-Stand, für eine optionale Fortschrittsanzeige. opts.signal: ein
 // AbortSignal, um den Poll-Loop von außen sauber abzubrechen (z.B. wenn die Nutzerin währenddessen
 // wegnavigiert). Liefert im Erfolgsfall dieselbe Form wie composeCharacterImage() ({url, seed,
-// violations, verify}) zurück, damit ein künftiger Umstieg in charakter.js ohne Formatänderung
-// auskäme.
+// violations, verify}) zurück, damit der Umstieg in charakter.js ohne Formatänderung an den
+// nachgelagerten Stellen (generateExtraViewsAndFinish()) auskam.
 async function runCharacterJobPolling(prompt, opts) {
   opts = opts || {};
   const intervalMs = opts.intervalMs || 7000;
-  const jobId = await startCharacterJob(prompt);
+  const jobId = opts.existingJobId || await startCharacterJob(prompt);
   if (opts.onJobId) opts.onJobId(jobId);
   for (;;) {
     if (opts.signal && opts.signal.aborted) throw new Error("Abgebrochen.");
@@ -1208,7 +1243,7 @@ async function runCharacterJobPolling(prompt, opts) {
     if (opts.onUpdate) opts.onUpdate(job);
     if (job.status === "done") return { url: job.resultUrl, seed: job.resultSeed, violations: job.resultViolations, verify: job.resultVerify };
     if (job.status === "error") throw new Error(job.error || "Generierung fehlgeschlagen.");
-    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    await waitWithVisibilityWakeup(intervalMs);
   }
 }
 

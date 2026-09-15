@@ -351,15 +351,21 @@ async function generateCharacterImage(person, buttons) {
     const extraEnParts = hairEn ? [hairEn] : [];
     const prompt = Pipeline.charPromptFromChips({ role: person.role, age: person.age, chipLabels, extraEnParts, noteEn });
     const sceneDescription = Pipeline.charInSceneFromChips({ role: person.role, age: person.age, chipLabels, extraEnParts, noteEn });
-    // GEAENDERT (Sammel-Runde 11.09.2026, Aufgabe "Verify-Check fuer Charakter-Frontansicht" --
-    // siehe ausfuehrlichen Kommentar an Pipeline.composeCharacterImage() in pipeline.js). Vorher ein
-    // einziger, ungeprueft weiterverwendeter Pipeline.generateImage()-Aufruf -- jetzt 2(-3)
-    // Kandidaten mit Verify-Retry, wirft einen Fehler statt ein fehlerhaftes Bild (sichtbarer Mund,
-    // falscher Stil, unvollstaendiges Rendering/Artefakt, oder mehrere Gesichter/Koerper statt
-    // einer einzelnen Figur) durchzuwinken. Der Fehler landet im bestehenden catch-Block unten,
-    // der ihn bereits sichtbar anzeigt und die Buttons zuruecksetzt -- exakt "Fehler anzeigen und
-    // neu generieren lassen".
-    const result = await Pipeline.composeCharacterImage((seed) => Pipeline.generateImage(prompt, "char", { seed }));
+    // GEAENDERT (Sammel-Runde 15.09.2026, "Warteschlangen-Umbau: Figuren-Pfad in die echte
+    // Oberflaeche einbauen"). Vorher Pipeline.composeCharacterImage() -- ein EINZELNER Aufruf, der
+    // die ganze Generierungs-/Verify-Dauer (2-3 Kandidaten, teils mehrere Minuten) ueber eine
+    // durchgehend offene Verbindung abgewartet hat (siehe "Load failed"-Befund bei iOS-
+    // Bildschirmsperre/App-Wechsel). Jetzt Pipeline.runCharacterJobPolling(): startet den Job
+    // serverseitig (kurzer Aufruf, kehrt sofort zurueck) und fragt danach in Abstaenden den
+    // Fortschritt ab -- jede einzelne Anfrage dauert nur Sekundenbruchteile, uebersteht also eine
+    // Bildschirmsperre zwischen zwei Polls problemlos. Dieselben 2(-3) Kandidaten mit Verify-Retry
+    // laufen weiterhin serverseitig ab (siehe api/lib/char-job-engine.js), nur eben schrittweise
+    // statt in einem einzigen langen Aufruf. Wirft weiterhin einen Fehler bei einem echten
+    // technischen Totalausfall (kein einziger Kandidat nutzbar) -- landet im bestehenden catch-Block
+    // unten, der ihn bereits sichtbar anzeigt und die Buttons zuruecksetzt. Live getestet gegen die
+    // echte fal.ai-/Upstash-Redis-Anbindung vor diesem Anschluss (siehe Kommentar in pipeline.js an
+    // runCharacterJobPolling()).
+    const result = await Pipeline.runCharacterJobPolling(prompt);
     charGenBusy = false;
     await generateExtraViewsAndFinish(person, result, sceneDescription);
   } catch (e) {
@@ -456,10 +462,11 @@ async function generateCharacterImageFromPhoto(person, photoDataUri, buttons) {
     const extraEnParts = traitsEn ? [traitsEn] : [];
     const prompt = Pipeline.charPromptFromChips({ role: person.role, age: person.age, chipLabels: [], extraEnParts, noteEn: "" });
     const sceneDescription = Pipeline.charInSceneFromChips({ role: person.role, age: person.age, chipLabels: [], extraEnParts, noteEn: "" });
-    // GEAENDERT (Sammel-Runde 11.09.2026): siehe identischer Kommentar in generateCharacterImage()
-    // oben -- derselbe neue Verify-Retry-Mechanismus, da dieser Foto-Pfad seit dem
-    // Prioritaet-1-Bugfix ebenfalls ein reiner Text-zu-Bild-Aufruf ist (kein editImageUrl mehr).
-    const result = await Pipeline.composeCharacterImage((seed) => Pipeline.generateImage(prompt, "char", { seed }));
+    // GEAENDERT (Sammel-Runde 15.09.2026): siehe identischer Kommentar in generateCharacterImage()
+    // oben -- derselbe Umstieg auf den Start-plus-Abfrage-Mechanismus, da dieser Foto-Pfad seit dem
+    // Prioritaet-1-Bugfix ebenfalls ein reiner Text-zu-Bild-Aufruf ist (kein editImageUrl mehr), also
+    // genauso wie der Chips-Weg zu api/char-job-start.js passt.
+    const result = await Pipeline.runCharacterJobPolling(prompt);
     resetUploadedPhoto();
     charGenBusy = false;
     await generateExtraViewsAndFinish(person, result, sceneDescription);
