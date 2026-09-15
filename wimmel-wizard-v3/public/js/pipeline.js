@@ -729,39 +729,33 @@ function topUpSituations(list, locId, target) {
   return list;
 }
 
-// 1:1 aus wimmel-wizzard-mvp.html.
-function defaultBubbleLayout(n) {
-  const cols = Math.max(3, Math.round(Math.sqrt((n * 16) / 9)));
-  const rows = Math.ceil(n / cols);
-  const cellW = 100 / cols, cellH = 100 / rows;
-  const positions = [];
-  for (let i = 0; i < n; i++) {
-    const col = i % cols, row = Math.floor(i / cols);
-    const jitterX = (Math.random() - 0.5) * cellW * 0.6;
-    const jitterY = (Math.random() - 0.5) * cellH * 0.6;
-    const x = Math.min(95, Math.max(5, cellW * col + cellW / 2 + jitterX));
-    const y = Math.min(93, Math.max(7, cellH * row + cellH / 2 + jitterY));
-    positions.push({ x, y });
-  }
-  return positions;
-}
+// GEAENDERT (Sammel-Runde 15.09.2026, Szenen-Qualitaets-Auftrag Punkt 2: "Kompositions-Struktur:
+// Vordergrund/Mittelgrund/Hintergrund statt freier Positionsangaben"). Ersetzt komplett das bisherige
+// freie 9-Felder-Positionsraster (defaultBubbleLayout() mit zufaelligem x/y-Jitter, regionLabel(),
+// situationPlacementText() mit S/M/L-Groessen -- alle drei 1:1 aus wimmel-wizzard-mvp.html
+// uebernommen, jetzt entfernt) durch drei klar benannte Tiefenebenen mit EXPLIZITEN, auf das
+// 296x148mm-Druck-Endformat kalibrierten Hoehenvorgaben (Nutzer-Vorgabe: Vordergrund max. 20%,
+// Mittelgrund max. 14%, Hintergrund max. 7% der Bildhoehe -- diese Prozentwerte beziehen sich auf
+// die generierte Bildhoehe, nicht auf das spaetere 2:1-Druckformat, siehe Punkt-3-Aenderung/
+// SAFE_MARGIN_RULE oben). Begruendung fuer Tiefenebenen statt freier Positionen: die alte 9-Felder-
+// Logik sagte nichts ueber die tatsaechliche GROESSE der Figuren aus (nur "top-left" vs. "dead
+// center"), wodurch Hintergrundfiguren gelegentlich zu gross/prominent wurden -- die neue Struktur
+// bindet Position UND Groesse an denselben Tiefenebenen-Begriff, den das Modell aus echten
+// Illustrationen kennt.
+const SCENE_LAYERS = {
+  foreground: { label: "foreground", maxHeightPct: 20 },
+  midground: { label: "midground", maxHeightPct: 14 },
+  background: { label: "background", maxHeightPct: 7 },
+};
 
-// 1:1 aus wimmel-wizzard-mvp.html.
-function sizePx(size) { return size === "S" ? 74 : size === "L" ? 132 : 100; }
-function regionLabel(x, y) {
-  const hh = x < 33 ? "left" : x < 67 ? "center" : "right";
-  const v = y < 33 ? "top" : y < 67 ? "middle" : "bottom";
-  if (hh === "center" && v === "middle") return "dead center";
-  return v + " " + hh;
-}
-function situationPlacementText(s) {
-  const region = regionLabel(s.x != null ? s.x : 50, s.y != null ? s.y : 50);
-  const prominence = s.size === "L"
-    ? ", drawn noticeably larger and more prominent than the surrounding characters, easy to spot first"
-    : s.size === "S"
-      ? ", drawn small and tucked into the background as a subtle little detail"
-      : "";
-  return "In the " + region + " area of the scene: " + s.text + prominence + ".";
+// sceneLayerText(s): Ersatz fuer situationPlacementText() -- s.layer statt s.size, optional s.side
+// (nur noch links/mitte/rechts fuer etwas horizontale Varianz, keine vertikale top/middle/bottom-
+// Achse mehr, da die Tiefenebene selbst schon die Groessen-/Wichtigkeits-Semantik traegt, die vorher
+// über oben/unten/S/M/L kommuniziert wurde).
+function sceneLayerText(s) {
+  const layer = SCENE_LAYERS[s.layer] || SCENE_LAYERS.midground;
+  const side = s.side ? ", on the " + s.side + " side of the scene" : "";
+  return "In the " + layer.label + side + " (kept to roughly " + layer.maxHeightPct + "% of the image height or smaller): " + s.text + ".";
 }
 
 // NEU (nicht im Original vorhanden): die Spezifikation (Abschnitt 2) verbietet Emotionswörter für
@@ -833,11 +827,16 @@ const THEME_META = {
 // NEU: Dichte-Anweisung per regionaler Mindestzahl statt einer globalen Zahl (Spezifikation
 // Abschnitt 2, ersetzt die alte "40 to 60 background characters"-Formulierung aus
 // wimmel-wizzard-mvp.html).
+// GEAENDERT (Sammel-Runde 15.09.2026, Punkt 2): jetzt explizit als BACKGROUND-Tiefenebene
+// eingeordnet (7% Hoehenobergrenze, siehe SCENE_LAYERS oben) -- diese regionale Mindestzahl bildet
+// weiterhin die groesste, dichteste Figurenmasse der Szene (unveraendert in den regionMin-Werten je
+// Thema), nur jetzt mit derselben Tiefenebenen-Sprache wie die Vignetten (sceneLayerText()), statt
+// als separates, unbenanntes Konzept.
 function densityInstruction(theme) {
   const regions = (theme && theme.regions && theme.regions.length) ? theme.regions : ["across the scene"];
   const min = (theme && theme.regionMin) || 6;
   const parts = regions.map((r) => "at least " + min + " small background characters " + r);
-  return "Densely populate the scene: " + parts.join(", ") + " — each one doing their own tiny activity or little visual joke, true busy seek-and-find picture-book density.";
+  return "In the background layer (kept to roughly " + SCENE_LAYERS.background.maxHeightPct + "% of the image height or smaller), densely populate the scene: " + parts.join(", ") + " — each one doing their own tiny activity or little visual joke, true busy seek-and-find picture-book density.";
 }
 
 // NEU: Stil-Regelblock, einmal kompakt (Spezifikation Abschnitt 2, wörtlich übersetzt aus der
@@ -904,32 +903,55 @@ function allCharactersRule(heroSpecs) {
 }
 
 // NEU: baut die Vignetten fuer eine Szene: vorhandene (z.B. nutzereigene) Situationen plus
-// Auffuellung aus der GAG_LIBRARY (topUpSituations, s.o.), danach Positionen/Groessen zugewiesen
-// (defaultBubbleLayout, s.o.). "existing" ist optional; ohne sie wird komplett aus der Bibliothek
-// gefuellt.
-// GEAENDERT (Punkt C19, Sammel-Runde 09.09.2026: "In allen drei Wegen (Themenauswahl, Chat,
-// Audiotranskript) sollen am Ende 15 Vignetten erzeugt werden"). Vorher default/Aufrufstelle=16
-// (Spezifikations-Zielspanne war "15-16"). Jetzt fest auf 15, EINHEITLICH ueber alle drei Wege --
-// die einzige Aufrufstelle (Screens.zaubern.runGeneration() in szene.js) ist fuer alle drei Wege
-// dieselbe Funktion, daher reicht diese eine Aenderung, um C19 konsistent umzusetzen. topUpSituations
-// (target-Default 15, s.o.) und list.slice(0, target) (in topUpSituations) sorgen dafuer, dass
-// AUCH der neue Chat-Weg (C17, liefert oft schon >=15 eigene Situationen aus dem Gespraech) am Ende
-// exakt 15 hat, egal ob Claude mehr, weniger oder genau 15 geliefert hat (Anthropic erzwingt
-// "minItems" im Tool-Schema nicht hart serverseitig -- dieser Zuschnitt hier ist die verlaessliche
-// clientseitige Garantie).
-const SIZE_CYCLE = ["M", "M", "S", "L", "M", "S", "M", "M", "L", "S", "M", "M", "S", "L", "M"];
+// Auffuellung aus der GAG_LIBRARY (topUpSituations, s.o.), danach Tiefenebene/Seite zugewiesen.
+// "existing" ist optional; ohne sie wird komplett aus der Bibliothek gefuellt.
+// GEAENDERT (Sammel-Runde 15.09.2026, Szenen-Qualitaets-Auftrag Punkt 2): Ziel-Vignettenzahl von 15
+// auf 20 erhoeht (Teil der Massnahmen fuer die neue Gesamt-Zielspanne von 30-50 Figuren, siehe
+// SCENE_TOTAL_CHARACTER_TARGET_RULE unten -- Nutzer-Entscheidung: EIN fester hoher Wert fuer alle
+// Produktformate, kein produktabhaengiger Wert). LAYER_CYCLE ersetzt das bisherige SIZE_CYCLE
+// (S/M/L, jetzt entfernt): ein sich wiederholendes, deterministisches Muster (bewusst kein
+// Math.random() -- gleiches Testbarkeits-Prinzip wie beim Original) auf 20 Eintraege kalibriert: 2
+// foreground (Nutzer-Vorgabe "1-2 eigenstaendige Vordergrund-Vignetten"), der Rest zu ungefaehr
+// gleichen Teilen midground/background (10 bzw. 8) -- der groesste Teil der Hintergrund-Masse kommt
+// ohnehin schon aus densityInstruction()'s regionalen Mindestzahlen, diese Vignetten hier geben
+// EINZELNEN Hintergrund-/Mittelgrund-Figuren eine konkrete kleine Geschichte.
+const LAYER_CYCLE = [
+  "foreground", "midground", "background", "midground", "background",
+  "midground", "background", "midground", "background", "midground",
+  "foreground", "midground", "background", "midground", "background",
+  "midground", "background", "midground", "background", "midground",
+];
+const SIDE_CYCLE = ["left", "center", "right"];
 function autoSituations(theme, existing, target) {
-  target = target || 15;
+  target = target || 20;
   let list = (existing || []).map((s) => ({ text: s.en || s.text, de: s.de || s.text }));
   list = topUpSituations(list, theme.locId, target);
-  const positions = defaultBubbleLayout(list.length);
-  return list.map((s, i) => Object.assign({}, s, positions[i], { size: SIZE_CYCLE[i % SIZE_CYCLE.length] }));
+  return list.map((s, i) => Object.assign({}, s, {
+    layer: LAYER_CYCLE[i % LAYER_CYCLE.length],
+    side: SIDE_CYCLE[i % SIDE_CYCLE.length],
+  }));
 }
+
+// NEU (Sammel-Runde 15.09.2026, Szenen-Qualitaets-Auftrag Punkt 2): expliziter, gut lesbarer
+// Gesamt-Zielwert als EIGENE Anweisung, zusaetzlich zu (nicht anstelle von) den granularen
+// Tiefenebenen-Anweisungen darunter -- ein einzelner klarer Ankerwert ist fuer das Bildmodell
+// greifbarer als nur die Summe mehrerer Einzelanweisungen. Nutzer-Entscheidung 15.09.2026: fester
+// hoher Wert (30-50) fuer ALLE Produktformate (Poster/Mini-Wimmelbuch/Wimmelbuch), kein
+// produktabhaengiger Wert -- Begruendung: ein dichtes Bild laesst sich gut auf kleinere Formate
+// runterskalieren.
+const SCENE_TOTAL_CHARACTER_TARGET_RULE = "Populate the whole scene with roughly 30 to 50 individual characters in total, combining the named heroes with the midground and background layers described below — a genuinely busy, richly populated seek-and-find scene, not a sparse one.";
 
 // scenePrompt(): NEU synthetisiert nach Spezifikation Abschnitt 2 (siehe Modul-Kommentar oben).
 // heroSpecs: Array von CharacterSpec (makeCharacterSpec()), je mit .name und gefuelltem
 // identityCore/defaultOutfit. theme: ein THEME_META[...]-Eintrag. situations: Array wie von
-// autoSituations() geliefert ({text, de, x, y, size}).
+// autoSituations() geliefert ({text, de, layer, side}).
+// GEAENDERT (Sammel-Runde 15.09.2026, Punkt 2): vorher standen ALLE Heroes pauschal "im
+// Vordergrund". Jetzt: hoechstens FOREGROUND_HERO_CAP (3) Heroes werden als Vordergrund beschrieben
+// (Nutzer-Vorgabe "2-3 der Heroes agieren hier") -- bei mehr als 3 benannten Charakteren (in der
+// App bereits heute moeglich, heroSpecs kommt aus allen Personen mit status:"done") werden die
+// restlichen 1-2 explizit dem Mittelgrund zugeordnet, bleiben aber weiterhin laut
+// allCharactersRule() Pflicht-Bestandteil der Szene (nur eben nicht mehr zwingend gross/vorne).
+const FOREGROUND_HERO_CAP = 3;
 function scenePrompt({ heroSpecs, theme, situations }) {
   const kw = "wmlstil, " + (theme.type === "cutaway"
     ? theme.en + " building cutaway scene, multiple floors and areas visible"
@@ -938,10 +960,15 @@ function scenePrompt({ heroSpecs, theme, situations }) {
   sentences.push(imageRefMapping(heroSpecs));
   // Punkt B2 (siehe Kommentar bei imageRefMapping() oben): dieselbe Filterung hier, zweite Stelle,
   // an der describeHero() ungefiltert in den Prompt eingesetzt wurde.
-  const heroActionBits = heroSpecs.map((s) => s.name + " (" + stripEmotionWords(describeHero(s)) + ")").join(", ");
-  if (heroActionBits) sentences.push("In the foreground, actively taking part in the action described below, not standing still and not posed neutrally: " + heroActionBits + ".");
+  const foregroundHeroes = heroSpecs.slice(0, FOREGROUND_HERO_CAP);
+  const midgroundHeroes = heroSpecs.slice(FOREGROUND_HERO_CAP);
+  const foregroundBits = foregroundHeroes.map((s) => s.name + " (" + stripEmotionWords(describeHero(s)) + ")").join(", ");
+  if (foregroundBits) sentences.push("In the foreground (kept to roughly " + SCENE_LAYERS.foreground.maxHeightPct + "% of the image height or smaller), actively taking part in the action described below, not standing still and not posed neutrally: " + foregroundBits + ".");
+  const midgroundBits = midgroundHeroes.map((s) => s.name + " (" + stripEmotionWords(describeHero(s)) + ")").join(", ");
+  if (midgroundBits) sentences.push("Also present, in the midground (kept to roughly " + SCENE_LAYERS.midground.maxHeightPct + "% of the image height or smaller), still clearly recognizable according to their reference image and actively doing something of their own: " + midgroundBits + ".");
+  sentences.push(SCENE_TOTAL_CHARACTER_TARGET_RULE);
   sentences.push(densityInstruction(theme));
-  const situationText = (situations || []).map(situationPlacementText).join(" ");
+  const situationText = (situations || []).map(sceneLayerText).join(" ");
   if (situationText) sentences.push(stripEmotionWords(situationText));
   sentences.push(SCENE_STYLE_BLOCK);
   sentences.push(FILL_EMPTY_SPACE_RULE);
@@ -1422,13 +1449,17 @@ window.Pipeline = {
   PEN_INSTRUCTION_REMOVE, PEN_INSTRUCTION_REDO,
   resizeImageToDataUri, generateImage, verifyImage, countViolations,
   // Szenen-Komposition (neu, siehe Modul-Abschnitt oben)
-  GAG_LIBRARY, THEME_META, pickGagChips, topUpSituations, defaultBubbleLayout,
-  sizePx, regionLabel, situationPlacementText, stripEmotionWords, autoSituations,
+  GAG_LIBRARY, THEME_META, pickGagChips, topUpSituations,
+  // GEAENDERT (Sammel-Runde 15.09.2026, Punkt 2): defaultBubbleLayout/sizePx/regionLabel/
+  // situationPlacementText entfernt (ersetzt durch SCENE_LAYERS/sceneLayerText, siehe dort) --
+  // kein Aufrufer ausserhalb dieser Datei brauchte sie direkt, ausser test_scene.js (dort ebenfalls
+  // umgestellt).
+  SCENE_LAYERS, sceneLayerText, stripEmotionWords, autoSituations,
   densityInstruction, imageRefMapping, allCharactersRule, buildVerifyPrompt,
   scenePrompt, sceneComposeInstruction, composeSceneImage,
   buildCharacterVerifyPrompt, composeCharacterImage,
   startCharacterJob, pollCharacterJobOnce, runCharacterJobPolling,
   startSceneJob, pollSceneJobOnce, runSceneJobPolling,
   SCENE_STYLE_BLOCK, FILL_EMPTY_SPACE_RULE, COHERENCE_RULE, ZERO_TEXT_RULE, EMOTION_WORDS_RULE,
-  SAFE_MARGIN_RULE,
+  SAFE_MARGIN_RULE, SCENE_TOTAL_CHARACTER_TARGET_RULE,
 };

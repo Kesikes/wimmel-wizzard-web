@@ -230,7 +230,7 @@ function buildThemeGrid(rerender) {
 // echter hochgezaehlter Timer, echter Upload an api/transcribe-proxy.js (OpenAI gpt-4o-transcribe,
 // siehe Kommentar dort), das Transkript wird wie beim Chat-Interview (finalizeSceneInterview() oben)
 // via Pipeline.translateFreeText() uebersetzt und als EIN Eintrag in sceneUserSituations abgelegt --
-// Pipeline.autoSituations() (siehe runGeneration() unten) fuellt von dort aus wie gewohnt auf 16
+// Pipeline.autoSituations() (siehe runGeneration() unten) fuellt von dort aus wie gewohnt auf 20
 // Vignetten auf. Damit landen alle drei Wege (Thema/Chat/Aufnahme) im selben, bereits bestehenden
 // Vignetten-Pipeline-Endpunkt.
 //
@@ -976,10 +976,12 @@ Screens.zaubern = {
         // ueberhaupt einen Effekt auf die generierten Vignetten. s.sceneUserSituations kommt jetzt
         // von ALLEN DREI Wegen (Chat: finalizeChatScene(); Aufnahme: handleRecordingStopped(); "Thema
         // wählen" liefert weiterhin ein leeres Array, komplett aus der GAG_LIBRARY aufgefuellt).
-        // GEAENDERT (Punkt C19): Ziel jetzt einheitlich 15 statt 16 (siehe pipeline.js
-        // autoSituations()-Kommentar) -- fuer den Chat-Weg zaehlt v.a. die TRUNKIERUNG bei mehr als
-        // 15 gelieferten Situationen (Anthropic erzwingt "minItems" im Tool-Schema nicht hart).
-        const situations = Pipeline.autoSituations(theme, sNow.sceneUserSituations || [], 15);
+        // GEAENDERT (Sammel-Runde 15.09.2026, Szenen-Qualitaets-Auftrag Punkt 2): Ziel jetzt 20 statt
+        // 15 (siehe pipeline.js autoSituations()/SCENE_TOTAL_CHARACTER_TARGET_RULE-Kommentar, Teil
+        // der neuen 30-50-Figuren-Zielspanne) -- fuer den Chat-Weg zaehlt v.a. die TRUNKIERUNG bei
+        // mehr als 20 gelieferten Situationen (Anthropic erzwingt "minItems" im Tool-Schema nicht
+        // hart).
+        const situations = Pipeline.autoSituations(theme, sNow.sceneUserSituations || [], 20);
         setPhase("gen");
         // GEAENDERT (Sammel-Runde 15.09.2026, Punkt 3: "Warteschlangen-Architektur auf den
         // Szenen-Pfad uebertragen"): statt der bisherigen composeSceneImage() (eine einzige, 2-5
