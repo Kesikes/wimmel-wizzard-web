@@ -50,14 +50,16 @@ function newCandidate(seed) {
 }
 
 // sceneGenerateBody(): 1:1 identisch zum falBody-Aufbau in api/fal-proxy.js fuer den
-// Szenen-Edit-Pfad (kind:"scene", imageUrl gesetzt) -- aspect_ratio/resolution fest auf 21:9/4K
-// (Spezifikation Abschnitt 2), kein testAspectRatio/testResolution-Override wie dort (das sind
-// experimentelle, nie vom Produktpfad genutzte Parameter, hier bewusst weggelassen).
+// Szenen-Edit-Pfad (kind:"scene", imageUrl gesetzt) -- aspect_ratio/resolution fest auf 16:9/4K
+// (siehe GEAENDERT-Kommentar in fal-proxy.js, Sammel-Runde 15.09.2026, Szenen-Qualitaets-Auftrag
+// Punkt 3: 16:9 statt 21:9, naeher am 2:1-Druckformat UND der noetige Beschnitt passiert oben/unten
+// statt seitlich), kein testAspectRatio/testResolution-Override wie dort (das sind experimentelle,
+// nie vom Produktpfad genutzte Parameter, hier bewusst weggelassen).
 function sceneGenerateBody(instruction, editImageUrl, styleRefUrls, seed) {
   return {
     prompt: instruction,
     image_urls: [editImageUrl, ...(styleRefUrls || [])],
-    aspect_ratio: "21:9",
+    aspect_ratio: "16:9",
     resolution: "4K",
     output_format: "png",
     num_images: 1,

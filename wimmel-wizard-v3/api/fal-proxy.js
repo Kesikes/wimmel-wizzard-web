@@ -311,9 +311,16 @@ module.exports = async (req, res) => {
     ? {
         prompt,
         image_urls: [imageUrl, ...styleRefUrls],
-        // v3-Update (Spezifikation Abschnitt 2): Szenen jetzt standardmäßig 4K/21:9 statt 1K/16:9 —
-        // war vorher nur über testResolution/testAspectRatio manuell erzwingbar.
-        aspect_ratio: testAspectRatio || (kind === "char" ? "3:4" : "21:9"),
+        // GEAENDERT (Sammel-Runde 15.09.2026, Szenen-Qualitäts-Auftrag Punkt 3, "Seitenverhältnis-
+        // Mismatch"): vorher 21:9 (2,33:1). Druck-Endformat ist 296×148mm = 2:1 -- nano-banana-pro/
+        // edit unterstuetzt laut fal.ai-Doku kein exaktes 2:1 (Enum: auto, 21:9, 16:9, 3:2, 4:3, 5:4,
+        // 1:1, 4:5, 3:4, 2:3, 9:16). 16:9 (1,78:1) liegt naeher an 2:1 als 21:9 UND der noetige
+        // spaetere Beschnitt auf 2:1 passiert bei 16:9 oben/unten (~11,1% der Hoehe), bei 21:9 waere
+        // es seitlich (~14,3% der Breite) -- seitlich beschneiden haette genau die sorgfaeltig
+        // komponierten Vordergrund-Vignetten gefaehrdet. Siehe auch SAFE_MARGIN_RULE in pipeline.js
+        // (Kompositions-Regel, die die aeusseren oberen/unteren ~6% bewusst unkritisch haelt). Der
+        // eigentliche Pixel-Beschnitt 16:9->2:1 ist NICHT Teil dieser Aenderung, siehe offener Punkt.
+        aspect_ratio: testAspectRatio || (kind === "char" ? "3:4" : "16:9"),
         resolution: testResolution || (kind === "char" ? "1K" : "4K"),
         output_format: "png",
         num_images: 1,

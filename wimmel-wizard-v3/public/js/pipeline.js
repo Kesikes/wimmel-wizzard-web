@@ -863,6 +863,18 @@ const ZERO_TEXT_RULE = "Absolutely zero text, letters, signage or lettering anyw
 // abdeckt).
 const EMOTION_WORDS_RULE = "Do not use any emotion or facial-expression words for any character in this scene, named heroes or background characters alike — no laughing, smiling, crying, excited, happy, sad, angry, or surprised. Describe only actions, poses, or body posture instead (for example \"eyes crinkled, one arm thrown up\" rather than \"laughing\"). This matters because faces in this style never have a mouth, and emotion words undermine that rule.";
 
+// NEU (Sammel-Runde 15.09.2026, Szenen-Qualitaets-Auftrag Punkt 3: "Seitenverhaeltnis-Mismatch").
+// Das Druck-Endformat ist 296x148mm = 2:1, generiert wird aber 16:9 (1,78:1) -- naeher an 2:1 als
+// das vorherige 21:9, aber immer noch nicht exakt (nano-banana-pro/edit unterstuetzt laut fal.ai-
+// Doku kein 2:1). Der spaetere Beschnitt auf 2:1 nimmt bei 16:9 oben/unten etwa 11% der Bildhoehe
+// weg (siehe Kommentar in fal-proxy.js/scene-job-engine.js) -- diese Regel sorgt dafuer, dass das
+// Modell wichtige Elemente (Held-Vignetten, markante Gags) nicht in genau diesen Rand-Streifen legt,
+// damit ein spaeterer Beschnitt (NICHT Teil dieser Aenderung, siehe offener Punkt "Beschnitt-Schritt
+// fuer Druck klaeren") nichts Wichtiges kappt. Ergaenzt, nicht ersetzt FILL_EMPTY_SPACE_RULE oben --
+// der Rand darf weiterhin mit Hintergrund-Fuellung (Himmel/Boden/Wasser) belegt werden, nur eben
+// nichts, das wichtig ist.
+const SAFE_MARGIN_RULE = "Keep the outer 6% of the image at the very top and the outer 6% at the very bottom as a low-priority safety margin: fine for sky, ground, water, or incidental background filler, but never place a named hero's vignette or an important, eye-catching gag there — it may be cropped for print. Everything important belongs in the vertical band between those two margins.";
+
 // NEU: explizite Bild-zu-Name-Zuordnung (Spezifikation Abschnitt 2: "Reference image 1 shows
 // [Name]: [Merkmale]... für jedes Bild einzeln, nicht nur eine allgemeine Liste"). heroSpecs[i]
 // entspricht image_urls[i] in generateImage()/composeSceneImage() (siehe dort) — die Reihenfolge
@@ -934,6 +946,7 @@ function scenePrompt({ heroSpecs, theme, situations }) {
   sentences.push(SCENE_STYLE_BLOCK);
   sentences.push(FILL_EMPTY_SPACE_RULE);
   sentences.push(COHERENCE_RULE);
+  sentences.push(SAFE_MARGIN_RULE);
   sentences.push(EMOTION_WORDS_RULE);
   sentences.push(allCharactersRule(heroSpecs));
   sentences.push(ZERO_TEXT_RULE);
@@ -1417,4 +1430,5 @@ window.Pipeline = {
   startCharacterJob, pollCharacterJobOnce, runCharacterJobPolling,
   startSceneJob, pollSceneJobOnce, runSceneJobPolling,
   SCENE_STYLE_BLOCK, FILL_EMPTY_SPACE_RULE, COHERENCE_RULE, ZERO_TEXT_RULE, EMOTION_WORDS_RULE,
+  SAFE_MARGIN_RULE,
 };
