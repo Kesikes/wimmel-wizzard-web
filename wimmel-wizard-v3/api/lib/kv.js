@@ -65,4 +65,21 @@ async function kvSetJson(key, value, ttlSeconds) {
   await kvCommand(parts);
 }
 
-module.exports = { kvConfig, kvGetJson, kvSetJson };
+// kvIncrWithExpiry(key, ttlSeconds) -> naechster Zaehlerstand (Number), nach EINEM atomaren INCR.
+// Setzt die Ablaufzeit NUR beim allerersten Aufruf (Zaehler war vorher 0/nicht vorhanden) --
+// verhindert, dass ein rege genutzter Schluessel (viele Aufrufe kurz hintereinander) die TTL
+// staendig wieder nach hinten verschiebt (das waere ein "sliding window", hier bewusst ein festes
+// Zeitfenster: EX wird einmal gesetzt und laeuft dann unabhaengig von weiteren INCRs ab).
+// NEU (Sicherheit, Task "fal-proxy ohne Auth vor Launch absichern"): Basis-Baustein fuer
+// api/lib/rate-limit.js -- IP-basierte Rate-Limitierung fuer die unauthentifizierten,
+// kostenpflichtigen Endpunkte (fal-proxy.js, char-job-start.js, scene-job-start.js).
+async function kvIncrWithExpiry(key, ttlSeconds) {
+  const count = await kvCommand(["incr", key]);
+  const n = Number(count);
+  if (n === 1 && ttlSeconds) {
+    await kvCommand(["expire", key, String(ttlSeconds)]);
+  }
+  return n;
+}
+
+module.exports = { kvConfig, kvGetJson, kvSetJson, kvIncrWithExpiry };

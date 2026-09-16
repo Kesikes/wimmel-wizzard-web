@@ -90,11 +90,20 @@ async function fetchFalWithRetry(url, options, maxRetries) {
   }
 }
 
+const { checkRateLimit } = require("./lib/rate-limit");
+
 module.exports = async (req, res) => {
   if (req.method !== "POST") {
     res.status(405).json({ error: "Nur POST erlaubt." });
     return;
   }
+
+  // NEU (Sicherheit, siehe ausfuehrlichen Kommentar in api/lib/rate-limit.js): dieser Endpunkt hat
+  // KEINE Authentifizierung -- IP-basierte Rate-Limitierung als erste, pragmatische Absicherung vor
+  // dem Launch. 40/Stunde deckt eine einzelne echte Nutzerin grosszuegig ab (Figur + 3
+  // Zusatzansichten + mehrere Szenen samt "Nochmal zaubern"/Stift-Korrekturen + Verify-Aufrufe),
+  // begrenzt aber, wie oft eine EINZELNE Quelle unser FAL_KEY-Guthaben pro Stunde verbrauchen kann.
+  if (!(await checkRateLimit(req, res, { keyPrefix: "falproxy", limit: 40, windowSeconds: 3600 }))) return;
 
   const FAL_KEY = process.env.FAL_KEY;
   if (!FAL_KEY) {

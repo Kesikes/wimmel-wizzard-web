@@ -12,6 +12,7 @@
 // Mal nachgebaut werden muesste (siehe Kommentar in scene-job-engine.js).
 const { kvSetJson } = require("./lib/kv");
 const { createSceneJob } = require("./lib/scene-job-engine");
+const { checkRateLimit } = require("./lib/rate-limit");
 
 const JOB_TTL_SECONDS = 60 * 60;
 
@@ -26,6 +27,11 @@ module.exports = async (req, res) => {
     res.status(405).json({ error: "Nur POST erlaubt." });
     return;
   }
+  // NEU (Sicherheit, siehe api/lib/rate-limit.js): teuerste Operation im ganzen Produkt (bis zu 3
+  // 4K-Kandidaten pro Aufruf, siehe createSceneJob()) -- daher am engsten begrenzt. 10/Stunde deckt
+  // ein volles Wimmelbuch (5 Szenen) plus mehrere "Nochmal zaubern"-Versuche grosszuegig ab.
+  if (!(await checkRateLimit(req, res, { keyPrefix: "scenejob", limit: 10, windowSeconds: 3600 }))) return;
+
   const FAL_KEY = process.env.FAL_KEY;
   if (!FAL_KEY) {
     res.status(500).json({ error: "Server-Fehler: FAL_KEY ist im Vercel-Projekt nicht gesetzt." });

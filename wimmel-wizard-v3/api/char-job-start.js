@@ -14,6 +14,7 @@
 // angeschlossen.
 const { kvSetJson } = require("./lib/kv");
 const { createCharacterJob } = require("./lib/char-job-engine");
+const { checkRateLimit } = require("./lib/rate-limit");
 
 // Job-Aufbewahrung in KV: an fal.ai's eigener ~1h-Ergebnis-Aufbewahrung orientiert (siehe
 // char-job-engine.js-Kommentar) -- nach Ablauf ist ein Job ohnehin nicht mehr sinnvoll abholbar,
@@ -25,6 +26,12 @@ module.exports = async (req, res) => {
     res.status(405).json({ error: "Nur POST erlaubt." });
     return;
   }
+  // NEU (Sicherheit, siehe api/lib/rate-limit.js): jeder Aufruf hier reiht SOFORT 2 echte
+  // fal.ai-Generierungen ein (submitFalQueue() in createCharacterJob(), teurer als ein einzelner
+  // fal-proxy.js-Aufruf) -- daher enger begrenzt als der dortige Wert. 15/Stunde deckt mehrere
+  // Figuren samt ein paar Neuversuchen grosszuegig ab.
+  if (!(await checkRateLimit(req, res, { keyPrefix: "charjob", limit: 15, windowSeconds: 3600 }))) return;
+
   const FAL_KEY = process.env.FAL_KEY;
   if (!FAL_KEY) {
     res.status(500).json({ error: "Server-Fehler: FAL_KEY ist im Vercel-Projekt nicht gesetzt." });
