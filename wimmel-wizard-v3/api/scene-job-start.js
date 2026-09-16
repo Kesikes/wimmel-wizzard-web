@@ -44,6 +44,13 @@ module.exports = async (req, res) => {
   const verifyPrompt = String(body.verifyPrompt || "").trim();
   const editImageUrl = body.editImageUrl;
   const styleRefUrls = (Array.isArray(body.styleRefUrls) ? body.styleRefUrls : []).filter(isImageRef).slice(0, 13);
+  // NEU (Verify-Blindspot-Fix 16.09.2026, siehe Kommentar bei buildVerifyPrompt() in pipeline.js):
+  // separat von styleRefUrls, NUR die echten Helden-Referenzbilder (keine Hintergrundfiguren-
+  // Bibliotheksblaetter) -- werden NICHT fuer die Generierung gebraucht (die laeuft weiterhin ueber
+  // editImageUrl/styleRefUrls wie bisher), sondern ausschliesslich fuer den Verify-Abgleich in
+  // advanceSceneJob() (scene-job-engine.js). Gedeckelt auf 5 wie FOREGROUND_HERO_CAP-Kontext in
+  // pipeline.js (mehr Helden sind ohnehin nicht vorgesehen).
+  const heroRefUrls = (Array.isArray(body.heroRefUrls) ? body.heroRefUrls : []).filter(isImageRef).slice(0, 5);
 
   if (!instruction) {
     res.status(400).json({ error: "Keine instruction übergeben." });
@@ -66,7 +73,7 @@ module.exports = async (req, res) => {
 
   const jobId = "sj_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 10);
   try {
-    const job = await createSceneJob({ jobId, instruction, verifyPrompt, editImageUrl, styleRefUrls, FAL_KEY });
+    const job = await createSceneJob({ jobId, instruction, verifyPrompt, editImageUrl, styleRefUrls, heroRefUrls, FAL_KEY });
     await kvSetJson("scenejob:" + jobId, job, JOB_TTL_SECONDS);
     res.status(200).json({ jobId });
   } catch (e) {

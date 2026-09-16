@@ -112,16 +112,21 @@ async function falQueueResult(model, requestId, FAL_KEY) {
   return resp.json();
 }
 
-// callFalVerifySync(imageUrl, prompt, FAL_KEY): EIN direkter, synchroner Aufruf (kein Queue-Submit).
+// callFalVerifySync(imageUrls, prompt, FAL_KEY): EIN direkter, synchroner Aufruf (kein Queue-Submit).
 // system_prompt/model/temperature/reasoning/max_tokens 1:1 identisch zum bestehenden, produktiven
 // Verify-Aufruf in api/fal-proxy.js (mode:"verify") -- siehe dortige Kommentare zur Herleitung dieser
 // konkreten Werte (Modellvergleich, Live-Test-Kalibrierung).
-async function callFalVerifySync(imageUrl, prompt, FAL_KEY) {
+// GEAENDERT (Verify-Blindspot-Fix 16.09.2026): imageUrls ist jetzt ein Array statt eines einzelnen
+// Strings -- der Szenen-Pfad (scene-job-engine.js) schickt zusaetzlich zum generierten Bild die
+// Helden-Referenzbilder mit (siehe dortiger Kommentar). Ein einzelner String bleibt gueltig
+// (char-job-engine.js schickt weiterhin nur EIN Bild, dort automatisch in ein Array gewickelt).
+async function callFalVerifySync(imageUrls, prompt, FAL_KEY) {
+  const urls = (Array.isArray(imageUrls) ? imageUrls : [imageUrls]).filter(Boolean);
   const resp = await fetch("https://fal.run/" + VERIFY_MODEL, {
     method: "POST",
     headers: falHeaders(FAL_KEY),
     body: JSON.stringify({
-      image_urls: [imageUrl],
+      image_urls: urls,
       prompt,
       system_prompt: "You are a meticulous visual QA checker for a children's illustration style guide. Carefully scan the ENTIRE image before answering. You may add reasoning before the JSON, but keep it to brief keywords or short phrases only — the JSON object itself must always fit within your response and be the very last thing in your answer, with no markdown formatting.",
       model: "google/gemini-2.5-pro",

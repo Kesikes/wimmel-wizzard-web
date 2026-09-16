@@ -1255,10 +1255,29 @@ function sceneComposeInstruction(promptText) {
 // die anderen fuenf Felder true waren. Sechste Frage "no_text_ok" nach demselben Muster ergaenzt --
 // wieder ohne Aenderung an countViolations()/der Auswahl-Logik, da beide bereits generisch ueber alle
 // "*_ok"-Felder gehen.
+//
+// GEFUNDEN + GEAENDERT (Live-Test-Befund 16.09.2026, "style_ok meldet 0 Verstoesse trotz sichtbarer
+// Muender/deutlich abweichendem Stil" + "heroes_ok fast immer false, obwohl die Heldin klar zu sehen
+// ist"): Ursache war NICHT diese Textfrage, sondern dass der Verify-Aufruf bisher NUR das frisch
+// generierte Szenenbild bekam (siehe callFalVerifySync() in fal-queue.js) -- NIE die tatsaechlichen
+// Referenzbilder der benannten Charaktere. Das Modell musste also "ist X erkennbar?" UND "passt der
+// Stil?" rein aus dem Gedaechtnis/der Textbeschreibung heraus beurteilen, ohne je zu sehen, wie X
+// oder der wmlstil tatsaechlich aussehen -- das erklaert beide Symptome: heroes_ok driftet Richtung
+// "false" (keine verlaessliche Grundlage fuer einen Identitaets-Abgleich), style_ok driftet Richtung
+// "true" (das Modell bewertet plausibel klingende Kriterien aus dem Prompt-Text, nicht den tatsaechlichen
+// Bildvergleich). Jetzt bekommt der Verify-Aufruf zusaetzlich zum generierten Bild die Original-
+// Referenzbilder der benannten Helden mit (image_urls: [generiertes Bild, Referenz 1, Referenz 2, ...],
+// siehe advanceSceneJob() in scene-job-engine.js) -- dieser Funktionstext erklaert dem Modell explizit,
+// welches Bild was ist, und verlangt einen echten Abgleich statt einer Text-Einschaetzung.
 function buildVerifyPrompt(heroSpecs) {
   const n = heroSpecs.length;
   const names = heroSpecs.map((s) => s.name).join(", ");
-  return "Sind alle " + n + " benannten Charaktere (" + names + ") je genau einmal erkennbar vorhanden? Hat irgendeine MENSCHLICHE oder menschenähnliche Figur im ganzen Bild einen sichtbaren Mund (Tiere zählen hier ausdrücklich NICHT — ein Hund mit offenem Maul, ein zwitschernder Vogel oder ein brüllender Bär sind KEIN Verstoß gegen diese Regel, nur Menschen/menschenähnliche Figuren mit Mund sind ein Verstoß)? Ist das GESAMTE Bild durchgehend in einem flachen, minimalistischen Illustrationsstil mit dicken schwarzen Umrisslinien, einfachen runden Köpfen und flächigen Farben gezeichnet — NICHT realistisch, NICHT malerisch/gemalt, NICHT stark schattiert oder fotografisch, und ohne einzelne Figuren, Tiere oder Bildbereiche, die in einem abweichenden, detaillierteren oder weicheren Stil gezeichnet sind (Tiere dürfen dabei ihre natürlichen Merkmale wie Maul, Ohren, Schnauze behalten, müssen aber im selben flachen Strich-/Farbstil wie alle Menschen gezeichnet sein)? Ist die räumliche Tiefe im Bild durchgehend plausibel — gehen die Größen von Figuren UND Tieren gemeinsam kontinuierlich von groß im Vordergrund zu klein im Hintergrund über, ohne dass irgendwo eine vordergrund-große Figur oder ein vordergrund-großes Tier unvermittelt direkt neben einer deutlich kleineren, hintergrund-großen Figur oder einem entsprechend kleinen Tier steht, ohne erkennbaren räumlichen Abstand zwischen beiden? Sind die Kopfgrößen innerhalb derselben Tiefenebene (Vordergrund/Mittelgrund/Hintergrund) über verschiedene Figurentypen hinweg (Kind, Erwachsener, älterer Mensch) ungefähr einheitlich groß, sodass sich Alters-/Größenunterschiede über Körperproportionen ausdrücken statt über unterschiedlich große Köpfe, und wirkt zusätzlich jedes Tier in seiner jeweiligen Tiefenebene größenmäßig glaubwürdig im Verhältnis zu den Menschen und anderen Tieren dort (kein Tier wirkt willkürlich zu groß oder zu klein für einen Gag)? Ist das Bild vollständig frei von jeglichem Text — keine Buchstaben, Wörter, Zahlen, Schilder, Poster, Beschriftungen, Aufschriften auf Kleidung oder Gegenständen, nirgendwo im gesamten Bild, auch nicht klein oder im Hintergrund? Antworte NUR als JSON-Objekt mit genau diesen sechs Feldern: {\"heroes_ok\": true/false, \"mouths_ok\": true/false, \"style_ok\": true/false, \"depth_coherence_ok\": true/false, \"head_scale_ok\": true/false, \"no_text_ok\": true/false} — heroes_ok ist nur dann true, wenn wirklich alle " + n + " genannten Charaktere je genau einmal zu erkennen sind; mouths_ok ist nur dann true, wenn KEINE menschliche oder menschenähnliche Figur im ganzen Bild einen sichtbaren Mund hat (Tiere sind ausdrücklich ausgenommen und zählen nicht); style_ok ist nur dann true, wenn das komplette Bild ausnahmslos in diesem flachen wmlstil-Stil gezeichnet ist (Tiere eingeschlossen, mit ihren natürlichen Merkmalen, aber im selben flachen Zeichenstil); depth_coherence_ok ist nur dann true, wenn die Größenübergänge zwischen den Tiefenebenen durchgehend räumlich plausibel sind, ohne abrupte Größensprünge zwischen benachbarten Figuren ODER Tieren; head_scale_ok ist nur dann true, wenn die Kopfgrößen innerhalb jeder einzelnen Tiefenebene unabhängig vom Figurentyp ungefähr einheitlich sind UND jedes Tier in seiner Tiefenebene größenmäßig glaubwürdig wirkt; no_text_ok ist nur dann true, wenn im gesamten Bild absolut kein Text, keine Buchstaben, Zahlen oder Beschriftungen irgendeiner Art zu sehen sind.";
+  const refMapping = n
+    ? " Das ERSTE Bild ist die zu bewertende Szene. Die danach folgenden " + n + " Bild(er) zeigen zum Vergleich das jeweils bereits festgelegte Design der benannten Charaktere, in dieser Reihenfolge: " +
+      heroSpecs.map((s, i) => "Bild " + (i + 2) + " = " + s.name).join(", ") +
+      ". Nutze diese Referenzbilder fuer zwei Dinge: (1) um wirklich zu PRUEFEN, ob die jeweils benannte Person in der Szene im selben Design vorkommt (Gesicht, Frisur, Kleidung wiedererkennbar wie im Referenzbild, nicht nur irgendeine aehnliche Figur), statt es nur zu vermuten; (2) um den Zeichenstil der GESAMTEN Szene direkt mit dem Stil dieser Referenzbilder zu vergleichen -- jede Abweichung vom Referenzstil (mehr Details, Schattierung, weichere Linien, sichtbare Muender, realistischere Proportionen) ist ein Stilverstoss, auch wenn sie dir ohne diesen direkten Vergleich vielleicht nicht auffallen wuerde."
+    : "";
+  return "Im Folgenden beziehst du dich, wo nicht anders angegeben, auf das ERSTE Bild (die zu bewertende Szene)." + refMapping + " Sind alle " + n + " benannten Charaktere (" + names + ") je genau einmal erkennbar vorhanden, im Vergleich zu ihrem jeweiligen Referenzbild? Hat irgendeine MENSCHLICHE oder menschenähnliche Figur im ganzen Bild einen sichtbaren Mund (Tiere zählen hier ausdrücklich NICHT — ein Hund mit offenem Maul, ein zwitschernder Vogel oder ein brüllender Bär sind KEIN Verstoß gegen diese Regel, nur Menschen/menschenähnliche Figuren mit Mund sind ein Verstoß)? Ist das GESAMTE Bild durchgehend in einem flachen, minimalistischen Illustrationsstil mit dicken schwarzen Umrisslinien, einfachen runden Köpfen und flächigen Farben gezeichnet, so wie in den Referenzbildern zu sehen — NICHT realistisch, NICHT malerisch/gemalt, NICHT stark schattiert oder fotografisch, und ohne einzelne Figuren, Tiere oder Bildbereiche, die in einem abweichenden, detaillierteren oder weicheren Stil gezeichnet sind (Tiere dürfen dabei ihre natürlichen Merkmale wie Maul, Ohren, Schnauze behalten, müssen aber im selben flachen Strich-/Farbstil wie alle Menschen gezeichnet sein)? Ist die räumliche Tiefe im Bild durchgehend plausibel — gehen die Größen von Figuren UND Tieren gemeinsam kontinuierlich von groß im Vordergrund zu klein im Hintergrund über, ohne dass irgendwo eine vordergrund-große Figur oder ein vordergrund-großes Tier unvermittelt direkt neben einer deutlich kleineren, hintergrund-großen Figur oder einem entsprechend kleinen Tier steht, ohne erkennbaren räumlichen Abstand zwischen beiden? Sind die Kopfgrößen innerhalb derselben Tiefenebene (Vordergrund/Mittelgrund/Hintergrund) über verschiedene Figurentypen hinweg (Kind, Erwachsener, älterer Mensch) ungefähr einheitlich groß, sodass sich Alters-/Größenunterschiede über Körperproportionen ausdrücken statt über unterschiedlich große Köpfe, und wirkt zusätzlich jedes Tier in seiner jeweiligen Tiefenebene größenmäßig glaubwürdig im Verhältnis zu den Menschen und anderen Tieren dort (kein Tier wirkt willkürlich zu groß oder zu klein für einen Gag)? Ist das Bild vollständig frei von jeglichem Text — keine Buchstaben, Wörter, Zahlen, Schilder, Poster, Beschriftungen, Aufschriften auf Kleidung oder Gegenständen, nirgendwo im gesamten Bild, auch nicht klein oder im Hintergrund? Antworte NUR als JSON-Objekt mit genau diesen sechs Feldern: {\"heroes_ok\": true/false, \"mouths_ok\": true/false, \"style_ok\": true/false, \"depth_coherence_ok\": true/false, \"head_scale_ok\": true/false, \"no_text_ok\": true/false} — heroes_ok ist nur dann true, wenn wirklich alle " + n + " genannten Charaktere je genau einmal zu erkennen sind UND im selben Design wie ihr jeweiliges Referenzbild; mouths_ok ist nur dann true, wenn KEINE menschliche oder menschenähnliche Figur im ganzen Bild einen sichtbaren Mund hat (Tiere sind ausdrücklich ausgenommen und zählen nicht); style_ok ist nur dann true, wenn das komplette Bild ausnahmslos im selben flachen wmlstil-Stil wie die Referenzbilder gezeichnet ist (Tiere eingeschlossen, mit ihren natürlichen Merkmalen, aber im selben flachen Zeichenstil); depth_coherence_ok ist nur dann true, wenn die Größenübergänge zwischen den Tiefenebenen durchgehend räumlich plausibel sind, ohne abrupte Größensprünge zwischen benachbarten Figuren ODER Tieren; head_scale_ok ist nur dann true, wenn die Kopfgrößen innerhalb jeder einzelnen Tiefenebene unabhängig vom Figurentyp ungefähr einheitlich sind UND jedes Tier in seiner Tiefenebene größenmäßig glaubwürdig wirkt; no_text_ok ist nur dann true, wenn im gesamten Bild absolut kein Text, keine Buchstaben, Zahlen oder Beschriftungen irgendeiner Art zu sehen sind.";
 }
 
 // composeSceneImage(): implementiert Spezifikation Abschnitt 3: 2 Kandidaten (gleicher Prompt,
@@ -1326,16 +1345,23 @@ function buildSceneComposeInputs({ heroSpecs, theme, situations }) {
   const promptText = scenePrompt({ heroSpecs: refHeroes, theme, situations, bgCharacterCount: bgUrls.length });
   const instruction = sceneComposeInstruction(promptText);
   const verifyPrompt = buildVerifyPrompt(refHeroes);
-  return { refHeroes, editImageUrl, styleRefUrls, promptText, instruction, verifyPrompt };
+  // NEU (Verify-Blindspot-Fix 16.09.2026, siehe Kommentar bei buildVerifyPrompt() oben): heroRefUrls
+  // getrennt von styleRefUrls zurueckgeben -- styleRefUrls enthaelt zusaetzlich die Hintergrundfiguren-
+  // Bibliotheksblaetter (bgUrls), die fuer den Identitaets-/Stil-Abgleich beim Verify irrelevant/
+  // verwirrend waeren (sie zeigen KEINE benannten Helden). heroRefUrls = nur die echten Helden-
+  // Referenzbilder, in derselben Reihenfolge wie buildVerifyPrompt()'s Bild-2-bis-N-Zuordnung.
+  return { refHeroes, editImageUrl, styleRefUrls, heroRefUrls, promptText, instruction, verifyPrompt };
 }
 
 async function composeSceneImage({ heroSpecs, theme, situations }) {
-  const { editImageUrl, styleRefUrls, promptText, instruction, verifyPrompt } =
+  const { editImageUrl, styleRefUrls, heroRefUrls, promptText, instruction, verifyPrompt } =
     buildSceneComposeInputs({ heroSpecs, theme, situations });
 
   async function generateAndVerify(seed) {
     const cand = await generateImage(instruction, "scene", { seed, editImageUrl, styleRefUrls });
-    const verifyOut = await verifyImage(cand.url, verifyPrompt);
+    // GEAENDERT (Verify-Blindspot-Fix 16.09.2026): Referenzbilder der benannten Helden mit zum
+    // Verify schicken, nicht nur das frisch generierte Bild -- siehe Kommentar bei buildVerifyPrompt().
+    const verifyOut = await verifyImage([cand.url].concat(heroRefUrls), verifyPrompt);
     const scored = countViolations(verifyOut);
     return Object.assign({}, cand, { violations: scored.violations, verify: scored.parsed });
   }
@@ -1607,10 +1633,10 @@ async function runCharacterJobPolling(prompt, opts) {
    nutzt diesen Mechanismus jetzt als REGULÄREN Weg, composeSceneImage() bleibt nur noch als
    eigenstaendig getestete Referenz/Fallback-Funktion erhalten (siehe dortiger Kommentar), wird aber
    im Produktpfad nicht mehr aufgerufen. */
-async function startSceneJob({ instruction, verifyPrompt, editImageUrl, styleRefUrls }) {
+async function startSceneJob({ instruction, verifyPrompt, editImageUrl, styleRefUrls, heroRefUrls }) {
   const resp = await fetch("/api/scene-job-start", {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ instruction, verifyPrompt, editImageUrl, styleRefUrls }),
+    body: JSON.stringify({ instruction, verifyPrompt, editImageUrl, styleRefUrls, heroRefUrls }),
   });
   const data = await parseJsonResponse(resp);
   if (!resp.ok || data.error) throw new Error(data.error || ("Start-Fehler " + resp.status));
@@ -1640,10 +1666,10 @@ async function pollSceneJobOnce(jobId) {
 async function runSceneJobPolling({ heroSpecs, theme, situations }, opts) {
   opts = opts || {};
   const intervalMs = opts.intervalMs || 7000;
-  const { editImageUrl, styleRefUrls, promptText, instruction, verifyPrompt } =
+  const { editImageUrl, styleRefUrls, heroRefUrls, promptText, instruction, verifyPrompt } =
     buildSceneComposeInputs({ heroSpecs, theme, situations });
 
-  const jobId = opts.existingJobId || await startSceneJob({ instruction, verifyPrompt, editImageUrl, styleRefUrls });
+  const jobId = opts.existingJobId || await startSceneJob({ instruction, verifyPrompt, editImageUrl, styleRefUrls, heroRefUrls });
   if (opts.onJobId) opts.onJobId(jobId);
   for (;;) {
     if (opts.signal && opts.signal.aborted) throw new Error("Abgebrochen.");
@@ -1733,11 +1759,15 @@ async function generateImageWithRetry(prompt, kind, opts) {
 
 // Verify-Retry (Spezifikation Abschnitt 3): 2 Kandidaten extern generiert (Aufrufer ruft
 // generateImage 2x auf), hier nur der Verify-Call + die Auswahl der besten Kandidatin.
+// GEAENDERT (Verify-Blindspot-Fix 16.09.2026): imageUrl kann jetzt auch ein Array sein (generiertes
+// Bild + Helden-Referenzbilder zum Abgleich, siehe buildVerifyPrompt()) -- ein einzelner String bleibt
+// weiterhin gueltig (Rueckwaertskompatibel zu composeCharacterImage(), das keine Referenzbilder hat).
 async function verifyImage(imageUrl, verifyPrompt) {
+  const imageUrls = Array.isArray(imageUrl) ? imageUrl.filter(Boolean) : [imageUrl];
   const resp = await fetch("/api/fal-proxy", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ mode: "verify", imageUrls: [imageUrl], verifyPrompt }),
+    body: JSON.stringify({ mode: "verify", imageUrls, verifyPrompt }),
   });
   const data = await parseJsonResponse(resp);
   if (!resp.ok || data.error) throw new Error(data.error || ("Verify-Fehler " + resp.status));

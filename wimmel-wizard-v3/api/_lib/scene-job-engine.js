@@ -72,7 +72,7 @@ function sceneGenerateBody(instruction, editImageUrl, styleRefUrls, seed) {
 // die ersten 2 Kandidaten (analog zu composeSceneImage()s "immer 2 parallele Kandidaten" in
 // pipeline.js). SPEICHERT NICHTS selbst in KV (macht der Aufrufer, api/scene-job-start.js) -- gleiches
 // Prinzip wie createCharacterJob().
-async function createSceneJob({ jobId, instruction, verifyPrompt, editImageUrl, styleRefUrls, FAL_KEY }) {
+async function createSceneJob({ jobId, instruction, verifyPrompt, editImageUrl, styleRefUrls, heroRefUrls, FAL_KEY }) {
   const seedA = Math.floor(Math.random() * 1e9);
   const seedB = Math.floor(Math.random() * 1e9);
   const [reqA, reqB] = await Promise.all([
@@ -84,6 +84,9 @@ async function createSceneJob({ jobId, instruction, verifyPrompt, editImageUrl, 
   const now = Date.now();
   return {
     jobId, instruction, verifyPrompt, editImageUrl, styleRefUrls: styleRefUrls || [],
+    // NEU (Verify-Blindspot-Fix 16.09.2026): separat mitgefuehrt, NUR fuer den Verify-Abgleich in
+    // advanceSceneJob() unten -- siehe Kommentar bei buildVerifyPrompt() in pipeline.js.
+    heroRefUrls: heroRefUrls || [],
     status: "in_progress", error: null,
     candidates: [candA, candB],
     resultUrl: null, resultSeed: null, resultViolations: null, resultVerify: null,
@@ -137,7 +140,11 @@ async function advanceSceneJob(job, { FAL_KEY }) {
     for (const cand of next.candidates) {
       if (cand.genStatus !== "done" || cand.verifyStatus !== "pending") continue;
       try {
-        const output = await callFalVerifySync(cand.url, next.verifyPrompt, FAL_KEY);
+        // GEAENDERT (Verify-Blindspot-Fix 16.09.2026, siehe Kommentar bei buildVerifyPrompt() in
+        // pipeline.js): Helden-Referenzbilder MIT zum Verify schicken, nicht nur das generierte Bild --
+        // vorher hatte das Modell keine visuelle Grundlage, um heroes_ok (Identitaet) oder style_ok
+        // (Stiltreue) tatsaechlich gegen etwas abzugleichen, nur den Prompt-Text als vage Richtschnur.
+        const output = await callFalVerifySync([cand.url].concat(next.heroRefUrls || []), next.verifyPrompt, FAL_KEY);
         const scored = countViolations(output);
         cand.violations = scored.violations;
         cand.verify = scored.parsed;
