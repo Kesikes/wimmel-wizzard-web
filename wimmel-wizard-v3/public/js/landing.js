@@ -25,7 +25,7 @@ const PINS = [
 
 // GEAENDERT (Sammel-Runde 11.09.2026, Nutzer-Fund: "Positionierung der nummerierten Punkte im
 // Hero-Bild falsch"). Die alten Werte (aus referenz/Desktop-v4-OatlyWimmel.dc.html uebernommen)
-// haben nicht zu den tatsaechlich abgebildeten Szenen in assets/hero-wimmelhaus.png gepasst. Neu
+// haben nicht zu den tatsaechlich abgebildeten Szenen in assets/hero-wimmelhaus.webp gepasst. Neu
 // per Pixel-Messung am Bild bestimmt (2835x1203px Original, Marker testweise eingezeichnet und
 // visuell gegen die Grafik geprueft) und exakt auf die vom Nutzer vorgegebene Zuordnung gemappt:
 // 1 unten links beim Mikrofon (Aufnahme-Szene, ~590/960px), 2 bei Oma beim Vorlesen (~1030/380px),

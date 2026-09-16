@@ -1,3 +1,10 @@
+> **Hinweis (16.09.2026):** Diese Anleitung beschreibt den ALTEN Root-Level-Deploy (Repo/Projekt
+> „wimmel-wizzard-web", index.html + api/ direkt im Repo-Root). Dieses Vercel-Projekt wird gelöscht --
+> aktuell gibt es nur noch das Projekt „wimmel-wizard-v3" (Root Directory = Unterordner
+> `wimmel-wizard-v3/`, URL `wimmel-wizard-v3.vercel.app`). Die groben Schritte (GitHub verbinden,
+> Environment Variables, Deploy) gelten sinngemäß weiter, Details zu Repo-Struktur/Dateipfaden unten
+> sind aber veraltet.
+
 # Wimmel Wizard live schalten – Schritt für Schritt (GitHub + Vercel)
 
 Kein Terminal, keine Vorkenntnisse nötig – alles läuft über die Weboberflächen von GitHub und Vercel. Dauer: ca. 20–30 Minuten.
@@ -43,7 +50,7 @@ Für jede Zeile: Name eintragen, Value eintragen, **„Add"** klicken. Diese Key
 **„Deploy"** klicken und ca. 1 Minute warten. Vercel zeigt danach eine URL wie:
 
 ```
-https://wimmel-wizzard-web.vercel.app
+https://wimmel-wizard-v3.vercel.app
 ```
 
 Diese URL öffnen – die Seite läuft jetzt live, **ohne dass du irgendwo in den ⚙️-Einstellungen etwas eintragen musst**. Bild- und Chat-Server sind automatisch aktiv, weil sie unter derselben Adresse (`/api/fal-proxy` und `/api/claude-proxy`) mitlaufen.

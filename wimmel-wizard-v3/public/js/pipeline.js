@@ -466,7 +466,7 @@ function kontextInstruction(raw) {
 // Stil-Referenzbild verwenden ... hat sich als riskant erwiesen (Personen aus dem Referenzbild
 // wurden trotz 'ignore identity'-Anweisung uebernommen und verdraengten echte Charaktere). Die
 // Charakterbilder allein sind stiltreu genug." Das mitgeschickte zweite Bild war entweder das
-// generische Marketing-Asset (wizzelwim-family-hero.png, NICHT im strengen wmlstil-Detailgrad
+// generische Marketing-Asset (wizzelwim-family-hero.webp, NICHT im strengen wmlstil-Detailgrad
 // gezeichnet) oder -- schlimmer -- eine bereits fertige, VOELLIG ANDERE Person aus demselben
 // Haushalt: das Modell hat in beiden Faellen offenbar teilweise Identitaet/Stil von diesem
 // zweiten Bild uebernommen statt nur vom eigentlichen Foto zu zeichnen. Jetzt: reiner
@@ -735,6 +735,23 @@ const GAG_LIBRARY = {
     {de:"In der Bauecke türmt sich ein riesiger Klötzchenturm", en:"a huge tower of building blocks rising in the play corner"},
     {de:"Ein Luftballon platzt und alle erschrecken kurz", en:"a balloon popping and startling everyone for a moment"}
   ],
+  // NEU (Live-Test-Befund 16.09.2026, "Weihnachten hat keinen eigenen GAG_LIBRARY-Pool"): eigener
+  // winterlich-weihnachtlicher Pool, damit die Weihnachtsszene nicht mehr auf den jahreszeitlich
+  // unpassenden generic-Pool (Regenschirm im Wind, Eis teilen, Sandburg-Anklaenge) zurueckfaellt.
+  christmas: [
+    {de:"Plätzchen werden gebacken, überall liegt viel zu viel Puderzucker", en:"cookies being baked, powdered sugar dusting everything nearby"},
+    {de:"Eine Lichterkette hat sich hoffnungslos verheddert", en:"a string of fairy lights hopelessly tangled up"},
+    {de:"Die Katze verschwindet raschelnd im Geschenkpapier", en:"a cat vanishing into a pile of wrapping paper, making it rustle"},
+    {de:"Vor dem Fenster tobt eine Schneeballschlacht", en:"a snowball fight raging just outside the window"},
+    {de:"Ein Stern am Weihnachtsbaum hängt schief und wird vorsichtig gerade gerückt", en:"a crooked star ornament on the tree being carefully straightened"},
+    {de:"Der Hund hat sich eine Wurstkette vom Baum geschnappt", en:"a dog snatching a string of sausage-shaped ornaments off the tree"},
+    {de:"Ein Kind lugt heimlich unter das Papier eines Geschenks", en:"a kid secretly peeking under the wrapping paper of a present"},
+    {de:"Kakao kocht über und tropft vom Tisch", en:"hot cocoa boiling over and dripping off the table"},
+    {de:"Ein Türchen des Adventskalenders wurde viel zu früh geöffnet", en:"an advent calendar door opened way too early"},
+    {de:"Opa nickt im Sessel ein, während um ihn herum Geschenke eingepackt werden", en:"grandpa dozing off in his armchair while presents get wrapped all around him"},
+    {de:"Eine Rolle Geschenkband rollt quer durchs Zimmer", en:"a roll of ribbon unspooling across the room"},
+    {de:"Draußen baut jemand hastig einen schiefen Schneemann, bevor es dunkel wird", en:"someone hastily building a lopsided snowman outside before it gets dark"}
+  ],
   generic: [
     {de:"Jemand verliert beim Rennen einen Schuh", en:"someone losing a shoe while running"},
     {de:"Ein Hund schnappt sich etwas und rennt fröhlich davon", en:"a dog grabbing something and running off happily"},
@@ -768,13 +785,19 @@ function pickGagChips(loc, count, excludeSet) {
 // Stück" (Abschnitt 2) alleine gar nicht erreichen. Fallback jetzt zweistufig: erst der passende
 // Orts-Pool, dann zusaetzlich der generic-Pool (macht bis zu 20 einzigartige Eintraege moeglich),
 // und nur falls selbst das nicht reicht, werden Eintraege wiederholt statt das Ziel zu verfehlen.
+// GEAENDERT (Live-Test-Befund 16.09.2026): "christmas" ist bewusst von diesem generic-Zumischen
+// ausgenommen (wie "generic" selbst) -- der generic-Pool ist jahreszeitlich neutral bis sommerlich
+// (Regenschirm im Wind, Eis teilen, Sandburg-Anklaenge per "someone in a costume") und wuerde in
+// einer weihnachtlichen Wohnzimmerszene sofort wieder unpassend wirken, genau das Problem, das der
+// neue christmas-Pool beheben soll. Reicht der 12er-Pool fuer das target nicht, greift stattdessen
+// der "Letzter Notstand"-Wiederholungsfallback unten (Wiederholung statt thematischem Bruch).
 function topUpSituations(list, locId, target) {
   target = target || 15;
   if (list.length >= target) return list.slice(0, target);
   const used = new Set(list.map((s) => s.text));
   const pools = [];
   if (locId && GAG_LIBRARY[locId]) pools.push(GAG_LIBRARY[locId]);
-  if (locId !== "generic") pools.push(GAG_LIBRARY.generic);
+  if (locId !== "generic" && locId !== "christmas") pools.push(GAG_LIBRARY.generic);
   pools.forEach((pool) => {
     pool.forEach((g) => {
       if (list.length >= target) return;
@@ -860,17 +883,21 @@ function stripEmotionWords(text) {
 // (Strand ist die naheliegendste "Urlaub"-Assoziation und der GAG_LIBRARY-Pool "beach" passt
 // inhaltlich gut), Berg->mountains, Stadt->city, Spielplatz->park (der "park"-Pool ist inhaltlich
 // bereits ein Spielplatz-Pool: Rutsche, Wippe, Drachen im Baum, Eis, Luftballon, Versteckspiel).
-// NUR Weihnachten bleibt (wie zuvor) auf "generic", da GAG_LIBRARY keinen eigenen
-// Weihnachts-Pool hat. en-Szenenbeschreibungen/region-Labels fuer die vier neu angebundenen Themen
-// sind entsprechend neu formuliert, nicht Teil einer frueher bestaetigten Spezifikation -- bitte im
-// Live-Test gegenlesen.
+// en-Szenenbeschreibungen/region-Labels fuer die vier neu angebundenen Themen sind entsprechend neu
+// formuliert, nicht Teil einer frueher bestaetigten Spezifikation -- bitte im Live-Test gegenlesen.
+// GEAENDERT (Live-Test-Befund 16.09.2026, "falscher Stil + unpassende Situationen" bei Weihnachten):
+// Weihnachten lief bisher auf "generic" (siehe Git-Historie), weil GAG_LIBRARY keinen eigenen
+// Weihnachts-Pool hatte -- dadurch landeten jahreszeitlich unpassende generic-Situationen
+// (Regenschirm im Wind, Eis teilen) in der Weihnachtsszene. Jetzt eigener "christmas"-Pool (siehe
+// GAG_LIBRARY oben) mit 12 winterlich-weihnachtlichen Situationen, plus in topUpSituations() explizit
+// vom generic-Zumischen ausgenommen.
 const THEME_META = {
   "Bauernhof": {
     locId: "farm", type: "landscape", en: "farm in golden autumn light",
     regions: ["in the farmyard", "near the barn", "in the orchard", "by the fields"], regionMin: 6
   },
   "Weihnachten": {
-    locId: "generic", type: "cutaway", en: "cozy living room decorated for Christmas Eve, a lit Christmas tree in the corner",
+    locId: "christmas", type: "cutaway", en: "cozy living room decorated for Christmas Eve, a lit Christmas tree in the corner",
     regions: ["by the Christmas tree", "in the kitchen", "on the stairs", "by the fireplace"], regionMin: 5
   },
   "Urlaub": {
@@ -910,19 +937,26 @@ function densityInstruction(theme) {
 // Kuratierung/Stichproben-Pruefung siehe Wimmelbuchprojekt/build-group-sheet.sh und
 // generate-gap-character.sh, alle 13 Blaetter einzeln gegen die Stilregeln geprueft). 13 kuratierte
 // Gruppen-Blaetter (je 5-7 Einzelfiguren, im selben wmlstil erzeugt) liegen als statische Assets im
-// Projekt (public/assets/bgchars/bgchars-1.png ... bgchars-13.png, auf 1800px Breite verkleinert --
+// Projekt (public/assets/bgchars/bgchars-1.jpg ... bgchars-13.jpg, auf 1800px Breite verkleinert --
 // die 4K-Originale waren mit ~15MB pro Blatt unnoetig gross fuer ein reines Referenzbild, das nur
 // server-seitig von fal.ai abgerufen wird, nie vom Kunden-Browser geladen). Eigenes statisches Asset
 // statt fal.ai-Hosting der Generierungs-Ergebnisse: keine Ablauf-/TTL-Frage, kein zusaetzlicher
 // Persistenz-Mechanismus noetig, funktioniert genau wie die bestehenden Marketing-Assets
-// (wizzelwim-family-hero.png etc., siehe assetPath()).
+// (wizzelwim-family-hero.webp etc., siehe assetPath()).
 // Zweck: der Szenen-Edit-Aufruf bekommt zusaetzlich zu den benannten Helden-Referenzbildern ein paar
 // dieser Blaetter mit, damit das Modell fuer EINEN TEIL der Hintergrundfiguren auf bereits feste,
 // stilgeprüfte Designs zurueckgreifen kann statt bei jeder Szene komplett neu zu erfinden.
 // Repetitions-Mathematik (siehe Chat-Antwort auf Nutzerfrage "sind 44 Figuren genug?"): bei
 // zufaelliger Auswahl von k=3-4 Blaettern aus N=13 pro Szene liegt die Wiederholwahrscheinlichkeit
 // eines einzelnen Blatts bei ca. 23-31% pro generierter Szene -- genug Variation ueber viele Szenen.
-const BACKGROUND_CHARACTER_LIBRARY = Array.from({ length: 13 }, (_, i) => "bgchars/bgchars-" + (i + 1) + ".png");
+// GEAENDERT (Sammel-Runde 16.09.2026, Vercel-Hobby-Deployment-Speicher ueberschritten): von PNG auf
+// JPEG q90 umgestellt (~1.5MB -> ~250KB pro Blatt, 20MB -> 3,3MB fuer alle 13) -- JPEG statt WebP
+// bewusst, weil zum Zeitpunkt der Umstellung nicht zweifelsfrei dokumentiert war, ob
+// nano-banana-pro/edit WebP als image_url zuverlaessig akzeptiert (Nutzer-Vorgabe: im Zweifel JPG).
+// Qualitaet 90 visuell gegengeprueft (Live-Test-Bild), keine sichtbaren Kompressionsartefakte an den
+// schwarzen Umrisslinien. Originale (PNG, 1800px) liegen unveraendert in asset-originals-v3/ ausserhalb
+// von public/ (siehe Repo-Root), falls je eine verlustfreie Version wieder gebraucht wird.
+const BACKGROUND_CHARACTER_LIBRARY = Array.from({ length: 13 }, (_, i) => "bgchars/bgchars-" + (i + 1) + ".jpg");
 
 // backgroundCharAssetUrl(): fal-proxy.js' isImageRef() verlangt eine ABSOLUTE http(s)-URL oder eine
 // data:-URI (siehe dortiger Kommentar) -- assetPath() liefert bewusst nur einen root-relativen Pfad
@@ -1330,7 +1364,7 @@ async function composeSceneImage({ heroSpecs, theme, situations }) {
 // gerendert, wenn es tatsaechlich gesetzt ist (siehe charakter.js Screens.charakterblatt.render(),
 // "if (person.imageUrl) { ... }" umschliesst den GESAMTEN Seite/Ruecken/3-4-Thumbnail-Block) -- die
 // Nutzerin sah dort konsistente Seite/Ruecken/3-4-Ansichten, was nur moeglich ist, wenn imageUrl
-// selbst gesetzt war. Der Fallback auf assetPath("wizzelwim-family-hero.png") (das generische
+// selbst gesetzt war. Der Fallback auf assetPath("wizzelwim-family-hero.webp") (das generische
 // Marketing-Bild mit einer Menschenmenge, das den "fuenf Gesichter"-Fund oberflaechlich erklaeren
 // koennte) greift nur bei einem LEEREN imageUrl -- in diesem Fall war imageUrl also ein echtes,
 // vom Modell tatsaechlich so gezeichnetes Bild. Kein Anzeige-/Zuordnungsfehler, sondern ein

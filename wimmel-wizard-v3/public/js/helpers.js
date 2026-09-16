@@ -46,7 +46,7 @@ function scrollToTop() {
 // relativ zu app.html. Auf /app (Dashboard) ging das zufällig gut (ein einziges
 // Pfadsegment -> Ersetzung landet korrekt bei /assets/...), auf jeder tieferen
 // Route (/app/personen/neu, /app/bild/zaubern, /app/bestellen, /app/fertig, ...)
-// wird daraus z.B. /app/personen/assets/wizzelwim-family-hero.png. Das trifft
+// wird daraus z.B. /app/personen/assets/wizzelwim-family-hero.webp. Das trifft
 // Vercels eigenen Catch-all-Rewrite "/app/:path*" -> app.html (siehe
 // vercel.json), der Server liefert also HTML statt PNG zurück (Status 200,
 // falscher Inhalt) -- der Browser zeigt das kaputte Bild-Icon. Genau dieselbe

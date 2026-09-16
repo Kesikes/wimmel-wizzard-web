@@ -184,7 +184,7 @@ function buildChipsPanel(person) {
   const row = h("div", { style: { display: "flex", gap: "14px", alignItems: "flex-start" } });
 
   const preview = h("div", { style: { flex: "none", width: "96px", border: "3px solid var(--ink)", background: "var(--blue)", padding: "6px", transform: "rotate(-2deg)" } });
-  preview.appendChild(h("img", { src: person.imageUrl || assetPath("wizzelwim-family-hero.png"), alt: "Live-Vorschau der Figur", style: { display: "block", width: "100%" } }));
+  preview.appendChild(h("img", { src: person.imageUrl || assetPath("wizzelwim-family-hero.webp"), alt: "Live-Vorschau der Figur", style: { display: "block", width: "100%" } }));
   preview.appendChild(h("span", { class: "h-black", style: { display: "block", marginTop: "5px", fontSize: "8px", letterSpacing: ".08em", textAlign: "center" } }, person.imageUrl ? "zuletzt gezeichnet" : "noch kein Bild"));
   row.appendChild(preview);
 
@@ -445,7 +445,7 @@ async function generateExtraViewsAndFinish(person, frontResult, sceneDescription
 
 // ENTFERNT (Sammel-Runde 10.09.2026, Prioritaet-1-Bugfix): styleReferenceUrls() lieferte bisher ein
 // zweites Referenzbild (entweder eine bereits fertige, ANDERE Person desselben Haushalts oder das
-// generische Marketing-Asset wizzelwim-family-hero.png), das an generateCharacterImageFromPhoto()
+// generische Marketing-Asset wizzelwim-family-hero.webp), das an generateCharacterImageFromPhoto()
 // als styleRefUrls mitgegeben wurde. Genau das verbietet die Spezifikation (Abschnitt 1) ausdruecklich
 // als "hat sich als riskant erwiesen (Personen aus dem Referenzbild wurden ... uebernommen und
 // verdraengten echte Charaktere)" -- bestaetigter Root Cause fuer "Foto-Upload zeigt eine Person, die
@@ -895,7 +895,7 @@ Screens.charakterblatt = {
     // jede Zusatz-Ansicht kann unabhängig fehlgeschlagen sein (Promise.allSettled) -- Thumbnail-Reihe
     // zeigt nur die Ansichten, die tatsächlich da sind, statt so zu tun, als gäbe es alle vier.
     const card = h("div", { style: { border: "4px solid var(--ink)", background: "var(--yellow)", boxShadow: "7px 8px 0 var(--ink)", padding: "12px", transform: "rotate(-1deg)" } });
-    card.appendChild(h("img", { src: person.imageUrl || assetPath("wizzelwim-family-hero.png"), alt: person.name + " im Wimmelstil", style: { display: "block", width: "100%", border: "3px solid var(--ink)", background: "var(--paper)" } }));
+    card.appendChild(h("img", { src: person.imageUrl || assetPath("wizzelwim-family-hero.webp"), alt: person.name + " im Wimmelstil", style: { display: "block", width: "100%", border: "3px solid var(--ink)", background: "var(--paper)" } }));
     card.appendChild(h("p", { class: "caveat", style: { margin: "10px 0 0", fontSize: "19px", lineHeight: "1.1" } },
       person.imageUrl ? "so taucht sie später in jeder Szene auf." : "noch kein Bild — bitte erst „Diese Figur zeichnen“ auf dem vorigen Schritt."));
     wrap.appendChild(card);

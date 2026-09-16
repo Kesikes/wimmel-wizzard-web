@@ -925,7 +925,7 @@ Screens.zaubern = {
     const ring = h("span", { style: { position: "absolute", top: "50%", left: "50%", width: "168px", height: "168px", margin: "-84px 0 0 -84px", border: "4px dashed var(--paper-a38)", borderRadius: "50%", animation: "spin 3.2s linear infinite" } });
     ring.appendChild(h("span", { style: { position: "absolute", top: "-6px", left: "50%", width: "14px", height: "14px", margin: "0 0 0 -7px", background: "var(--yellow)", border: "2px solid var(--ink)", borderRadius: "50%" } }));
     spinWrap.appendChild(ring);
-    spinWrap.appendChild(h("img", { src: assetPath("wizard-on-book.png"), alt: "WizzelWim zaubert", style: { position: "relative", width: "128px", animation: "wob 3.6s ease-in-out infinite" } }));
+    spinWrap.appendChild(h("img", { src: assetPath("wizard-on-book.webp"), alt: "WizzelWim zaubert", style: { position: "relative", width: "128px", animation: "wob 3.6s ease-in-out infinite" } }));
     wrap.appendChild(spinWrap);
 
     const stepRows = {};
@@ -1130,7 +1130,7 @@ Screens.ergebnis = {
   render(root) {
     const s = AppState.data;
     // NEU (Pipeline-Anbindung): zeigt das tatsaechlich generierte Bild (AppState.currentImage()),
-    // statt immer "assets/hero-wimmelhaus.png"/"Bauernhof im Herbst" zu behaupten. Wird die Ergebnis-
+    // statt immer "assets/hero-wimmelhaus.webp"/"Bauernhof im Herbst" zu behaupten. Wird die Ergebnis-
     // Seite erreicht, BEVOR die Generierung fertig ist (z.B. "Ich geh kurz weg" auf dem Zaubern-
     // Screen), gibt es noch kein Bild -- ehrlicher Wartehinweis statt Platzhalterbild.
     const image = AppState.currentImage();
@@ -1217,7 +1217,7 @@ Screens.ergebnis = {
     if (s.penOn) wrap.appendChild(buildPenPanel({ image, canvas, img, mark, errorId: "pen-error-mobile" }));
 
     const hintBox = h("div", { style: { margin: "16px 14px 0", position: "relative", background: "var(--blue)", border: "4px solid var(--ink)", padding: "15px 15px 15px 54px", boxShadow: "5px 6px 0 var(--ink)", transform: "rotate(-.8deg)" } });
-    hintBox.appendChild(h("img", { src: assetPath("wizard-magnifier.png"), alt: "", style: { position: "absolute", left: "-18px", top: "-14px", width: "46px", transform: "rotate(-10deg)" } }));
+    hintBox.appendChild(h("img", { src: assetPath("wizard-magnifier.webp"), alt: "", style: { position: "absolute", left: "-18px", top: "-14px", width: "46px", transform: "rotate(-10deg)" } }));
     const hint = h("p", { class: "caveat", style: { fontSize: "20px", lineHeight: "1.12" } },
       s.penOn ? "kringel einfach drüber. ich muss nicht genau wissen, wo das Ding anfängt – ich verstehe, was du meinst."
               : "irgendwas störend? nimm den Stift und mal es durch. der Rest der Szene bleibt genau so.");
@@ -1310,7 +1310,7 @@ function buildDesktopErgebnis(s, image) {
   aside.appendChild(toolCol);
 
   const dHintBox = h("div", { style: { position: "relative", background: "var(--blue)", border: "4px solid var(--ink)", boxShadow: "6px 7px 0 var(--ink)", padding: "18px 18px 18px 62px", transform: "rotate(-.8deg)" } });
-  dHintBox.appendChild(h("img", { src: assetPath("wizard-magnifier.png"), alt: "", style: { position: "absolute", left: "-20px", top: "-16px", width: "52px", transform: "rotate(-10deg)" } }));
+  dHintBox.appendChild(h("img", { src: assetPath("wizard-magnifier.webp"), alt: "", style: { position: "absolute", left: "-20px", top: "-16px", width: "52px", transform: "rotate(-10deg)" } }));
   const dHint = h("p", { class: "caveat", style: { fontSize: "22px", lineHeight: "1.12" } },
     s.penOn ? "kringel einfach drüber. ich muss nicht genau wissen, wo das Ding anfängt – ich verstehe, was du meinst."
             : "irgendwas störend? nimm den Stift und mal es durch. der Rest der Szene bleibt genau so.");

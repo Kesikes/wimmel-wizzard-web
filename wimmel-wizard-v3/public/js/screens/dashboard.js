@@ -36,7 +36,7 @@ Screens.dashboard = {
       }
     });
     greet.appendChild(h("img", {
-      src: assetPath("wizard-badge.png"), alt: "WizzelWim",
+      src: assetPath("wizard-badge.webp"), alt: "WizzelWim",
       style: { position: "absolute", left: "-20px", bottom: "-8px", width: "115px", animation: "wob 4s ease-in-out infinite" }
     }));
     // BUGFIX (Live-Test 06.09.2026, Nachzieher aus Runde 1: "Demo-Name muss raus"): war hier auf
@@ -119,7 +119,7 @@ Screens.dashboard = {
     // Design-Feedback (05.09.2026): Fragezeichen-Icon wirkte kalt/fehlerhaft -- freundlicheres
     // WizzelWim-Icon statt "?" im "gesperrt"-Kreis.
     const lockedIcon = h("span", { style: { flex: "none", width: "58px", height: "58px", borderRadius: "50%", border: "3px dashed rgba(26,26,24,.35)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" } });
-    lockedIcon.appendChild(h("img", { src: assetPath("wizard-badge.png"), alt: "", style: { width: "38px", height: "38px", opacity: "0.55" } }));
+    lockedIcon.appendChild(h("img", { src: assetPath("wizard-badge.webp"), alt: "", style: { width: "38px", height: "38px", opacity: "0.55" } }));
     locked.appendChild(lockedIcon);
     const lockedText = h("span", { style: { flex: "1", minWidth: "0" } });
     lockedText.appendChild(h("span", { class: "h-black", style: { display: "block", fontSize: "19px", lineHeight: "1", letterSpacing: "-.03em" } }, "Gesamt-Vorschau"));
@@ -220,7 +220,7 @@ function buildDesktopDashboard(s, notice) {
   if (notice) aside.appendChild(buildResumeNotice(notice));
   // Design-Korrektur (07.09.2026: "Grafik 140% größer", gleiche Skalierung wie mobil): 104px -> 146px.
   const greet = h("div", { style: { position: "relative", background: "var(--yellow)", border: "4px solid var(--ink)", boxShadow: "7px 8px 0 var(--ink)", padding: "22px 22px 22px 135px", transform: "rotate(-1deg)" } });
-  greet.appendChild(h("img", { src: assetPath("wizard-badge.png"), alt: "WizzelWim", style: { position: "absolute", left: "-25px", bottom: "-11px", width: "146px", animation: "wob 4s ease-in-out infinite" } }));
+  greet.appendChild(h("img", { src: assetPath("wizard-badge.webp"), alt: "WizzelWim", style: { position: "absolute", left: "-25px", bottom: "-11px", width: "146px", animation: "wob 4s ease-in-out infinite" } }));
   greet.appendChild(h("p", { class: "h-black", style: { fontSize: "20px", lineHeight: "1", letterSpacing: "-.03em" } }, "Moin,"));
   greet.appendChild(h("p", { class: "caveat", style: { margin: "8px 0 0", fontSize: "23px", lineHeight: "1.1" } }, "wir bauen das Stück für Stück. du entscheidest, wie viel Liebe zum Detail reingeht."));
   aside.appendChild(greet);
@@ -275,7 +275,7 @@ function buildDesktopDashboard(s, notice) {
     style: { marginTop: "20px", border: "4px dashed rgba(26,26,24,.45)", background: "rgba(26,26,24,.05)", color: "rgba(26,26,24,.62)", padding: "24px", display: "flex", alignItems: "center", gap: "18px" }
   });
   const lockedWideIcon = h("span", { style: { flex: "none", width: "62px", height: "62px", borderRadius: "50%", border: "3px dashed rgba(26,26,24,.35)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" } });
-  lockedWideIcon.appendChild(h("img", { src: assetPath("wizard-badge.png"), alt: "", style: { width: "40px", height: "40px", opacity: "0.55" } }));
+  lockedWideIcon.appendChild(h("img", { src: assetPath("wizard-badge.webp"), alt: "", style: { width: "40px", height: "40px", opacity: "0.55" } }));
   lockedWide.appendChild(lockedWideIcon);
   const lockedText = h("span", {});
   lockedText.appendChild(h("span", { class: "h-black", style: { display: "block", fontSize: "22px", lineHeight: "1", letterSpacing: "-.03em" } }, "Gesamt-Vorschau"));
