@@ -10,9 +10,9 @@
 // bereits zusammengebauten Textbausteine plus die Referenzbild-URLs. Das haelt diesen Endpunkt
 // simpel und vermeidet, dass die umfangreiche Szenen-Prompt-Logik aus pipeline.js hier ein zweites
 // Mal nachgebaut werden muesste (siehe Kommentar in scene-job-engine.js).
-const { kvSetJson } = require("./lib/kv");
-const { createSceneJob } = require("./lib/scene-job-engine");
-const { checkRateLimit } = require("./lib/rate-limit");
+const { kvSetJson } = require("./_lib/kv");
+const { createSceneJob } = require("./_lib/scene-job-engine");
+const { checkRateLimit } = require("./_lib/rate-limit");
 
 const JOB_TTL_SECONDS = 60 * 60;
 
@@ -45,9 +45,7 @@ module.exports = async (req, res) => {
   const styleRefUrls = (Array.isArray(body.styleRefUrls) ? body.styleRefUrls : []).filter(isImageRef).slice(0, 13);
 
   if (!instruction) {
-    // TEMPORAERER MARKER (Diagnose 16.09.2026, siehe rate-limit.js): wird wieder entfernt, sobald
-    // geklaert ist, ob diese Datei ueberhaupt aktuell deployt ist.
-    res.status(400).json({ error: "Keine instruction übergeben. [marker-v2]" });
+    res.status(400).json({ error: "Keine instruction übergeben." });
     return;
   }
   // Gleiche Obergrenze wie der bestehende, synchrone Pfad (fal-proxy.js) — siehe dortige Kommentare

@@ -12,9 +12,9 @@
 // nach einem erfolgreichen Live-Test dieses neuen Mechanismus (siehe TODO-Kommentar in
 // pipeline.js bei runCharacterJobPolling()) wird das an die eigentliche "Figur zeichnen"-Aktion
 // angeschlossen.
-const { kvSetJson } = require("./lib/kv");
-const { createCharacterJob } = require("./lib/char-job-engine");
-const { checkRateLimit } = require("./lib/rate-limit");
+const { kvSetJson } = require("./_lib/kv");
+const { createCharacterJob } = require("./_lib/char-job-engine");
+const { checkRateLimit } = require("./_lib/rate-limit");
 
 // Job-Aufbewahrung in KV: an fal.ai's eigener ~1h-Ergebnis-Aufbewahrung orientiert (siehe
 // char-job-engine.js-Kommentar) -- nach Ablauf ist ein Job ohnehin nicht mehr sinnvoll abholbar,

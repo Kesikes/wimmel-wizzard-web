@@ -5,8 +5,8 @@
 // Aufruf GENAU EINEN Fortschritts-Durchlauf (advanceSceneJob()), dann wird der (ggf. aktualisierte)
 // Job-Stand zurueckgegeben. Eigenes, kleines maxDuration (siehe vercel.json) statt der 300s der
 // langen synchronen Pfade.
-const { kvGetJson, kvSetJson } = require("./lib/kv");
-const { advanceSceneJob } = require("./lib/scene-job-engine");
+const { kvGetJson, kvSetJson } = require("./_lib/kv");
+const { advanceSceneJob } = require("./_lib/scene-job-engine");
 
 const JOB_TTL_SECONDS = 60 * 60;
 

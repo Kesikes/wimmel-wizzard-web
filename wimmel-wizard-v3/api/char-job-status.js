@@ -6,8 +6,8 @@
 // (ggf. aktualisierte) Job-Stand zurückgegeben. Absichtlich EIGENES, kleines maxDuration (siehe
 // vercel.json) statt der 300s der langen synchronen Pfade -- ein einzelner Fortschritts-Durchlauf
 // braucht nur ein paar schnelle fal.ai-Statusabfragen, niemals mehrere Minuten.
-const { kvGetJson, kvSetJson } = require("./lib/kv");
-const { advanceCharacterJob } = require("./lib/char-job-engine");
+const { kvGetJson, kvSetJson } = require("./_lib/kv");
+const { advanceCharacterJob } = require("./_lib/char-job-engine");
 
 const JOB_TTL_SECONDS = 60 * 60;
 

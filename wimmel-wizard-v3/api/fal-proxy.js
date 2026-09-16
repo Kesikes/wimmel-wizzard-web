@@ -90,7 +90,7 @@ async function fetchFalWithRetry(url, options, maxRetries) {
   }
 }
 
-const { checkRateLimit } = require("./lib/rate-limit");
+const { checkRateLimit } = require("./_lib/rate-limit");
 
 module.exports = async (req, res) => {
   if (req.method !== "POST") {
