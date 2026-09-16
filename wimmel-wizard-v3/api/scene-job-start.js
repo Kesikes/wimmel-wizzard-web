@@ -13,6 +13,7 @@
 const { kvSetJson } = require("./_lib/kv");
 const { createSceneJob } = require("./_lib/scene-job-engine");
 const { checkRateLimit } = require("./_lib/rate-limit");
+const { logFalError } = require("./_lib/fal-queue");
 
 const JOB_TTL_SECONDS = 60 * 60;
 
@@ -69,6 +70,9 @@ module.exports = async (req, res) => {
     await kvSetJson("scenejob:" + jobId, job, JOB_TTL_SECONDS);
     res.status(200).json({ jobId });
   } catch (e) {
-    res.status(502).json({ error: "Konnte Generierung nicht starten: " + (e && e.message ? e.message : String(e)) });
+    // BUGFIX (Sammel-Runde 16.09.2026): gleicher Fix wie in api/char-job-start.js -- roher
+    // fal.ai-Fehlertext ging vorher 1:1 an den Client, jetzt zentral ueber logFalError().
+    const friendly = await logFalError("scene-job-start", e && e.message ? e.message : String(e));
+    res.status(502).json({ error: friendly });
   }
 };

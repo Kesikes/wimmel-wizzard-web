@@ -33,6 +33,7 @@
 // in pipeline.js (dessen Verhalten diese Datei ersetzt, sobald live bestaetigt).
 const {
   submitFalQueue, falQueueStatus, falQueueResult, callFalVerifySync, countViolations,
+  logFalError,
 } = require("./fal-queue");
 
 // SCENE_MODEL: identisch zum Default-Endpoint in api/fal-proxy.js fuer kind==="scene" mit gesetztem
@@ -118,11 +119,13 @@ async function advanceSceneJob(job, { FAL_KEY }) {
         // enorm). Jetzt: fal.ai's eigene Fehlermeldung (falls vorhanden) wird uebernommen.
         cand.genStatus = "error";
         cand.genError = "fal.ai meldete Generierungs-Status '" + st.status + "': " + JSON.stringify(st).slice(0, 300);
+        await logFalError("scene-job genStatus (seed " + cand.seed + ")", cand.genError);
       }
       // IN_QUEUE/IN_PROGRESS: bleibt "polling", naechster Aufruf prueft erneut.
     } catch (e) {
       cand.genStatus = "error";
       cand.genError = e && e.message ? e.message : String(e);
+      await logFalError("scene-job genStatus (seed " + cand.seed + ")", cand.genError);
     }
   }
 
@@ -142,6 +145,7 @@ async function advanceSceneJob(job, { FAL_KEY }) {
       } catch (e) {
         cand.verifyStatus = "error";
         cand.verifyError = e && e.message ? e.message : String(e);
+        await logFalError("scene-job verify (seed " + cand.seed + ")", cand.verifyError);
       }
     }
   }
@@ -162,6 +166,7 @@ async function advanceSceneJob(job, { FAL_KEY }) {
         const candC = newCandidate(seedC); candC.genRequestId = reqC; candC.genStatus = "polling";
         next.candidates.push(candC);
       } catch (e) {
+        await logFalError("scene-job dritter Kandidat (submit)", e && e.message ? e.message : String(e));
         finalizeJob(next, usable);
       }
     } else {
@@ -178,11 +183,17 @@ async function advanceSceneJob(job, { FAL_KEY }) {
 function finalizeJob(job, usableCandidates) {
   if (!usableCandidates.length) {
     job.status = "error";
-    // GEAENDERT (Live-Test-Fund 15.09.2026, siehe genError-Kommentar oben): die erste konkrete
-    // Fehlermeldung eines Kandidaten (Generierung oder Verify) wird jetzt mit ausgegeben, statt nur
-    // der generischen Meldung -- sonst bleibt der eigentliche technische Grund unsichtbar.
-    const firstErr = job.candidates.map((c) => c.genError || c.verifyError).find(Boolean);
-    job.error = "Keiner der Generierungsversuche war erfolgreich — bitte nochmal versuchen." + (firstErr ? " (Details: " + firstErr + ")" : "");
+    // GEAENDERT (Sammel-Runde 16.09.2026, live gefunden: "fal.ai 403 User is locked. Reason:
+    // TOP_UP" direkt bei der Nutzerin sichtbar). Der Live-Test-Fund vom 15.09.2026 (siehe vorherige
+    // Version dieses Kommentars) haengte hier bewusst die erste konkrete Rohfehlermeldung an die
+    // CLIENT-sichtbare job.error an, um die Fehlersuche zu erleichtern -- genau DAS hat aber dazu
+    // gefuehrt, dass ein technischer Fehler wie "TOP_UP" (oder jeder andere rohe fal.ai-Fehlertext)
+    // unveraendert vor der Nutzerin landete. Der urspruengliche Zweck (Fehlersuche) bleibt erhalten,
+    // nur eine Ebene tiefer: jeder Kandidat, der scheitert, wird bereits beim Scheitern selbst ueber
+    // logFalError() geloggt (siehe advanceSceneJob() oben) -- die Rohmeldung ist damit weiterhin in
+    // den Vercel-Funktionslogs vollstaendig nachvollziehbar, ohne dass sie zusaetzlich hier nochmal
+    // an die Nutzerin durchgereicht werden muss.
+    job.error = "Keiner der Generierungsversuche war erfolgreich — bitte nochmal versuchen.";
     return;
   }
   const best = usableCandidates.reduce((a, b) => (b.violations < a.violations ? b : a));

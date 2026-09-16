@@ -16,6 +16,46 @@
 // bestehende, produktive Verify-Aufruf in api/fal-proxy.js das für dieses Modell schon immer tut.
 const VERIFY_MODEL = "openrouter/router/vision";
 
+const { sendMailWithCooldown } = require("./mail");
+
+// logFalError(context, message): ZENTRALE Stelle fuer JEDEN fal.ai-bezogenen Fehler auf der
+// serverseitigen Job-Warteschlange (char-job-engine.js/scene-job-engine.js UND deren Einstiegspunkte
+// api/char-job-start.js/api/scene-job-start.js) -- NEU (Sammel-Runde 16.09.2026, live gefunden:
+// "fal.ai 403 User is locked. Reason: TOP_UP" direkt bei der Nutzerin sichtbar). Vorher wurden
+// fal.ai-Fehler hier je nach Stelle entweder komplett verschluckt (char-job-engine.js:
+// advanceCharacterJob()s Generierungs-Katch-Block setzte nur genStatus:"error", OHNE die Nachricht
+// irgendwo festzuhalten -- der genaue Grund war aus den Logs nicht mehr rekonstruierbar) oder 1:1 roh
+// bis zum Job-Ergebnis durchgereicht (scene-job-engine.js finalizeJob() haengte den ersten gefundenen
+// Rohfehler als "(Details: ...)" an die client-sichtbare Fehlermeldung -- das war der wahrscheinlichste
+// tatsaechliche Ursprung des gemeldeten "TOP_UP"-Texts, siehe auch api/char-job-start.js/
+// api/scene-job-start.js, die einen kompletten Job-Start-Fehler bisher ebenfalls 1:1 durchgereicht
+// haben). logFalError() vereinheitlicht das: loggt den vollen Rohfehler SERVERSEITIG (Vercel-
+// Funktionslogs), erkennt den Sonderfall "Account gesperrt/kein Guthaben" (403 + TOP_UP/locked/
+// credit/balance im Fehlertext -- das ist der einzige Fehlerfall, der NICHT von selbst beim naechsten
+// Versuch verschwindet) und loest dafuer eine gedaempfte Warn-Mail aus (siehe sendMailWithCooldown()
+// in mail.js), gibt aber IMMER nur einen ruhigen, fuer die Nutzerin geeigneten Text zurueck, den alle
+// Aufrufer statt des Rohfehlers verwenden.
+async function logFalError(context, message) {
+  const msg = String(message || "");
+  console.error("[FAL_ERROR]", context, msg.slice(0, 500));
+  if (/\b403\b/.test(msg) && /TOP_UP|locked|credit|balance/i.test(msg)) {
+    console.error("[FAL_BILLING_ALERT]", context, "fal.ai-Account moeglicherweise gesperrt/ohne Guthaben.");
+    try {
+      await sendMailWithCooldown("fal-billing", 15 * 60, {
+        to: "mk@iicm.consulting",
+        subject: "⚠️ fal.ai Guthaben-Problem (Wimmel Wizard)",
+        html:
+          "<p>fal.ai meldet einen Fehler, der nach einem Guthaben-/Sperr-Problem aussieht (Aufruf: <b>" + context + "</b>):</p>" +
+          "<pre>" + msg.slice(0, 500).replace(/[<>]/g, "") + "</pre>" +
+          '<p>Bitte im <a href="https://fal.ai/dashboard/usage-billing">fal.ai-Dashboard</a> pruefen. Bis das behoben ist, sehen Nutzerinnen statt einer echten Fehlermeldung nur "Da hat gerade etwas nicht geklappt" -- die App bleibt also nutzbar, generiert aber keine Bilder.</p>',
+      });
+    } catch (mailErr) {
+      console.error("[FAL_BILLING_ALERT] Warn-Mail fehlgeschlagen:", String(mailErr));
+    }
+  }
+  return "Da hat gerade etwas nicht geklappt. Versuch es bitte in ein paar Minuten nochmal.";
+}
+
 function falHeaders(FAL_KEY) {
   return { Authorization: "Key " + FAL_KEY, "Content-Type": "application/json" };
 }
@@ -116,5 +156,5 @@ function countViolations(verifyOutputText) {
 module.exports = {
   VERIFY_MODEL, falHeaders, falBaseAppId,
   submitFalQueue, falQueueStatus, falQueueResult, callFalVerifySync,
-  countViolations,
+  countViolations, logFalError,
 };

@@ -70,6 +70,24 @@ Screens.charakter = {
     }
     const personIndex = s.people.findIndex((p) => p.id === person.id);
     AppState.setCurrentPerson(person.id);
+    // NEU (Sammel-Runde 16.09.2026, Foto-Pfad "Load failed"): eine gesetzte pendingJobId bedeutet,
+    // dass eine Generierung fuer DIESE Person lief, als der Tab (aus welchem Grund auch immer, z.B.
+    // eine laengere Bildschirmsperre) neu geladen wurde -- charGenBusy (In-Memory) weiss davon nichts
+    // mehr, der Server-Job in Redis/KV aber schon. Setzt das Polling automatisch fort (siehe
+    // resumeCharacterJob() oben) und zeigt einen kurzen Hinweis, statt stillschweigend das normale,
+    // scheinbar untaetige Formular zu zeigen (das wuerde bei einem erneuten Klick einen zweiten,
+    // parallelen Job ausloesen).
+    if (person.pendingJobId) {
+      // setTimeout(...,0): renderScreen() (app-shell.js) ruft nach diesem render() noch
+      // renderBottomBar() auf, die den "weiter"-Button unbedingt auf seine normale Beschriftung
+      // zuruecksetzt -- ein SOFORTIGER Aufruf von resumeCharacterJob() hier wuerde dessen
+      // setBusyButtons()-Aenderung an genau diesem Button Millisekunden spaeter wieder ueberschreiben.
+      // Der Timeout schiebt den Resume-Start hinter das Ende des kompletten Render-Durchlaufs.
+      setTimeout(() => resumeCharacterJob(person), 0);
+      wrap.appendChild(h("div", {
+        style: { border: "3px solid var(--ink)", background: "var(--blue)", padding: "12px 14px", marginBottom: "14px", fontSize: "14px", lineHeight: "1.4" }
+      }, "Wird weitergezeichnet – die Generierung lief schon, wir setzen sie fort …"));
+    }
     wrap.appendChild(h("p", { class: "kicker kicker-yellow", style: { transform: "rotate(-2deg)" } }, "Figur " + (personIndex + 1) + " von " + s.people.length + " · " + person.name));
     wrap.appendChild(h("h1", { class: "h1-scr", style: { fontSize: "31px" } }, [
       document.createTextNode("Wie soll"), h("br"), document.createTextNode("ich sie"), h("br"),
@@ -365,11 +383,23 @@ async function generateCharacterImage(person, buttons) {
     // unten, der ihn bereits sichtbar anzeigt und die Buttons zuruecksetzt. Live getestet gegen die
     // echte fal.ai-/Upstash-Redis-Anbindung vor diesem Anschluss (siehe Kommentar in pipeline.js an
     // runCharacterJobPolling()).
-    const result = await Pipeline.runCharacterJobPolling(prompt);
+    // NEU (Sammel-Runde 16.09.2026, Foto-Pfad "Load failed"): jobId + der dazugehoerige
+    // sceneDescription-Text werden SOFORT an der Person gespeichert, sobald die jobId feststeht --
+    // das ist derselbe AppState-Mechanismus, der ohnehin schon bei jeder Aenderung nach localStorage
+    // UND (siehe Task "Anonyme Session") nach 90 Tage Server-Speicher synchronisiert. Ueberlebt die
+    // laufende Generierung damit auch einen kompletten Tab-Reload (nicht nur ein kurzes
+    // Pausieren/Aufwachen, das bereits durch den Retry in runCharacterJobPolling() abgefangen wird,
+    // siehe pipeline.js) -- Screens.charakter.render() (siehe unten) erkennt beim naechsten Mount
+    // eine gesetzte pendingJobId und setzt das Polling automatisch fort, statt einen Fehler zu
+    // zeigen oder (schlimmer) eine zweite, parallele Generierung zu starten.
+    const result = await Pipeline.runCharacterJobPolling(prompt, {
+      onJobId: (jobId) => AppState.updatePerson(person.id, { pendingJobId: jobId, pendingSceneDescription: sceneDescription }),
+    });
     charGenBusy = false;
     await generateExtraViewsAndFinish(person, result, sceneDescription);
   } catch (e) {
     charGenBusy = false;
+    AppState.updatePerson(person.id, { pendingJobId: null, pendingSceneDescription: null });
     const errorP = charGenErrorEl("char-gen-error");
     if (errorP) {
       errorP.textContent = "Zeichnen hat nicht geklappt: " + (e && e.message ? e.message : String(e)) + " — nochmal versuchen?";
@@ -389,17 +419,26 @@ async function generateCharacterImage(person, buttons) {
 // Text-zu-Bild-Weg, siehe pipeline.js sideViewEditInstruction()/backViewEditInstruction()-Kommentar),
 // parallel statt nacheinander, best-effort (Promise.allSettled -- eine fehlgeschlagene Zusatz-Ansicht
 // blockiert die anderen nicht).
+// GEAENDERT (Sammel-Runde 16.09.2026, Foto-Pfad "Load failed"): Pipeline.generateImage() ->
+// Pipeline.generateImageWithRetry() -- siehe ausfuehrlicher Kommentar dort. Promise.allSettled bleibt
+// (eine dauerhaft fehlgeschlagene Zusatz-Ansicht soll weiterhin die anderen/das Frontbild nicht
+// blockieren), aber ein reiner Verbindungsaussetzer fuehrt nicht mehr sofort zu einer fehlenden
+// Ansicht, sondern wird zuerst automatisch nochmal versucht.
+// Ausserdem: pendingJobId/pendingSceneDescription (siehe generateCharacterImage()/
+// generateCharacterImageFromPhoto() weiter unten) werden hier IMMER geloescht -- das ist der
+// gemeinsame "fertig, ob mit oder ohne Zusatz-Ansichten"-Punkt, an dem kein Resume mehr noetig ist.
 async function generateExtraViewsAndFinish(person, frontResult, sceneDescription) {
   const [sideR, backR, threeQR] = await Promise.allSettled([
-    Pipeline.generateImage(Pipeline.sideViewEditInstruction(), "char", { editImageUrl: frontResult.url }),
-    Pipeline.generateImage(Pipeline.backViewEditInstruction(), "char", { editImageUrl: frontResult.url }),
-    Pipeline.generateImage(Pipeline.threeQuarterEditInstruction(), "char", { editImageUrl: frontResult.url }),
+    Pipeline.generateImageWithRetry(Pipeline.sideViewEditInstruction(), "char", { editImageUrl: frontResult.url }),
+    Pipeline.generateImageWithRetry(Pipeline.backViewEditInstruction(), "char", { editImageUrl: frontResult.url }),
+    Pipeline.generateImageWithRetry(Pipeline.threeQuarterEditInstruction(), "char", { editImageUrl: frontResult.url }),
   ]);
   AppState.updatePerson(person.id, {
     imageUrl: frontResult.url, imageSeed: frontResult.seed, sceneDescription,
     imageUrlSide: sideR.status === "fulfilled" ? sideR.value.url : null,
     imageUrlBack: backR.status === "fulfilled" ? backR.value.url : null,
     imageUrlThreeQuarter: threeQR.status === "fulfilled" ? threeQR.value.url : null,
+    pendingJobId: null, pendingSceneDescription: null,
   });
   Router.goScreen("charakterblatt");
 }
@@ -466,12 +505,21 @@ async function generateCharacterImageFromPhoto(person, photoDataUri, buttons) {
     // oben -- derselbe Umstieg auf den Start-plus-Abfrage-Mechanismus, da dieser Foto-Pfad seit dem
     // Prioritaet-1-Bugfix ebenfalls ein reiner Text-zu-Bild-Aufruf ist (kein editImageUrl mehr), also
     // genauso wie der Chips-Weg zu api/char-job-start.js passt.
-    const result = await Pipeline.runCharacterJobPolling(prompt);
+    // NEU (Sammel-Runde 16.09.2026): siehe identischer Kommentar in generateCharacterImage() oben --
+    // gleiche pendingJobId/pendingSceneDescription-Persistenz fuer den Foto-Pfad. Wichtig gerade
+    // hier: das Original-Foto selbst wird bewusst NIE gespeichert (Datenschutz-Versprechen), aber
+    // describePhotoTraits() ist zu diesem Zeitpunkt schon gelaufen -- sceneDescription enthaelt
+    // bereits den daraus gezogenen Text und kann dadurch gefahrlos (kein Foto-Bezug mehr) persistiert
+    // werden, ein Resume nach einem Reload braucht also KEIN erneutes Foto.
+    const result = await Pipeline.runCharacterJobPolling(prompt, {
+      onJobId: (jobId) => AppState.updatePerson(person.id, { pendingJobId: jobId, pendingSceneDescription: sceneDescription }),
+    });
     resetUploadedPhoto();
     charGenBusy = false;
     await generateExtraViewsAndFinish(person, result, sceneDescription);
   } catch (e) {
     charGenBusy = false;
+    AppState.updatePerson(person.id, { pendingJobId: null, pendingSceneDescription: null });
     const errorP = charGenErrorEl("char-photo-error");
     if (errorP) {
       errorP.textContent = "Zeichnen hat nicht geklappt: " + (e && e.message ? e.message : String(e)) + " — nochmal versuchen?";
@@ -479,6 +527,41 @@ async function generateCharacterImageFromPhoto(person, photoDataUri, buttons) {
     }
     setBusyButtons(activeButtons, false);
   }
+}
+
+// NEU (Sammel-Runde 16.09.2026, Foto-Pfad "Load failed" bei iPhone-Ruhemodus): Gegenstueck zu
+// generateCharacterImage()/generateCharacterImageFromPhoto() fuer den Fall, dass der Tab waehrend
+// einer laufenden Generierung tatsaechlich komplett neu geladen wurde (nicht nur kurz pausiert --
+// das faengt bereits der Retry in Pipeline.runCharacterJobPolling() ab, siehe pipeline.js). charGenBusy
+// ist eine reine In-Memory-Variable und nach einem Reload wieder false, der Server-Job in Redis/KV
+// laeuft aber unveraendert weiter -- ohne diese Funktion wuerde Screens.charakter.render() (siehe
+// unten) einfach das normale, scheinbar untaetige Formular zeigen, und ein erneuter Klick auf
+// "Figur zeichnen lassen" wuerde einen ZWEITEN, parallelen Job starten. Nutzt genau denselben
+// Pipeline.runCharacterJobPolling()-Aufruf wie ein frischer Start, nur mit opts.existingJobId statt
+// eines neuen Prompts (dafuer in pipeline.js bereits vorbereitet, siehe dortiger Kommentar).
+function resumeCharacterJob(person) {
+  if (charGenBusy) return;
+  charGenBusy = true;
+  const nextBtn = document.getElementById("btn-next");
+  const activeButtons = [nextBtn].filter(Boolean);
+  setBusyButtons(activeButtons, true);
+  const sceneDescription = person.pendingSceneDescription || "";
+  Pipeline.runCharacterJobPolling(null, { existingJobId: person.pendingJobId })
+    .then((result) => {
+      charGenBusy = false;
+      return generateExtraViewsAndFinish(person, result, sceneDescription);
+    })
+    .catch((e) => {
+      charGenBusy = false;
+      AppState.updatePerson(person.id, { pendingJobId: null, pendingSceneDescription: null });
+      const errorId = AppState.data.charMode === "foto" ? "char-photo-error" : "char-gen-error";
+      const errorP = charGenErrorEl(errorId);
+      if (errorP) {
+        errorP.textContent = "Zeichnen hat nicht geklappt: " + (e && e.message ? e.message : String(e)) + " — nochmal versuchen?";
+        errorP.style.display = "block";
+      }
+      setBusyButtons(activeButtons, false);
+    });
 }
 
 // Wird von app-shell.js renderBottomBar() aufgerufen, wenn vorhanden (statt der

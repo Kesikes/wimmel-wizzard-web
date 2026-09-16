@@ -582,9 +582,20 @@ function traitBitFromPhotoDescription(description) {
 // unveraendert zum bestehenden generischen "Zeichnen hat nicht geklappt: ..."-Fehlerpfad in
 // charakter.js, sichtbar fuer die Nutzerin, statt ein zweifelhaftes Ergebnis stillschweigend
 // durchzuwinken.
+// BUGFIX (Sammel-Runde 16.09.2026, "Load failed beim Foto-Pfad, wenn das iPhone waehrend der
+// Generierung in den Ruhemodus geht"). Dieser Vision-Aufruf laeuft VOR dem eigentlichen
+// Warteschlangen-Job (siehe generateCharacterImageFromPhoto() in charakter.js) -- ein einzelner
+// synchroner fetch(), also grundsaetzlich anfaellig genau fuer das gemeldete Symptom, wenn das
+// Sperren/Aufwachen des Geraets ausgerechnet waehrend DIESES kurzen Aufrufs passiert (kurz, aber
+// nicht null Risiko). Jetzt ueber withTransientRetry() (siehe dort) gegen genau EINE Klasse von
+// Fehlern abgesichert: einen reinen Verbindungsabbruch (TypeError, "Load failed"/"Failed to fetch"),
+// der nie eine echte Serverantwort bekommen hat. Ein "kein stiller Fallback"-Fehler bleibt weiterhin
+// bestehen (siehe Kommentar oben) -- ECHTE Fehler (ungueltiges Foto, Server-/fal.ai-Fehler mit
+// echter HTTP-Antwort) werden weiterhin sofort und sichtbar durchgereicht, nur der reine
+// Verbindungsaussetzer wird jetzt automatisch wiederholt statt sofort aufzugeben.
 async function describePhotoTraits(photoDataUri) {
   const prompt = "Look ONLY at the real person in this photo. Completely ignore any on-screen app UI elements, buttons, icons, captions, subtitles, stickers, filters, or text overlays anywhere in the image -- describe only the actual physical person underneath them. In ONE short sentence (max 25 words), state: their hair color, hair length (short/medium/long), hair texture (straight/curly/wavy), and at most one other clearly visible distinguishing feature (e.g. glasses, a beard, a red jacket, a headscarf). Do not mention facial expression, emotion, age, gender, or anything about the background or any UI element. Reply with ONLY that one plain sentence -- no JSON, no preamble, no extra commentary.";
-  const raw = await verifyImage(photoDataUri, prompt);
+  const raw = await withTransientRetry(() => verifyImage(photoDataUri, prompt), { retries: 4, delayMs: 3000 });
   const trimmed = String(raw || "").trim();
   if (!trimmed) return "";
   const firstSentence = trimmed.split(/(?<=[.!?])\s/)[0].replace(/[.!?]+$/, "").trim();
@@ -1452,6 +1463,44 @@ async function pollCharacterJobOnce(jobId) {
   return data.job;
 }
 
+// BUGFIX (Sammel-Runde 16.09.2026, "Load failed beim Foto-Pfad, wenn das iPhone waehrend der
+// Generierung in den Ruhemodus geht"). Root Cause: runCharacterJobPolling()/runSceneJobPolling()
+// (siehe unten) hatten bisher KEIN try/catch um den einzelnen Poll-Aufruf -- ein fetch(), der nie
+// eine Serverantwort bekommt (z.B. weil iOS die Netzwerkverbindung eines gesperrten/im Hintergrund
+// befindlichen Tabs kurz unterbricht), wirft einen reinen TypeError ("Load failed"/"Failed to
+// fetch"/"NetworkError when attempting to fetch resource"). Das brach bisher SOFORT den gesamten,
+// oft mehrminuetigen Job ab, obwohl der Job serverseitig (in Redis/KV) unveraendert weiterlief und
+// der naechste Poll-Versuch (sobald das Geraet wieder Netz hat) ganz normal funktioniert haette --
+// ein einzelner Verbindungsaussetzer wurde faelschlich als "Generierung fehlgeschlagen" gewertet.
+// isTransientNetworkError()/withTransientRetry() trennen diesen Fall sauber von einem ECHTEN Fehler:
+// ein Server-Fehler (400/404/500, "Job existiert nicht" etc.) kommt IMMER als normale HTTP-Antwort
+// an und wird von pollCharacterJobOnce()/pollSceneJobOnce() als gewoehnlicher Error MIT echter
+// Nachricht geworfen (kein TypeError) -- der bleibt weiterhin sofort sichtbar, kein Retry. Nur der
+// reine Verbindungsaussetzer (TypeError, nie eine Antwort erhalten) wird jetzt automatisch erneut
+// versucht, mit derselben Wartezeit wie das normale Poll-Intervall (inkl. Sofort-Aufwachen bei
+// Sichtbarkeits-Wechsel, siehe waitWithVisibilityWakeup()) -- bei 10 Versuchen im 7s-Takt werden so
+// bis zu ca. 70s durchgaengiger Verbindungslosigkeit toleriert, komfortabel mehr als die kurze
+// Unterbrechung rund um ein Sperren/Entsperren braucht.
+function isTransientNetworkError(e) {
+  return e instanceof TypeError;
+}
+async function withTransientRetry(fn, opts) {
+  opts = opts || {};
+  const retries = opts.retries != null ? opts.retries : 10;
+  const delayMs = opts.delayMs != null ? opts.delayMs : 7000;
+  let attempt = 0;
+  for (;;) {
+    try {
+      return await fn();
+    } catch (e) {
+      if (!isTransientNetworkError(e) || attempt >= retries) throw e;
+      attempt++;
+      if (opts.onRetry) opts.onRetry(attempt);
+      await waitWithVisibilityWakeup(delayMs);
+    }
+  }
+}
+
 // waitWithVisibilityWakeup(ms): wie ein normales setTimeout-Warten, ABER löst sofort aus, sobald der
 // Tab/die App wieder sichtbar wird (document.visibilitychange), auch wenn das reguläre Intervall
 // noch nicht abgelaufen ist -- genau der vom Nutzer gewünschte Effekt ("Beim Wiederöffnen der
@@ -1503,7 +1552,12 @@ async function runCharacterJobPolling(prompt, opts) {
   if (opts.onJobId) opts.onJobId(jobId);
   for (;;) {
     if (opts.signal && opts.signal.aborted) throw new Error("Abgebrochen.");
-    const job = await pollCharacterJobOnce(jobId);
+    // BUGFIX (Sammel-Runde 16.09.2026, siehe ausfuehrlicher Kommentar an withTransientRetry() oben):
+    // ein reiner Verbindungsaussetzer bei DIESEM einzelnen Poll darf den ganzen Job nicht abbrechen.
+    const job = await withTransientRetry(() => pollCharacterJobOnce(jobId), {
+      delayMs: intervalMs,
+      onRetry: (attempt) => { if (opts.onUpdate) opts.onUpdate({ status: "reconnecting", attempt }); },
+    });
     if (opts.onUpdate) opts.onUpdate(job);
     if (job.status === "done") return { url: job.resultUrl, seed: job.resultSeed, violations: job.resultViolations, verify: job.resultVerify };
     if (job.status === "error") throw new Error(job.error || "Generierung fehlgeschlagen.");
@@ -1559,7 +1613,12 @@ async function runSceneJobPolling({ heroSpecs, theme, situations }, opts) {
   if (opts.onJobId) opts.onJobId(jobId);
   for (;;) {
     if (opts.signal && opts.signal.aborted) throw new Error("Abgebrochen.");
-    const job = await pollSceneJobOnce(jobId);
+    // BUGFIX (Sammel-Runde 16.09.2026): gleicher Fix wie in runCharacterJobPolling() oben -- ein
+    // reiner Verbindungsaussetzer bei diesem einzelnen Poll darf den Job nicht abbrechen.
+    const job = await withTransientRetry(() => pollSceneJobOnce(jobId), {
+      delayMs: intervalMs,
+      onRetry: (attempt) => { if (opts.onUpdate) opts.onUpdate({ status: "reconnecting", attempt }); },
+    });
     if (opts.onUpdate) opts.onUpdate(job);
     if (job.status === "done") {
       return {
@@ -1622,6 +1681,22 @@ async function generateImage(prompt, kind, opts) {
   return { url: data.url, seed: data.seed, description: data.description || "" };
 }
 
+// BUGFIX (Sammel-Runde 16.09.2026, Foto-Pfad "Load failed"): generateImage() haelt bei einem
+// Bild-Edit-Aufruf (Seite/Ruecken/3-4-Ansicht, siehe generateExtraViewsAndFinish() in charakter.js)
+// weiterhin eine einzelne, laenger offene Verbindung (bis 300s, vercel.json), genau das historische
+// Risiko-Muster fuer "Load failed" bei einer Bildschirmsperre waehrend der Generierung -- diese drei
+// Zusatz-Ansichten sind (anders als das Frontbild) noch nicht auf den Warteschlangen-/Poll-Mechanismus
+// umgestellt. generateImageWithRetry() federt zumindest die gaengigste Teilursache ab: einen reinen
+// Verbindungsaussetzer (TypeError) direkt bei Anfrage-Start/-Ende. Bewusst nur 2 Wiederholungen (statt
+// der 10 im Poll-Loop) -- ein einzelner generateImage()-Aufruf loest bei fal.ai bereits eine ECHTE,
+// kostenpflichtige Generierung aus, ein erneuter Versuch nach einem Verbindungsabbruch kann im
+// ungluecklichsten Fall eine zweite auslösen (falls die erste serverseitig durchgelaufen ist, nur die
+// Antwort den Client nicht mehr erreicht hat) -- wenige Versuche halten dieses Risiko klein, decken
+// aber den kurzen Verbindungsaussetzer rund um ein Sperren/Entsperren zuverlässig ab.
+async function generateImageWithRetry(prompt, kind, opts) {
+  return withTransientRetry(() => generateImage(prompt, kind, opts), { retries: 2, delayMs: 5000 });
+}
+
 // Verify-Retry (Spezifikation Abschnitt 3): 2 Kandidaten extern generiert (Aufrufer ruft
 // generateImage 2x auf), hier nur der Verify-Call + die Auswahl der besten Kandidatin.
 async function verifyImage(imageUrl, verifyPrompt) {
@@ -1667,7 +1742,7 @@ window.Pipeline = {
   sideViewEditInstruction, backViewEditInstruction,
   kontextInstruction, photoStyleInstruction, traitBitFromPhotoDescription, describePhotoTraits,
   PEN_INSTRUCTION_REMOVE, PEN_INSTRUCTION_REDO,
-  resizeImageToDataUri, generateImage, verifyImage, countViolations,
+  resizeImageToDataUri, generateImage, generateImageWithRetry, verifyImage, countViolations,
   // Szenen-Komposition (neu, siehe Modul-Abschnitt oben)
   GAG_LIBRARY, THEME_META, pickGagChips, topUpSituations,
   // GEAENDERT (Sammel-Runde 15.09.2026, Punkt 2): defaultBubbleLayout/sizePx/regionLabel/

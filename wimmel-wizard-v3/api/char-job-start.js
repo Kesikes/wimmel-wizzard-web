@@ -7,14 +7,16 @@
 // kein erhöhtes maxDuration (siehe vercel.json: bewusst NICHT in der functions-Liste mit 300s
 // aufgeführt, Vercel-Standard reicht).
 //
-// EXPERIMENTELL / NICHT TEIL DES REGULÄREN PRODUKTPFADS: wird aktuell von KEINEM Screen aus
-// aufgerufen (siehe charakter.js — nutzt weiterhin Pipeline.composeCharacterImage() synchron). Erst
-// nach einem erfolgreichen Live-Test dieses neuen Mechanismus (siehe TODO-Kommentar in
-// pipeline.js bei runCharacterJobPolling()) wird das an die eigentliche "Figur zeichnen"-Aktion
-// angeschlossen.
+// AKTUALISIERT (Sammel-Runde 15.09.2026): dieser urspruengliche "experimentell, noch nicht
+// angeschlossen"-Hinweis stimmt seit dem Live-Test-Anschluss nicht mehr -- das ist inzwischen der
+// REGULÄRE Weg, ueber den charakter.js (Chips- UND Foto-Pfad) jede Figuren-Generierung startet,
+// siehe Pipeline.runCharacterJobPolling()/startCharacterJob() in pipeline.js. composeCharacterImage()
+// bleibt nur noch als eigenstaendig getestete Referenz/Fallback-Funktion in pipeline.js erhalten,
+// wird aber im Produktpfad nicht mehr aufgerufen.
 const { kvSetJson } = require("./_lib/kv");
 const { createCharacterJob } = require("./_lib/char-job-engine");
 const { checkRateLimit } = require("./_lib/rate-limit");
+const { logFalError } = require("./_lib/fal-queue");
 
 // Job-Aufbewahrung in KV: an fal.ai's eigener ~1h-Ergebnis-Aufbewahrung orientiert (siehe
 // char-job-engine.js-Kommentar) -- nach Ablauf ist ein Job ohnehin nicht mehr sinnvoll abholbar,
@@ -61,6 +63,14 @@ module.exports = async (req, res) => {
     await kvSetJson("charjob:" + jobId, job, JOB_TTL_SECONDS);
     res.status(200).json({ jobId });
   } catch (e) {
-    res.status(502).json({ error: "Konnte Generierung nicht starten: " + (e && e.message ? e.message : String(e)) });
+    // BUGFIX (Sammel-Runde 16.09.2026, live gefunden: "fal.ai 403 User is locked. Reason: TOP_UP"
+    // direkt bei der Nutzerin sichtbar) — vorher landete e.message (der ROHE fal.ai-Fehlertext, siehe
+    // submitFalQueue() in api/_lib/fal-queue.js) unveraendert hier im Response-Body. Das ist sehr
+    // wahrscheinlich die tatsaechliche Quelle des gemeldeten Fehlertexts: createCharacterJob() ist
+    // der ALLERERSTE fal.ai-Aufruf im gesamten Figuren-Pfad (Chips UND Foto), noch bevor irgendein
+    // Job-/Kandidaten-Zustand existiert. logFalError() (api/_lib/fal-queue.js) uebernimmt jetzt
+    // Logging + Billing-Alarm + freundlichen Text zentral, siehe dortiger Kommentar.
+    const friendly = await logFalError("char-job-start", e && e.message ? e.message : String(e));
+    res.status(502).json({ error: friendly });
   }
 };

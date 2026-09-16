@@ -91,6 +91,30 @@ async function fetchFalWithRetry(url, options, maxRetries) {
 }
 
 const { checkRateLimit } = require("./_lib/rate-limit");
+const { logFalError } = require("./_lib/fal-queue");
+
+// BUGFIX (Sammel-Runde 16.09.2026, live gefunden: "fal.ai 403 User is locked. Reason: TOP_UP").
+// Bisher landete JEDER rohe fal.ai-Fehlertext (Status + bis zu 200 Zeichen Rohtext, z.B. genau
+// dieses `{"detail":"User is locked. Reason: TOP_UP"}`) unveraendert beim Client -- weder
+// verstaendlich noch fuer eine Kinderbuch-App angemessen. sendFalError()/sendConnectionError() sind
+// jetzt die EINZIGEN Stellen, an denen ein fal.ai-Fehler den Client erreicht -- die eigentliche
+// Logging-/Billing-Alarm-Logik liegt zentral in logFalError() (api/_lib/fal-queue.js, geteilt mit
+// char-job-engine.js/scene-job-engine.js/den *-job-start.js-Einstiegspunkten, siehe dortiger
+// ausfuehrlicher Kommentar), damit es nur EINE Stelle gibt, die "sieht das nach einer Account-Sperre
+// aus?" entscheidet.
+async function sendFalError(res, status, rawText, context) {
+  const friendly = await logFalError(context, "status " + status + ": " + String(rawText || "").slice(0, 500));
+  res.status(502).json({ error: friendly });
+}
+
+// sendConnectionError(): Pendant zu sendFalError() fuer den Fall, dass die Verbindung zu fal.ai
+// selbst fehlschlug (Exception, NIE eine HTTP-Antwort erhalten) -- kein Billing-Check moeglich (dafuer
+// braeuchte es eine echte fal.ai-Antwort), aber dieselbe serverseitige Protokollierung + derselbe
+// freundliche Client-Text.
+function sendConnectionError(res, e, context) {
+  console.error("[FAL_CONNECTION_ERROR]", context, String(e));
+  res.status(502).json({ error: "Da hat gerade etwas nicht geklappt. Versuch es bitte in ein paar Minuten nochmal." });
+}
 
 module.exports = async (req, res) => {
   if (req.method !== "POST") {
@@ -112,6 +136,30 @@ module.exports = async (req, res) => {
   }
 
   const body = req.body || {};
+
+  // TEMPORAER (Sammel-Runde 16.09.2026, Task "fal.ai 403 TOP_UP: Account identifizieren"): einmaliger
+  // Diagnose-Modus, um zu klaeren, zu welchem fal.ai-Account/Team der aktuell in Vercel gesetzte
+  // FAL_KEY gehoert (Nutzer-Anfrage: "nur die letzten 4 Zeichen des Keys nennen"). Bewusst durch ein
+  // zufaelliges, nur mir bekanntes Token gesichert (KEIN generischer Modus-Name wie "verify", der
+  // erraten werden koennte) und wird nach der einmaligen Pruefung sofort wieder entfernt -- kein
+  // dauerhafter Teil dieses oeffentlichen, nur rate-limitierten Endpunkts. Ruft fal.ai's eigenen
+  // Account-/Billing-Endpunkt auf (https://fal.ai/docs/platform-apis/v1/account/billing).
+  if (body.mode === "diag-account" && body.diagToken === "4b2024de-15fa-416e-bd2d-0a07b9e2efcf") {
+    try {
+      const resp = await fetch("https://api.fal.ai/v1/account/billing?expand=credits", {
+        headers: { Authorization: "Key " + FAL_KEY },
+      });
+      const txt = await resp.text().catch(() => "");
+      res.status(200).json({
+        httpStatus: resp.status,
+        raw: txt.slice(0, 500),
+        keyLast4: FAL_KEY.slice(-4),
+      });
+    } catch (e) {
+      res.status(200).json({ error: String(e), keyLast4: FAL_KEY.slice(-4) });
+    }
+    return;
+  }
 
   // EXPERIMENTAL (Verify-Retry-Minimalversion, Cowork-Chat "Wie aufwendig wäre das umzusetzen?"):
   // zweiter, komplett eigenständiger Modus für Vision-QA-Checks (z.B. "sind alle 4 benannten
@@ -182,13 +230,13 @@ module.exports = async (req, res) => {
       });
       if (!resp.ok) {
         const txt = await resp.text().catch(() => "");
-        res.status(502).json({ error: `fal.ai Vision-Fehler ${resp.status}: ${txt.slice(0, 200)}` });
+        await sendFalError(res, resp.status, txt, "verify");
         return;
       }
       const data = await resp.json();
       res.status(200).json({ output: (data && data.output) || "" });
     } catch (e) {
-      res.status(502).json({ error: "Verbindung zu fal.ai (Vision) fehlgeschlagen: " + String(e) });
+      sendConnectionError(res, e, "verify");
     }
     return;
   }
@@ -362,7 +410,7 @@ module.exports = async (req, res) => {
 
     if (!resp.ok) {
       const txt = await resp.text().catch(() => "");
-      res.status(502).json({ error: `fal.ai Fehler ${resp.status}: ${txt.slice(0, 200)}` });
+      await sendFalError(res, resp.status, txt, "generate(" + (imageUrl ? "edit" : "text-to-image") + ")");
       return;
     }
 
@@ -386,6 +434,6 @@ module.exports = async (req, res) => {
     // wenn fal.ai kein description liefert (z.B. beim Text-zu-Bild-Pfad) -- kein Fehlerfall.
     res.status(200).json({ url, seed: typeof data.seed === "number" ? data.seed : seed, description: typeof data.description === "string" ? data.description : "" });
   } catch (e) {
-    res.status(502).json({ error: "Verbindung zu fal.ai fehlgeschlagen: " + String(e) });
+    sendConnectionError(res, e, "generate(" + (imageUrl ? "edit" : "text-to-image") + ")");
   }
 };

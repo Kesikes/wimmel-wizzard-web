@@ -58,6 +58,7 @@
 // advanceCharacterJob/finalizeJob) und der Charakter-Verify-Prompt bleiben hier.
 const {
   VERIFY_MODEL, submitFalQueue, falQueueStatus, falQueueResult, callFalVerifySync, countViolations,
+  logFalError,
 } = require("./fal-queue");
 
 const FLUX_MODEL = "fal-ai/flux-lora";
@@ -82,7 +83,7 @@ function buildCharacterVerifyPrompt() {
 
 function newCandidate(seed) {
   return {
-    seed, genRequestId: null, genStatus: "pending", url: null,
+    seed, genRequestId: null, genStatus: "pending", url: null, genError: null,
     verifyRequestId: null, verifyStatus: "pending", violations: null, verify: null, verifyError: null,
   };
 }
@@ -147,7 +148,18 @@ async function advanceCharacterJob(job, { FAL_KEY }) {
       }
       // IN_QUEUE/IN_PROGRESS: bleibt "polling", naechster Aufruf prueft erneut.
     } catch (e) {
+      // BUGFIX (Sammel-Runde 16.09.2026): vorher wurde hier NUR genStatus gesetzt, die eigentliche
+      // Fehlermeldung (e.message, z.B. "fal.ai Queue-Status-Fehler 403: ...TOP_UP...") ging komplett
+      // verloren -- weder geloggt noch am Kandidaten gespeichert. Bei einem echten Ausfall (z.B.
+      // gesperrter Account) blieb dadurch selbst in den Server-Logs nichts uebrig, das den Grund
+      // erklaert hätte. logFalError() loggt jetzt zentral + loest bei Bedarf den Billing-Alarm aus
+      // (siehe fal-queue.js) -- der freundliche Rueckgabewert wird hier nicht gebraucht (der Client
+      // sieht ohnehin nur job.error aus finalizeJob(), nie ein einzelnes cand.genError), aber
+      // genError haelt die Rohmeldung trotzdem am Kandidaten fest, fuer eine eventuelle spaetere
+      // Fehlersuche direkt am Job-Datensatz in KV.
       cand.genStatus = "error";
+      cand.genError = e && e.message ? e.message : String(e);
+      await logFalError("char-job genStatus (seed " + cand.seed + ")", cand.genError);
     }
   }
 
@@ -171,6 +183,7 @@ async function advanceCharacterJob(job, { FAL_KEY }) {
       } catch (e) {
         cand.verifyStatus = "error";
         cand.verifyError = e && e.message ? e.message : String(e);
+        await logFalError("char-job verify (seed " + cand.seed + ")", cand.verifyError);
       }
     }
   }
@@ -193,6 +206,7 @@ async function advanceCharacterJob(job, { FAL_KEY }) {
       } catch (e) {
         // dritter Versuch schlaegt schon beim Submit fehl -- kein weiterer Retry-Versuch hier,
         // naechster Schritt unten (finalize mit dem, was wir haben) greift stattdessen.
+        await logFalError("char-job dritter Kandidat (submit)", e && e.message ? e.message : String(e));
         finalizeJob(next, usable);
       }
     } else {
