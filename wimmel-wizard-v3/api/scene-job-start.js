@@ -45,7 +45,9 @@ module.exports = async (req, res) => {
   const styleRefUrls = (Array.isArray(body.styleRefUrls) ? body.styleRefUrls : []).filter(isImageRef).slice(0, 13);
 
   if (!instruction) {
-    res.status(400).json({ error: "Keine instruction übergeben." });
+    // TEMPORAERER MARKER (Diagnose 16.09.2026, siehe rate-limit.js): wird wieder entfernt, sobald
+    // geklaert ist, ob diese Datei ueberhaupt aktuell deployt ist.
+    res.status(400).json({ error: "Keine instruction übergeben. [marker-v2]" });
     return;
   }
   // Gleiche Obergrenze wie der bestehende, synchrone Pfad (fal-proxy.js) — siehe dortige Kommentare
