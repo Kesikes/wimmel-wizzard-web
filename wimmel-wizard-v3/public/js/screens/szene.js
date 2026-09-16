@@ -23,6 +23,48 @@ const WAYS = [
 // exakt den Keys in Pipeline.THEME_META (pipeline.js) entsprechen -- siehe dortiger Kommentar zur
 // gleichzeitigen Aenderung.
 const THEMES = ["Bauernhof", "Weihnachten", "Urlaub", "Berg", "Stadt", "Spielplatz"];
+
+// NEU (Nutzer-Auftrag 16.09.2026, offener Punkt "16:9→2:1-Beschnitt-Schritt fuer Druck"): das
+// Druck-Endformat ist 296x148mm = 2:1 (siehe Kommentar bei SAFE_MARGIN_RULE/DEPTH_COHERENCE_RULE in
+// pipeline.js), generiert wird aber 16:9 (aspect_ratio-Limit von nano-banana-pro/edit, siehe
+// fal-proxy.js) -- bisher gab es NIRGENDS im Code eine Stelle, die den spaeteren Beschnitt oben/unten
+// tatsaechlich zeigt oder anwendet, das Ergebnis-Bild wurde 1:1 im vollen 16:9 angezeigt. Nutzer-
+// Entscheidung: der Zuschnitt soll SOFORT in der Vorschau sichtbar sein ("keine Ueberraschung beim
+// Buch"), nicht erst in einem separaten, noch zu bauenden Export-Schritt.
+// UMSETZUNG: rein visueller CSS-Crop (aspect-ratio-Box + overflow:hidden + zentriertes <img>), KEIN
+// Canvas-Pixel-Zuschnitt -- das volle 16:9-Bild bleibt technisch vollstaendig erhalten (image.src
+// unveraendert), nur der sichtbare Ausschnitt aendert sich. Bewusst so gewaehlt, weil das bestehende
+// Stift-Editing (setupFreehand()/captureAnnotatedImage() unten) direkt auf dem vollen Bild rechnet --
+// ein echter Pixel-Crop haette dort die Koordinaten-Mathematik zwischen sichtbarem Canvas und
+// nachgeladenem Vollbild durcheinandergebracht. Die neue aeussere "crop viewport"-Box clippt das
+// bestehende imgWrap (Bild + Canvas + Stift-Tag, intern UNVERAENDERT) nur visuell/per Klick-Bereich --
+// canvas.getBoundingClientRect() (siehe setupFreehand()) liefert weiterhin die Groesse des VOLLEN
+// Bildes, genau wie vorher, nur eben teilweise durch overflow:hidden verdeckt. Kein Funktionsverlust,
+// keine Aenderung an der Editier-Logik noetig.
+// Mathe: 16:9 = 1,7778:1, Ziel 2:1 -- Hoehe schrumpft um (0,5625-0,5)/0,5625 = 11,1% relativ zur
+// Originalhoehe, zentriert je 5,56% oben/unten entfernt. Das liegt bequem innerhalb der bereits
+// reservierten 6%+6%-Sicherheitsraender (SAFE_MARGIN_RULE, pipeline.js) -- der Zuschnitt frisst also
+// planmaessig nur den ohnehin dafuer vorgesehenen Rand, keine echten Bildinhalte.
+const PRINT_ASPECT_RATIO = "2 / 1";
+// buildCropViewport(inner): nimmt das bestehende imgWrap (Bild+Canvas+Tag, unveraendert) und packt es
+// in eine aeussere, auf das Druckformat fixierte Box. inner wird absolut zentriert (top:50%,
+// translateY(-50%)) -- bei einem 16:9-Bild in einer 2:1-Box ragt es oben/unten gleichmaessig ueber
+// den sichtbaren Bereich hinaus, overflow:hidden auf der aeusseren Box blendet genau diesen Ueberhang
+// aus. borderTop/borderBottom/background wandern von imgWrap hierher, damit der schwarze Rahmen den
+// SICHTBAREN (beschnittenen) Bereich einrahmt statt des vollen Bildes.
+function buildCropViewport(inner, extraStyle) {
+  const viewport = h("div", { style: Object.assign({
+    position: "relative", overflow: "hidden", aspectRatio: PRINT_ASPECT_RATIO,
+    borderTop: "4px solid var(--ink)", borderBottom: "4px solid var(--ink)", background: "var(--ink)",
+  }, extraStyle || {}) });
+  inner.style.position = "absolute";
+  inner.style.left = "0";
+  inner.style.top = "50%";
+  inner.style.width = "100%";
+  inner.style.transform = "translateY(-50%)";
+  viewport.appendChild(inner);
+  return viewport;
+}
 // GEAENDERT (Sammel-Runde 10.09.2026, Punkt "alle Kacheln im unausgewaehlten Zustand dieselbe
 // Farbe"): vorher alternierten die Kacheln zwischen blau/gelb/papier -- wirkte laut Nutzer-Feedback,
 // als waere schon etwas ausgewaehlt. Jetzt einheitlich Papier; siehe buildThemeGrid() weiter unten
@@ -1135,7 +1177,7 @@ Screens.ergebnis = {
       wrap.appendChild(noticeBox);
     }
 
-    const imgWrap = h("div", { style: { position: "relative", borderTop: "4px solid var(--ink)", borderBottom: "4px solid var(--ink)", background: "var(--ink)" } });
+    const imgWrap = h("div", { style: { position: "relative" } });
     // GEAENDERT (Punkt 12, Sammel-Runde 11.09.2026: "Stift-Editing funktioniert nicht"): crossOrigin
     // hier NICHT mehr noetig -- captureAnnotatedImage() zeichnet fuer die Pixel-Auslesung jetzt ein
     // separates, ueber api/image-proxy.js nachgeladenes Same-Origin-Bild (siehe dortiger Kommentar),
@@ -1153,7 +1195,8 @@ Screens.ergebnis = {
     penTag.classList.toggle("hidden", !s.penOn);
     imgWrap.appendChild(penTag);
 
-    wrap.appendChild(imgWrap);
+    // NEU: 16:9→2:1-Druckbeschnitt-Vorschau, siehe buildCropViewport()-Kommentar oben.
+    wrap.appendChild(buildCropViewport(imgWrap));
     const mark = setupFreehand(canvas, img);
 
     const tools = h("div", { style: { display: "flex", gap: "8px", padding: "12px 14px 0" } });
@@ -1215,7 +1258,7 @@ function buildDesktopErgebnis(s, image) {
   const grid = h("section", { class: "edit-desktop-grid desktop-only" });
 
   const left = h("div", { style: { position: "relative", background: "var(--ink)", padding: "26px 0 26px 32px", display: "flex", alignItems: "center" } });
-  const imgBox = h("div", { style: { position: "relative", width: "100%", border: "4px solid var(--paper)" } });
+  const imgBox = h("div", { style: { position: "relative" } });
   // GEAENDERT (Punkt 12): crossOrigin nicht mehr noetig, siehe Kommentar beim mobilen <img> in
   // Screens.ergebnis.render() und bei captureAnnotatedImage() weiter unten.
   const dImg = h("img", { src: image.src, alt: "Fertiges Wimmelbild", style: { display: "block", width: "100%" } });
@@ -1226,7 +1269,9 @@ function buildDesktopErgebnis(s, image) {
   const dPenTag = h("span", { class: "h-black", style: { position: "absolute", left: "20%", top: "30%", margin: "-34px 0 0 160px", background: "var(--red)", color: "var(--paper)", fontSize: "12px", letterSpacing: ".06em", padding: "7px 10px", transform: "rotate(-3deg)", pointerEvents: "none" } }, (s.penMode === "redo") ? "das hier neu" : "das da weg");
   dPenTag.classList.toggle("hidden", !s.penOn);
   imgBox.appendChild(dPenTag);
-  left.appendChild(imgBox);
+  // NEU: 16:9→2:1-Druckbeschnitt-Vorschau, siehe buildCropViewport()-Kommentar oben (Screens.ergebnis.render()).
+  // Desktop hatte bisher einen umlaufenden Papier-Rahmen statt des mobilen Ink-Balkens oben/unten -- Farbe hier beibehalten.
+  left.appendChild(buildCropViewport(imgBox, { border: "4px solid var(--paper)" }));
   grid.appendChild(left);
   const dMark = setupFreehand(dCanvas, dImg);
 
