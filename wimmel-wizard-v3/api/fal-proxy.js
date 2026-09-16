@@ -217,6 +217,60 @@ module.exports = async (req, res) => {
     return;
   }
 
+  // EXPERIMENTAL (Stilbruch-Untersuchung 16.09.2026, Lösungsweg (a): "Szene weiter mit
+  // nano-banana-pro komponieren, danach ein Stil-Durchgang mit dem Flux-wmlstil-LoRA (Bild-zu-Bild,
+  // mittlere Stärke)"). Dritter, eigenständiger Modus: nimmt ein bereits fertig komponiertes
+  // Szenenbild (imageUrl) und schickt es durch fal-ai/flux-lora/image-to-image MIT unserem
+  // wmlstil-LoRA, um den trainierten Stil über die von nano-banana-pro/edit gelieferte, stilistisch
+  // abweichende Komposition zu legen. strength (fal.ai-Doku: 0.0=Original bleibt, 1.0=komplett neu)
+  // per body.strength einstellbar, Default 0.5 ("mittlere Stärke", wie vom Nutzer selbst
+  // vorgeschlagen) – bewusst NICHT höher, weil eine zu hohe strength bei einem Bild-zu-Bild-Schritt
+  // ohne jedes Referenzbild der Charaktere deren Wiedererkennbarkeit zerstören könnte (das exakt
+  // gegenteilige Risiko von Lösungsweg (b)). Kein Teil des regulären Produktpfads (der Client setzt
+  // body.mode nie auf "style_pass") – nur für den hier laufenden, gezielten Vergleichstest.
+  if (body.mode === "style_pass") {
+    const isImageRefS = (v) => typeof v === "string" && (/^https?:\/\//.test(v) || /^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(v));
+    const sourceUrl = isImageRefS(body.imageUrl) ? body.imageUrl : undefined;
+    const stylePrompt = String(body.prompt || "").trim();
+    const strength = Number.isFinite(body.strength) ? Math.min(1, Math.max(0, body.strength)) : 0.5;
+    if (!sourceUrl || !stylePrompt) {
+      res.status(400).json({ error: "style_pass: imageUrl und prompt erforderlich." });
+      return;
+    }
+    try {
+      const resp = await fetchFalWithRetry("https://fal.run/fal-ai/flux-lora/image-to-image", {
+        method: "POST",
+        headers: { Authorization: "Key " + FAL_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: stylePrompt,
+          image_url: sourceUrl,
+          strength,
+          loras: [{ path: (typeof body.testLoraUrl === "string" && /^https:\/\/[a-z0-9.-]*fal\.media\//.test(body.testLoraUrl)) ? body.testLoraUrl : LORA_URL, scale: 1 }],
+          num_inference_steps: 46,
+          guidance_scale: 5,
+          num_images: 1,
+          enable_safety_checker: true,
+          output_format: "png",
+        }),
+      });
+      if (!resp.ok) {
+        const txt = await resp.text().catch(() => "");
+        await sendFalError(res, resp.status, txt, "style_pass");
+        return;
+      }
+      const data = await resp.json();
+      const url = data && data.images && data.images[0] && data.images[0].url;
+      if (!url) {
+        res.status(502).json({ error: "fal.ai hat kein Bild geliefert." });
+        return;
+      }
+      res.status(200).json({ url, seed: typeof data.seed === "number" ? data.seed : undefined });
+    } catch (e) {
+      sendConnectionError(res, e, "style_pass");
+    }
+    return;
+  }
+
   const prompt = String(body.prompt || "").trim();
   const kind = body.kind === "scene" ? "scene" : "char";
   // Seed: wird vom Client mitgegeben, um bei Neu-Generierungen ("Nochmal zaubern") reproduzierbar
