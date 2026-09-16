@@ -185,13 +185,60 @@ function renderScreen() {
   syncHeaderSpacing();
 }
 
+// NEU (Sammel-Runde 16.09.2026, "Anonyme Session + serverseitiges Speichern"): debounced
+// Hintergrund-Sync des kompletten States nach Upstash Redis (api/session.js, 90 Tage TTL) --
+// zusaetzlich zum bestehenden sofortigen localStorage-Save (AppState.save(), unveraendert). Eigener,
+// separat registrierter AppState.onChange()-Listener statt in den bestehenden oben eingebaut: rein
+// organisatorisch (der bestehende Listener ist UI-Re-Render, dieser hier ist Netzwerk-Sync), beide
+// laufen bei jeder Aenderung gleichermassen. 2s Debounce: AppState.save() feuert nach JEDER
+// einzelnen Eingabe (state.js-Kopfkommentar: "Auto-Save nach jeder Eingabe") -- ein Netzwerk-Aufruf
+// bei jedem Tastendruck waere unnoetig teuer/langsam, 2s Stille nach der letzten Aenderung reicht.
+// Pipeline ist hier sicher verfuegbar (Skript-Ladereihenfolge: pipeline.js laedt vor app-shell.js,
+// siehe app.html).
+let remoteSyncTimer = null;
+function scheduleRemoteSync() {
+  if (remoteSyncTimer) clearTimeout(remoteSyncTimer);
+  remoteSyncTimer = setTimeout(() => {
+    Pipeline.saveSessionRemote(AppState.data.sessionId, AppState.data);
+  }, 2000);
+}
+
+// NEU (Sammel-Runde 16.09.2026): Wiedereinstieg ueber einen per E-Mail verschickten Link
+// (/app?resume=<sessionId>, siehe api/session.js mode:"email-link"/dashboard.js). router.js wertet
+// ausschliesslich window.location.pathname aus (siehe dortige Pruefung), der Query-String ist also
+// unabhaengig davon sicher auswertbar. Muss VOR Router.resolve() abgeschlossen sein, damit der erste
+// gerenderte Screen bereits den geladenen Stand zeigt, nicht kurz den alten/leeren Nullzustand.
+// window.resumeNotice (bewusst NICHT Teil von AppState/localStorage -- ein rein seitenladungs-
+// bezogener, einmaliger Hinweis) wird von dashboard.js einmalig gelesen und angezeigt.
+async function handleResumeParam() {
+  const params = new URLSearchParams(window.location.search);
+  const resumeId = params.get("resume");
+  if (!resumeId) return;
+  // URL sofort bereinigen (vor dem Ergebnis) -- ein spaeterer Reload/Verlauf-Zurueck soll nicht
+  // denselben Resume-Versuch wiederholen bzw. bei einem ungueltigen Link nicht wiederholt dieselbe
+  // Fehlermeldung zeigen.
+  window.history.replaceState(null, "", window.location.pathname + window.location.hash);
+  try {
+    const data = await Pipeline.loadSessionRemote(resumeId);
+    if (data) {
+      AppState.hydrate(data);
+      window.resumeNotice = { type: "success", text: "Weiter geht's – euer gespeicherter Stand ist geladen." };
+    } else {
+      window.resumeNotice = { type: "error", text: "Dieser Link ist abgelaufen oder ungültig. Auf diesem Gerät ist trotzdem alles noch da, was ihr hier schon gemacht habt." };
+    }
+  } catch (e) {
+    window.resumeNotice = { type: "error", text: "Der gespeicherte Stand konnte gerade nicht geladen werden. Bitte gleich nochmal versuchen." };
+  }
+}
+
 Router.onChange(renderScreen);
 AppState.onChange(() => {
   renderRail();
   renderSaveHint();
 });
+AppState.onChange(scheduleRemoteSync);
 
 document.addEventListener("DOMContentLoaded", () => {
-  Router.resolve();
+  handleResumeParam().finally(() => Router.resolve());
 });
 window.addEventListener("resize", syncHeaderSpacing);

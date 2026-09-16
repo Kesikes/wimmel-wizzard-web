@@ -305,6 +305,62 @@ async function moderateText(text) {
   return !!data.flagged;
 }
 
+/* ---------------- Session-Sync (serverseitige Speicherung, 90 Tage) ----------------
+   NEU (Sammel-Runde 16.09.2026, "Anonyme Session + serverseitiges Speichern, plus E-Mail-
+   Wiedereinstiegs-Link"). Drei duenne Client-Wrapper um api/session.js (body.mode-Dispatch, siehe
+   dortiger Kommentar) -- gleiches fetch()+parseJsonResponse()-Muster wie moderateText() oben, kein
+   neuer Stil. Aufrufstellen: app-shell.js (debounced saveSessionRemote() nach jedem AppState-Change,
+   loadSessionRemote() beim Boot mit ?resume=-Parameter), dashboard.js (requestResumeEmail() im
+   "Mehr Infos"-Popup-Formular). */
+
+// saveSessionRemote(sessionId, data): wirft NICHT bei Netzwerk-/Server-Fehlern, sondern gibt einfach
+// false zurueck -- ein fehlgeschlagener Hintergrund-Sync soll die App nicht sichtbar stoeren
+// (localStorage bleibt ohnehin die primaere, sofortige Speicherebene, siehe state.js AppState.save()
+// -- das hier ist nur die zusaetzliche, geraeteuebergreifende Ebene). Aufrufer (app-shell.js) loggt
+// bestenfalls, unterbricht aber nie den normalen App-Ablauf deswegen.
+async function saveSessionRemote(sessionId, data) {
+  try {
+    const resp = await fetch("/api/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: "save", sessionId, data }),
+    });
+    const parsed = await parseJsonResponse(resp);
+    return !!(resp.ok && parsed && parsed.ok);
+  } catch (e) {
+    return false;
+  }
+}
+
+// loadSessionRemote(sessionId): liefert das geladene data-Objekt oder null (nicht vorhanden/
+// abgelaufen -- KEIN Fehlerfall). Wirft NUR bei einem echten Verbindungs-/Server-Fehler, damit der
+// Resume-Link-Flow in app-shell.js zwischen "Link ungueltig/abgelaufen" (data:null) und "gerade
+// nicht erreichbar" (Exception) unterscheiden kann.
+async function loadSessionRemote(sessionId) {
+  const resp = await fetch("/api/session", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mode: "load", sessionId }),
+  });
+  const data = await parseJsonResponse(resp);
+  if (!resp.ok || data.error) throw new Error(data.error || ("Laden fehlgeschlagen (Status " + resp.status + ")"));
+  return data.data == null ? null : data.data;
+}
+
+// requestResumeEmail(sessionId, email): wirft bei Fehlern (im Unterschied zu saveSessionRemote) --
+// das ist ein von der Nutzerin explizit ausgeloester Vorgang (Formular-Absenden im "Mehr Infos"-
+// Popup, siehe dashboard.js), sie soll eine echte Fehlermeldung sehen, kein stilles Schlucken.
+async function requestResumeEmail(sessionId, email) {
+  const resp = await fetch("/api/session", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mode: "email-link", sessionId, email }),
+  });
+  const data = await parseJsonResponse(resp);
+  if (!resp.ok || data.error) throw new Error(data.error || ("Versand fehlgeschlagen (Status " + resp.status + ")"));
+  return true;
+}
+
 // NEU (Punkt C17, Sammel-Runde 09.09.2026: "echter Chat statt statischem Interview"). Client-Helper
 // fuer den bereits FERTIG in api/claude-proxy.js vorhandenen, bisher aber von KEINEM Screen
 // aufgerufenen geführten Chat-Modus "scene" (SCENE_SYSTEM/ADD_SCENE_TOOL dort -- fragt zuerst nach
@@ -1606,6 +1662,7 @@ window.Pipeline = {
   translate, translateChip, ageRole, twoColorBoost, makeCharacterSpec,
   charPrompt, charInScene, charPromptFromChips, charInSceneFromChips, describeHero, translateFreeText,
   transcribeAudio, moderateText, sceneChat,
+  saveSessionRemote, loadSessionRemote, requestResumeEmail,
   charSheetViewPrompt, charSheetViewPromptFromChips, threeQuarterEditInstruction,
   sideViewEditInstruction, backViewEditInstruction,
   kontextInstruction, photoStyleInstruction, traitBitFromPhotoDescription, describePhotoTraits,

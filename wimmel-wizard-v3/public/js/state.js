@@ -102,8 +102,32 @@ const DEFAULT_STATE = {
   occasion: "einfachso",
   openFaq: 0,
 
-  savedAt: null
+  savedAt: null,
+
+  // NEU (Sammel-Runde 16.09.2026, "Anonyme Session + serverseitiges Speichern"): zufaellige,
+  // client-generierte ID (siehe newSessionId() unten) -- der Schluessel, unter dem der komplette
+  // State bei api/session.js (mode:"save") auf Upstash Redis landet (90 Tage TTL, siehe dortiger
+  // Kommentar). "Besitz der ID = Zugriff", wie beim bestehenden Job-Speicher -- kein Sicherheits-
+  // Secret, sondern ein Freigabe-Link-Prinzip (unbedenklich, da keine sensiblen Daten). null im
+  // DEFAULT_STATE selbst, wird aber NIE dauerhaft null bleiben: loadState() befuellt es beim
+  // allerersten Laden sofort, reset() erzeugt bewusst eine NEUE ID (siehe AppState.reset() unten --
+  // "von vorne starten" soll auch den Fernzugriffs-Link ungueltig machen, konsistent damit, dass
+  // dabei wirklich alles zurueckgesetzt wird).
+  sessionId: null
 };
+
+// crypto.randomUUID() ist in allen aktuellen Browsern verfuegbar (sicherer Kontext, https/localhost)
+// -- Fallback fuer sehr alte/ungewoehnliche Umgebungen ohne dieses API, RFC4122-v4-Ersatz ueber
+// Math.random. Kollisionsresistenz auf Math.random-Niveau ist hier ausreichend: die ID wirkt wie ein
+// unlisted Share-Link, kein Sicherheits-Secret mit hohen Anforderungen.
+function newSessionId() {
+  if (window.crypto && typeof window.crypto.randomUUID === "function") return window.crypto.randomUUID();
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
 
 // NEU (Sammel-Runde 11.09.2026, Punkt 2: "Freitext-Feld für zusätzliche Merkmale behält den
 // Inhalt beim Anlegen einer zweiten Figur"). charMode/charHairColor/charHairTexture/
@@ -127,11 +151,22 @@ function deepClone(obj) {
 function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return deepClone(DEFAULT_STATE);
+    if (!raw) {
+      const fresh = deepClone(DEFAULT_STATE);
+      fresh.sessionId = newSessionId();
+      return fresh;
+    }
     const parsed = JSON.parse(raw);
-    return Object.assign(deepClone(DEFAULT_STATE), parsed);
+    const merged = Object.assign(deepClone(DEFAULT_STATE), parsed);
+    // Aeltere localStorage-Staende (vor dieser Aenderung) haben noch kein sessionId -- genau wie
+    // ein komplett neuer Nullzustand direkt eine bekommen, sonst bliebe der Fernzugriff dauerhaft
+    // ungueltig (kvSetJson bräuchte einen Schluessel, den es nie gibt).
+    if (!merged.sessionId) merged.sessionId = newSessionId();
+    return merged;
   } catch (e) {
-    return deepClone(DEFAULT_STATE);
+    const fresh = deepClone(DEFAULT_STATE);
+    fresh.sessionId = newSessionId();
+    return fresh;
   }
 }
 
@@ -167,7 +202,34 @@ const AppState = {
 
   reset() {
     this.data = deepClone(DEFAULT_STATE);
+    // Bewusst eine NEUE sessionId (siehe Kommentar an DEFAULT_STATE.sessionId oben) -- "von vorne
+    // starten" setzt wirklich alles zurueck, ein alter Fernzugriffs-/E-Mail-Wiedereinstiegs-Link
+    // soll danach nicht mehr auf einen (fuer die Nutzerin gerade bewusst geloeschten) alten Stand
+    // zeigen.
+    this.data.sessionId = newSessionId();
     this.save();
+  },
+
+  // NEU (Sammel-Runde 16.09.2026, "Anonyme Session + serverseitiges Speichern"): Voll-Ersatz des
+  // States durch einen von api/session.js (mode:"load") geladenen Snapshot -- fuer den Resume-Link-
+  // Flow (?resume=<sessionId> in app-shell.js). Object.assign(deepClone(DEFAULT_STATE), data) statt
+  // eines direkten this.data = data: gleiches Absicherungsmuster wie loadState() oben, falls der
+  // geladene Snapshot aelter ist und neuere DEFAULT_STATE-Felder fehlen. Ruft save() NICHT auf --
+  // ein Hydrate ist kein neuer Speicherstand, sondern das Nachziehen eines bereits vorhandenen
+  // (ein sofortiges Zurueckschreiben waere unnoetig und wuerde bei einer noch laufenden vorherigen
+  // save()-Anfrage sogar zu einer Race Condition fuehren) -- localStorage wird aber unten dennoch
+  // aktualisiert (rein lokal, kein Netzwerk-Aufruf), damit ein Reload auf demselben Geraet danach
+  // sofort den geladenen Stand zeigt, ohne erneut den Resume-Link zu brauchen.
+  hydrate(data) {
+    if (!data || typeof data !== "object" || Array.isArray(data)) return;
+    this.data = Object.assign(deepClone(DEFAULT_STATE), data);
+    this.data.savedAt = new Date().toISOString();
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.data));
+    } catch (e) {
+      /* siehe save() oben */
+    }
+    this.listeners.forEach((fn) => fn(this.data));
   },
 
   // GEAENDERT (Sammel-Runde 11.09.2026, Preis-/Produkttexte): Preise jetzt als "ab X €" statt

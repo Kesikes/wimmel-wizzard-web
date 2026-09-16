@@ -14,7 +14,16 @@ const IMAGE_TARGET = 5;
 Screens.dashboard = {
   render(root) {
     const s = AppState.data;
+    // NEU (Sammel-Runde 16.09.2026, "Anonyme Session + serverseitiges Speichern"): einmaliger
+    // Hinweis nach einem Resume-Link-Aufruf (siehe app-shell.js handleResumeParam()) -- window.
+    // resumeNotice ist bewusst NICHT Teil von AppState/localStorage (rein seitenladungsbezogen),
+    // wird hier ausgelesen UND sofort geleert, damit ein spaeteres Re-Render des Dashboards (z.B.
+    // nach der naechsten Eingabe) ihn nicht wiederholt zeigt.
+    const notice = window.resumeNotice || null;
+    window.resumeNotice = null;
     const wrap = h("section", { class: "scr-pad mobile-only", style: { paddingBottom: "0" } });
+
+    if (notice) wrap.appendChild(buildResumeNotice(notice));
 
     // WizzelWim-Begruessungskarte. Design-Korrektur (07.09.2026: "Grafik 140% größer"):
     // 82px -> 115px, Positions-Offsets (left/bottom) und die padding-left-Reserve fuer den Text
@@ -39,10 +48,13 @@ Screens.dashboard = {
     wrap.appendChild(greet);
 
     // NEU (Live-Test 06.09.2026, Nachzieher aus Runde 1: "Mehr-Infos-Link fehlt weiterhin"):
-    // erklaert den Speicher-Mechanismus (Auto-Save in localStorage, kein Konto) in einem Popup statt
-    // nur zu behaupten "wir merken uns alles" -- openInfoSheet() ist ein generischer, kleiner
-    // Bottom-Sheet-Helfer in helpers.js (kein neues DOM-Geruest in app.html noetig, funktioniert auf
-    // jedem Screen).
+    // erklaert den Speicher-Mechanismus in einem Popup statt nur zu behaupten "wir merken uns
+    // alles" -- openInfoSheet() ist ein generischer, kleiner Bottom-Sheet-Helfer in helpers.js
+    // (kein neues DOM-Geruest in app.html noetig, funktioniert auf jedem Screen).
+    // AKTUALISIERT (Sammel-Runde 16.09.2026, "Anonyme Session + serverseitiges Speichern"): bis
+    // hierhin stand nur lokales localStorage dahinter (siehe alter Popup-Text) -- jetzt gibt es
+    // zusaetzlich die 90-Tage-Server-Speicherung (api/session.js) samt E-Mail-Wiedereinstiegs-Link,
+    // Popup-Text UND ein eingebettetes Formular (buildResumeEmailForm()) entsprechend ergaenzt.
     const storageLine = h("p", { class: "caveat", style: { margin: "10px 2px 0", fontSize: "16px", lineHeight: "1.3", color: "var(--ink-a70)" } });
     storageLine.appendChild(document.createTextNode("Du kannst jederzeit unterbrechen – wir merken uns alles, auch ohne Konto. "));
     storageLine.appendChild(h("button", {
@@ -50,7 +62,8 @@ Screens.dashboard = {
       style: { display: "inline", background: "none", border: "none", padding: "0", margin: "0", cursor: "pointer", font: "inherit", color: "inherit", textDecoration: "underline" },
       onClick: () => openInfoSheet(
         "Wie wir speichern",
-        "Wir speichern nach jeder Eingabe automatisch in diesem Browser (kein Konto, kein Login nötig). Machst du später auf demselben Gerät im selben Browser weiter, ist alles noch da. Wechselst du das Gerät oder löschst du deinen Browserverlauf/-speicher, geht der Stand allerdings verloren, weil nichts an einen Account gebunden ist."
+        "Wir speichern nach jeder Eingabe automatisch – einmal in diesem Browser (kein Konto, kein Login nötig) und zusätzlich für 90 Tage auf unserem Server. Macht ihr auf demselben Gerät weiter, ist sofort alles da. Wollt ihr auf einem ANDEREN Gerät weitermachen oder habt den Browserverlauf/-speicher gelöscht, holt ihr euch unten einen Link per E-Mail, der euch genau zu eurem Stand zurückbringt.",
+        buildResumeEmailForm()
       )
     }, "Mehr Infos"));
     wrap.appendChild(storageLine);
@@ -124,14 +137,87 @@ Screens.dashboard = {
     ticker.appendChild(track);
     root.appendChild(ticker);
 
-    root.appendChild(buildDesktopDashboard(s));
+    root.appendChild(buildDesktopDashboard(s, notice));
   }
 };
 
-function buildDesktopDashboard(s) {
+// NEU (Sammel-Runde 16.09.2026): kleine, dezente Hinweisbox fuer den Resume-Link-Ausgang -- "success"
+// (Stand geladen) in var(--blue) wie die bestehende "Stand jetzt"-Box, "error" (Link abgelaufen/
+// ungueltig) in var(--yellow) wie die bestehende Begruessungskarte -- keine neue Farbe eingefuehrt,
+// bleibt im bestehenden Farbkanon dieses Screens.
+function buildResumeNotice(notice) {
+  return h("div", {
+    style: {
+      background: notice.type === "success" ? "var(--blue)" : "var(--yellow)",
+      border: "3px solid var(--ink)", padding: "12px 14px", marginBottom: "14px",
+      fontSize: "14px", lineHeight: "1.4"
+    }
+  }, notice.text);
+}
+
+// NEU (Sammel-Runde 16.09.2026, "E-Mail-Wiedereinstiegs-Link"): eingebettetes Formular im "Wie wir
+// speichern"-Popup (siehe storageLine unten) -- ruft Pipeline.requestResumeEmail() (pipeline.js) auf,
+// die wiederum api/session.js (mode:"email-link") aufruft. Eigene, lokale EMAIL_RE-Kopie statt einem
+// Import aus api/session.js: dort laeuft Server-Code (require/module.exports), hier Browser-Code --
+// beide Dateien koennen das nicht direkt teilen, ohne einen Build-Schritt einzufuehren (den dieses
+// Projekt bewusst nicht hat, siehe kv.js-Kommentar "komplett ohne node_modules").
+function buildResumeEmailForm() {
+  const wrap = h("div", { style: { marginTop: "16px", paddingTop: "16px", borderTop: "2px solid rgba(26,26,24,.15)" } });
+  wrap.appendChild(h("p", { class: "h-black", style: { margin: "0 0 8px", fontSize: "13px" } }, "Link per E-Mail schicken"));
+  wrap.appendChild(h("p", { style: { margin: "0 0 10px", fontSize: "13px", lineHeight: "1.5", color: "var(--ink-a70)" } }, "Wollt ihr auf einem anderen Gerät weitermachen? Wir schicken euch einen Link, der euch genau zu eurem Stand zurückbringt."));
+
+  const row = h("div", { style: { display: "flex", gap: "8px" } });
+  const input = h("input", {
+    type: "email", placeholder: "deine@email.de", autocomplete: "email",
+    style: { flex: "1", minWidth: "0", border: "3px solid var(--ink)", padding: "0 10px", fontSize: "14px", font: "inherit", minHeight: "44px" }
+  });
+  const btn = h("button", {
+    type: "submit", class: "h-black",
+    style: { flex: "none", minHeight: "44px", padding: "0 16px", background: "var(--ink)", color: "var(--paper)", border: "3px solid var(--ink)", fontSize: "12px", cursor: "pointer" }
+  }, "Schicken");
+  row.appendChild(input);
+  row.appendChild(btn);
+
+  const status = h("p", { style: { margin: "8px 0 0", fontSize: "13px", lineHeight: "1.4" } });
+
+  const form = h("form", { style: { margin: "0" } });
+  form.appendChild(row);
+  form.appendChild(status);
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = input.value.trim();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      status.textContent = "Bitte eine gültige E-Mail-Adresse eingeben.";
+      status.style.color = "var(--red)";
+      return;
+    }
+    btn.disabled = true;
+    input.disabled = true;
+    status.textContent = "Wird verschickt …";
+    status.style.color = "var(--ink-a70)";
+    try {
+      await Pipeline.requestResumeEmail(AppState.data.sessionId, email);
+      status.textContent = "Geschickt! Schaut in ein paar Minuten ins Postfach (auch den Spam-Ordner).";
+      status.style.color = "var(--ink)";
+    } catch (err) {
+      status.textContent = String((err && err.message) || err);
+      status.style.color = "var(--red)";
+      btn.disabled = false;
+      input.disabled = false;
+    }
+  });
+
+  wrap.appendChild(form);
+  return wrap;
+}
+
+function buildDesktopDashboard(s, notice) {
   const grid = h("section", { class: "dash-desktop-grid desktop-only" });
 
   const aside = h("aside", { style: { position: "sticky", top: "108px", display: "flex", flexDirection: "column", gap: "20px" } });
+  // Gleicher einmaliger Resume-Hinweis wie in der mobilen Ansicht (siehe Screens.dashboard.render()
+  // oben) -- "notice" wird dort bereits ausgelesen/geleert, hier nur noch gerendert.
+  if (notice) aside.appendChild(buildResumeNotice(notice));
   // Design-Korrektur (07.09.2026: "Grafik 140% größer", gleiche Skalierung wie mobil): 104px -> 146px.
   const greet = h("div", { style: { position: "relative", background: "var(--yellow)", border: "4px solid var(--ink)", boxShadow: "7px 8px 0 var(--ink)", padding: "22px 22px 22px 135px", transform: "rotate(-1deg)" } });
   greet.appendChild(h("img", { src: assetPath("wizard-badge.png"), alt: "WizzelWim", style: { position: "absolute", left: "-25px", bottom: "-11px", width: "146px", animation: "wob 4s ease-in-out infinite" } }));

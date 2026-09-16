@@ -73,7 +73,12 @@ function announce(msg) {
 // vorgefertigtes DOM-Geruest gebunden (anders als die Landingpage-eigene ".lp-sheet", die nur in
 // index.html existiert) -- baut Backdrop + Sheet direkt per h()/document.body.appendChild(), damit
 // er von JEDEM Screen aus aufrufbar ist. Schliesst per Backdrop-Klick, "Verstanden"-Button oder Esc.
-function openInfoSheet(title, bodyText) {
+// ERWEITERT (Sammel-Runde 16.09.2026, "Anonyme Session + serverseitiges Speichern"): optionales
+// viertes Argument extraNode -- ein fertig gebauter DOM-Node, der zwischen Body-Text und
+// "Verstanden"-Button eingefuegt wird (aktuell: das E-Mail-Wiedereinstiegs-Formular im Dashboard-
+// Popup, siehe dashboard.js). Bisher einziger Aufrufer (dashboard.js) ruft ohne dieses Argument auf
+// -- bleibt dadurch unveraendert kompatibel.
+function openInfoSheet(title, bodyText, extraNode) {
   closeInfoSheet();
   const backdrop = h("div", {
     id: "info-sheet-backdrop",
@@ -85,12 +90,13 @@ function openInfoSheet(title, bodyText) {
     style: {
       position: "fixed", zIndex: "301", left: "50%", bottom: "0", width: "100%", maxWidth: "430px",
       transform: "translateX(-50%)", background: "var(--paper)", color: "var(--ink)",
-      borderTop: "5px solid var(--ink)", padding: "14px 18px 24px"
+      borderTop: "5px solid var(--ink)", padding: "14px 18px 24px", maxHeight: "85vh", overflowY: "auto"
     }
   });
   sheet.appendChild(h("div", { style: { width: "46px", height: "5px", background: "var(--ink)", margin: "0 auto 14px" } }));
   sheet.appendChild(h("h2", { id: "info-sheet-title", class: "h-black", style: { margin: "0 0 10px", fontSize: "20px", lineHeight: "1.05", letterSpacing: "-.03em" } }, title));
   sheet.appendChild(h("p", { style: { margin: "0", fontSize: "14px", lineHeight: "1.55" } }, bodyText));
+  if (extraNode) sheet.appendChild(extraNode);
   sheet.appendChild(h("button", {
     type: "button", class: "h-black",
     style: { marginTop: "18px", width: "100%", minHeight: "48px", background: "var(--ink)", color: "var(--paper)", border: "3px solid var(--ink)", fontSize: "13px", cursor: "pointer" },
