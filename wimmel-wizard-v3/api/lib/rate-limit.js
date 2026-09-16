@@ -53,6 +53,7 @@ async function checkRateLimit(req, res, opts) {
   if (!kvConfig()) {
     // KV nicht eingerichtet -- siehe kv.js-Setup-Kommentar. Kein Rate-Limiting moeglich, aber auch
     // kein Grund, den ganzen Endpunkt lahmzulegen (fail-open, siehe Funktions-Kommentar oben).
+    res.setHeader("X-RateLimit-Debug", "no-kv-config");
     return true;
   }
   const ip = clientIp(req);
@@ -60,6 +61,10 @@ async function checkRateLimit(req, res, opts) {
   const key = "ratelimit:" + keyPrefix + ":" + ip + ":" + windowBucket;
   try {
     const count = await kvIncrWithExpiry(key, windowSeconds);
+    // TEMPORAER (Diagnose 16.09.2026, live blockt das Limit nicht -- siehe Chat): Zaehlerstand als
+    // Header sichtbar machen, um zu sehen, ob ueberhaupt hochgezaehlt wird. Wird wieder entfernt,
+    // sobald geklaert ist, woran es liegt.
+    res.setHeader("X-RateLimit-Debug", "count=" + count + " limit=" + limit + " ip=" + ip);
     if (count > limit) {
       res.status(429).json({
         error: "Zu viele Anfragen von dieser Adresse. Bitte in ein paar Minuten nochmal versuchen.",
@@ -68,6 +73,7 @@ async function checkRateLimit(req, res, opts) {
     }
     return true;
   } catch (e) {
+    res.setHeader("X-RateLimit-Debug", "error=" + String(e && e.message ? e.message : e).slice(0, 150));
     // Siehe Fail-open-Begruendung oben.
     return true;
   }
