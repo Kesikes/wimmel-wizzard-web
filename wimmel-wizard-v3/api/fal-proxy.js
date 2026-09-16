@@ -146,14 +146,29 @@ module.exports = async (req, res) => {
   // Account-/Billing-Endpunkt auf (https://fal.ai/docs/platform-apis/v1/account/billing).
   if (body.mode === "diag-account" && body.diagToken === "4b2024de-15fa-416e-bd2d-0a07b9e2efcf") {
     try {
-      const resp = await fetch("https://api.fal.ai/v1/account/billing?expand=credits", {
+      const billingResp = await fetch("https://api.fal.ai/v1/account/billing?expand=credits", {
         headers: { Authorization: "Key " + FAL_KEY },
       });
-      const txt = await resp.text().catch(() => "");
+      const billingTxt = await billingResp.text().catch(() => "");
+      // Zusaetzlich ein ECHTER, billiger Modell-Aufruf (Vision-Endpoint, echtes Bild) -- gibt den
+      // ROHEN Status/Text zurueck (bewusst OHNE sendFalError()-Uebersetzung, NUR fuer diesen
+      // token-gesicherten Diagnose-Modus), um zu pruefen, ob der Account fuer echte Modell-Aufrufe
+      // aktuell gesperrt ist oder ob ein anderer, harmloserer Fehler vorliegt.
+      const modelResp = await fetch("https://fal.run/openrouter/router/vision", {
+        method: "POST",
+        headers: { Authorization: "Key " + FAL_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          image_urls: ["https://upload.wikimedia.org/wikipedia/commons/thumb/6/66/An_up-close_picture_of_a_curious_male_domestic_shorthair_tabby_cat.jpg/500px-An_up-close_picture_of_a_curious_male_domestic_shorthair_tabby_cat.jpg"],
+          prompt: "Is there an animal in this image? Reply with only JSON: {\"animal_ok\": true}",
+          model: "google/gemini-2.5-pro",
+          max_tokens: 100,
+        }),
+      });
+      const modelTxt = await modelResp.text().catch(() => "");
       res.status(200).json({
-        httpStatus: resp.status,
-        raw: txt.slice(0, 500),
         keyLast4: FAL_KEY.slice(-4),
+        billing: { httpStatus: billingResp.status, raw: billingTxt.slice(0, 300) },
+        model: { httpStatus: modelResp.status, raw: modelTxt.slice(0, 300) },
       });
     } catch (e) {
       res.status(200).json({ error: String(e), keyLast4: FAL_KEY.slice(-4) });
