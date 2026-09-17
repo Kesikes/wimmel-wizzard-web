@@ -65,7 +65,11 @@ module.exports = async (req, res) => {
   }
   // Gleiche Obergrenze wie der bestehende, synchrone Pfad (fal-proxy.js) — siehe dortige Kommentare
   // zur Herleitung (Missbrauchsschutz, kein reales fal.ai-Limit).
-  if (instruction.length > 16000) {
+  // ANGEHOBEN (17.09.2026, D2): die Anweisung ist durch die neuen Regeln je Phase von rund 9 auf
+  // 12 bis 14 KB gewachsen (fuenf Helden, Phase 2: 14,1 KB gemessen). Die alte Grenze von 16000 war
+  // laut Kommentar unten kein fal.ai-Limit, sondern ein Missbrauchsschutz -- 20000 laesst dem
+  // Wachstum Luft und schuetzt weiterhin gegen aufgeblasene Anfragen.
+  if (instruction.length > 20000) {
     res.status(400).json({ error: "instruction zu lang." });
     return;
   }

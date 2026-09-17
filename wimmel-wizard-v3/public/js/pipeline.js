@@ -857,6 +857,23 @@ var SCENE_PHASES = {
     // Bildhoehe. In den bewerteten Bildern passte die groesste Vordergrundfigur nur rund VIER Mal
     // in die Bildhoehe -- daher die Nutzer-Beobachtung "etwa doppelt so gross wie gewuenscht".
     scaleText: "etwa acht bis zehn Mal",
+    // --- ab hier die Werte fuer den BILD-Prompt (D2) ---
+    // figureFitCount: wie oft die groesste Vordergrundfigur in die Bildhoehe passen soll. Bewusst
+    // dieselbe Zahl, die der Verify prueft (scaleText oben) -- Anweisung und Pruefung duerfen nicht
+    // auseinanderlaufen. Nutzer-Vorgabe: "max. ca. 2-3 cm bei 20 cm Bildhoehe".
+    figureFitCount: "eight",
+    midgroundFitCount: "fourteen",
+    backgroundFitCount: "twenty-five",
+    // totalCharacters: ERSTSCHAETZUNG, im ersten echten Testlauf gegenzulesen. Herleitung: die alte
+    // Anweisung lautete "30 to 50" und hat Bilder ergeben, die der Nutzer durchgehend als zu leer
+    // bewertet hat (eigene Zaehlung an Bild 11, seinem Vorbild: rund 60 bis 70 Figuren). Er will
+    // "deutlich mehr Figuren und mehr Handlung als jetzt", also muss die Anweisung ueber dem liegen,
+    // was Bild 11 tatsaechlich hat.
+    totalCharacters: "roughly 70 to 100",
+    // Kompositionstypen fuer diese Phase, in der Reihenfolge ihrer Haeufigkeit. Welcher davon zu
+    // einem Thema passt, entscheidet pickComposition() unten -- ein Bauernhof laesst sich nicht als
+    // Haus-Querschnitt zeichnen.
+    compositions: ["open", "cutaway", "gridhouse"],
     // SCHARF GEZOGEN (17.09.2026, aus den Zahlen des zweiten Kalibrierungslaufs): Bild 11, das
     // Vorbild des Nutzers ("GUTE RICHTUNG"), wurde vom Modell auf 35 bzw. 40 geschaetzt; die als zu
     // leer bewerteten Bilder liegen bei 11 bis 28. Untergrenze 30 nimmt Bild 11 also an und weist
@@ -880,6 +897,19 @@ var SCENE_PHASES = {
     // Phase 1 bleibt bei acht bis zehn: dort ist "Figuren zu gross" der Hauptbefund und soll es
     // bleiben.
     scaleText: "etwa sieben bis zehn Mal",
+    // --- ab hier die Werte fuer den BILD-Prompt (D2) ---
+    // Gleiche relative Figurengroesse wie Phase 1, nur eine Stufe toleranter -- das ist der Befund
+    // aus der Messung an Bild 23/24 (siehe Kommentar bei scaleText). Der Unterschied der Phasen
+    // liegt NICHT in der Figurengroesse, sondern im Umfang des Schauplatzes und in der Figurenzahl.
+    figureFitCount: "seven",
+    midgroundFitCount: "twelve",
+    backgroundFitCount: "twenty-five",
+    // ERSTSCHAETZUNG wie in Phase 1. Eigene Zaehlung an Bild 23/24, den Vorbildern: rund 60 bis 70
+    // Figuren -- also kaum mehr als Phase 1 heute hat. Weil Phase 2 einen groesseren Schauplatz
+    // zeigt (Haus PLUS Strasse und Umgebung), liegt das Ziel etwas darueber, aber nicht viel: der
+    // Nutzer hat Bild 26/27 ausdruecklich als "viel zu viel Gewimmel" abgelehnt.
+    totalCharacters: "roughly 90 to 120",
+    compositions: ["overview"],
     // SCHARF GEZOGEN (17.09.2026), OBERGRENZE ANGEHOBEN nach dem dritten Lauf: die Vorbilder des
     // Nutzers, Bild 23 und 24, sind ausdruecklich auch die Obergrenze ("das ist das MAXIMUM"). Die
     // ueberladenen Bilder liegen klar darueber: Bild 22 auf 110, Bild 26 auf 115 bis 120, Bild 27
@@ -1055,20 +1085,34 @@ function isGoodEnough(severity) {
   return !!severity && severity.heavy === 0;
 }
 
+// GEAENDERT (17.09.2026, D2): die Hoehenangaben waren Prozentwerte (20 / 14 / 7). Nutzer-Vorgabe
+// nach Ansicht der 27 Bilder, woertlich: "Prozentangaben ignoriert das Modell -- bitte ueber 'weiter
+// rauszoomen' und Vergleichsgroessen formulieren". Das deckt sich mit dem Befund: trotz der
+// 20%-Angabe fuer den Vordergrund lagen die Figuren in fast allen Bildern bei rund 25%, also beim
+// Vierfachen statt Achtfachen der Bildhoehe. Statt Prozent steht jetzt die Uebereinander-Formel --
+// dieselbe, die der Verify prueft (figureFitCount in SCENE_PHASES), damit Anweisung und Pruefung
+// nicht auseinanderlaufen.
 const SCENE_LAYERS = {
-  foreground: { label: "foreground", maxHeightPct: 20 },
-  midground: { label: "midground", maxHeightPct: 14 },
-  background: { label: "background", maxHeightPct: 7 },
+  foreground: { label: "foreground", fitKey: "figureFitCount" },
+  midground: { label: "midground", fitKey: "midgroundFitCount" },
+  background: { label: "background", fitKey: "backgroundFitCount" },
 };
+
+// layerSizeText(layerName, phase): "so small that it would fit eight times into the image height".
+function layerSizeText(layerName, phase) {
+  const layer = SCENE_LAYERS[layerName] || SCENE_LAYERS.midground;
+  const count = phase[layer.fitKey] || phase.figureFitCount;
+  return "drawn small enough that it would fit at least " + count + " times over into the image height";
+}
 
 // sceneLayerText(s): Ersatz fuer situationPlacementText() -- s.layer statt s.size, optional s.side
 // (nur noch links/mitte/rechts fuer etwas horizontale Varianz, keine vertikale top/middle/bottom-
 // Achse mehr, da die Tiefenebene selbst schon die Groessen-/Wichtigkeits-Semantik traegt, die vorher
 // über oben/unten/S/M/L kommuniziert wurde).
-function sceneLayerText(s) {
+function sceneLayerText(s, phase) {
   const layer = SCENE_LAYERS[s.layer] || SCENE_LAYERS.midground;
   const side = s.side ? ", on the " + s.side + " side of the scene" : "";
-  return "In the " + layer.label + side + " (kept to roughly " + layer.maxHeightPct + "% of the image height or smaller): " + s.text + ".";
+  return "In the " + layer.label + side + " (" + layerSizeText(s.layer, phase) + "): " + s.text + ".";
 }
 
 // NEU (nicht im Original vorhanden): die Spezifikation (Abschnitt 2) verbietet Emotionswörter für
@@ -1149,11 +1193,16 @@ const THEME_META = {
 // weiterhin die groesste, dichteste Figurenmasse der Szene (unveraendert in den regionMin-Werten je
 // Thema), nur jetzt mit derselben Tiefenebenen-Sprache wie die Vignetten (sceneLayerText()), statt
 // als separates, unbenanntes Konzept.
-function densityInstruction(theme) {
+// GEAENDERT (17.09.2026, D2): Prozentangabe durch die Vergleichsgroesse ersetzt, und die regionalen
+// Mindestzahlen verdoppelt. Grund fuer die Verdoppelung: der Nutzer hat praktisch jedes der 27
+// bewerteten Bilder mit "mehr Figuren", "mehr los" oder "viel zu wenige Figuren" kommentiert, und
+// die Hintergrundebene ist die Schicht, in der zusaetzliche Figuren am wenigsten stoeren -- sie
+// fuellt die Flaeche, die durch die kleineren Figuren ueberhaupt erst frei wird.
+function densityInstruction(theme, phase) {
   const regions = (theme && theme.regions && theme.regions.length) ? theme.regions : ["across the scene"];
-  const min = (theme && theme.regionMin) || 6;
+  const min = ((theme && theme.regionMin) || 6) * 2;
   const parts = regions.map((r) => "at least " + min + " small background characters " + r);
-  return "In the background layer (kept to roughly " + SCENE_LAYERS.background.maxHeightPct + "% of the image height or smaller), densely populate the scene: " + parts.join(", ") + " — each one doing their own tiny activity or little visual joke, true busy seek-and-find picture-book density.";
+  return "In the background layer (" + layerSizeText("background", phase) + "), densely populate the scene: " + parts.join(", ") + " — each one doing their own tiny activity or little visual joke, true busy seek-and-find picture-book density.";
 }
 
 // NEU (Punkt 1: Figurenbibliothek fuer Hintergrundfiguren, Sammel-Runde 15.09.2026 Fortsetzung --
@@ -1358,6 +1407,10 @@ function autoSituations(theme, existing, target) {
 // hoher Wert (30-50) fuer ALLE Produktformate (Poster/Mini-Wimmelbuch/Wimmelbuch), kein
 // produktabhaengiger Wert -- Begruendung: ein dichtes Bild laesst sich gut auf kleinere Formate
 // runterskalieren.
+// NICHT MEHR IM PROMPT (17.09.2026, D2): die Zielzahl steht jetzt in SCENE_PHASES.totalCharacters,
+// weil sie sich je Phase unterscheidet. Die Konstante bleibt als Beleg stehen, wie die Zielspanne
+// aussah, mit der die 27 bewerteten Bilder entstanden sind -- der Nutzer hat sie durchgehend als zu
+// leer beurteilt. Wird noch exportiert (window.Pipeline), aber von scenePrompt() nicht mehr gelesen.
 const SCENE_TOTAL_CHARACTER_TARGET_RULE = "Populate the whole scene with roughly 30 to 50 individual characters in total, combining the named heroes with the midground and background layers described below — a genuinely busy, richly populated seek-and-find scene, not a sparse one.";
 
 // NEU (Nutzer-Auftrag, direkte Reaktion auf Live-Test-Befund Task #18: bei jeder Szene mit mehr als
@@ -1384,6 +1437,67 @@ const SCENE_TOTAL_CHARACTER_TARGET_RULE = "Populate the whole scene with roughly
 // nur eben ohne Menschen-typische Mimik.
 const NO_MOUTH_EMPHASIS = "CRITICAL, above every other style detail in this image: absolutely no human or human-like character anywhere — named hero, midground, or background, no matter how small or freely invented — may have a visible mouth, lips, teeth, tongue, or any mouth-shaped line or opening. Every single human face in this entire image shows only two small dot eyes and one short vertical nose line, nothing below that. If in doubt while drawing any human character, leave the lower half of the face blank rather than add any kind of mouth. Animals are NOT covered by this rule — animals may be drawn with their natural mouths, snouts, beaks or open jaws (a dog holding something in its mouth, a bird chirping, an animal's snout) exactly as a real illustration would show them.";
 
+// NEU (17.09.2026, D2): Kompositionstypen. Nutzer-Vorgabe fuer Phase 1, woertlich: "Kompositions-
+// typen (abwechseln): offene Szene mit klarer Tiefe (Vorbilder Bild 8, 11, 20) / Haus im Querschnitt
+// (Vorbilder Bild 10, 17) / gelegentlich Setzkasten-Schnitt mit vielen Raeumen (Vorbild Bild 16,
+// gern mehr Raeume)". Fuer Phase 2: "schraeg von oben, grosser Schauplatz, z.B. Haus im Querschnitt
+// + Strasse/Umgebung (Vorbilder Bild 23, 24)".
+// Bisher gab es das nicht als Wahl: THEME_META.type kannte nur "landscape" und "cutaway", und die
+// Komposition war damit pro Thema fest verdrahtet.
+const COMPOSITION_TYPES = {
+  open: {
+    id: "open",
+    kw: "open landscape scene seen from a slightly elevated angle",
+    text: "Composition: one open, continuous place seen from a slightly elevated angle, with a clear near-to-far depth: a foreground edge, a broad middle distance, and a far distance that recedes towards the horizon. Spread the action across all three so the eye travels into the picture.",
+  },
+  cutaway: {
+    id: "cutaway",
+    kw: "building cut open from the side, several floors and rooms visible at once",
+    text: "Composition: a house cut open towards the viewer, several rooms and at least two floors visible at the same time, like an open doll's house. Each room keeps its own floor, walls and ceiling and holds its own little scene. Depth comes from the rooms being staggered and from the figures being larger in the rooms nearest the viewer.",
+  },
+  gridhouse: {
+    id: "gridhouse",
+    kw: "building cut open into many small rooms like a printer's type case, each room its own little scene",
+    text: "Composition: a building cut open into MANY small rooms, arranged like a printer's type case — at least eight or nine separate rooms across several floors, each one a complete little scene of its own with its own furniture and its own activity. Rather than a few large rooms, use many small ones; the pleasure of this composition is the number of separate places to discover.",
+  },
+  overview: {
+    id: "overview",
+    kw: "large place seen obliquely from above, a cut-open house together with the street and surroundings around it",
+    text: "Composition: a large place seen obliquely from above, roughly from the height of a first-floor window. A house cut open towards the viewer sits in the middle, and around it the street, the square and the surroundings continue with their own life — market stalls, front gardens, a path, whatever the theme brings. Inside and outside are visible at once, side by side, each with its own ground.",
+  },
+};
+
+// pickComposition(theme, phase, forced): waehlt den Kompositionstyp.
+// Nicht jeder Typ passt zu jedem Thema -- ein Bauernhof oder ein Strand laesst sich nicht als
+// Haus-Querschnitt zeichnen. Deshalb entscheidet zuerst THEME_META.type, ob das Thema ueberhaupt
+// im Gebaeude spielt ("cutaway", derzeit nur Weihnachten) oder im Freien ("landscape").
+// In Phase 2 gibt es nur einen Typ (overview), unabhaengig vom Thema.
+// forced: erlaubt, den Typ fuer einen gezielten Testlauf festzulegen (D5) statt zu wuerfeln.
+function pickComposition(theme, phase, forced) {
+  if (forced && COMPOSITION_TYPES[forced]) return COMPOSITION_TYPES[forced];
+  const erlaubt = (phase.compositions || ["open"]).filter((id) => {
+    if (id === "open") return !theme || theme.type !== "cutaway";
+    if (id === "cutaway" || id === "gridhouse") return theme && theme.type === "cutaway";
+    return true;
+  });
+  const liste = erlaubt.length ? erlaubt : ["open"];
+  // Gewichtung: der Setzkasten ist laut Nutzer der Ausnahmefall ("gelegentlich"), deshalb nur in
+  // etwa einem Viertel der Faelle, wenn er ueberhaupt erlaubt ist.
+  if (liste.length > 1 && liste.indexOf("gridhouse") >= 0 && Math.random() < 0.25) {
+    return COMPOSITION_TYPES.gridhouse;
+  }
+  const ohneGrid = liste.filter((id) => id !== "gridhouse");
+  const wahl = (ohneGrid.length ? ohneGrid : liste)[Math.floor(Math.random() * (ohneGrid.length ? ohneGrid.length : liste.length))];
+  return COMPOSITION_TYPES[wahl] || COMPOSITION_TYPES.open;
+}
+
+// NEU (17.09.2026, D2): Phase-2-Zusatz. Nutzer-Vorgabe, woertlich: "Vordergrund: klar erkennbare
+// Charaktere aus der bgchars-Bibliothek + Heldinnen/Helden, farbig und mit Persoenlichkeit. Nur ganz
+// im Hintergrund duerfen Figuren generisch sein." Und: "Heldinnen/Helden brauchen einen gezielten,
+// gut sichtbaren Platz, sonst gehen sie im Gewimmel unter." Beides sind Reaktionen auf die
+// Phase-2-Testbilder, in denen die Heldin im Gewuehl verschwand und die Figuren farblos blieben.
+const PHASE2_FOREGROUND_RULE = "Because this scene is large and densely populated, the front of the image carries the recognisability: every character in the foreground and midground is drawn as an individual with their own clothing colours, their own posture and their own small activity — no filler, no repeated silhouettes. Only in the far background may characters become simple and generic. Give each named hero a deliberately chosen, clearly visible spot with space around them, so they stand out from the crowd instead of disappearing into it.";
+
 // scenePrompt(): NEU synthetisiert nach Spezifikation Abschnitt 2 (siehe Modul-Kommentar oben).
 // heroSpecs: Array von CharacterSpec (makeCharacterSpec()), je mit .name und gefuelltem
 // identityCore/defaultOutfit. theme: ein THEME_META[...]-Eintrag. situations: Array wie von
@@ -1394,37 +1508,85 @@ const NO_MOUTH_EMPHASIS = "CRITICAL, above every other style detail in this imag
 // App bereits heute moeglich, heroSpecs kommt aus allen Personen mit status:"done") werden die
 // restlichen 1-2 explizit dem Mittelgrund zugeordnet, bleiben aber weiterhin laut
 // allCharactersRule() Pflicht-Bestandteil der Szene (nur eben nicht mehr zwingend gross/vorne).
+// NEU (17.09.2026, D2): der wichtigste einzelne Befund aus der Bewertung der 27 Bilder. Nutzer,
+// woertlich: "Figuren kleiner / weiter rauszoomen, mehr los" und "Grundprinzip: kleinere Figuren ->
+// mehr Platz -> mehr Gewimmel". Die Groessenangabe allein hat nicht gewirkt (siehe Kommentar bei
+// SCENE_LAYERS), deshalb steht hier zusaetzlich die Kamera-Anweisung: nicht "zeichne die Figuren
+// kleiner", sondern "geh weiter weg" -- das ist fuer ein Bildmodell die greifbarere Anweisung, weil
+// sie die ganze Komposition betrifft und nicht nur ein Detail.
+const ZOOM_OUT_RULE = "Camera distance is critical for this image: pull back much further than feels natural, as if photographing the whole place from across the street or from an upper window. Even the largest character in the very front must read as part of the scene, never as a portrait — the scene itself is the subject, not any single figure. Getting further away is what creates the room for the large number of characters required below.";
+
+// NEU (17.09.2026, D2): Tiefenstaffelung als PFLICHT, nicht als Empfehlung. Nutzer, woertlich:
+// "Tiefenstaffelung ist PFLICHT: Vorder-/Mittel-/Hintergrund mit klar abnehmender Figurengroesse.
+// 'Viel los' ohne Tiefe ist ein Fehlschlag." Das bezog sich auf ein konkretes Bild (sein
+// Negativbeispiel), in dem sehr viele Figuren ueber die ganze Flaeche in einem einzigen
+// Groessenband standen. Die bereits vorhandene DEPTH_COHERENCE_RULE beschreibt den GLEITENDEN
+// Uebergang -- dieser Satz verlangt zusaetzlich, dass die drei Ebenen ueberhaupt als drei
+// unterschiedliche Groessen erkennbar sind.
+const THREE_LAYER_RULE = "The scene must show three clearly different character sizes: large foreground figures, noticeably smaller midground figures, and a lot of much smaller background figures. A viewer should be able to tell at a glance which layer any character belongs to, just from its size. An image in which nearly all characters are about the same size across the whole surface is a failed image, no matter how much is going on in it.";
+
+// NEU (17.09.2026, D2): Nutzer-Befund an einem Weihnachtsbild, woertlich: "Logikfehler: Schnee in
+// der Kueche". Der Verify prueft das inzwischen (logic_ok) -- hier die entsprechende Anweisung an
+// das Bildmodell, damit der Fehler moeglichst gar nicht entsteht.
+// NEU (17.09.2026, D2): Gegenstueck zum Verify-Kriterium style_ok an der QUELLE. Nutzer-Vorgabe:
+// "KEINE NASEN" -- gemeint sind plastisch gezeichnete Nasen, der duenne senkrechte Strich gehoert
+// zum Stil. In einem der bewerteten Bilder hatte genau eine grosse Vordergrundfigur eine als Form
+// gezeichnete Nase samt Bartstoppeln und fiel damit aus dem Stil. Besser, das Bild entsteht gar
+// nicht so, als es hinterher zu pruefen.
+const FLAT_FACE_RULE = "Every human face in this image stays completely flat, and this applies most strictly to the largest figures in the very front, where the temptation to add detail is greatest: two small dot eyes and one single thin vertical line for the nose, nothing more. Never a modelled nose with a bridge, a tip, nostrils or shading around it; never stubble, beard shadow or shading on cheeks, chin or neck; never a three-quarter or profile view with sculpted facial features while the other faces stay flat and frontal.";
+
+const INDOOR_OUTDOOR_RULE = "Keep inside and outside strictly separate. Weather and outdoor ground — snow, rain, sand, waves, grass, sky, street paving — belong outdoors only and must never appear on the floor of a room. In a building cut open for the viewer, every interior room keeps its own floor, walls and ceiling, and the outside world only ever begins beyond a wall, a window frame or the edge of the house.";
+
 const FOREGROUND_HERO_CAP = 3;
-function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount }) {
-  const kw = "wmlstil, " + (theme.type === "cutaway"
-    ? theme.en + " building cutaway scene, multiple floors and areas visible"
-    : theme.en + " landscape scene");
+// GEAENDERT (17.09.2026, D2 "Prompt-Regeln getrennt fuer Phase 1 und Phase 2"): nimmt jetzt die
+// Phase (SCENE_PHASES) und einen Kompositionstyp (COMPOSITION_TYPES) dazu. Drei inhaltliche
+// Neuerungen gegenueber vorher:
+//   1. Figurengroesse ueber Vergleichsgroessen statt Prozent, plus die Kamera-Anweisung
+//      ZOOM_OUT_RULE -- der Hauptbefund der Bildbewertung.
+//   2. Ein ausdruecklicher Kompositionstyp pro Bild, statt einer pro Thema fest verdrahteten
+//      Perspektive.
+//   3. Die Zielzahl der Figuren kommt aus der Phase, nicht mehr aus einer festen Konstante.
+// UNVERAENDERT und mit Absicht: NO_MOUTH_EMPHASIS bleibt streng ("kein Mund, nirgends"), obwohl die
+// Produktregel inzwischen bis zu drei Muender erlaubt. Begruendung: die Bilder haben trotz des
+// strengen Verbots durchgehend vier bis sechs Muender -- das Modell ueberschreitet die Anweisung
+// ohnehin. Wuerde hier "bis zu drei" stehen, waeren es entsprechend mehr. Dieselbe Asymmetrie wie
+// beim Stil (Pruefung tolerant, Anweisung streng), die der Nutzer am 17.09.2026 ausdruecklich
+// bestaetigt hat.
+function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount, phase, composition }) {
+  const kw = "wmlstil, " + theme.en + ", " + composition.kw;
   const sentences = [];
-  // NEU: ganz vorne, noch vor der Helden-Zuordnung -- Primacy-Haelfte des Mund-Sandwiches (siehe
+  // Ganz vorne, noch vor der Helden-Zuordnung -- Primacy-Haelfte des Mund-Sandwiches (siehe
   // Kommentar bei NO_MOUTH_EMPHASIS oben).
   sentences.push(NO_MOUTH_EMPHASIS);
   sentences.push(imageRefMapping(heroSpecs));
-  // NEU (Punkt 1, Fortsetzung): direkt nach der Helden-Zuordnung, bevor irgendetwas anderes ueber
-  // Referenzbilder gesagt wird -- sonst koennte das Modell die nachfolgenden Bibliotheks-Blaetter
-  // (image_urls-Reihenfolge, siehe buildSceneComposeInputs()) faelschlich als weitere Helden lesen.
+  // Direkt nach der Helden-Zuordnung, bevor irgendetwas anderes ueber Referenzbilder gesagt wird --
+  // sonst koennte das Modell die nachfolgenden Bibliotheks-Blaetter (image_urls-Reihenfolge, siehe
+  // buildSceneComposeInputs()) faelschlich als weitere Helden lesen.
   sentences.push(backgroundLibraryInstruction(heroSpecs.length + 1, bgCharacterCount || 0));
-  // Punkt B2 (siehe Kommentar bei imageRefMapping() oben): dieselbe Filterung hier, zweite Stelle,
-  // an der describeHero() ungefiltert in den Prompt eingesetzt wurde.
+  // NEU (D2): Komposition und Kameraabstand direkt nach den Referenzbildern -- beides betrifft das
+  // ganze Bild und gehoert daher vor die Einzelanweisungen.
+  sentences.push(composition.text);
+  sentences.push(ZOOM_OUT_RULE);
   const foregroundHeroes = heroSpecs.slice(0, FOREGROUND_HERO_CAP);
   const midgroundHeroes = heroSpecs.slice(FOREGROUND_HERO_CAP);
   const foregroundBits = foregroundHeroes.map((s) => s.name + " (" + stripEmotionWords(describeHero(s)) + ")").join(", ");
-  if (foregroundBits) sentences.push("In the foreground (kept to roughly " + SCENE_LAYERS.foreground.maxHeightPct + "% of the image height or smaller), actively taking part in the action described below, not standing still and not posed neutrally: " + foregroundBits + ".");
+  if (foregroundBits) sentences.push("In the foreground (each one " + layerSizeText("foreground", phase) + "), actively taking part in the action described below, not standing still and not posed neutrally: " + foregroundBits + ".");
   const midgroundBits = midgroundHeroes.map((s) => s.name + " (" + stripEmotionWords(describeHero(s)) + ")").join(", ");
-  if (midgroundBits) sentences.push("Also present, in the midground (kept to roughly " + SCENE_LAYERS.midground.maxHeightPct + "% of the image height or smaller), still clearly recognizable according to their reference image and actively doing something of their own: " + midgroundBits + ".");
-  sentences.push(SCENE_TOTAL_CHARACTER_TARGET_RULE);
-  sentences.push(densityInstruction(theme));
-  const situationText = (situations || []).map(sceneLayerText).join(" ");
+  if (midgroundBits) sentences.push("Also present, in the midground (each one " + layerSizeText("midground", phase) + "), still clearly recognizable according to their reference image and actively doing something of their own: " + midgroundBits + ".");
+  // NEU (D2): Zielzahl aus der Phase.
+  sentences.push("Populate the whole scene with " + phase.totalCharacters + " individual characters in total, combining the named heroes with the midground and background layers described below — a genuinely busy, richly populated seek-and-find scene, not a sparse one.");
+  sentences.push(THREE_LAYER_RULE);
+  sentences.push(densityInstruction(theme, phase));
+  const situationText = (situations || []).map((s) => sceneLayerText(s, phase)).join(" ");
   if (situationText) sentences.push(stripEmotionWords(situationText));
+  if (phase.id === "phase2") sentences.push(PHASE2_FOREGROUND_RULE);
   sentences.push(SCENE_STYLE_BLOCK);
+  sentences.push(FLAT_FACE_RULE);
   sentences.push(FILL_EMPTY_SPACE_RULE);
   sentences.push(COHERENCE_RULE);
   sentences.push(DEPTH_COHERENCE_RULE);
   sentences.push(HEAD_SCALE_CONSISTENCY_RULE);
+  sentences.push(INDOOR_OUTDOOR_RULE);
   sentences.push(SAFE_MARGIN_RULE);
   sentences.push(EMOTION_WORDS_RULE);
   sentences.push(allCharactersRule(heroSpecs));
@@ -1703,8 +1865,14 @@ function buildVerifyPrompt(heroSpecs, phaseId) {
 // GEAENDERT (17.09.2026, D1): nimmt jetzt optional eine phase ("phase1"/"phase2", siehe
 // SCENE_PHASES oben) und gibt sie mit zurueck. Ohne Angabe gilt ACTIVE_SCENE_PHASE -- das Produkt
 // laeuft derzeit vollstaendig in Phase 1.
-function buildSceneComposeInputs({ heroSpecs, theme, situations, phase }) {
+// GEAENDERT (17.09.2026, D2): waehlt zusaetzlich den Kompositionstyp und gibt ihn mit zurueck,
+// damit spaeter nachvollziehbar ist, welcher Typ ein Bild erzeugt hat. opts.composition erlaubt,
+// den Typ fuer einen gezielten Testlauf festzulegen statt zu wuerfeln (D5: "verschiedene Themen und
+// Kompositionstypen").
+function buildSceneComposeInputs({ heroSpecs, theme, situations, phase, composition }) {
   const phaseId = (phase && SCENE_PHASES[phase]) ? phase : ACTIVE_SCENE_PHASE;
+  const phaseObj = SCENE_PHASES[phaseId];
+  const comp = pickComposition(theme, phaseObj, composition);
   const refHeroes = heroSpecs.slice(0, 5);
   const heroRefUrls = refHeroes.map((s) => s.imageUrl).filter(Boolean);
   const editImageUrl = heroRefUrls[0];
@@ -1713,7 +1881,7 @@ function buildSceneComposeInputs({ heroSpecs, theme, situations, phase }) {
   const bgCount = Math.min(bgBudget, 3 + Math.round(Math.random())); // 3 oder 4 Blaetter
   const bgUrls = bgCount > 0 ? pickBackgroundCharacterSheets(bgCount) : [];
   const styleRefUrls = heroStyleRefUrls.concat(bgUrls);
-  const promptText = scenePrompt({ heroSpecs: refHeroes, theme, situations, bgCharacterCount: bgUrls.length });
+  const promptText = scenePrompt({ heroSpecs: refHeroes, theme, situations, bgCharacterCount: bgUrls.length, phase: phaseObj, composition: comp });
   const instruction = sceneComposeInstruction(promptText);
   const verifyPrompt = buildVerifyPrompt(refHeroes, phaseId);
   // figuresBand reist mit zum Server: dort wird figures_est dagegen geprueft (siehe
@@ -1724,12 +1892,12 @@ function buildSceneComposeInputs({ heroSpecs, theme, situations, phase }) {
   // Bibliotheksblaetter (bgUrls), die fuer den Identitaets-/Stil-Abgleich beim Verify irrelevant/
   // verwirrend waeren (sie zeigen KEINE benannten Helden). heroRefUrls = nur die echten Helden-
   // Referenzbilder, in derselben Reihenfolge wie buildVerifyPrompt()'s Bild-2-bis-N-Zuordnung.
-  return { refHeroes, editImageUrl, styleRefUrls, heroRefUrls, promptText, instruction, verifyPrompt, phaseId, figuresBand };
+  return { refHeroes, editImageUrl, styleRefUrls, heroRefUrls, promptText, instruction, verifyPrompt, phaseId, figuresBand, compositionId: comp.id };
 }
 
-async function composeSceneImage({ heroSpecs, theme, situations }) {
+async function composeSceneImage({ heroSpecs, theme, situations, phase, composition }) {
   const { editImageUrl, styleRefUrls, heroRefUrls, promptText, instruction, verifyPrompt } =
-    buildSceneComposeInputs({ heroSpecs, theme, situations });
+    buildSceneComposeInputs({ heroSpecs, theme, situations, phase, composition });
 
   async function generateAndVerify(seed) {
     const cand = await generateImage(instruction, "scene", { seed, editImageUrl, styleRefUrls });
@@ -2045,6 +2213,7 @@ async function pollSceneJobOnce(jobId) {
 // wurde -- die gespeicherte/angezeigte Nachvollziehbarkeit wuerde still falsch. Die tatsaechlich
 // verwendete instruction reist ohnehin im Job-Datensatz mit (siehe createSceneJob() in
 // api/_lib/scene-job-engine.js) und wird unten aus dem Poll-Ergebnis uebernommen.
+// sceneInputs darf ausser heroSpecs/theme/situations auch phase und composition enthalten (D2/D5).
 async function runSceneJobPolling(sceneInputs, opts) {
   opts = opts || {};
   const intervalMs = opts.intervalMs || 7000;
@@ -2206,6 +2375,7 @@ window.Pipeline = {
   PEN_INSTRUCTION_REMOVE, PEN_INSTRUCTION_REDO,
   resizeImageToDataUri, generateImage, generateImageWithRetry, verifyImage, countViolations,
   SCENE_PHASES, ACTIVE_SCENE_PHASE, DEPTH_MIN_RATIO, severityOf, compareSeverity, isGoodEnough,
+  COMPOSITION_TYPES, pickComposition, layerSizeText,
   // Szenen-Komposition (neu, siehe Modul-Abschnitt oben)
   GAG_LIBRARY, THEME_META, pickGagChips, topUpSituations,
   // GEAENDERT (Sammel-Runde 15.09.2026, Punkt 2): defaultBubbleLayout/sizePx/regionLabel/
