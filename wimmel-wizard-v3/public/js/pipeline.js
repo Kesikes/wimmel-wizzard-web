@@ -879,7 +879,17 @@ var ACTIVE_SCENE_PHASE = "phase1";
 // nicht per require() eingebunden werden (siehe Kommentar dort). Bei Aenderungen BEIDE anpassen.
 var VIOLATION_SEVERITY = {
   // schwer -- trifft den Kern des Produkts, nie durch Kleinigkeiten aufwiegbar
-  style_ok: "heavy", heroes_ok: "heavy", depth_ok: "heavy",
+  // VORUEBERGEHEND HERABGESTUFT (17.09.2026, Ergebnis der Kalibrierung gegen die 27 bewerteten
+  // Bilder): style_ok stand hier auf "heavy" und hat in 17 von 21 Phase-1-Bildern angeschlagen --
+  // darunter die vom Nutzer ausdruecklich gelobten Bilder 11 und 20. Bei nur ~30% Uebereinstimmung
+  // mit dem menschlichen Urteil ist das kein brauchbares Ausschlusskriterium: gemessen an diesen 27
+  // Bildern waere bei 81% aller Szenen der teure dritte Kandidat gelaufen, mit "mittel" sind es 59%.
+  // Die Gewichtung geht zurueck auf "heavy", sobald die Formulierung von style_ok auf echte
+  // Stilbrueche fokussiert ist (stilfremde Einzelfigur, realistische Tiere, plastische Schattierung)
+  // statt auf den Normalfall -- der Stil bleibt inhaltlich das wichtigste Kriterium, nur darf ein
+  // unzuverlaessiger Test nicht das Geld ausgeben.
+  heroes_ok: "heavy", depth_ok: "heavy",
+  style_ok: "medium",
   // mittel
   scale_ok: "medium", density: "medium", mouths_ok: "medium", noses_ok: "medium",
   // leicht
