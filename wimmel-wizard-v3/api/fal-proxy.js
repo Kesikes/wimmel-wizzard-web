@@ -409,7 +409,13 @@ module.exports = async (req, res) => {
         // eigentliche Pixel-Beschnitt 16:9->2:1 ist NICHT Teil dieser Aenderung, siehe offener Punkt.
         aspect_ratio: testAspectRatio || (kind === "char" ? "3:4" : "16:9"),
         resolution: testResolution || (kind === "char" ? "1K" : "4K"),
-        output_format: "png",
+        // GEAENDERT (17.09.2026, D4): fuer SZENEN jetzt JPEG statt PNG -- volle Begruendung samt
+        // Gegenargument siehe api/_lib/scene-job-engine.js bei output_format. Dieser Pfad erzeugt
+        // die Szenen-Bearbeitungen des Stift-Werkzeugs, also ebenfalls Druckbilder in 4K.
+        // Charakterbilder bleiben PNG: sie sind mit 1K klein, das Groessenproblem betrifft sie
+        // nicht, und sie dienen als REFERENZBILDER fuer jede Szenengenerierung -- dort sind
+        // moeglichst saubere Konturen wichtiger als ein paar gesparte Megabyte.
+        output_format: kind === "char" ? "png" : "jpeg",
         num_images: 1,
         ...(seed !== undefined ? { seed } : {}),
       }

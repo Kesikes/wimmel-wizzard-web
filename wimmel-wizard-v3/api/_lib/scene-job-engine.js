@@ -64,7 +64,26 @@ function sceneGenerateBody(instruction, editImageUrl, styleRefUrls, seed) {
     image_urls: [editImageUrl, ...(styleRefUrls || [])],
     aspect_ratio: "16:9",
     resolution: "4K",
-    output_format: "png",
+    // GEAENDERT (17.09.2026, D4 "4K-Problem"): PNG -> JPEG fuer SZENEN.
+    // Messung an der einzigen echten Originaldatei, die vorliegt (Bild 1 der Bewertung): 5504x3072
+    // Pixel, 19,5 MB als PNG. Genau diese Datei haengt der Ergebnis-Screen unveraendert in ein
+    // <img> -- ein Handy laedt und dekodiert also rund 20 MB pro Bild. Bei flaechigen Farben ist
+    // PNG die teuerste moegliche Wahl; ein JPEG derselben Groesse liegt erfahrungsgemaess bei 2 bis
+    // 4 MB.
+    // Die Aufloesung selbst bleibt bei 4K, und zwar bewusst: 5504 Pixel ergeben auf dem
+    // Buchformat 296 mm Breite 472 dpi, die naechste Stufe darunter (2K, rund 2752 Pixel) nur noch
+    // 236 dpi -- zu wenig fuer Druck. Es gibt also keine brauchbare Mittelstufe.
+    // ACHTUNG, GEGENARGUMENT AUS DEM CODE SELBST: im Text-zu-Bild-Pfad in api/fal-proxy.js stand
+    // bisher ausdruecklich "PNG statt JPEG: verlustfrei, wichtig fuer die duennen schwarzen
+    // Outlines im Stil (JPEG-Kompression macht sie weich/unscharf)". Das ist ein realer Einwand.
+    // Dagegen spricht die Erfahrung mit den Hintergrundfiguren-Blaettern, die im September auf JPEG
+    // q90 umgestellt wurden, mit dem ausdruecklichen Befund "keine sichtbaren
+    // Kompressionsartefakte an den schwarzen Umrisslinien". Entscheidend ist die Qualitaetsstufe --
+    // und ob nano-banana-pro/edit eine annimmt, ist nicht dokumentiert. Das erste erzeugte Bild
+    // muss deshalb auf ZWEI Dinge geprueft werden: Dateigroesse UND Scharfzeichnung der Konturen
+    // bei 100% Ansicht. Faellt die Kontur weich aus, zurueck auf "png" und stattdessen die Anzeige
+    // von der Druckdatei trennen.
+    output_format: "jpeg",
     num_images: 1,
     ...(seed != null ? { seed } : {}),
   };
