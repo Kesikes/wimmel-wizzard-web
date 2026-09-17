@@ -167,7 +167,11 @@ const VIOLATION_SEVERITY = {
   heroes_ok: "heavy", depth_ok: "heavy",
   style_ok: "medium",
   // mittel (Szenen-Verify)
-  scale_ok: "medium", density: "medium", mouths_ok: "medium", noses_ok: "medium",
+  // GEAENDERT (17.09.2026, nach dem ersten Kalibrierungslauf): "density" (dreiwertig) heisst jetzt
+  // "figures_est" (geschaetzte Zahl, bewertet gegen figuresBand aus SCENE_PHASES in pipeline.js),
+  // und "noses_ok" ist entfallen -- es meldete in 27 von 27 Bildern "kein Verstoss", auch bei dem
+  // einen Bild, in dem eine plastische Nase das Problem war. Wird jetzt in style_ok mitgeprueft.
+  scale_ok: "medium", figures_est: "medium", mouths_ok: "medium",
   // leicht (Szenen-Verify)
   no_text_ok: "light", logic_ok: "light",
   // Charakter-Verify (buildCharacterVerifyPrompt() in char-job-engine.js)
@@ -187,7 +191,10 @@ const DEFAULT_SEVERITY = "medium";
 // char-job-engine.js) ab.
 // "violations" (Gesamtzahl) bleibt erhalten: der Figuren-Pfad rechnet unveraendert damit, und der
 // Wert ist im Client an jedem Bild gespeichert. Neu daneben: severity nach Schwere.
-function countViolations(verifyOutputText) {
+// figuresBand ([min, max], optional): nur damit kann figures_est bewertet werden. Ohne Spanne wird
+// das Feld bewusst ignoriert statt geraten -- ein fehlender Vergleichsmassstab darf keinen Verstoss
+// erfinden. Der Charakter-Verify kennt das Feld gar nicht und uebergibt entsprechend nichts.
+function countViolations(verifyOutputText, figuresBand) {
   const match = String(verifyOutputText || "").match(/\{[\s\S]*\}/);
   const fail = { violations: 99, parsed: null, severity: { heavy: 99, medium: 99, light: 99 } };
   if (!match) return fail;
@@ -196,7 +203,12 @@ function countViolations(verifyOutputText) {
   const severity = { heavy: 0, medium: 0, light: 0 };
   Object.keys(parsed).forEach((k) => {
     let bad;
-    if (k === "density") bad = String(parsed[k]) !== "passt";
+    if (k === "figures_est") {
+      if (!Array.isArray(figuresBand)) return;
+      const anzahl = Number(parsed[k]);
+      if (!isFinite(anzahl)) return;
+      bad = anzahl < figuresBand[0] || anzahl > figuresBand[1];
+    }
     else if (/_ok$/.test(k)) bad = parsed[k] === false;
     else return;
     if (!bad) return;

@@ -51,6 +51,13 @@ module.exports = async (req, res) => {
   // advanceSceneJob() (scene-job-engine.js). Gedeckelt auf 5 wie FOREGROUND_HERO_CAP-Kontext in
   // pipeline.js (mehr Helden sind ohnehin nicht vorgesehen).
   const heroRefUrls = (Array.isArray(body.heroRefUrls) ? body.heroRefUrls : []).filter(isImageRef).slice(0, 5);
+  // NEU (17.09.2026): [min, max] fuer die vom Verify geschaetzte Figurenzahl (figures_est, siehe
+  // buildVerifyPrompt()/SCENE_PHASES in pipeline.js). Streng validiert: zwei endliche, positive,
+  // aufsteigende Zahlen, sonst null -- eine kaputte Spanne soll das Feld stillschweigend
+  // ueberspringen (countViolations() ignoriert es dann), nicht Verstoesse erfinden.
+  const rohBand = Array.isArray(body.figuresBand) ? body.figuresBand.map(Number) : null;
+  const figuresBand = (rohBand && rohBand.length === 2 && rohBand.every((v) => Number.isFinite(v) && v >= 0)
+    && rohBand[0] < rohBand[1]) ? rohBand : null;
 
   if (!instruction) {
     res.status(400).json({ error: "Keine instruction übergeben." });
@@ -73,7 +80,7 @@ module.exports = async (req, res) => {
 
   const jobId = "sj_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 10);
   try {
-    const job = await createSceneJob({ jobId, instruction, verifyPrompt, editImageUrl, styleRefUrls, heroRefUrls, FAL_KEY });
+    const job = await createSceneJob({ jobId, instruction, verifyPrompt, editImageUrl, styleRefUrls, heroRefUrls, figuresBand, FAL_KEY });
     await kvSetJson("scenejob:" + jobId, job, JOB_TTL_SECONDS);
     res.status(200).json({ jobId });
   } catch (e) {

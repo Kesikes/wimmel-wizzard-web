@@ -22,7 +22,7 @@
 //
 // ZUSTANDSMODELL (ein Job-Datensatz, gespeichert unter "scenejob:{jobId}" via api/lib/kv.js):
 // {
-//   jobId, instruction, verifyPrompt, editImageUrl, styleRefUrls,
+//   jobId, instruction, verifyPrompt, editImageUrl, styleRefUrls, figuresBand,
 //   status: "in_progress" | "done" | "error", error,
 //   candidates: [{ seed, genRequestId, genStatus, url, verifyStatus, violations, severity, verify, verifyError }, ...],
 //   resultUrl, resultSeed, resultViolations, resultSeverity, resultVerify,
@@ -74,7 +74,7 @@ function sceneGenerateBody(instruction, editImageUrl, styleRefUrls, seed) {
 // die ersten 2 Kandidaten (analog zu composeSceneImage()s "immer 2 parallele Kandidaten" in
 // pipeline.js). SPEICHERT NICHTS selbst in KV (macht der Aufrufer, api/scene-job-start.js) -- gleiches
 // Prinzip wie createCharacterJob().
-async function createSceneJob({ jobId, instruction, verifyPrompt, editImageUrl, styleRefUrls, heroRefUrls, FAL_KEY }) {
+async function createSceneJob({ jobId, instruction, verifyPrompt, editImageUrl, styleRefUrls, heroRefUrls, figuresBand, FAL_KEY }) {
   const seedA = Math.floor(Math.random() * 1e9);
   const seedB = Math.floor(Math.random() * 1e9);
   const [reqA, reqB] = await Promise.all([
@@ -89,6 +89,10 @@ async function createSceneJob({ jobId, instruction, verifyPrompt, editImageUrl, 
     // NEU (Verify-Blindspot-Fix 16.09.2026): separat mitgefuehrt, NUR fuer den Verify-Abgleich in
     // advanceSceneJob() unten -- siehe Kommentar bei buildVerifyPrompt() in pipeline.js.
     heroRefUrls: heroRefUrls || [],
+    // NEU (17.09.2026): [min, max] fuer die vom Verify geschaetzte Figurenzahl, vom Client
+    // mitgeschickt (SCENE_PHASES in pipeline.js). Reist im Job mit, damit jeder Poll-Durchlauf
+    // dieselbe Spanne benutzt wie der Start.
+    figuresBand: Array.isArray(figuresBand) ? figuresBand : null,
     status: "in_progress", error: null,
     candidates: [candA, candB],
     resultUrl: null, resultSeed: null, resultViolations: null, resultSeverity: null, resultVerify: null,
@@ -147,7 +151,7 @@ async function advanceSceneJob(job, { FAL_KEY }) {
         // vorher hatte das Modell keine visuelle Grundlage, um heroes_ok (Identitaet) oder style_ok
         // (Stiltreue) tatsaechlich gegen etwas abzugleichen, nur den Prompt-Text als vage Richtschnur.
         const output = await callFalVerifySync([cand.url].concat(next.heroRefUrls || []), next.verifyPrompt, FAL_KEY);
-        const scored = countViolations(output);
+        const scored = countViolations(output, next.figuresBand);
         cand.violations = scored.violations;
         cand.severity = scored.severity;
         cand.verify = scored.parsed;

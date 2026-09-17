@@ -1248,7 +1248,12 @@ Screens.ergebnis = {
     // wertlos gemacht. Die vollstaendige Feldliste steht weiterhin im Test-Details-Panel unten.
     // severity wird hier aus image.verify abgeleitet statt am Bild gespeichert: so funktioniert es
     // auch fuer Bilder, die vor dieser Aenderung schon im AppState lagen.
-    const sev = image.verify ? Pipeline.severityOf(image.verify) : null;
+    // Spanne fuer figures_est mitgeben (siehe SCENE_PHASES in pipeline.js) -- sonst wuerde das Feld
+    // hier uebersprungen. Fuer den Warnkasten selbst ist es zwar unerheblich (figures_est zaehlt als
+    // mittlerer Verstoss, gewarnt wird nur bei schweren), aber so rechnet die Anzeige dieselbe
+    // Schwere aus wie der Server.
+    const sevBand = (Pipeline.SCENE_PHASES[Pipeline.ACTIVE_SCENE_PHASE] || {}).figuresBand;
+    const sev = image.verify ? Pipeline.severityOf(image.verify, sevBand) : null;
     if (!image.verify || (sev && sev.heavy > 0)) {
       const noticeBox = h("div", { style: { margin: "0 14px 16px", background: "var(--yellow)", border: "4px solid var(--ink)", padding: "13px 14px", boxShadow: "5px 6px 0 var(--ink)" } });
       noticeBox.appendChild(h("p", { class: "h-black", style: { margin: "0 0 5px", fontSize: "12px", letterSpacing: ".04em" } }, "⚠ Bitte einmal gegenchecken"));
