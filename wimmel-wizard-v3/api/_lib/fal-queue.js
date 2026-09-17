@@ -164,8 +164,12 @@ const VIOLATION_SEVERITY = {
   // Stilbrueche fokussiert ist (stilfremde Einzelfigur, realistische Tiere, plastische Schattierung)
   // statt auf den Normalfall -- der Stil bleibt inhaltlich das wichtigste Kriterium, nur darf ein
   // unzuverlaessiger Test nicht das Geld ausgeben.
-  heroes_ok: "heavy", depth_ok: "heavy",
-  style_ok: "medium",
+  // GEAENDERT (17.09.2026, nach dem zweiten Kalibrierungslauf): auch depth herabgestuft. Nur noch
+  // heroes_ok ist schwer -- das einzige Kriterium, das sich in beiden Laeufen bewaehrt hat (rund 95%
+  // Uebereinstimmung, seine Treffer sind echte Ausfaelle). style_ok und das neue depth_ratio stehen
+  // voruebergehend auf "mittel", bis der dritte Lauf zeigt, dass ihre Formulierungen treffen.
+  heroes_ok: "heavy",
+  depth_ratio: "medium", style_ok: "medium",
   // mittel (Szenen-Verify)
   // GEAENDERT (17.09.2026, nach dem ersten Kalibrierungslauf): "density" (dreiwertig) heisst jetzt
   // "figures_est" (geschaetzte Zahl, bewertet gegen figuresBand aus SCENE_PHASES in pipeline.js),
@@ -180,6 +184,11 @@ const VIOLATION_SEVERITY = {
 // Unbekannte Felder gelten als "medium": ein neu ergaenztes Verify-Feld soll nicht stillschweigend
 // gewichtungslos mitlaufen, aber auch nicht sofort den teuren dritten Kandidaten ausloesen.
 const DEFAULT_SEVERITY = "medium";
+
+// DEPTH_MIN_RATIO: Mindestverhaeltnis groesste zu kleinste Figur (depth_ratio im Verify). Zweite
+// Kopie -- Wert und ausfuehrliche Herleitung stehen in public/js/pipeline.js bei DEPTH_MIN_RATIO
+// ("HIER SCHRAUBST DU AN DER GEFORDERTEN TIEFE"). Bei Aenderungen BEIDE Stellen anpassen.
+const DEPTH_MIN_RATIO = 2.2;
 
 // countViolations(): wertet die JSON-Antwort des Verify-Aufrufs aus.
 // Zwei Feldformen werden erkannt: "*_ok"-Felder (false = Verstoss) und das dreiwertige "density"
@@ -208,6 +217,11 @@ function countViolations(verifyOutputText, figuresBand) {
       const anzahl = Number(parsed[k]);
       if (!isFinite(anzahl)) return;
       bad = anzahl < figuresBand[0] || anzahl > figuresBand[1];
+    }
+    else if (k === "depth_ratio") {
+      const verhaeltnis = Number(parsed[k]);
+      if (!isFinite(verhaeltnis) || verhaeltnis <= 0) return;
+      bad = verhaeltnis < DEPTH_MIN_RATIO;
     }
     else if (/_ok$/.test(k)) bad = parsed[k] === false;
     else return;
@@ -242,5 +256,5 @@ function isGoodEnough(severity) {
 module.exports = {
   VERIFY_MODEL, falHeaders, falBaseAppId,
   submitFalQueue, falQueueStatus, falQueueResult, callFalVerifySync,
-  countViolations, compareSeverity, isGoodEnough, VIOLATION_SEVERITY, logFalError,
+  countViolations, compareSeverity, isGoodEnough, VIOLATION_SEVERITY, DEPTH_MIN_RATIO, logFalError,
 };

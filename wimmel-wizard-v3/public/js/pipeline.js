@@ -857,7 +857,12 @@ var SCENE_PHASES = {
     // Bildhoehe. In den bewerteten Bildern passte die groesste Vordergrundfigur nur rund VIER Mal
     // in die Bildhoehe -- daher die Nutzer-Beobachtung "etwa doppelt so gross wie gewuenscht".
     scaleText: "etwa acht bis zehn Mal",
-    figuresBand: [35, 110],
+    // SCHARF GEZOGEN (17.09.2026, aus den Zahlen des zweiten Kalibrierungslaufs): Bild 11, das
+    // Vorbild des Nutzers ("GUTE RICHTUNG"), wurde vom Modell auf 35 geschaetzt; die als zu leer
+    // bewerteten Bilder liegen bei 11 bis 28. Untergrenze 30 nimmt Bild 11 also an und weist die
+    // leeren ab. Obergrenze 80: in Phase 1 war zu viel Gewimmel nie das Problem, die Grenze ist nur
+    // eine Notbremse -- und sie muss Luft lassen, weil D2 die Dichte gezielt hochtreiben wird.
+    figuresBand: [30, 80],
   },
   phase2: {
     id: "phase2",
@@ -870,7 +875,11 @@ var SCENE_PHASES = {
     // relativen Figurengroesse, sondern im Umfang des Schauplatzes (Haus im Querschnitt PLUS Strasse
     // und Umgebung statt einer einzelnen Szene) und in der Figurenzahl.
     scaleText: "etwa acht bis zehn Mal",
-    figuresBand: [50, 150],
+    // SCHARF GEZOGEN (17.09.2026): die Vorbilder des Nutzers, Bild 23 und 24, wurden auf je 50
+    // geschaetzt und sind ausdruecklich auch die OBERGRENZE ("das ist das MAXIMUM"). Die als
+    // ueberladen bewerteten Bilder liegen deutlich darueber: Bild 22 auf 110, Bild 26 auf 120,
+    // Bild 27 auf 150. Obergrenze 80 laesst Luft ueber den Vorbildern, weist die ueberladenen ab.
+    figuresBand: [40, 80],
   },
 };
 
@@ -899,6 +908,31 @@ var SCENE_PHASES = {
 // Zaehlgrundlage sind ausschliesslich Menschen, keine Tiere (so steht es im Prompt).
 var ACTIVE_SCENE_PHASE = "phase1";
 
+// DEPTH_MIN_RATIO: Mindestverhaeltnis zwischen der groessten Vordergrundfigur und der kleinsten
+// erkennbaren Hintergrundfigur (siehe depth_ratio in buildVerifyPrompt() unten). Liegt das
+// Verhaeltnis darunter, gilt die Tiefenstaffelung als misslungen.
+//
+// >>> HIER SCHRAUBST DU AN DER GEFORDERTEN TIEFE. <<<
+//
+// Warum eine Zahl und kein Ja/Nein: die Frage "hat das Bild Tiefe?" hat in zwei Kalibrierungslaeufen
+// nichts Brauchbares geliefert. Im ersten schlug sie bei drei Gebaeude-Querschnitten an, die gewollt
+// keine Fluchtpunkt-Perspektive haben; im zweiten, nach der Querschnitt-Ausnahme, schlug sie
+// NIRGENDS mehr an -- auch nicht bei Bild 18, dem Negativbeispiel des Nutzers. Dieselbe Umstellung
+// wie bei figures_est: das Modell liefert eine Zahl, die Bewertung passiert hier im Code.
+//
+// DER STARTWERT IST GESCHAETZT und muss nach dem naechsten Lauf nachgezogen werden. Eigene Messung
+// an den Bildern (Verhaeltnis groesste zu kleinste Figur): Bild 18, das Negativbeispiel, liegt bei
+// etwa 2,0 -- Bild 23 bei etwa 2,4, Bild 17 bei etwa 3,5, Bild 11 bei 2,5 und mehr. Der Abstand
+// zwischen "misslungen" und "gelungen" ist also klein, und diese Werte sind mit dem Auge an
+// verkleinerten Bildern geschaetzt.
+// WICHTIG fuer die naechste Auswertung: liefert Bild 18 KEINEN deutlich niedrigeren Wert als die
+// gelungenen Bilder, ist Tiefe auf diesem Weg nicht zuverlaessig messbar und das Feld sollte ganz
+// entfallen. Der eigentliche Mangel von Bild 18 -- zu grosse und zu wenige Figuren in einem
+// einzigen Groessenband -- wird ohnehin bereits von scale_ok UND figures_est erfasst, beide
+// schlagen dort an.
+// ZWEITE KOPIE in api/_lib/fal-queue.js (gleiche Begruendung wie bei VIOLATION_SEVERITY dort).
+var DEPTH_MIN_RATIO = 2.2;
+
 // NEU (17.09.2026, Bildbewertung, Abschnitt D1 "Gewichtung einfuehren"): nicht jeder Verify-Verstoss
 // ist gleich schwer. Nutzer-Vorgabe woertlich: "Ein Kandidat mit falschem Stil darf nicht gewinnen,
 // nur weil er weniger Kleinigkeiten hat."
@@ -919,8 +953,13 @@ var VIOLATION_SEVERITY = {
   // Stilbrueche fokussiert ist (stilfremde Einzelfigur, realistische Tiere, plastische Schattierung)
   // statt auf den Normalfall -- der Stil bleibt inhaltlich das wichtigste Kriterium, nur darf ein
   // unzuverlaessiger Test nicht das Geld ausgeben.
-  heroes_ok: "heavy", depth_ok: "heavy",
-  style_ok: "medium",
+  // Nur noch heroes_ok ist schwer -- das einzige Kriterium, das sich in beiden Kalibrierungslaeufen
+  // bewaehrt hat (rund 95% Uebereinstimmung mit dem menschlichen Urteil, und seine Treffer sind
+  // echte Ausfaelle: die Heldin fehlt dort wirklich). style_ok und depth_ratio stehen
+  // voruebergehend auf "mittel", bis der dritte Lauf zeigt, dass ihre neuen Formulierungen treffen
+  // -- ein unzuverlaessiges Kriterium darf nicht den teuren dritten Generierungsversuch ausloesen.
+  heroes_ok: "heavy",
+  depth_ratio: "medium", style_ok: "medium",
   // mittel
   // GEAENDERT (17.09.2026, nach dem ersten Kalibrierungslauf): "density" heisst jetzt
   // "figures_est" (Zahl statt Dreiwert, siehe figuresBand oben), und "noses_ok" ist ganz
@@ -954,6 +993,11 @@ function severityOf(parsed, figuresBand) {
       var n = Number(parsed[k]);
       if (!isFinite(n)) return;
       bad = n < figuresBand[0] || n > figuresBand[1];
+    }
+    else if (k === "depth_ratio") {
+      var v = Number(parsed[k]);
+      if (!isFinite(v) || v <= 0) return;
+      bad = v < DEPTH_MIN_RATIO;
     }
     else if (/_ok$/.test(k)) bad = parsed[k] === false;
     else return;
@@ -1526,11 +1570,13 @@ function buildVerifyPrompt(heroSpecs, phaseId) {
 
     "1. HELDEN: Kommen alle " + n + " benannten Figuren (" + names + ") vor, jede GENAU EINMAL (nicht doppelt) und grob passend zu ihrem Referenzbild? Verglichen werden nur GROBE Merkmale: Frisur/Haarform, Haarfarbe, wichtigstes Kleidungsstück samt Farbe, Altersstufe (Kind / Erwachsener / älterer Mensch). Kleinstdetails wie Sommersprossen, Streifenmuster oder Knöpfe sind ausdrücklich KEIN Grund für ein Nein.",
 
-    "2. STIL: Beurteile hier AUSSCHLIESSLICH die menschlichen und menschenähnlichen Figuren. Sind sie flach und minimalistisch gezeichnet -- runde Köpfe, Punktaugen, dicke schwarze Umrisslinie, flächige Farben? Ein Nein ist fällig, wenn mindestens EINE Figur erkennbar in einem anderen Zeichenregister steckt als die übrigen: fotorealistisch, gemalt, dreidimensional gerendert, mit Schattierungen oder Farbverläufen im Gesicht oder am Körper, oder mit einer plastisch gezeichneten Nase (Nasenrücken, Nasenspitze, Nasenflügel, Nasenschatten) statt eines einfachen senkrechten Strichs. Ebenfalls ein Nein: ein TIER in einem völlig anderen Register als das übrige Bild, etwa ein fotorealistisch gemalter Bär zwischen flach gezeichneten Figuren.",
-    "AUSDRÜCKLICH KEIN VERSTOSS gegen den Stil und nicht zu bemängeln: leichte Schattierung, Textur oder Farbverläufe auf Requisiten, Gebäuden, Fahrzeugen, Landschaft, Boden, Sand, Heu, Wasser und Himmel; leichte Schattierung auf Tierfell, Federn oder Fell-Zeichnung; unterschiedlich dicke Konturlinien; Punktaugen; ein senkrechter Nasenstrich; leichte runde Wangenröte; ein einfarbiger Hintergrund; ein weicher Schlagschatten unter einer Figur. All das gehört zum gewünschten Stil dieses Kinderbuchs. Es geht allein darum, ob eine FIGUR aus dem Register fällt -- nicht darum, wie detailliert die Kulisse gezeichnet ist.",
+    "2. STIL. Vorweg, damit du nicht das Falsche bemängelst -- das Folgende ist der GEWÜNSCHTE Stil und niemals ein Verstoß: leichte Schattierung, Textur oder Farbverläufe auf Requisiten, Gebäuden, Fahrzeugen, Landschaft, Boden, Sand, Heu, Wasser und Himmel; unterschiedlich dicke Konturlinien; Punktaugen; ein einzelner senkrechter Nasenstrich; leichte runde Wangenröte; ein einfarbiger Hintergrund; ein weicher Schlagschatten unter einer Figur. Wie detailliert die KULISSE gezeichnet ist, spielt für diesen Punkt überhaupt keine Rolle.",
+    "Jetzt die eigentliche Frage, und dafür suchst du bitte gezielt, statt einen Gesamteindruck abzugeben. Gibt es im Bild mindestens EINE Figur oder EIN Tier, das erkennbar anders gezeichnet ist als alle übrigen? Geh dazu diese zwei Punkte einzeln durch und schau jeweils wirklich nach:",
+    "(a) GESICHTER: Hat irgendeine menschliche Figur eine plastisch gezeichnete Nase -- also eine Nase mit Nasenrücken, Nasenspitze, Nasenflügeln, Nasenloch oder Schatten daran, statt nur eines einzelnen dünnen senkrechten Strichs? Auch eine einzige solche Figur unter hundert ist ein Verstoß. Achte besonders auf große Figuren im Vordergrund, dort fällt es am ehesten auf.",
+    "(b) TIERE: Ist irgendein Tier deutlich naturalistischer gezeichnet als die Menschen um es herum -- mit ausgearbeitetem Fell, plastischem Körper, echter Tieranatomie, so als käme es aus einem anderen Buch? Auch ein einziges solches Tier ist ein Verstoß. Ein flach gezeichnetes Tier mit dicker Kontur und etwas Fellschattierung ist dagegen völlig in Ordnung.",
+    "style_ok ist nur dann true, wenn WEDER (a) NOCH (b) zutrifft. Ist style_ok false, nenne in deiner kurzen Begründung, welche Figur oder welches Tier du meinst und wo im Bild sie steht.",
 
-    "3. TIEFE: Gibt es einen erkennbaren Größenverlauf der Figuren von vorne nach hinten? Ein Nein ist NUR dann fällig, wenn die Figuren über die ganze Bildfläche hinweg etwa gleich groß nebeneinander stehen, ohne jeden Größenunterschied zwischen vorne und hinten -- auch dann, wenn viel los ist.",
-    "Wichtige Ausnahme: zeigt das Bild einen GEBÄUDE-QUERSCHNITT oder eine Setzkasten-Ansicht (Räume neben- und übereinander wie in einem aufgeschnittenen Puppenhaus), dann ist eine fehlende Fluchtpunkt-Perspektive KEIN Verstoß. Tiefe entsteht dort über die gestaffelten Räume und über die Figurengrößen innerhalb jedes Raums. Bewerte in diesem Fall nur, ob die Figuren innerhalb der Räume und im Außenbereich plausibel gestaffelt sind.",
+    "3. TIEFENSTAFFELUNG: Such die GRÖSSTE Figur im Bild (meist ganz vorne) und die KLEINSTE noch erkennbare Figur (meist weit hinten, in der Bildtiefe oder in einem hinteren Raum). Schätze dann: wie oft würde die kleinste Figur ihrer Höhe nach in die größte hineinpassen? Antworte hier nicht mit true/false, sondern mit einer einzelnen Zahl, gern mit einer Dezimalstelle. Ein Bild mit kräftiger Tiefe liefert einen hohen Wert, ein Bild, in dem alle Figuren in einem ähnlichen Größenband liegen, einen Wert nahe 1. Das gilt genauso für einen Gebäude-Querschnitt: dort vergleichst du einfach die größte Figur vorne mit der kleinsten in den hinteren Räumen oder draußen. Zähle nur Menschen, keine Tiere.",
 
     "4. GRÖSSE: Wie oft würde eine der GRÖSSTEN Figuren im Vordergrund ihrer Höhe nach übereinander in die Bildhöhe passen? Ziel ist " + phase.scaleText + ". Passt sie deutlich seltener hinein, sind die Figuren zu groß -- das ist ein Nein. Prüfe zusätzlich, ob die Köpfe innerhalb derselben Tiefenebene ungefähr gleich groß sind, unabhängig davon, ob es Kinder, Erwachsene oder ältere Menschen sind.",
 
@@ -1539,14 +1585,15 @@ function buildVerifyPrompt(heroSpecs, phaseId) {
     "6. MÜNDER: Wirkt das Bild so, als hätten auffällig viele MENSCHLICHE Figuren einen sichtbaren Mund? Gemeint ist der Gesamteindruck, keine genaue Zählung: bei den meisten menschlichen Gesichtern soll unter den Punktaugen und dem Nasenstrich nichts weiter zu sehen sein. Einzelne Figuren mit Mund sind gewollt und kein Verstoß. Ein Nein ist erst fällig, wenn ein Mund bei den menschlichen Figuren eher die Regel als die Ausnahme ist.",
     "TIERE ZÄHLEN HIER UNTER KEINEN UMSTÄNDEN MIT: ein Hund mit offenem Maul oder heraushängender Zunge, ein offener Vogelschnabel, eine Kuh, ein Hahn, eine Gans, ein fressendes oder brüllendes Tier -- all das ist vollkommen in Ordnung und darf dein Urteil zu diesem Punkt nicht beeinflussen. Zähle ausschließlich Menschen.",
 
-    "7. LOGIK: Werden Innenraum und Außenwelt vermischt? Ein Nein ist NUR fällig, wenn Wetter oder Umgebung am falschen Ort auftauchen: Schnee, Regen, Sand, Wellen oder Himmel mitten in einem Zimmer, Straßenpflaster in einer Küche, Wohnzimmermöbel mitten im Freien ohne erkennbaren Grund. Ein Gebäude-Querschnitt, bei dem Innenräume und Außenwelt nebeneinander zu sehen sind, ist völlig in Ordnung.",
+    "7. LOGIK: Werden Innenraum und Außenwelt vermischt? Ein Nein ist fällig, wenn Wetter oder Untergrund am falschen Ort auftauchen: Schnee, Regen, Sand, Wellen, Rasen oder Himmel innerhalb eines Zimmers, Straßenpflaster in einer Küche, Wohnzimmermöbel mitten im Freien ohne erkennbaren Grund.",
+    "Zur Abgrenzung beim Gebäude-Querschnitt, denn das ist der knifflige Fall: dass Innenräume und Außenwelt NEBENEINANDER zu sehen sind, ist völlig in Ordnung und genau so gewollt. Ein Verstoß ist es aber, wenn eine Außenfläche unmittelbar in einen Innenraum-Boden übergeht, ohne Wand, Tür, Fensterrahmen oder Hauskante dazwischen -- also etwa eine Schneefläche, die direkt an den Küchenboden anschließt, oder Rasen, der ohne Grenze im Wohnzimmer weiterläuft. Prüfe dafür jede Stelle, an der ein Innenraum an eine Außenfläche grenzt, und schau, ob dort eine bauliche Grenze zu sehen ist.",
     "AUSDRÜCKLICH KEIN VERSTOSS gegen die Logik: unterschiedliche Kleidung der Figuren (Winterjacke neben Sommerkleidung), nicht zur Jahreszeit passende Details, oder dass eine Situation unwahrscheinlich oder albern wirkt. Beurteile allein die Vermischung von Innen und Außen.",
 
     "8. TEXT: Ist das Bild vollständig frei von Text -- keine Buchstaben, Wörter, Zahlen, Schilder, Poster, Beschriftungen oder Aufschriften auf Kleidung und Gegenständen, auch nicht klein oder im Hintergrund?",
 
-    "Antworte NUR als JSON-Objekt mit genau diesen acht Feldern: {\"heroes_ok\": true/false, \"style_ok\": true/false, \"depth_ok\": true/false, \"scale_ok\": true/false, \"figures_est\": Zahl, \"mouths_ok\": true/false, \"logic_ok\": true/false, \"no_text_ok\": true/false}.",
-    "Bei allen *_ok-Feldern bedeutet true: kein Verstoß. Also style_ok=true, wenn KEINE Figur aus dem Zeichenregister fällt; mouths_ok=true, wenn ein Mund bei den Menschen die Ausnahme bleibt; logic_ok=true, wenn Innen und Außen NICHT vermischt sind. figures_est ist keine Bewertung, sondern nur deine geschätzte Zahl.",
-    "Wichtig zur Strenge: bewerte nur, was du tatsächlich siehst. Wenn du dir bei einem Punkt nicht sicher bist, antworte dort true -- ein vermuteter Verstoß ist kein Verstoß.",
+    "Antworte NUR als JSON-Objekt mit genau diesen acht Feldern: {\"heroes_ok\": true/false, \"style_ok\": true/false, \"depth_ratio\": Zahl, \"scale_ok\": true/false, \"figures_est\": Zahl, \"mouths_ok\": true/false, \"logic_ok\": true/false, \"no_text_ok\": true/false}.",
+    "Bei allen *_ok-Feldern bedeutet true: kein Verstoß. Also style_ok=true, wenn weder eine plastische Nase noch ein naturalistisches Tier zu finden ist; mouths_ok=true, wenn ein Mund bei den Menschen die Ausnahme bleibt; logic_ok=true, wenn Innen und Außen NICHT vermischt sind. depth_ratio und figures_est sind keine Bewertungen, sondern nur deine geschätzten Zahlen.",
+    "Wichtig zur Strenge: bewerte nur, was du tatsächlich siehst. Wenn du dir bei einem der Ja/Nein-Punkte nicht sicher bist, antworte dort true -- ein vermuteter Verstoß ist kein Verstoß. Das gilt aber NICHT für die gezielte Suche unter Punkt 2: dort sollst du wirklich nachsehen und einen gefundenen Ausreißer auch benennen, statt vorsichtshalber true zu antworten.",
 
   ];
   return parts.join(" ");
@@ -2110,7 +2157,7 @@ window.Pipeline = {
   kontextInstruction, photoStyleInstruction, traitBitFromPhotoDescription, describePhotoTraits,
   PEN_INSTRUCTION_REMOVE, PEN_INSTRUCTION_REDO,
   resizeImageToDataUri, generateImage, generateImageWithRetry, verifyImage, countViolations,
-  SCENE_PHASES, ACTIVE_SCENE_PHASE, severityOf, compareSeverity, isGoodEnough,
+  SCENE_PHASES, ACTIVE_SCENE_PHASE, DEPTH_MIN_RATIO, severityOf, compareSeverity, isGoodEnough,
   // Szenen-Komposition (neu, siehe Modul-Abschnitt oben)
   GAG_LIBRARY, THEME_META, pickGagChips, topUpSituations,
   // GEAENDERT (Sammel-Runde 15.09.2026, Punkt 2): defaultBubbleLayout/sizePx/regionLabel/
