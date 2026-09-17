@@ -143,23 +143,82 @@ async function callFalVerifySync(imageUrls, prompt, FAL_KEY) {
   return (data && data.output) || "";
 }
 
-// countViolations(): generisches "*_ok"-Zaehlmuster -- funktioniert unveraendert fuer den
-// Charakter-Verify (4 Felder: single_ok/complete_ok/mouth_ok/style_ok) UND den Szenen-Verify (3
-// Felder: heroes_ok/mouths_ok/style_ok), da beide Prompts konsequent dieser Namenskonvention folgen
-// (siehe buildCharacterVerifyPrompt() in char-job-engine.js bzw. buildSceneVerifyPrompt() in
-// scene-job-engine.js).
+// VIOLATION_SEVERITY: Gewichtung der Verify-Verstoesse nach Schwere -- NEU (17.09.2026,
+// Bildbewertung 27 Bilder, Abschnitt D1). Nutzer-Vorgabe woertlich: "Ein Kandidat mit falschem Stil
+// darf nicht gewinnen, nur weil er weniger Kleinigkeiten hat."
+// Verglichen wird STUFENWEISE (Nutzer-Entscheidung 17.09.2026), nicht per Punktesystem: erst die
+// schweren Verstoesse, nur bei Gleichstand die mittleren, dann die leichten -- siehe
+// compareSeverity() unten. Damit ist ein schwerer Verstoss grundsaetzlich nicht durch Kleinigkeiten
+// aufwiegbar; ein Punktesystem (5/2/1) haette das nur ungefaehr geleistet.
+// ZWEITE KOPIE in public/js/pipeline.js (severityOf()/compareSeverity()/isGoodEnough()):
+// pipeline.js ist ein Browser-Modul und kann hier nicht per require() eingebunden werden (siehe
+// Kommentar am Dateianfang). Bei Aenderungen BEIDE Stellen anpassen.
+const VIOLATION_SEVERITY = {
+  // schwer (Szenen-Verify)
+  style_ok: "heavy", heroes_ok: "heavy", depth_ok: "heavy",
+  // mittel (Szenen-Verify)
+  scale_ok: "medium", density: "medium", mouths_ok: "medium", noses_ok: "medium",
+  // leicht (Szenen-Verify)
+  no_text_ok: "light", logic_ok: "light",
+  // Charakter-Verify (buildCharacterVerifyPrompt() in char-job-engine.js)
+  single_ok: "heavy", complete_ok: "heavy", mouth_ok: "medium",
+};
+// Unbekannte Felder gelten als "medium": ein neu ergaenztes Verify-Feld soll nicht stillschweigend
+// gewichtungslos mitlaufen, aber auch nicht sofort den teuren dritten Kandidaten ausloesen.
+const DEFAULT_SEVERITY = "medium";
+
+// countViolations(): wertet die JSON-Antwort des Verify-Aufrufs aus.
+// Zwei Feldformen werden erkannt: "*_ok"-Felder (false = Verstoss) und das dreiwertige "density"
+// (Nutzer-Vorgabe: "zu wenig / passt / zu viel" -- alles ausser "passt" ist ein Verstoss). Deckt
+// damit den Szenen-Verify (9 Felder: heroes_ok/style_ok/depth_ok/scale_ok/density/mouths_ok/
+// noses_ok/logic_ok/no_text_ok, siehe buildVerifyPrompt() in public/js/pipeline.js -- der
+// Szenen-Prompt ist dynamisch und reist im Job-Datensatz mit) UND den Charakter-Verify (4 Felder:
+// single_ok/complete_ok/mouth_ok/style_ok, siehe buildCharacterVerifyPrompt() in
+// char-job-engine.js) ab.
+// "violations" (Gesamtzahl) bleibt erhalten: der Figuren-Pfad rechnet unveraendert damit, und der
+// Wert ist im Client an jedem Bild gespeichert. Neu daneben: severity nach Schwere.
 function countViolations(verifyOutputText) {
   const match = String(verifyOutputText || "").match(/\{[\s\S]*\}/);
-  if (!match) return { violations: 99, parsed: null };
+  const fail = { violations: 99, parsed: null, severity: { heavy: 99, medium: 99, light: 99 } };
+  if (!match) return fail;
   let parsed;
-  try { parsed = JSON.parse(match[0]); } catch (e) { return { violations: 99, parsed: null }; }
-  let violations = 0;
-  Object.keys(parsed).forEach((k) => { if (/_ok$/.test(k) && parsed[k] === false) violations++; });
-  return { violations, parsed };
+  try { parsed = JSON.parse(match[0]); } catch (e) { return fail; }
+  const severity = { heavy: 0, medium: 0, light: 0 };
+  Object.keys(parsed).forEach((k) => {
+    let bad;
+    if (k === "density") bad = String(parsed[k]) !== "passt";
+    else if (/_ok$/.test(k)) bad = parsed[k] === false;
+    else return;
+    if (!bad) return;
+    const tier = VIOLATION_SEVERITY[k] || DEFAULT_SEVERITY;
+    severity[tier] += 1;
+  });
+  return { violations: severity.heavy + severity.medium + severity.light, parsed, severity };
+}
+
+// compareSeverity(a, b): < 0 wenn a der bessere Kandidat ist. Stufenweise, siehe
+// VIOLATION_SEVERITY oben.
+function compareSeverity(a, b) {
+  const x = a || { heavy: 99, medium: 99, light: 99 };
+  const y = b || { heavy: 99, medium: 99, light: 99 };
+  if (x.heavy !== y.heavy) return x.heavy - y.heavy;
+  if (x.medium !== y.medium) return x.medium - y.medium;
+  return x.light - y.light;
+}
+
+// isGoodEnough(severity): entscheidet, ob noch ein weiterer (teurer) Kandidat generiert wird.
+// Nutzer-Entscheidung 17.09.2026: nachlegen NUR bei einem schweren Verstoss (Stil, Helden, Tiefe).
+// Begruendung: bisher wurde der dritte Kandidat nachgeschoben, sobald kein Kandidat NULL Verstoesse
+// hatte -- mit den jetzt neun Kriterien ist "null Verstoesse" praktisch unerreichbar, der dritte
+// Lauf waere damit zum Dauerzustand geworden (rund 50% hoehere Bildkosten pro Szene, dauerhaft).
+// Zu grosse Figuren oder ein Mund zu viel sind Faelle fuer die Prompt-Regeln, nicht fuer einen
+// weiteren Wurf.
+function isGoodEnough(severity) {
+  return !!severity && severity.heavy === 0;
 }
 
 module.exports = {
   VERIFY_MODEL, falHeaders, falBaseAppId,
   submitFalQueue, falQueueStatus, falQueueResult, callFalVerifySync,
-  countViolations, logFalError,
+  countViolations, compareSeverity, isGoodEnough, VIOLATION_SEVERITY, logFalError,
 };

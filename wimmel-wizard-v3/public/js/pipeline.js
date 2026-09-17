@@ -832,6 +832,105 @@ function topUpSituations(list, locId, target) {
 // center"), wodurch Hintergrundfiguren gelegentlich zu gross/prominent wurden -- die neue Struktur
 // bindet Position UND Groesse an denselben Tiefenebenen-Begriff, den das Modell aus echten
 // Illustrationen kennt.
+
+// NEU (17.09.2026, Bildbewertung 27 Bilder, Abschnitt B "PHASE 1 / PHASE 2"): die beiden
+// Produktstufen unterscheiden sich nicht nur im Druckformat, sondern in Figurengroesse und Dichte --
+// und beide Werte braucht der Verify-Check (buildVerifyPrompt() unten) genauso wie spaeter der
+// Bild-Prompt. Deshalb EINE Quelle statt zweier Zahlenlisten, die auseinanderlaufen.
+//
+// Zur Formulierung: Nutzer-Vorgabe war ausdruecklich "Prozentangaben ignoriert das Modell -- bitte
+// ueber 'weiter rauszoomen' und Vergleichsgroessen formulieren". Die bisherigen Hoehenangaben in
+// SCENE_LAYERS (20%/14%/7%) sind genau so eine Prozentangabe und haben in der Praxis nicht gewirkt
+// (in fast allen bewerteten Bildern waren die Figuren ungefaehr doppelt so gross wie gewuenscht).
+// Daher hier die Uebereinander-Formulierung: "wie oft passt eine Vordergrundfigur ihrer Hoehe nach
+// in die Bildhoehe" -- eine Frage, die ein Vision-Modell tatsaechlich beantworten kann.
+//
+// Herleitung Phase 1: Nutzer-Vorgabe "max. ca. 2-3 cm bei 20 cm Bildhoehe" = ein Achtel bis ein
+// Zehntel der Bildhoehe. Phase-2-Werte sind aus den als Vorbild benannten Bildern 23/24 GESCHAETZT
+// (dort ist kein Massstab dokumentiert) und muessen im ersten Testlauf nachkalibriert werden --
+// bitte nicht als gesicherte Zahl lesen.
+var SCENE_PHASES = {
+  phase1: {
+    id: "phase1",
+    label: "Phase 1 (kleines Format)",
+    scaleText: "etwa acht bis zehn Mal",
+    densityText: "grob 60 bis 90 Figuren insgesamt",
+  },
+  phase2: {
+    id: "phase2",
+    label: "Phase 2 (grosses Format)",
+    scaleText: "etwa vierzehn bis achtzehn Mal",
+    densityText: "grob 90 bis 130 Figuren insgesamt -- dicht bevoelkert wie ein voller Marktplatz, aber jede Figur noch einzeln erkennbar und nicht zu einem Figurenteppich verschmolzen",
+  },
+};
+// ACTIVE_SCENE_PHASE: das Produkt laeuft derzeit komplett in Phase 1 (siehe Pilot-Hinweis auf der
+// Landingpage/im Zaubern-Screen, "bald auch groessere, wimmligere Bilder"). EINE Stelle zum
+// Umschalten, sobald Phase 2 kommt.
+var ACTIVE_SCENE_PHASE = "phase1";
+
+// NEU (17.09.2026, Bildbewertung, Abschnitt D1 "Gewichtung einfuehren"): nicht jeder Verify-Verstoss
+// ist gleich schwer. Nutzer-Vorgabe woertlich: "Ein Kandidat mit falschem Stil darf nicht gewinnen,
+// nur weil er weniger Kleinigkeiten hat."
+// Bewusst STUFENWEISE statt als Punktesystem (Nutzer-Entscheidung 17.09.2026): erst die schweren
+// Verstoesse vergleichen, nur bei Gleichstand die mittleren, dann die leichten. Ein Punktesystem
+// (5/2/1) haette die Vorgabe nur ungefaehr erfuellt -- darin gewinnt ein Kandidat mit einem schweren
+// Verstoss (5) gegen einen mit drei mittleren (6), obwohl der zweite der bessere ist.
+// ZWEITE KOPIE in api/_lib/fal-queue.js: pipeline.js ist ein Browser-Modul und kann serverseitig
+// nicht per require() eingebunden werden (siehe Kommentar dort). Bei Aenderungen BEIDE anpassen.
+var VIOLATION_SEVERITY = {
+  // schwer -- trifft den Kern des Produkts, nie durch Kleinigkeiten aufwiegbar
+  style_ok: "heavy", heroes_ok: "heavy", depth_ok: "heavy",
+  // mittel
+  scale_ok: "medium", density: "medium", mouths_ok: "medium", noses_ok: "medium",
+  // leicht
+  no_text_ok: "light", logic_ok: "light",
+  // Charakter-Verify (eigener Prompt, buildCharacterVerifyPrompt() unten)
+  single_ok: "heavy", complete_ok: "heavy", mouth_ok: "medium",
+};
+// Unbekannte Felder gelten als "medium" -- ein neu ergaenztes Verify-Feld soll nicht stillschweigend
+// gewichtungslos mitlaufen, aber auch nicht sofort den teuren dritten Kandidaten ausloesen.
+var DEFAULT_SEVERITY = "medium";
+
+// severityOf(parsed): zaehlt die Verstoesse eines geparsten Verify-Ergebnisses nach Schwere.
+// Behandelt zwei Feldformen: "*_ok"-Felder (false = Verstoss) und das dreiwertige "density"
+// (Nutzer-Vorgabe: "density je Phase (zu wenig / passt / zu viel)" -- also KEIN Ja/Nein-Feld,
+// alles ausser "passt" ist ein Verstoss).
+function severityOf(parsed) {
+  var out = { heavy: 0, medium: 0, light: 0 };
+  if (!parsed || typeof parsed !== "object") return out;
+  Object.keys(parsed).forEach(function (k) {
+    var bad = false;
+    if (k === "density") bad = String(parsed[k]) !== "passt";
+    else if (/_ok$/.test(k)) bad = parsed[k] === false;
+    else return;
+    if (!bad) return;
+    var tier = VIOLATION_SEVERITY[k] || DEFAULT_SEVERITY;
+    out[tier] = (out[tier] || 0) + 1;
+  });
+  return out;
+}
+
+// compareSeverity(a, b): < 0 wenn a besser ist. Stufenweise, siehe Kommentar bei
+// VIOLATION_SEVERITY.
+function compareSeverity(a, b) {
+  a = a || { heavy: 99, medium: 99, light: 99 };
+  b = b || { heavy: 99, medium: 99, light: 99 };
+  if (a.heavy !== b.heavy) return a.heavy - b.heavy;
+  if (a.medium !== b.medium) return a.medium - b.medium;
+  return a.light - b.light;
+}
+
+// isGoodEnough(severity): entscheidet, ob noch ein weiterer (teurer) Kandidat generiert wird.
+// Nutzer-Entscheidung 17.09.2026: nachlegen NUR bei einem schweren Verstoss. Begruendung: bisher
+// wurde der dritte Kandidat immer dann nachgeschoben, wenn kein Kandidat NULL Verstoesse hatte --
+// mit den jetzt neun Kriterien ist "null Verstoesse" praktisch unerreichbar, der dritte Lauf waere
+// damit zum Dauerzustand geworden (rund 50% hoehere Bildkosten pro Szene, dauerhaft). Ein Bild mit
+// richtigem Stil, erkennbarer Heldin und richtiger Tiefe, das nur etwas zu gross geraten ist, wird
+// deshalb angenommen -- das ist ein Fall fuer die Prompt-Regeln, nicht fuer einen weiteren Wurf.
+function isGoodEnough(severity) {
+  return !!severity && severity.heavy === 0;
+}
+
 const SCENE_LAYERS = {
   foreground: { label: "foreground", maxHeightPct: 20 },
   midground: { label: "midground", maxHeightPct: 14 },
@@ -1221,6 +1320,11 @@ function sceneComposeInstruction(promptText) {
     + " One rule overrides every other style consideration in this image: no mouth, ever, on any human or human-like character, anywhere — not open, not closed, not smiling, not even a simple line for one. If in doubt, leave the lower half of the face blank. This does not apply to animals — they may have their natural mouths, snouts, beaks or open jaws.";
 }
 
+// HISTORISCH (Stand bis 16.09.2026): die in diesem Kommentarblock beschriebenen Feldnamen und
+// Kriterien sind seit 17.09.2026 ersetzt -- der aktuelle Stand steht im Kommentarblock direkt ueber
+// buildVerifyPrompt() weiter unten. Der Block hier bleibt wegen des Verify-Blindspot-Funds stehen
+// (letzter Absatz), der weiterhin gilt und die Architektur erklaert.
+//
 // buildVerifyPrompt(): NEU, generalisiert von der Spezifikations-Frage (Abschnitt 3, dort am
 // Beispiel von 4 Charakteren) auf N. Feldnamen "heroes_ok"/"mouths_ok" sind NICHT erfunden, sondern
 // aus den Kommentaren in api/fal-proxy.js uebernommen (dort im Live-Test-Protokoll wörtlich
@@ -1269,15 +1373,84 @@ function sceneComposeInstruction(promptText) {
 // Referenzbilder der benannten Helden mit (image_urls: [generiertes Bild, Referenz 1, Referenz 2, ...],
 // siehe advanceSceneJob() in scene-job-engine.js) -- dieser Funktionstext erklaert dem Modell explizit,
 // welches Bild was ist, und verlangt einen echten Abgleich statt einer Text-Einschaetzung.
-function buildVerifyPrompt(heroSpecs) {
+// GEAENDERT (17.09.2026, Bildbewertung 27 Bilder, Abschnitt D1 "Verify an meine Bewertung
+// angleichen"). Komplett neu formuliert, aus zwei Gruenden:
+//
+// (1) INHALT. Die alte Fassung war auf "null Fehler" getrimmt und pruefte teils andere Dinge als
+//     die, an denen der Nutzer die Bilder tatsaechlich messen will. Aenderungen im Detail:
+//     - mouths_ok: vorher "KEIN einziger Mund". Jetzt "hoechstens etwa drei menschliche Figuren
+//       mit Mund" (Nutzer-Vorgabe: Muender sind erlaubt, wenn sie den Ausdruck tragen -- siehe
+//       Bewertung zu Bild 7 "Mund bei erschoepfter Heldin okay" und Bild 15 "offener Mund okay").
+//     - noses_ok NEU: in Bild 21 fiel eine Figur mit gezeichneter Nase aus dem Stil. WICHTIG und
+//       bewusst eng gefasst: der duenne SENKRECHTE STRICH als Nase ist Teil des wmlstil (siehe
+//       SCENE_STYLE_BLOCK oben, "a single vertical nose line") und das LoRA ist darauf trainiert --
+//       ein Feld "gar keine Nase" wuerde bei fast jedem KORREKTEN Bild anschlagen und permanent den
+//       teuren dritten Kandidaten ausloesen. Verstoss ist nur eine plastische/schattierte Nase.
+//     - depth_ok: umbenannt aus depth_coherence_ok, gleiches Feld (Nutzer-Vorgabe: "das vorhandene
+//       anpassen, kein neues Feld"). Klarer formuliert und mit dem Fall aus Bild 18 erweitert
+//       ("viel los, aber alle Figuren gleich gross nebeneinander" = Verstoss, obwohl vorher keine
+//       der Fragen das erfasst hat).
+//     - scale_ok: umbenannt aus head_scale_ok, gleiches Feld. Traegt jetzt die Figurengroesse je
+//       Phase (der Hauptbefund der Bewertung: in fast allen Bildern sind die Figuren ungefaehr
+//       doppelt so gross wie gewuenscht) UND weiterhin die alte Frage nach einheitlichen
+//       Kopfgroessen je Tiefenebene -- zusammengelegt statt als zehntes Feld, um die Feldzahl (und
+//       damit die Zuverlaessigkeit je Feld) nicht weiter zu erhoehen.
+//     - density NEU und bewusst DREIWERTIG ("zu_wenig"/"passt"/"zu_viel", Nutzer-Vorgabe): ein
+//       Ja/Nein-Feld koennte "zu wenig los" und "zu viel Gewimmel" nicht unterscheiden, und beides
+//       kam in der Bewertung vor (Bild 1 "viel zu wenige Figuren" gegen Bild 26/27 "viel zu viele").
+//     - logic_ok NEU: Schnee in der Kueche (Bild 17).
+//     - heroes_ok: ausdruecklich auf GROBE Merkmale heruntergesetzt (Frisur, Haarfarbe,
+//       Hauptkleidung, Altersstufe) plus "genau einmal". Vorher hing an diesem Feld implizit ein
+//       Detailvergleich, an dem es fast immer gescheitert ist ("Sommersprossen fehlen").
+//     - style_ok: zusaetzlich die EINZELNE Ausreisser-Figur und das einzelne Ausreisser-TIER
+//       (realistischer Baer in Bild 13) -- vorher nur der Gesamteindruck. WICHTIG (Nutzer-Korrektur
+//       17.09.2026): Punktaugen, senkrechter Nasenstrich und leichte runde WANGENROETE sind
+//       ausdruecklich Teil des gewuenschten Stils, ebenso ein einfarbiger Hintergrund und ein
+//       weicher Schlagschatten unter einer Figur. Das steht jetzt woertlich im Prompt -- ohne diesen
+//       Satz haette ein Vision-Modell die Wangenroete plausibel als "weiche Schattierung" und damit
+//       als Stilverstoss gelesen und genau die vom Nutzer als gelungen bewerteten Bilder abgelehnt
+//       (derselbe Fehlertyp wie beim Charakter-Verify-Bugfix vom 12.09.2026, siehe
+//       buildCharacterVerifyPrompt() unten: ein nie gegen echte Bilder kalibrierter Prompt).
+//
+// (2) FORM. Aus einem einzigen, sehr langen Absatz ist eine numerierte Liste geworden. Mit neun
+//     Kriterien in einem Aufruf sinkt die Zuverlaessigkeit je Frage, wenn alles in einem Textblock
+//     steht; ausserdem war die alte Fassung kaum noch aenderbar, ohne versehentlich eine andere
+//     Frage mitzuverschieben.
+//
+// KALIBRIERUNG (Nutzer-Vorgabe: "Verify-Kriterien so gestalten, dass nicht fast jeder Kandidat
+// durchfaellt"): der letzte Satz stellt das Modell ausdruecklich auf "im Zweifel kein Verstoss".
+// Zusammen mit der neuen Nachlege-Schwelle (isGoodEnough(): nur bei einem SCHWEREN Verstoss, siehe
+// oben) ist das die Kostenbremse.
+function buildVerifyPrompt(heroSpecs, phaseId) {
+  const phase = SCENE_PHASES[phaseId] || SCENE_PHASES[ACTIVE_SCENE_PHASE];
   const n = heroSpecs.length;
   const names = heroSpecs.map((s) => s.name).join(", ");
+  // Bild-zu-Name-Zuordnung: unveraendert uebernommen aus der vorherigen Fassung (Verify-Blindspot-Fix
+  // 16.09.2026) -- der Verify-Aufruf bekommt [generiertes Bild, Helden-Referenzbild(er)], siehe
+  // advanceSceneJob() in api/_lib/scene-job-engine.js. Ohne diese Referenzbilder musste das Modell
+  // Identitaet und Stil aus der Textbeschreibung raten.
   const refMapping = n
-    ? " Das ERSTE Bild ist die zu bewertende Szene. Die danach folgenden " + n + " Bild(er) zeigen zum Vergleich das jeweils bereits festgelegte Design der benannten Charaktere, in dieser Reihenfolge: " +
+    ? " Die danach folgenden " + n + " Bild(er) zeigen zum Vergleich das bereits festgelegte Design der benannten Charaktere, in dieser Reihenfolge: " +
       heroSpecs.map((s, i) => "Bild " + (i + 2) + " = " + s.name).join(", ") +
-      ". Nutze diese Referenzbilder fuer zwei Dinge: (1) um wirklich zu PRUEFEN, ob die jeweils benannte Person in der Szene im selben Design vorkommt (Gesicht, Frisur, Kleidung wiedererkennbar wie im Referenzbild, nicht nur irgendeine aehnliche Figur), statt es nur zu vermuten; (2) um den Zeichenstil der GESAMTEN Szene direkt mit dem Stil dieser Referenzbilder zu vergleichen -- jede Abweichung vom Referenzstil (mehr Details, Schattierung, weichere Linien, sichtbare Muender, realistischere Proportionen) ist ein Stilverstoss, auch wenn sie dir ohne diesen direkten Vergleich vielleicht nicht auffallen wuerde."
+      ". Diese Referenzbilder zeigen dir auch, wie der geforderte Zeichenstil aussieht."
     : "";
-  return "Im Folgenden beziehst du dich, wo nicht anders angegeben, auf das ERSTE Bild (die zu bewertende Szene)." + refMapping + " Sind alle " + n + " benannten Charaktere (" + names + ") je genau einmal erkennbar vorhanden, im Vergleich zu ihrem jeweiligen Referenzbild? Hat irgendeine MENSCHLICHE oder menschenähnliche Figur im ganzen Bild einen sichtbaren Mund (Tiere zählen hier ausdrücklich NICHT — ein Hund mit offenem Maul, ein zwitschernder Vogel oder ein brüllender Bär sind KEIN Verstoß gegen diese Regel, nur Menschen/menschenähnliche Figuren mit Mund sind ein Verstoß)? Ist das GESAMTE Bild durchgehend in einem flachen, minimalistischen Illustrationsstil mit dicken schwarzen Umrisslinien, einfachen runden Köpfen und flächigen Farben gezeichnet, so wie in den Referenzbildern zu sehen — NICHT realistisch, NICHT malerisch/gemalt, NICHT stark schattiert oder fotografisch, und ohne einzelne Figuren, Tiere oder Bildbereiche, die in einem abweichenden, detaillierteren oder weicheren Stil gezeichnet sind (Tiere dürfen dabei ihre natürlichen Merkmale wie Maul, Ohren, Schnauze behalten, müssen aber im selben flachen Strich-/Farbstil wie alle Menschen gezeichnet sein)? Ist die räumliche Tiefe im Bild durchgehend plausibel — gehen die Größen von Figuren UND Tieren gemeinsam kontinuierlich von groß im Vordergrund zu klein im Hintergrund über, ohne dass irgendwo eine vordergrund-große Figur oder ein vordergrund-großes Tier unvermittelt direkt neben einer deutlich kleineren, hintergrund-großen Figur oder einem entsprechend kleinen Tier steht, ohne erkennbaren räumlichen Abstand zwischen beiden? Sind die Kopfgrößen innerhalb derselben Tiefenebene (Vordergrund/Mittelgrund/Hintergrund) über verschiedene Figurentypen hinweg (Kind, Erwachsener, älterer Mensch) ungefähr einheitlich groß, sodass sich Alters-/Größenunterschiede über Körperproportionen ausdrücken statt über unterschiedlich große Köpfe, und wirkt zusätzlich jedes Tier in seiner jeweiligen Tiefenebene größenmäßig glaubwürdig im Verhältnis zu den Menschen und anderen Tieren dort (kein Tier wirkt willkürlich zu groß oder zu klein für einen Gag)? Ist das Bild vollständig frei von jeglichem Text — keine Buchstaben, Wörter, Zahlen, Schilder, Poster, Beschriftungen, Aufschriften auf Kleidung oder Gegenständen, nirgendwo im gesamten Bild, auch nicht klein oder im Hintergrund? Antworte NUR als JSON-Objekt mit genau diesen sechs Feldern: {\"heroes_ok\": true/false, \"mouths_ok\": true/false, \"style_ok\": true/false, \"depth_coherence_ok\": true/false, \"head_scale_ok\": true/false, \"no_text_ok\": true/false} — heroes_ok ist nur dann true, wenn wirklich alle " + n + " genannten Charaktere je genau einmal zu erkennen sind UND im selben Design wie ihr jeweiliges Referenzbild; mouths_ok ist nur dann true, wenn KEINE menschliche oder menschenähnliche Figur im ganzen Bild einen sichtbaren Mund hat (Tiere sind ausdrücklich ausgenommen und zählen nicht); style_ok ist nur dann true, wenn das komplette Bild ausnahmslos im selben flachen wmlstil-Stil wie die Referenzbilder gezeichnet ist (Tiere eingeschlossen, mit ihren natürlichen Merkmalen, aber im selben flachen Zeichenstil); depth_coherence_ok ist nur dann true, wenn die Größenübergänge zwischen den Tiefenebenen durchgehend räumlich plausibel sind, ohne abrupte Größensprünge zwischen benachbarten Figuren ODER Tieren; head_scale_ok ist nur dann true, wenn die Kopfgrößen innerhalb jeder einzelnen Tiefenebene unabhängig vom Figurentyp ungefähr einheitlich sind UND jedes Tier in seiner Tiefenebene größenmäßig glaubwürdig wirkt; no_text_ok ist nur dann true, wenn im gesamten Bild absolut kein Text, keine Buchstaben, Zahlen oder Beschriftungen irgendeiner Art zu sehen sind.";
+  const parts = [
+    "Du prüfst ein Wimmelbild für ein Kinderbuch gegen eine feste Stilvorgabe. Das ERSTE Bild ist die zu bewertende Szene." + refMapping,
+    "Beantworte genau diese neun Punkte:",
+    "1. HELDEN: Kommen alle " + n + " benannten Figuren (" + names + ") vor, jede GENAU EINMAL (nicht doppelt) und grob passend zu ihrem Referenzbild? Verglichen werden nur GROBE Merkmale: Frisur/Haarform, Haarfarbe, wichtigstes Kleidungsstück samt Farbe, Altersstufe (Kind / Erwachsener / älterer Mensch). Kleinstdetails wie Sommersprossen, Streifenmuster oder Knöpfe sind ausdrücklich KEIN Grund für ein Nein.",
+    "2. STIL: Ist das GANZE Bild durchgehend flach und minimalistisch gezeichnet, mit dicken schwarzen Umrisslinien, runden Köpfen und flächigen Farben wie in den Referenzbildern -- und fällt dabei keine EINZELNE Figur und kein EINZELNES Tier heraus? Ein Nein ist auch dann fällig, wenn nur eine einzige Figur oder ein einziges Tier realistisch, gemalt, weich schattiert oder deutlich detaillierter gezeichnet ist als der Rest. Tiere behalten ihre natürlichen Merkmale (Maul, Ohren, Schnauze), müssen aber im selben flachen Strich gezeichnet sein. Ausdrücklich Teil des gewünschten Stils und KEIN Verstoß sind dagegen: Punktaugen, ein einzelner senkrechter Nasenstrich, leichte runde Wangenröte, ein einfarbiger Hintergrund und ein weicher Schlagschatten unter einer Figur.",
+    "3. TIEFE: Nehmen die Figurengrößen von vorne nach hinten klar und gleichmäßig ab, sodass ein räumlicher Raum entsteht? Ein Nein ist fällig, wenn sehr viele Figuren über die ganze Bildfläche ungefähr gleich groß nebeneinander stehen -- auch dann, wenn viel los ist. Ebenfalls ein Nein: eine vordergrundgroße Figur direkt neben einer winzigen Hintergrundfigur, ohne erkennbaren Abstand dazwischen.",
+    "4. GRÖSSE: Wie oft würde eine der GRÖSSTEN Figuren im Vordergrund ihrer Höhe nach übereinander in die Bildhöhe passen? Ziel ist " + phase.scaleText + ". Passt sie deutlich seltener hinein, sind die Figuren zu groß -- das ist ein Nein. Prüfe zusätzlich, ob die Köpfe innerhalb derselben Tiefenebene ungefähr gleich groß sind, unabhängig davon, ob es Kinder, Erwachsene oder ältere Menschen sind.",
+    "5. DICHTE: Wie viele Figuren sind insgesamt im Bild, grob geschätzt? Ziel ist " + phase.densityText + ". Antworte hier nicht mit true/false, sondern mit genau einem dieser drei Wörter: zu_wenig, passt, zu_viel.",
+    "6. MÜNDER: Haben mehr als etwa DREI menschliche oder menschenähnliche Figuren einen sichtbaren Mund? Bis zu drei sind erlaubt und gewollt, wenn der Mund einen Ausdruck trägt. Tiere zählen hier ausdrücklich NICHT -- ein Hund mit offenem Maul oder ein zwitschernder Vogel ist kein Verstoß.",
+    "7. NASEN: Hat irgendeine Figur eine gezeichnete, plastische oder schattierte Nase -- also einen Nasenrücken, eine Nasenspitze, Nasenflügel oder einen Schatten an der Nase? Ein einzelner dünner senkrechter Strich als Nase ist der vorgesehene Stil und ausdrücklich KEIN Verstoß.",
+    "8. LOGIK: Werden Innen und Außen vermischt? Ein Nein ist fällig bei Dingen wie Schnee, Regen, Sand oder Wellen mitten in einem Innenraum, Himmel oder Straßenpflaster in einem Zimmer, oder Wohnzimmermöbeln mitten im Freien ohne erkennbaren Grund. Ein Haus im Querschnitt, bei dem Innenräume und Außenwelt NEBENEINANDER zu sehen sind, ist völlig in Ordnung und kein Verstoß.",
+    "9. TEXT: Ist das Bild vollständig frei von Text -- keine Buchstaben, Wörter, Zahlen, Schilder, Poster, Beschriftungen oder Aufschriften auf Kleidung und Gegenständen, auch nicht klein oder im Hintergrund?",
+    "Antworte NUR als JSON-Objekt mit genau diesen neun Feldern: {\"heroes_ok\": true/false, \"style_ok\": true/false, \"depth_ok\": true/false, \"scale_ok\": true/false, \"density\": \"zu_wenig\"|\"passt\"|\"zu_viel\", \"mouths_ok\": true/false, \"noses_ok\": true/false, \"logic_ok\": true/false, \"no_text_ok\": true/false}.",
+    "Bei allen *_ok-Feldern bedeutet true: kein Verstoß. Also mouths_ok=true, wenn HÖCHSTENS etwa drei Münder zu sehen sind; noses_ok=true, wenn KEINE gezeichnete Nase zu sehen ist; logic_ok=true, wenn Innen und Außen NICHT vermischt sind.",
+    "Wichtig zur Strenge: bewerte nur, was du tatsächlich siehst. Wenn du dir bei einem Punkt nicht sicher bist, antworte dort true (bzw. \"passt\") -- ein vermuteter Verstoß ist kein Verstoß.",
+  ];
+  return parts.join(" ");
 }
 
 // composeSceneImage(): implementiert Spezifikation Abschnitt 3: 2 Kandidaten (gleicher Prompt,
@@ -1333,7 +1506,11 @@ function buildVerifyPrompt(heroSpecs) {
 // Bibliotheks-Blaetter noch bleibt (bei bis zu 4 Helden-Stilreferenzen also mind. 9 -- wir nutzen
 // bewusst nur 3-4 davon, siehe Kommentar bei BACKGROUND_CHARACTER_LIBRARY oben zur
 // Repetitions-Mathematik).
-function buildSceneComposeInputs({ heroSpecs, theme, situations }) {
+// GEAENDERT (17.09.2026, D1): nimmt jetzt optional eine phase ("phase1"/"phase2", siehe
+// SCENE_PHASES oben) und gibt sie mit zurueck. Ohne Angabe gilt ACTIVE_SCENE_PHASE -- das Produkt
+// laeuft derzeit vollstaendig in Phase 1.
+function buildSceneComposeInputs({ heroSpecs, theme, situations, phase }) {
+  const phaseId = (phase && SCENE_PHASES[phase]) ? phase : ACTIVE_SCENE_PHASE;
   const refHeroes = heroSpecs.slice(0, 5);
   const heroRefUrls = refHeroes.map((s) => s.imageUrl).filter(Boolean);
   const editImageUrl = heroRefUrls[0];
@@ -1344,13 +1521,13 @@ function buildSceneComposeInputs({ heroSpecs, theme, situations }) {
   const styleRefUrls = heroStyleRefUrls.concat(bgUrls);
   const promptText = scenePrompt({ heroSpecs: refHeroes, theme, situations, bgCharacterCount: bgUrls.length });
   const instruction = sceneComposeInstruction(promptText);
-  const verifyPrompt = buildVerifyPrompt(refHeroes);
+  const verifyPrompt = buildVerifyPrompt(refHeroes, phaseId);
   // NEU (Verify-Blindspot-Fix 16.09.2026, siehe Kommentar bei buildVerifyPrompt() oben): heroRefUrls
   // getrennt von styleRefUrls zurueckgeben -- styleRefUrls enthaelt zusaetzlich die Hintergrundfiguren-
   // Bibliotheksblaetter (bgUrls), die fuer den Identitaets-/Stil-Abgleich beim Verify irrelevant/
   // verwirrend waeren (sie zeigen KEINE benannten Helden). heroRefUrls = nur die echten Helden-
   // Referenzbilder, in derselben Reihenfolge wie buildVerifyPrompt()'s Bild-2-bis-N-Zuordnung.
-  return { refHeroes, editImageUrl, styleRefUrls, heroRefUrls, promptText, instruction, verifyPrompt };
+  return { refHeroes, editImageUrl, styleRefUrls, heroRefUrls, promptText, instruction, verifyPrompt, phaseId };
 }
 
 async function composeSceneImage({ heroSpecs, theme, situations }) {
@@ -1795,16 +1972,21 @@ async function verifyImage(imageUrl, verifyPrompt) {
 
 // Zaehlt Verstoesse in einer Verify-Antwort (JSON-Text mit *_ok:false-Feldern). Robust gegen
 // zusaetzlichen Fliesstext vor/nach dem JSON (siehe fal-proxy.js-Kommentar zum Vision-Modell).
+// GEAENDERT (17.09.2026, D1): liefert zusaetzlich zur Gesamtzahl die Verstoesse nach Schwere
+// (severity, siehe severityOf()/VIOLATION_SEVERITY oben). "violations" bleibt unveraendert
+// erhalten, weil es im AppState an jedem Bild gespeichert ist (image.violations) und alte,
+// bereits gespeicherte Staende es weiterhin enthalten.
+// Der Sentinel violations:99 / parsed:null bei nicht lesbarer Antwort bleibt ebenfalls -- der
+// Ergebnis-Screen unterscheidet daran "Pruefung fehlgeschlagen" von "Pruefung hat was gefunden"
+// (siehe szene.js Screens.ergebnis).
 function countViolations(verifyOutputText) {
   const match = String(verifyOutputText || "").match(/\{[\s\S]*\}/);
-  if (!match) return { violations: 99, parsed: null };
+  const fail = { violations: 99, parsed: null, severity: { heavy: 99, medium: 99, light: 99 } };
+  if (!match) return fail;
   let parsed;
-  try { parsed = JSON.parse(match[0]); } catch (e) { return { violations: 99, parsed: null }; }
-  let violations = 0;
-  Object.keys(parsed).forEach((k) => {
-    if (/_ok$/.test(k) && parsed[k] === false) violations++;
-  });
-  return { violations, parsed };
+  try { parsed = JSON.parse(match[0]); } catch (e) { return fail; }
+  const severity = severityOf(parsed);
+  return { violations: severity.heavy + severity.medium + severity.light, parsed, severity };
 }
 
 /* ---------------- Witze (Ladebildschirm) ----------------
@@ -1826,6 +2008,7 @@ window.Pipeline = {
   kontextInstruction, photoStyleInstruction, traitBitFromPhotoDescription, describePhotoTraits,
   PEN_INSTRUCTION_REMOVE, PEN_INSTRUCTION_REDO,
   resizeImageToDataUri, generateImage, generateImageWithRetry, verifyImage, countViolations,
+  SCENE_PHASES, ACTIVE_SCENE_PHASE, severityOf, compareSeverity, isGoodEnough,
   // Szenen-Komposition (neu, siehe Modul-Abschnitt oben)
   GAG_LIBRARY, THEME_META, pickGagChips, topUpSituations,
   // GEAENDERT (Sammel-Runde 15.09.2026, Punkt 2): defaultBubbleLayout/sizePx/regionLabel/

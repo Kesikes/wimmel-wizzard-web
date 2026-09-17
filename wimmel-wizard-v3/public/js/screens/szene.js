@@ -1240,13 +1240,22 @@ Screens.ergebnis = {
     // - image.verify vorhanden, aber image.violations > 0: die Pruefung LIEF, hat aber tatsaechlich
     //   Abweichungen gefunden (z.B. ein sichtbarer Mund oder eine fehlende Person) -- und genau dieser
     //   Kandidat wurde trotzdem als bester von mehreren gewaehlt, weil kein anderer besser war.
-    if (!image.verify || (image.violations || 0) > 0) {
+    // GEAENDERT (17.09.2026, D1 "Gewichtung"): der Hinweis erscheint jetzt nur noch bei einem
+    // SCHWEREN Verstoss (Stil, Heldin, raeumliche Tiefe -- siehe VIOLATION_SEVERITY in pipeline.js),
+    // nicht mehr bei jedem einzelnen. Grund: mit den neun neuen Verify-Kriterien hat praktisch jedes
+    // Bild irgendeine Kleinigkeit (ein Mund zu viel, Figuren etwas zu gross) -- die Bedingung
+    // "violations > 0" haette den Warnkasten damit ueber JEDEM Bild gezeigt und genau dadurch
+    // wertlos gemacht. Die vollstaendige Feldliste steht weiterhin im Test-Details-Panel unten.
+    // severity wird hier aus image.verify abgeleitet statt am Bild gespeichert: so funktioniert es
+    // auch fuer Bilder, die vor dieser Aenderung schon im AppState lagen.
+    const sev = image.verify ? Pipeline.severityOf(image.verify) : null;
+    if (!image.verify || (sev && sev.heavy > 0)) {
       const noticeBox = h("div", { style: { margin: "0 14px 16px", background: "var(--yellow)", border: "4px solid var(--ink)", padding: "13px 14px", boxShadow: "5px 6px 0 var(--ink)" } });
       noticeBox.appendChild(h("p", { class: "h-black", style: { margin: "0 0 5px", fontSize: "12px", letterSpacing: ".04em" } }, "⚠ Bitte einmal gegenchecken"));
       noticeBox.appendChild(h("p", { style: { margin: "0", fontSize: "12.5px", lineHeight: "1.45" } },
         !image.verify
           ? "Unsere automatische Qualitätsprüfung konnte dieses Bild nicht auswerten (technischer Fehler beim Prüf-Schritt) — wir wissen nicht sicher, ob alles passt. Bitte einmal selbst durchschauen, bevor du weitermachst."
-          : "Unsere automatische Qualitätsprüfung hat bei diesem Bild mögliche Abweichungen gefunden (z. B. eine fehlende Figur oder ein sichtbarer Mund) — der beste von mehreren Versuchen wurde trotzdem gewählt. Bitte einmal selbst durchschauen, bevor du weitermachst."));
+          : "Unsere automatische Qualitätsprüfung hat bei diesem Bild etwas Grundlegendes gefunden — beim Zeichenstil, bei einer eurer Figuren oder bei der räumlichen Tiefe. Der beste von mehreren Versuchen wurde trotzdem gewählt. Bitte einmal selbst durchschauen, bevor du weitermachst."));
       wrap.appendChild(noticeBox);
     }
 

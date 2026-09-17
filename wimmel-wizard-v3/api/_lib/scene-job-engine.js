@@ -24,8 +24,8 @@
 // {
 //   jobId, instruction, verifyPrompt, editImageUrl, styleRefUrls,
 //   status: "in_progress" | "done" | "error", error,
-//   candidates: [{ seed, genRequestId, genStatus, url, verifyStatus, violations, verify, verifyError }, ...],
-//   resultUrl, resultSeed, resultViolations, resultVerify,
+//   candidates: [{ seed, genRequestId, genStatus, url, verifyStatus, violations, severity, verify, verifyError }, ...],
+//   resultUrl, resultSeed, resultViolations, resultSeverity, resultVerify,
 //   createdAt, updatedAt
 // }
 // Zustaende/Ablauf 1:1 wie char-job-engine.js (siehe dortiger Kommentar) -- gleiches "hoechstens 3
@@ -33,7 +33,7 @@
 // in pipeline.js (dessen Verhalten diese Datei ersetzt, sobald live bestaetigt).
 const {
   submitFalQueue, falQueueStatus, falQueueResult, callFalVerifySync, countViolations,
-  logFalError,
+  compareSeverity, isGoodEnough, logFalError,
 } = require("./fal-queue");
 
 // SCENE_MODEL: identisch zum Default-Endpoint in api/fal-proxy.js fuer kind==="scene" mit gesetztem
@@ -46,7 +46,9 @@ const SCENE_MODEL = "fal-ai/nano-banana-pro/edit";
 function newCandidate(seed) {
   return {
     seed, genRequestId: null, genStatus: "pending", url: null, genError: null,
-    verifyStatus: "pending", violations: null, verify: null, verifyError: null,
+    // severity NEU (17.09.2026, D1): Verstoesse nach Schwere, siehe VIOLATION_SEVERITY in
+    // fal-queue.js. violations (Gesamtzahl) bleibt daneben erhalten.
+    verifyStatus: "pending", violations: null, severity: null, verify: null, verifyError: null,
   };
 }
 
@@ -89,7 +91,7 @@ async function createSceneJob({ jobId, instruction, verifyPrompt, editImageUrl, 
     heroRefUrls: heroRefUrls || [],
     status: "in_progress", error: null,
     candidates: [candA, candB],
-    resultUrl: null, resultSeed: null, resultViolations: null, resultVerify: null,
+    resultUrl: null, resultSeed: null, resultViolations: null, resultSeverity: null, resultVerify: null,
     createdAt: now, updatedAt: now,
   };
 }
@@ -147,6 +149,7 @@ async function advanceSceneJob(job, { FAL_KEY }) {
         const output = await callFalVerifySync([cand.url].concat(next.heroRefUrls || []), next.verifyPrompt, FAL_KEY);
         const scored = countViolations(output);
         cand.violations = scored.violations;
+        cand.severity = scored.severity;
         cand.verify = scored.parsed;
         cand.verifyStatus = "done";
       } catch (e) {
@@ -165,8 +168,14 @@ async function advanceSceneJob(job, { FAL_KEY }) {
     (c.genStatus === "done" && c.verifyStatus === "done") || c.genStatus === "error" || c.verifyStatus === "error");
   if (allSettled) {
     const usable = next.candidates.filter((c) => c.genStatus === "done" && c.verifyStatus === "done");
-    const hasPerfect = usable.some((c) => c.violations === 0);
-    if (!hasPerfect && next.candidates.length < 3) {
+    // GEAENDERT (17.09.2026, D1 "Kostenbremse"): vorher "kein Kandidat mit NULL Verstoessen -> dritten
+    // nachschieben". Mit den jetzt neun Verify-Kriterien (siehe buildVerifyPrompt() in
+    // public/js/pipeline.js) ist null Verstoesse praktisch unerreichbar -- der dritte, teure Lauf
+    // waere damit bei JEDER Szene gelaufen. Jetzt entscheidet isGoodEnough(): nachgelegt wird nur
+    // bei einem SCHWEREN Verstoss (Stil, Helden, Tiefe), nicht wegen Figurengroesse oder eines
+    // Mundes zu viel.
+    const hasGoodEnough = usable.some((c) => isGoodEnough(c.severity));
+    if (!hasGoodEnough && next.candidates.length < 3) {
       const seedC = Math.floor(Math.random() * 1e9);
       try {
         const reqC = await submitFalQueue(SCENE_MODEL, sceneGenerateBody(next.instruction, next.editImageUrl, next.styleRefUrls, seedC), FAL_KEY);
@@ -203,11 +212,15 @@ function finalizeJob(job, usableCandidates) {
     job.error = "Keiner der Generierungsversuche war erfolgreich — bitte nochmal versuchen.";
     return;
   }
-  const best = usableCandidates.reduce((a, b) => (b.violations < a.violations ? b : a));
+  // GEAENDERT (17.09.2026, D1): Auswahl stufenweise nach Schwere statt nach der reinen Anzahl --
+  // ein Kandidat mit falschem Stil darf nicht gewinnen, nur weil er weniger Kleinigkeiten hat
+  // (Nutzer-Vorgabe). compareSeverity() vergleicht erst schwer, dann mittel, dann leicht.
+  const best = usableCandidates.reduce((a, b) => (compareSeverity(b.severity, a.severity) < 0 ? b : a));
   job.status = "done";
   job.resultUrl = best.url;
   job.resultSeed = best.seed;
   job.resultViolations = best.violations;
+  job.resultSeverity = best.severity || null;
   job.resultVerify = best.verify;
 }
 
