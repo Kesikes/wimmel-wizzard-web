@@ -1663,13 +1663,26 @@ async function pollSceneJobOnce(jobId) {
 // composeSceneImage() zurueck ({best:{url,seed,violations,verify}, promptText, instruction,
 // candidates}), damit der Umstieg in szene.js ohne Formatänderung an den nachgelagerten Stellen
 // (AppState.addImage()) auskommt.
-async function runSceneJobPolling({ heroSpecs, theme, situations }, opts) {
+// GEAENDERT (17.09.2026, Punkt 0 "Szene nach Reload fortsetzen"): erster Parameter darf jetzt null
+// sein, wenn opts.existingJobId gesetzt ist -- genau wie runCharacterJobPolling(null, {existingJobId})
+// im Figuren-Weg. Wichtig ist dabei, dass buildSceneComposeInputs() beim Fortsetzen NICHT nochmal
+// laeuft: pickBackgroundCharacterSheets() und autoSituations() wuerfeln bei jedem Aufruf neu, der
+// neu gebaute Prompt waere also ein ANDERER als der, mit dem der laufende Job tatsaechlich gestartet
+// wurde -- die gespeicherte/angezeigte Nachvollziehbarkeit wuerde still falsch. Die tatsaechlich
+// verwendete instruction reist ohnehin im Job-Datensatz mit (siehe createSceneJob() in
+// api/_lib/scene-job-engine.js) und wird unten aus dem Poll-Ergebnis uebernommen.
+async function runSceneJobPolling(sceneInputs, opts) {
   opts = opts || {};
   const intervalMs = opts.intervalMs || 7000;
-  const { editImageUrl, styleRefUrls, heroRefUrls, promptText, instruction, verifyPrompt } =
-    buildSceneComposeInputs({ heroSpecs, theme, situations });
-
-  const jobId = opts.existingJobId || await startSceneJob({ instruction, verifyPrompt, editImageUrl, styleRefUrls, heroRefUrls });
+  let built = null;
+  let jobId = opts.existingJobId || null;
+  if (!jobId) {
+    built = buildSceneComposeInputs(sceneInputs || {});
+    jobId = await startSceneJob({
+      instruction: built.instruction, verifyPrompt: built.verifyPrompt, editImageUrl: built.editImageUrl,
+      styleRefUrls: built.styleRefUrls, heroRefUrls: built.heroRefUrls,
+    });
+  }
   if (opts.onJobId) opts.onJobId(jobId);
   for (;;) {
     if (opts.signal && opts.signal.aborted) throw new Error("Abgebrochen.");
@@ -1683,7 +1696,13 @@ async function runSceneJobPolling({ heroSpecs, theme, situations }, opts) {
     if (job.status === "done") {
       return {
         best: { url: job.resultUrl, seed: job.resultSeed, violations: job.resultViolations, verify: job.resultVerify },
-        promptText, instruction, candidates: job.candidates,
+        // promptText entsteht nur beim frischen Start (rein client-seitiger Zwischenschritt, wird
+        // nicht an den Server mitgeschickt und ist daher beim Fortsetzen nicht rekonstruierbar --
+        // dann bleibt es bewusst null statt raten). instruction kommt beim Fortsetzen aus dem
+        // Job-Datensatz selbst, ist also in beiden Faellen die WIRKLICH verwendete.
+        promptText: built ? built.promptText : null,
+        instruction: built ? built.instruction : (job.instruction || null),
+        candidates: job.candidates,
       };
     }
     if (job.status === "error") throw new Error(job.error || "Generierung fehlgeschlagen.");

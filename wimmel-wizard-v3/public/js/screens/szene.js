@@ -24,6 +24,19 @@ const WAYS = [
 // gleichzeitigen Aenderung.
 const THEMES = ["Bauernhof", "Weihnachten", "Urlaub", "Berg", "Stadt", "Spielplatz"];
 
+// NEU (17.09.2026, Punkt 0 "Szene nach Reload fortsetzen"): EINZIGER Weg, mit dem der Zaubern-Screen
+// fuer eine NEUE Szene betreten wird (drei Aufrufstellen: Bottom-Bar "Los, zaubern", fertige
+// Sprachaufnahme, abgeschlossener Chat). Leert dabei den Job-Merker (AppState.pendingSceneJob, siehe
+// state.js). Grund: Screens.zaubern nimmt eine gesetzte pendingSceneJob als "hier lief schon was,
+// bitte fortsetzen" -- ohne dieses Leeren wuerde ein Merker, der von einem abgebrochenen Lauf
+// uebriggeblieben ist, die naechste ABSICHTLICH neu gestartete Szene stillschweigend durch das alte
+// Bild ersetzen. Ein Reload/Wiederoeffnen des Zaubern-Screens laeuft NICHT hier durch und behaelt
+// den Merker damit genau dort, wo Fortsetzen richtig ist.
+function goZaubernFresh() {
+  if (AppState.data.pendingSceneJob) AppState.update({ pendingSceneJob: null });
+  Router.goScreen("zaubern");
+}
+
 // NEU (Nutzer-Auftrag 16.09.2026, offener Punkt "16:9→2:1-Beschnitt-Schritt fuer Druck"): das
 // Druck-Endformat ist 296x148mm = 2:1 (siehe Kommentar bei SAFE_MARGIN_RULE/DEPTH_COHERENCE_RULE in
 // pipeline.js), generiert wird aber 16:9 (aspect_ratio-Limit von nano-banana-pro/edit, siehe
@@ -205,7 +218,7 @@ Screens.szene.onNext = ({ nextBtn, weiterBtn, defaultGoNext }) => {
   // WAEHREND der Lade-Screen schon sichtbar ist -- fuehlt sich fuer die Nutzerin wie ein direkter
   // Start an, mit sichtbarem Fehler-Fallback (showError() in Screens.zaubern), falls das Modell doch
   // noch eine Rueckfrage braucht, statt eines stillen Haengenbleibens.
-  Router.goScreen("zaubern");
+  goZaubernFresh();
 };
 
 // NEU (Punkt C17): ueberschreibt die Bottom-Bar-Beschriftung fuer Weg 2 (gleiches Erweiterungs-
@@ -376,7 +389,7 @@ async function handleRecordingStopped(chunks, mimeType) {
     // vor der festen THEME_META-Zuordnung bekommt).
     AppState.update({ sceneUserSituations: [{ en, de: transcriptDe }], sceneChatTheme: null });
     resetRecState();
-    Router.goScreen("zaubern");
+    goZaubernFresh();
   } catch (e) {
     recState = { phase: "error", seconds: 0, error: (e && e.message) ? e.message : String(e), mediaRecorder: null, chunks: [], stream: null, timerId: null, mimeType: "" };
     if (recNotify) recNotify();
@@ -647,7 +660,7 @@ async function sendChatTurn(userText, { buttons, skipModeration } = {}) {
         sceneChatTheme: theme,
         sceneChatMessages: finalMessages
       });
-      Router.goScreen("zaubern");
+      goZaubernFresh();
       return;
     }
     // GEAENDERT (Sammel-Runde 11.09.2026, Punkt 6: "Chat-Ansicht springt immer wieder zum Anfang
@@ -959,9 +972,62 @@ Screens.zaubern = {
     const retryBtn = h("button", { type: "button", class: "h-black", style: { minHeight: "44px", width: "100%", background: "var(--yellow)", color: "var(--ink)", border: "3px solid var(--paper)", fontSize: "13px", cursor: "pointer" }, onClick: () => { zauberBusy = false; Router.navigate("/app/bild/zaubern", { replace: true }); } }, "Nochmal versuchen");
     errorBox.appendChild(retryBtn);
     wrap.appendChild(errorBox);
+
+    // NEU (17.09.2026, Punkt 0 "Szene nach Reload fortsetzen"): Hinweis, wenn dieser Screen eine
+    // bereits laufende Generierung uebernimmt statt eine neue zu starten -- gleiches Prinzip wie der
+    // "Wird weitergezeichnet"-Hinweis im Figuren-Weg (charakter.js). Ohne diesen Hinweis saehe die
+    // Nutzerin denselben Lade-Screen wie bei einem Neustart und wuesste nicht, dass ihr Bild noch da
+    // ist.
+    const resumeNote = h("div", { style: { display: "none", marginTop: "20px", border: "3px solid var(--ink)", background: "var(--blue)", color: "var(--ink)", padding: "12px 14px", fontSize: "14px", lineHeight: "1.45" } }, "Gut, dass du wieder da bist – dein Bild war schon in Arbeit. Ich mache genau da weiter und fange nicht neu an.");
+    wrap.appendChild(resumeNote);
+
     function showError(msg) {
       errorText.textContent = msg;
       errorBox.style.display = "block";
+    }
+
+    // NEU (17.09.2026, Punkt 0): gemeinsamer Abschluss fuer den frischen Start UND das Fortsetzen --
+    // beide muessen dieselben drei Dinge tun (Job-Merker leeren, Bild in den AppState legen, zum
+    // Ergebnis wechseln), und der Merker MUSS vor dem Wechsel weg sein, sonst wuerde ein Reload auf
+    // dem Ergebnis-Screen spaeter erneut versuchen, einen laengst fertigen Job fortzusetzen.
+    function finishSceneResult(result, title) {
+      AppState.update({ pendingSceneJob: null });
+      AppState.addImage({
+        title: title, src: result.best.url,
+        promptText: result.promptText, instruction: result.instruction,
+        violations: result.best.violations, verify: result.best.verify, candidates: result.candidates
+      });
+      zauberBusy = false;
+      Router.goScreen("ergebnis");
+    }
+
+    // NEU (17.09.2026, Punkt 0): Gegenstueck zu resumeCharacterJob() in charakter.js. Laeuft, wenn
+    // der Tab waehrend einer Szenen-Generierung komplett neu geladen wurde (ein kurzes Pausieren/
+    // Aufwachen faengt bereits withTransientRetry() in pipeline.js ab). Der Server-Job in Upstash
+    // Redis laeuft unveraendert weiter -- wir haengen uns nur wieder an seine jobId, statt einen
+    // zweiten, parallelen (und separat bezahlten) Job zu starten.
+    function resumeSceneJob(pending) {
+      zauberBusy = true;
+      resumeNote.style.display = "block";
+      setPhase("gen");
+      Pipeline.runSceneJobPolling(null, {
+        existingJobId: pending.jobId,
+        onUpdate: (job) => {
+          if (!zauberBusy || !job || !job.candidates) return;
+          const allGenSettled = job.candidates.every((c) => c.genStatus === "done" || c.genStatus === "error");
+          setPhase(allGenSettled ? "verify" : "gen");
+        },
+      }).then((result) => {
+        setPhase("done");
+        finishSceneResult(result, pending.title || AppState.data.sceneTheme);
+      }).catch((e) => {
+        // Haeufigster echter Fall hier: der Job-Datensatz ist abgelaufen (1 Stunde Gueltigkeit, siehe
+        // JOB_TTL_SECONDS in api/scene-job-start.js) -- dann ist Fortsetzen nicht mehr moeglich und
+        // ein Neustart ueber den vorhandenen "Nochmal versuchen"-Button ist der richtige Weg.
+        zauberBusy = false;
+        AppState.update({ pendingSceneJob: null });
+        showError("Das begonnene Bild konnte ich nicht mehr fortsetzen (" + (e && e.message ? e.message : String(e)) + "). Mit „Nochmal versuchen“ fange ich neu an.");
+      });
     }
 
     // NEU (Pipeline-Anbindung): tatsaechlicher Aufruf von Pipeline.composeSceneImage() statt der
@@ -970,6 +1036,11 @@ Screens.zaubern = {
     // Bild werden nicht mitgeschickt (composeSceneImage() braucht ein editImageUrl je Referenz).
     async function runGeneration() {
       if (zauberBusy) return;
+      // NEU (17.09.2026, Punkt 0): VOR allem anderen pruefen, ob fuer diese Session schon ein
+      // Szenen-Job laeuft. runGeneration() laeuft bei JEDEM Render dieses Screens los -- ohne diese
+      // Abfrage startete jeder Reload und jedes Wiederoeffnen eine komplett neue Generierung.
+      const pendingJob = AppState.data.pendingSceneJob;
+      if (pendingJob && pendingJob.jobId) { resumeSceneJob(pendingJob); return; }
       const heroSpecs = s.people.filter((p) => p.status === "done" && p.imageUrl).map((p) => {
         const spec = Pipeline.makeCharacterSpec({ id: p.id, name: p.name, role: p.role, sourceType: "chips" });
         spec.identityCore.age = p.age;
@@ -1037,6 +1108,10 @@ Screens.zaubern = {
         // composeSceneImage() bleibt unveraendert in pipeline.js als eigenstaendig getestete
         // Referenz-/Fallback-Funktion erhalten, wird aber im Produktpfad nicht mehr aufgerufen.
         const result = await Pipeline.runSceneJobPolling({ heroSpecs, theme, situations }, {
+          // NEU (17.09.2026, Punkt 0): jobId sofort persistieren, sobald sie feststeht -- AppState
+          // schreibt ohnehin nach jeder Aenderung in localStorage UND (anonyme Session) auf den
+          // Server, der Merker uebersteht damit einen kompletten Tab-Reload.
+          onJobId: (jobId) => AppState.update({ pendingSceneJob: { jobId: jobId, title: sNow.sceneTheme || null } }),
           onUpdate: (job) => {
             if (!zauberBusy || !job || !job.candidates) return;
             const allGenSettled = job.candidates.every((c) => c.genStatus === "done" || c.genStatus === "error");
@@ -1044,18 +1119,16 @@ Screens.zaubern = {
           },
         });
         setPhase("done");
-        AppState.addImage({
-          // GEAENDERT: title jetzt aus sNow statt s -- bei sceneWay 2 (Chat) war s.sceneTheme beim
-          // ersten Render dieses Screens noch leer, sceneTheme wird ja erst durch
-          // finalizeChatScene() (oben) gesetzt.
-          title: sNow.sceneTheme, src: result.best.url,
-          promptText: result.promptText, instruction: result.instruction,
-          violations: result.best.violations, verify: result.best.verify, candidates: result.candidates
-        });
-        zauberBusy = false;
-        Router.goScreen("ergebnis");
+        // GEAENDERT (17.09.2026, Punkt 0): der eigentliche Abschluss liegt jetzt in
+        // finishSceneResult() (oben), damit Neustart und Fortsetzen nicht auseinanderlaufen koennen.
+        // title weiterhin aus sNow statt s -- bei sceneWay 2 (Chat) war s.sceneTheme beim ersten
+        // Render dieses Screens noch leer, sceneTheme wird erst durch finalizeChatScene() gesetzt.
+        finishSceneResult(result, sNow.sceneTheme);
       } catch (e) {
         zauberBusy = false;
+        // NEU (17.09.2026, Punkt 0): Merker auch im Fehlerfall leeren, sonst wuerde der naechste
+        // Aufruf dieses Screens versuchen, einen abgebrochenen Job fortzusetzen.
+        AppState.update({ pendingSceneJob: null });
         showError("Zaubern hat nicht geklappt: " + (e && e.message ? e.message : String(e)));
       }
     }

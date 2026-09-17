@@ -90,6 +90,15 @@ const DEFAULT_STATE = {
   // (Auto-Save in localStorage, siehe Kommentar oben am Dateianfang). Siehe pickJoke() in szene.js.
   shownJokes: [],
   penOn: false,
+  // NEU (17.09.2026, Punkt 0 "Szene nach Reload fortsetzen"): {jobId, title} des gerade laufenden
+  // SZENEN-Jobs, null wenn keiner laeuft. Gegenstueck zu person.pendingJobId im Figuren-Weg (siehe
+  // charakter.js) -- dort war der Reload-Schutz schon gebaut, auf dem Szenen-Weg fehlte er, obwohl
+  // eine Szene mit 2-3 Kandidaten die deutlich teurere und laengere Generierung ist. Ohne dieses
+  // Feld startete ein Reload/Wiederoeffnen des Zaubern-Screens einen KOMPLETT NEUEN, zweiten Job
+  // (zauberBusy ist eine reine In-Memory-Variable), waehrend der erste serverseitig unbemerkt
+  // weiterlief und bezahlt wurde. Wird beim Start gesetzt, sobald die jobId feststeht, und bei
+  // Erfolg wie Fehlschlag wieder geleert (siehe szene.js Screens.zaubern).
+  pendingSceneJob: null,
 
   // Entscheidung / Widmung / Bestellung
   tier: 1, // 0 Poster, 1 Wimmelbuch (ab 2 Bildern), 2 Wimmelbuch (ab 5 Bildern, comingSoon -- siehe entscheidung.js TIERS)
