@@ -231,6 +231,32 @@ async function handleResumeParam() {
   }
 }
 
+// NEU (17.09.2026, Testschalter): liest einmalig phase= und komposition= aus der URL und merkt sie
+// im AppState. Nur fuer gezielte Testlaeufe gedacht, die normale Nutzung bleibt unberuehrt -- ohne
+// diese Parameter aendert sich nichts.
+// Gueltige Werte kommen aus Pipeline selbst (SCENE_PHASES/COMPOSITION_TYPES), ein unbekannter Wert
+// schaltet auf normales Verhalten zurueck statt etwas Ungueltiges zu setzen. Ein LEERER Wert
+// (/app?phase=) loescht die Einstellung -- so kommt man ohne Umweg wieder aus dem Testmodus heraus.
+// Die URL wird danach bereinigt, damit ein spaeterer Verlauf-Zurueck nicht ueberraschend wieder in
+// den Testmodus schaltet; der Hinweis auf dem Zaubern-Screen bleibt die sichtbare Anzeige.
+function handleTestParams() {
+  const params = new URLSearchParams(window.location.search);
+  const hatPhase = params.has("phase");
+  const hatKomposition = params.has("komposition");
+  if (!hatPhase && !hatKomposition) return;
+  const patch = {};
+  if (hatPhase) {
+    const wert = (params.get("phase") || "").trim();
+    patch.testPhase = (wert && Pipeline.SCENE_PHASES[wert]) ? wert : null;
+  }
+  if (hatKomposition) {
+    const wert = (params.get("komposition") || "").trim();
+    patch.testComposition = (wert && Pipeline.COMPOSITION_TYPES[wert]) ? wert : null;
+  }
+  AppState.update(patch);
+  window.history.replaceState(null, "", window.location.pathname + window.location.hash);
+}
+
 Router.onChange(renderScreen);
 AppState.onChange(() => {
   renderRail();
@@ -239,6 +265,7 @@ AppState.onChange(() => {
 AppState.onChange(scheduleRemoteSync);
 
 document.addEventListener("DOMContentLoaded", () => {
+  handleTestParams();
   handleResumeParam().finally(() => Router.resolve());
 });
 window.addEventListener("resize", syncHeaderSpacing);

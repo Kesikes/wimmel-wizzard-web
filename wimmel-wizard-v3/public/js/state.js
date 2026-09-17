@@ -106,6 +106,15 @@ const DEFAULT_STATE = {
   // einer Laufzeit-Variablen, damit die Sperre einen Reload uebersteht -- gleiches Prinzip wie
   // shownJokes. Wird bei "von vorne starten" mit dem ganzen State zurueckgesetzt.
   usedSituations: [],
+  // NEU (17.09.2026, Testschalter fuer die ersten echten Testlaeufe): Phase und Kompositionstyp
+  // lassen sich ueber die Oberflaeche nicht waehlen -- die App laeuft fest in Phase 1 und der Typ
+  // wird gewuerfelt. Fuer einen gezielten Testlauf ("je Phase 2-3 Szenen, verschiedene Themen und
+  // Kompositionstypen") werden beide einmalig per URL gesetzt (/app?phase=phase2&komposition=
+  // gridhouse, siehe handleTestParams() in app-shell.js) und hier gemerkt, damit sie die Navigation
+  // ueberleben. null = normales Verhalten. Der Zaubern-Screen zeigt einen deutlichen Hinweis,
+  // solange etwas gesetzt ist, damit niemand versehentlich im Testmodus generiert.
+  testPhase: null,
+  testComposition: null,
 
   // Entscheidung / Widmung / Bestellung
   tier: 1, // 0 Poster, 1 Wimmelbuch (ab 2 Bildern), 2 Wimmelbuch (ab 5 Bildern, comingSoon -- siehe entscheidung.js TIERS)

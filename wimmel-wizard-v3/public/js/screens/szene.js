@@ -981,6 +981,18 @@ Screens.zaubern = {
     const resumeNote = h("div", { style: { display: "none", marginTop: "20px", border: "3px solid var(--ink)", background: "var(--blue)", color: "var(--ink)", padding: "12px 14px", fontSize: "14px", lineHeight: "1.45" } }, "Gut, dass du wieder da bist – dein Bild war schon in Arbeit. Ich mache genau da weiter und fange nicht neu an.");
     wrap.appendChild(resumeNote);
 
+    // NEU (17.09.2026, Testschalter): unuebersehbarer Hinweis, solange Phase oder Kompositionstyp
+    // per URL festgelegt sind. Bewusst hier und nicht im Kleingedruckten -- ein versehentlich
+    // aktiver Testmodus wuerde teure Bilder mit den falschen Einstellungen erzeugen.
+    if (s.testPhase || s.testComposition) {
+      const teile = [];
+      if (s.testPhase) teile.push("Phase: " + s.testPhase);
+      if (s.testComposition) teile.push("Komposition: " + s.testComposition);
+      const testNote = h("div", { style: { marginTop: "20px", border: "3px dashed var(--yellow)", color: "var(--yellow)", padding: "12px 14px", fontSize: "13px", lineHeight: "1.45" } },
+        "Testmodus aktiv — " + teile.join(", ") + ". Zum Beenden /app?phase= aufrufen.");
+      wrap.appendChild(testNote);
+    }
+
     function showError(msg) {
       errorText.textContent = msg;
       errorBox.style.display = "block";
@@ -1104,6 +1116,11 @@ Screens.zaubern = {
         // Situation zweimal im selben Buch auftaucht (siehe topUpSituations() in pipeline.js).
         const usedTexts = sNow.usedSituations || [];
         const situations = Pipeline.autoSituations(theme, sNow.sceneUserSituations || [], 20, usedTexts);
+        // Testschalter (siehe handleTestParams() in app-shell.js): ohne gesetzte Werte bleibt alles
+        // beim normalen Verhalten -- buildSceneComposeInputs() faellt dann auf ACTIVE_SCENE_PHASE
+        // und die gewuerfelte Komposition zurueck.
+        const testPhase = sNow.testPhase || undefined;
+        const testComposition = sNow.testComposition || undefined;
         setPhase("gen");
         // GEAENDERT (Sammel-Runde 15.09.2026, Punkt 3: "Warteschlangen-Architektur auf den
         // Szenen-Pfad uebertragen"): statt der bisherigen composeSceneImage() (eine einzige, 2-5
@@ -1116,7 +1133,7 @@ Screens.zaubern = {
         // jetzt moeglich (siehe onUpdate unten) statt des vorherigen Fake-setTimeout(...,20000).
         // composeSceneImage() bleibt unveraendert in pipeline.js als eigenstaendig getestete
         // Referenz-/Fallback-Funktion erhalten, wird aber im Produktpfad nicht mehr aufgerufen.
-        const result = await Pipeline.runSceneJobPolling({ heroSpecs, theme, situations, usedTexts }, {
+        const result = await Pipeline.runSceneJobPolling({ heroSpecs, theme, situations, usedTexts, phase: testPhase, composition: testComposition }, {
           // NEU (17.09.2026, Punkt 0): jobId sofort persistieren, sobald sie feststeht -- AppState
           // schreibt ohnehin nach jeder Aenderung in localStorage UND (anonyme Session) auf den
           // Server, der Merker uebersteht damit einen kompletten Tab-Reload.
