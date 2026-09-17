@@ -168,8 +168,12 @@ const VIOLATION_SEVERITY = {
   // heroes_ok ist schwer -- das einzige Kriterium, das sich in beiden Laeufen bewaehrt hat (rund 95%
   // Uebereinstimmung, seine Treffer sind echte Ausfaelle). style_ok und das neue depth_ratio stehen
   // voruebergehend auf "mittel", bis der dritte Lauf zeigt, dass ihre Formulierungen treffen.
-  heroes_ok: "heavy",
-  depth_ratio: "medium", style_ok: "medium",
+  // GEAENDERT (dritter Lauf): depth_ratio zurueck auf "heavy" -- es trennt das Negativbeispiel
+  // (Verhaeltnis 1,0) mit grossem Abstand von allen gelungenen Bildern (2,5 bis 4,5), ohne einen
+  // einzigen Fehlalarm. style_ok bleibt "mittel", solange es ueberwiegend den Weihnachtsmann und
+  // normale Tiere meldet statt echter Stilbrueche.
+  heroes_ok: "heavy", depth_ratio: "heavy",
+  style_ok: "medium",
   // mittel (Szenen-Verify)
   // GEAENDERT (17.09.2026, nach dem ersten Kalibrierungslauf): "density" (dreiwertig) heisst jetzt
   // "figures_est" (geschaetzte Zahl, bewertet gegen figuresBand aus SCENE_PHASES in pipeline.js),
@@ -188,7 +192,7 @@ const DEFAULT_SEVERITY = "medium";
 // DEPTH_MIN_RATIO: Mindestverhaeltnis groesste zu kleinste Figur (depth_ratio im Verify). Zweite
 // Kopie -- Wert und ausfuehrliche Herleitung stehen in public/js/pipeline.js bei DEPTH_MIN_RATIO
 // ("HIER SCHRAUBST DU AN DER GEFORDERTEN TIEFE"). Bei Aenderungen BEIDE Stellen anpassen.
-const DEPTH_MIN_RATIO = 2.2;
+const DEPTH_MIN_RATIO = 1.8;
 
 // countViolations(): wertet die JSON-Antwort des Verify-Aufrufs aus.
 // Zwei Feldformen werden erkannt: "*_ok"-Felder (false = Verstoss) und das dreiwertige "density"

@@ -858,10 +858,10 @@ var SCENE_PHASES = {
     // in die Bildhoehe -- daher die Nutzer-Beobachtung "etwa doppelt so gross wie gewuenscht".
     scaleText: "etwa acht bis zehn Mal",
     // SCHARF GEZOGEN (17.09.2026, aus den Zahlen des zweiten Kalibrierungslaufs): Bild 11, das
-    // Vorbild des Nutzers ("GUTE RICHTUNG"), wurde vom Modell auf 35 geschaetzt; die als zu leer
-    // bewerteten Bilder liegen bei 11 bis 28. Untergrenze 30 nimmt Bild 11 also an und weist die
-    // leeren ab. Obergrenze 80: in Phase 1 war zu viel Gewimmel nie das Problem, die Grenze ist nur
-    // eine Notbremse -- und sie muss Luft lassen, weil D2 die Dichte gezielt hochtreiben wird.
+    // Vorbild des Nutzers ("GUTE RICHTUNG"), wurde vom Modell auf 35 bzw. 40 geschaetzt; die als zu
+    // leer bewerteten Bilder liegen bei 11 bis 28. Untergrenze 30 nimmt Bild 11 also an und weist
+    // die leeren ab. Obergrenze 80: in Phase 1 war zu viel Gewimmel nie das Problem, die Grenze ist
+    // nur eine Notbremse -- und sie muss Luft lassen, weil D2 die Dichte gezielt hochtreiben wird.
     figuresBand: [30, 80],
   },
   phase2: {
@@ -874,12 +874,23 @@ var SCENE_PHASES = {
     // ERKENNTNIS FUER D2 (Prompt-Regeln je Phase): die beiden Phasen unterscheiden sich NICHT in der
     // relativen Figurengroesse, sondern im Umfang des Schauplatzes (Haus im Querschnitt PLUS Strasse
     // und Umgebung statt einer einzelnen Szene) und in der Figurenzahl.
-    scaleText: "etwa acht bis zehn Mal",
-    // SCHARF GEZOGEN (17.09.2026): die Vorbilder des Nutzers, Bild 23 und 24, wurden auf je 50
-    // geschaetzt und sind ausdruecklich auch die OBERGRENZE ("das ist das MAXIMUM"). Die als
-    // ueberladen bewerteten Bilder liegen deutlich darueber: Bild 22 auf 110, Bild 26 auf 120,
-    // Bild 27 auf 150. Obergrenze 80 laesst Luft ueber den Vorbildern, weist die ueberladenen ab.
-    figuresBand: [40, 80],
+    // GEAENDERT (dritter Lauf): eine Stufe toleranter als Phase 1. Von den beiden Vorbildern des
+    // Nutzers besteht Bild 23 die 8-bis-10-Mal-Frage, Bild 24 faellt knapp durch ("Figuren zu
+    // gross") -- die Grenze liegt also genau auf seinen Vorbildern. Sieben bis zehn nimmt beide an.
+    // Phase 1 bleibt bei acht bis zehn: dort ist "Figuren zu gross" der Hauptbefund und soll es
+    // bleiben.
+    scaleText: "etwa sieben bis zehn Mal",
+    // SCHARF GEZOGEN (17.09.2026), OBERGRENZE ANGEHOBEN nach dem dritten Lauf: die Vorbilder des
+    // Nutzers, Bild 23 und 24, sind ausdruecklich auch die Obergrenze ("das ist das MAXIMUM"). Die
+    // ueberladenen Bilder liegen klar darueber: Bild 22 auf 110, Bild 26 auf 115 bis 120, Bild 27
+    // auf 150 bis 200.
+    // Warum 95 und nicht 80: die Schaetzskala ist NICHT gleichmaessig stabil (siehe Notiz zur
+    // Schwankung unten). Bei den dichten Bildern wandert sie am staerksten -- Bild 24 kam auf 50
+    // und im naechsten Lauf auf 65, Bild 27 auf 150 und dann 200. Eine Obergrenze bei 80 liegt
+    // damit mitten im Schwankungsbereich von Bild 24, dem VORBILD: ein weiterer Lauf koennte es
+    // ueber die Grenze heben und damit genau das Zielbild als "zu viel" abweisen. 95 laesst dem
+    // Vorbild Luft und trennt weiterhin klar von Bild 26 (115).
+    figuresBand: [40, 95],
   },
 };
 
@@ -906,6 +917,14 @@ var SCENE_PHASES = {
 //   - Phase 2: Bild 23 und 24 sind das Vorbild und gleichzeitig die OBERGRENZE, Bild 26 und 27 sind
 //     zu viel. Obergrenze also zwischen den Wert fuer 23/24 und den fuer 26/27 legen.
 // Zaehlgrundlage sind ausschliesslich Menschen, keine Tiere (so steht es im Prompt).
+//
+// WIE STABIL IST DIE SKALA? Aus dem Vergleich von zweitem und drittem Kalibrierungslauf (identische
+// Bilder, identischer Prompt): 19 der 27 Werte waren EXAKT gleich, weitere 4 wichen um bis zu 7%
+// ab. Die Schaetzung ist also bei duennen und mittleren Szenen bemerkenswert reproduzierbar.
+// Unzuverlaessig wird sie erst bei hoher Dichte: Bild 11 wanderte von 35 auf 40 (+14%), Bild 24 von
+// 50 auf 65 (+30%), Bild 27 von 150 auf 200 (+33%). Merkregel: unter etwa 40 geschaetzten Figuren
+// ist der Wert nahezu stabil, darueber muss man mit rund 20 bis 30% Abweichung nach oben rechnen.
+// Fuer die Spannen heisst das: Untergrenzen duerfen knapp sitzen, Obergrenzen brauchen Luft.
 var ACTIVE_SCENE_PHASE = "phase1";
 
 // DEPTH_MIN_RATIO: Mindestverhaeltnis zwischen der groessten Vordergrundfigur und der kleinsten
@@ -920,18 +939,23 @@ var ACTIVE_SCENE_PHASE = "phase1";
 // NIRGENDS mehr an -- auch nicht bei Bild 18, dem Negativbeispiel des Nutzers. Dieselbe Umstellung
 // wie bei figures_est: das Modell liefert eine Zahl, die Bewertung passiert hier im Code.
 //
-// DER STARTWERT IST GESCHAETZT und muss nach dem naechsten Lauf nachgezogen werden. Eigene Messung
-// an den Bildern (Verhaeltnis groesste zu kleinste Figur): Bild 18, das Negativbeispiel, liegt bei
-// etwa 2,0 -- Bild 23 bei etwa 2,4, Bild 17 bei etwa 3,5, Bild 11 bei 2,5 und mehr. Der Abstand
-// zwischen "misslungen" und "gelungen" ist also klein, und diese Werte sind mit dem Auge an
-// verkleinerten Bildern geschaetzt.
-// WICHTIG fuer die naechste Auswertung: liefert Bild 18 KEINEN deutlich niedrigeren Wert als die
-// gelungenen Bilder, ist Tiefe auf diesem Weg nicht zuverlaessig messbar und das Feld sollte ganz
-// entfallen. Der eigentliche Mangel von Bild 18 -- zu grosse und zu wenige Figuren in einem
-// einzigen Groessenband -- wird ohnehin bereits von scale_ok UND figures_est erfasst, beide
-// schlagen dort an.
+// GEMESSEN (dritter Kalibrierungslauf, 17.09.2026) -- und das Feld hat sich klar bewaehrt:
+// Bild 18, das Negativbeispiel des Nutzers, liefert 1,0. ALLE 26 anderen Bilder liegen zwischen 2,5
+// und 4,5, einschliesslich der drei Gebaeude-Querschnitte 10, 16 und 17 (2,5 bis 3,5), die in der
+// ersten Fassung noch falsch angeschlagen hatten. Dazwischen liegt eine Luecke ohne einen einzigen
+// Messwert.
+// Das Modell antwortet dabei in groben Stufen (1,0 / 2,5 / 3,5 / 4,5) statt feinstufig -- fuer eine
+// Schwelle ist das ausreichend, fuer feine Abstufungen nicht.
+//
+// WARUM 1,8 UND NICHT 2,2: die Schaetzskala schwankt zwischen Laeufen um etwa 20% (siehe die Notiz
+// zur Stabilitaet bei figuresBand oben). Auf die gemessenen Werte gerechnet heisst das: ein
+// gelungenes Bild kann im schlechtesten Fall auf 2,5 x 0,8 = 2,0 fallen, das misslungene Bild 18 im
+// schlechtesten Fall auf 1,0 x 1,2 = 1,2 steigen. Eine Schwelle von 2,2 laege ueber dem
+// Ungluecksfall der guten Bilder und wuerde sie dann faelschlich abweisen; 2,0 laege genau darauf.
+// 1,8 liegt mit Abstand unter 2,0 und mit Abstand ueber 1,2 -- also in der Mitte des sicheren
+// Bereichs. Strenger als 2,0 waere nur sinnvoll, wenn die Schwankung kleiner waere als gemessen.
 // ZWEITE KOPIE in api/_lib/fal-queue.js (gleiche Begruendung wie bei VIOLATION_SEVERITY dort).
-var DEPTH_MIN_RATIO = 2.2;
+var DEPTH_MIN_RATIO = 1.8;
 
 // NEU (17.09.2026, Bildbewertung, Abschnitt D1 "Gewichtung einfuehren"): nicht jeder Verify-Verstoss
 // ist gleich schwer. Nutzer-Vorgabe woertlich: "Ein Kandidat mit falschem Stil darf nicht gewinnen,
@@ -953,13 +977,15 @@ var VIOLATION_SEVERITY = {
   // Stilbrueche fokussiert ist (stilfremde Einzelfigur, realistische Tiere, plastische Schattierung)
   // statt auf den Normalfall -- der Stil bleibt inhaltlich das wichtigste Kriterium, nur darf ein
   // unzuverlaessiger Test nicht das Geld ausgeben.
-  // Nur noch heroes_ok ist schwer -- das einzige Kriterium, das sich in beiden Kalibrierungslaeufen
-  // bewaehrt hat (rund 95% Uebereinstimmung mit dem menschlichen Urteil, und seine Treffer sind
-  // echte Ausfaelle: die Heldin fehlt dort wirklich). style_ok und depth_ratio stehen
-  // voruebergehend auf "mittel", bis der dritte Lauf zeigt, dass ihre neuen Formulierungen treffen
-  // -- ein unzuverlaessiges Kriterium darf nicht den teuren dritten Generierungsversuch ausloesen.
-  heroes_ok: "heavy",
-  depth_ratio: "medium", style_ok: "medium",
+  // heroes_ok war von Anfang an zuverlaessig (rund 95% Uebereinstimmung, seine Treffer sind echte
+  // Ausfaelle). depth_ratio ist nach dem dritten Lauf dazugekommen: es trennt das Negativbeispiel
+  // (1,0) mit grossem Abstand von allen gelungenen Bildern (2,5 bis 4,5) und hat keinen einzigen
+  // Fehlalarm -- damit darf es wieder den dritten Generierungsversuch ausloesen.
+  // style_ok bleibt "mittel": es hat im dritten Lauf neun Mal angeschlagen, davon vier Mal auf den
+  // Weihnachtsmann und vier Mal auf ganz normale Tiere. Solange das so ist, darf es kein Geld
+  // ausgeben.
+  heroes_ok: "heavy", depth_ratio: "heavy",
+  style_ok: "medium",
   // mittel
   // GEAENDERT (17.09.2026, nach dem ersten Kalibrierungslauf): "density" heisst jetzt
   // "figures_est" (Zahl statt Dreiwert, siehe figuresBand oben), und "noses_ok" ist ganz
@@ -1471,7 +1497,29 @@ function sceneComposeInstruction(promptText) {
 // Referenzbilder der benannten Helden mit (image_urls: [generiertes Bild, Referenz 1, Referenz 2, ...],
 // siehe advanceSceneJob() in scene-job-engine.js) -- dieser Funktionstext erklaert dem Modell explizit,
 // welches Bild was ist, und verlangt einen echten Abgleich statt einer Text-Einschaetzung.
-// ZWEITE FASSUNG (17.09.2026, nach dem ersten Kalibrierungslauf gegen die 27 bewerteten Bilder).
+// VIERTE FASSUNG (17.09.2026, nach dem dritten Kalibrierungslauf). Nur style_ok geaendert, dafuer
+// grundlegend -- die dritte Fassung hatte dort neun Treffer, und die Begruendungen des Modells (die
+// dank der "nenne den Ausreisser"-Auflage jetzt konkret sind) zeigen, dass KEINER davon ein
+// Stilbruch im Sinne des Nutzers war:
+//   - Vier Mal war es der WEIHNACHTSMANN (Bild 15, 17, 23, 25) -- "Santa Claus has a plastic nose".
+//     Sachlich richtig, aber der Weihnachtsmann wird in einer Weihnachtsszene nun einmal mit Nase
+//     und Bart gezeichnet, und der Nutzer hat ihn nie bemaengelt. Jetzt ausdruecklich ausgenommen.
+//   - Vier Mal war es ein ganz normales TIER (Bild 2 "rooster", 6 und 11 "naturalistic dog",
+//     21 "Beagle is naturalistic", dazu Bild 7 "eagle too realistic"). Genau die Klasse von
+//     Fehlalarm, die schon die erste Fassung hatte.
+//   - Der zweite Zielfall, der "realistische Baer" in Bild 13, wurde nicht getroffen -- und das ist
+//     korrekt: bei eigener Ansicht des Bildes ist der Baer flach gezeichnet, mit dicker Kontur,
+//     Punktaugen und schlichter Schnauze, voellig stilkonform. Er ist inhaltlich ueberraschend (ein
+//     Baer auf dem Spielplatz), aber kein Stilbruch. Teil (b) war damit auf ein Ziel gerichtet, das
+//     es nicht gibt, und hat nur Fehlalarme produziert -- deshalb ganz entfallen.
+//   - Der echte Zielfall bleibt Bild 21: die grosse Vordergrundfigur mit Strohhut hat eine als Form
+//     gezeichnete Nase, Bartstoppeln und ein modelliertes Halbprofil, waehrend alle anderen
+//     Gesichter flach und frontal sind. Im dritten Lauf hat das Modell dort NICHT diese Figur
+//     gemeldet, sondern den Beagle -- es hat den ersten Treffer genommen und aufgehoert zu suchen.
+//     Ohne Tier-Teil bleibt nur noch das Gesicht zu pruefen; ob das reicht, zeigt der naechste Lauf.
+// style_ok bleibt deshalb auf "mittel", bis es diesen einen Fall trifft und sonst nichts.
+//
+// ZWEITE UND DRITTE FASSUNG (17.09.2026, nach dem ersten Kalibrierungslauf gegen die 27 bewerteten Bilder).
 // Der Lauf hat vier Felder als unbrauchbar entlarvt, jeweils mit klarer Ursache aus den
 // Modell-Begruendungen im Ergebnis-JSON:
 //   - style_ok schlug in 17 von 21 Phase-1-Bildern an, darunter die gelobten Bilder 11 und 20. Die
@@ -1570,11 +1618,11 @@ function buildVerifyPrompt(heroSpecs, phaseId) {
 
     "1. HELDEN: Kommen alle " + n + " benannten Figuren (" + names + ") vor, jede GENAU EINMAL (nicht doppelt) und grob passend zu ihrem Referenzbild? Verglichen werden nur GROBE Merkmale: Frisur/Haarform, Haarfarbe, wichtigstes Kleidungsstück samt Farbe, Altersstufe (Kind / Erwachsener / älterer Mensch). Kleinstdetails wie Sommersprossen, Streifenmuster oder Knöpfe sind ausdrücklich KEIN Grund für ein Nein.",
 
-    "2. STIL. Vorweg, damit du nicht das Falsche bemängelst -- das Folgende ist der GEWÜNSCHTE Stil und niemals ein Verstoß: leichte Schattierung, Textur oder Farbverläufe auf Requisiten, Gebäuden, Fahrzeugen, Landschaft, Boden, Sand, Heu, Wasser und Himmel; unterschiedlich dicke Konturlinien; Punktaugen; ein einzelner senkrechter Nasenstrich; leichte runde Wangenröte; ein einfarbiger Hintergrund; ein weicher Schlagschatten unter einer Figur. Wie detailliert die KULISSE gezeichnet ist, spielt für diesen Punkt überhaupt keine Rolle.",
-    "Jetzt die eigentliche Frage, und dafür suchst du bitte gezielt, statt einen Gesamteindruck abzugeben. Gibt es im Bild mindestens EINE Figur oder EIN Tier, das erkennbar anders gezeichnet ist als alle übrigen? Geh dazu diese zwei Punkte einzeln durch und schau jeweils wirklich nach:",
-    "(a) GESICHTER: Hat irgendeine menschliche Figur eine plastisch gezeichnete Nase -- also eine Nase mit Nasenrücken, Nasenspitze, Nasenflügeln, Nasenloch oder Schatten daran, statt nur eines einzelnen dünnen senkrechten Strichs? Auch eine einzige solche Figur unter hundert ist ein Verstoß. Achte besonders auf große Figuren im Vordergrund, dort fällt es am ehesten auf.",
-    "(b) TIERE: Ist irgendein Tier deutlich naturalistischer gezeichnet als die Menschen um es herum -- mit ausgearbeitetem Fell, plastischem Körper, echter Tieranatomie, so als käme es aus einem anderen Buch? Auch ein einziges solches Tier ist ein Verstoß. Ein flach gezeichnetes Tier mit dicker Kontur und etwas Fellschattierung ist dagegen völlig in Ordnung.",
-    "style_ok ist nur dann true, wenn WEDER (a) NOCH (b) zutrifft. Ist style_ok false, nenne in deiner kurzen Begründung, welche Figur oder welches Tier du meinst und wo im Bild sie steht.",
+    "2. STIL. Es geht bei diesem Punkt AUSSCHLIESSLICH um menschliche Gesichter. Tiere sind hier vollständig ausgenommen, egal wie sie gezeichnet sind -- ein Hund mit ausgearbeitetem Fell, eine gefiederte Gans, ein Hahn, ein Adler, ein plastisch gezeichnetes Pferd: alles in Ordnung, nichts davon darf dein Urteil beeinflussen. Ebenso ausgenommen ist die Kulisse: Schattierung, Textur und Farbverläufe auf Requisiten, Gebäuden, Fahrzeugen, Landschaft, Boden, Sand, Heu, Wasser und Himmel sind der gewünschte Stil.",
+    "Der gewünschte Gesichtsstil ist: runder Kopf, zwei Punktaugen, ein einzelner dünner senkrechter Strich als Nase, meist kein Mund, oft leichte runde Wangenröte, alles flach und ohne Modellierung. Genau so sehen praktisch alle Figuren aus, und das ist richtig.",
+    "Die Frage ist nun: fällt EIN EINZELNES menschliches Gesicht aus diesem Schema heraus, weil es plastischer gezeichnet ist als alle anderen? Anzeichen dafür, einzeln durchzugehen: eine Nase, die als Form gezeichnet ist statt als Strich (mit Nasenrücken, Nasenspitze, Nasenflügeln oder Schatten daran); sichtbare Bartstoppeln oder Schattierung auf Wangen, Kinn oder Hals; ein im Halbprofil gezeichnetes Gesicht mit modellierten Zügen, während alle übrigen frontal und flach sind. Schau dafür besonders die großen Figuren im Vordergrund an -- dort tritt es auf.",
+    "AUSNAHME, die dir sonst einen Fehlalarm beschert: der WEIHNACHTSMANN (roter Mantel, rote Zipfelmütze, weißer Vollbart) darf Nase und Bart haben, er ist als Figur so vorgesehen. Dasselbe gilt für andere Figuren, deren Bart zur Rolle gehört, etwa einen Nikolaus. Solche Figuren sind KEIN Verstoß.",
+    "style_ok ist false, wenn du ein solches einzelnes, plastischer gezeichnetes Gesicht findest -- sonst true. Ist es false, nenne in deiner kurzen Begründung, welche Figur du meinst und wo im Bild sie steht.",
 
     "3. TIEFENSTAFFELUNG: Such die GRÖSSTE Figur im Bild (meist ganz vorne) und die KLEINSTE noch erkennbare Figur (meist weit hinten, in der Bildtiefe oder in einem hinteren Raum). Schätze dann: wie oft würde die kleinste Figur ihrer Höhe nach in die größte hineinpassen? Antworte hier nicht mit true/false, sondern mit einer einzelnen Zahl, gern mit einer Dezimalstelle. Ein Bild mit kräftiger Tiefe liefert einen hohen Wert, ein Bild, in dem alle Figuren in einem ähnlichen Größenband liegen, einen Wert nahe 1. Das gilt genauso für einen Gebäude-Querschnitt: dort vergleichst du einfach die größte Figur vorne mit der kleinsten in den hinteren Räumen oder draußen. Zähle nur Menschen, keine Tiere.",
 
