@@ -991,7 +991,13 @@ Screens.zaubern = {
     // Ergebnis wechseln), und der Merker MUSS vor dem Wechsel weg sein, sonst wuerde ein Reload auf
     // dem Ergebnis-Screen spaeter erneut versuchen, einen laengst fertigen Job fortzusetzen.
     function finishSceneResult(result, title) {
-      AppState.update({ pendingSceneJob: null });
+      // NEU (17.09.2026, D3): erst bei ERFOLG sperren, nicht schon bei der Auswahl -- ein
+      // abgebrochener Versuch soll die Situationen nicht verbrauchen. Die Liste wird gedeckelt,
+      // damit sie bei vielen Bildern nicht unbegrenzt waechst (ein Buch hat hoechstens eine
+      // Handvoll Bilder, 400 Eintraege sind weit mehr als je gebraucht werden).
+      const bisher = AppState.data.usedSituations || [];
+      const neu = bisher.concat((result && result.usedNow) || []).slice(-400);
+      AppState.update({ pendingSceneJob: null, usedSituations: neu });
       AppState.addImage({
         title: title, src: result.best.url,
         promptText: result.promptText, instruction: result.instruction,
@@ -1094,7 +1100,10 @@ Screens.zaubern = {
         // der neuen 30-50-Figuren-Zielspanne) -- fuer den Chat-Weg zaehlt v.a. die TRUNKIERUNG bei
         // mehr als 20 gelieferten Situationen (Anthropic erzwingt "minItems" im Tool-Schema nicht
         // hart).
-        const situations = Pipeline.autoSituations(theme, sNow.sceneUserSituations || [], 20);
+        // GEAENDERT (17.09.2026, D3): die buchweite Sperrliste wird mitgegeben, damit keine
+        // Situation zweimal im selben Buch auftaucht (siehe topUpSituations() in pipeline.js).
+        const usedTexts = sNow.usedSituations || [];
+        const situations = Pipeline.autoSituations(theme, sNow.sceneUserSituations || [], 20, usedTexts);
         setPhase("gen");
         // GEAENDERT (Sammel-Runde 15.09.2026, Punkt 3: "Warteschlangen-Architektur auf den
         // Szenen-Pfad uebertragen"): statt der bisherigen composeSceneImage() (eine einzige, 2-5
@@ -1107,7 +1116,7 @@ Screens.zaubern = {
         // jetzt moeglich (siehe onUpdate unten) statt des vorherigen Fake-setTimeout(...,20000).
         // composeSceneImage() bleibt unveraendert in pipeline.js als eigenstaendig getestete
         // Referenz-/Fallback-Funktion erhalten, wird aber im Produktpfad nicht mehr aufgerufen.
-        const result = await Pipeline.runSceneJobPolling({ heroSpecs, theme, situations }, {
+        const result = await Pipeline.runSceneJobPolling({ heroSpecs, theme, situations, usedTexts }, {
           // NEU (17.09.2026, Punkt 0): jobId sofort persistieren, sobald sie feststeht -- AppState
           // schreibt ohnehin nach jeder Aenderung in localStorage UND (anonyme Session) auf den
           // Server, der Merker uebersteht damit einen kompletten Tab-Reload.

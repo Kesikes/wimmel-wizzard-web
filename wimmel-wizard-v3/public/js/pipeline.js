@@ -649,7 +649,27 @@ const GAG_LIBRARY = {
     {de:"Kinder buddeln einen Tunnel und treffen sich in der Mitte", en:"kids digging a tunnel and meeting in the middle"},
     {de:"Ein Hund buddelt ein riesiges Loch und wird ganz sandig", en:"a dog digging a huge sandy hole, covered in sand"},
     {de:"Beim Beachvolleyball fliegt der Ball ins Wasser", en:"a beach volleyball flying into the water"},
-    {de:"Jemand döst ein und wird fast von der Flut erwischt", en:"someone dozing off almost getting caught by the tide"}
+    {de:"Jemand döst ein und wird fast von der Flut erwischt", en:"someone dozing off almost getting caught by the tide"},
+    {de:"Ein Sonnenschirm klappt zusammen und begräbt ein Handtuch", en:"a beach umbrella collapsing onto a towel"},
+    {de:"Jemand schleppt eine riesige Luftmatratze zum Wasser", en:"someone hauling a huge air mattress to the water"},
+    {de:"Zwei Kinder sammeln Muscheln in einen Eimer und vergleichen sie", en:"two kids collecting shells in a bucket and comparing them"},
+    {de:"Ein Kind steht bis zu den Knien im Wasser und zeigt auf einen Fisch", en:"a child knee-deep in the water pointing at a fish"},
+    {de:"Ein Handtuch wird vom Wind über den Strand getragen", en:"a towel carried across the beach by the wind"},
+    {de:"Jemand gräbt eine Grube und verschwindet fast darin", en:"someone digging a pit and almost disappearing into it"},
+    {de:"Ein Tretboot wird zu Wasser gelassen, alle schieben", en:"a pedal boat being launched with everyone pushing"},
+    {de:"Eine Sandburg bekommt einen Wassergraben aus zwei Eimern", en:"a sandcastle getting a moat from two buckets"},
+    {de:"Ein Kind zieht einen Bollerwagen voller Strandzeug", en:"a child pulling a handcart full of beach gear"},
+    {de:"Jemand ist komplett mit Sand bedeckt, nur der Kopf schaut heraus", en:"someone buried in sand with only their head showing"},
+    {de:"Zwei Möwen zanken sich um ein Stück Brot", en:"two seagulls squabbling over a piece of bread"},
+    {de:"Jemand balanciert auf einem Stein am Wasserrand", en:"someone balancing on a stone at the water's edge"},
+    {de:"Ein Schlauchboot treibt mit einem Hund darin am Ufer", en:"a rubber dinghy drifting near the shore with a dog in it"},
+    {de:"Ein Kind trägt einen Turm aus drei Eimern", en:"a child carrying a tower of three buckets"},
+    {de:"Eine Welle erwischt eine Reihe aufgestellter Sandburgen", en:"a wave catching a row of sandcastles"},
+    {de:"Jemand wringt ein tropfnasses Handtuch aus", en:"someone wringing out a dripping towel"},
+    {de:"Ein Junge übt Rad schlagen im flachen Wasser", en:"a boy practising cartwheels in the shallow water"},
+    {de:"Ein Eisverkäufer wird von einer Traube Kinder umringt", en:"an ice cream seller surrounded by a cluster of children"},
+    {de:"Ein Kind sammelt Treibholz zu einem Stapel", en:"a child collecting driftwood into a pile"},
+    {de:"Eine Luftmatratze wird aufgepumpt, der Stöpsel fehlt", en:"an air mattress being pumped up with the plug missing"}
   ],
   park: [
     {de:"Ein Hund klaut jemandem die Wurst vom Grill", en:"a dog stealing a sausage from someone's barbecue"},
@@ -661,7 +681,27 @@ const GAG_LIBRARY = {
     {de:"Eine Wippe kippt, weil eine Seite viel schwerer ist", en:"a seesaw tipping because one side is much heavier"},
     {de:"Enten überfallen ein Picknick", en:"ducks raiding a picnic blanket"},
     {de:"Ein Kind versteckt sich beim Fangenspielen hinter einer viel zu kleinen Laterne", en:"a child hiding behind a way too small lamppost during a game of tag"},
-    {de:"Jemand fährt mit dem Roller gegen eine Parkbank", en:"someone crashing a scooter into a park bench"}
+    {de:"Jemand fährt mit dem Roller gegen eine Parkbank", en:"someone crashing a scooter into a park bench"},
+    {de:"Ein Kind hängt kopfüber am Klettergerüst", en:"a child hanging upside down on the climbing frame"},
+    {de:"Zwei Kinder schaukeln im Stehen und immer höher", en:"two kids swinging standing up and ever higher"},
+    {de:"Ein Hund trägt einen viel zu großen Stock quer über den Weg", en:"a dog carrying a far too big stick across the path"},
+    {de:"Jemand füttert Spatzen aus der Hand", en:"someone feeding sparrows from their hand"},
+    {de:"Ein Kind schiebt einen Puppenwagen über den Kies", en:"a child pushing a doll's pram across the gravel"},
+    {de:"Ein Ball landet im Blumenbeet, ein Kind klettert hinterher", en:"a ball landing in the flower bed with a child climbing after it"},
+    {de:"Der Sandkasten wird zur Baustelle mit drei Baggern", en:"the sandbox turned into a building site with three toy diggers"},
+    {de:"Jemand zieht ein Kind auf einem Tretroller hinterher", en:"someone towing a child on a scooter"},
+    {de:"Ein Kind hat sich im Kletternetz verkeilt und wird befreit", en:"a child wedged in the climbing net being freed"},
+    {de:"Jemand liest auf der Bank und merkt die Taube daneben nicht", en:"someone reading on a bench not noticing the pigeon beside them"},
+    {de:"Zwei Kinder tauschen Sammelkarten auf einer Bank", en:"two kids swapping collector cards on a bench"},
+    {de:"Ein Kind zieht einen Bollerwagen mit einem Hund darin", en:"a child pulling a handcart with a dog inside"},
+    {de:"Der Trinkbrunnen spritzt höher als erwartet", en:"the drinking fountain squirting higher than expected"},
+    {de:"Ein Kind malt mit Kreide ein Hüpfspiel auf den Weg", en:"a child chalking a hopscotch grid onto the path"},
+    {de:"Ein Drachen wird von zwei Kindern gleichzeitig gehalten", en:"a kite held by two children at once"},
+    {de:"Ein Eichhörnchen läuft über eine Bankreihe", en:"a squirrel running along a row of benches"},
+    {de:"Jemand macht Seifenblasen, Kinder rennen hinterher", en:"someone blowing soap bubbles with kids chasing them"},
+    {de:"Ein Kind rollt einen Reifen über die Wiese", en:"a child rolling a hoop across the lawn"},
+    {de:"Drei Kinder bauen eine Hütte aus Ästen", en:"three kids building a den from branches"},
+    {de:"Ein Rollerhelm liegt vergessen auf der Rutsche", en:"a scooter helmet left behind on the slide"}
   ],
   farm: [
     {de:"Ein Schwein ist ausgebüxt und rennt über den Hof", en:"a pig that escaped its pen running across the farmyard"},
@@ -673,7 +713,27 @@ const GAG_LIBRARY = {
     {de:"Eine Gans jagt den Bauern über den Hof", en:"a goose chasing the farmer across the yard"},
     {de:"Kinder verstecken sich im Heuhaufen", en:"kids hiding in a haystack"},
     {de:"Ein Hahn kräht viel zu früh und weckt alle auf", en:"a rooster crowing way too early and waking everyone up"},
-    {de:"Eine Ziege frisst die Wäsche von der Leine", en:"a goat eating laundry off the clothesline"}
+    {de:"Eine Ziege frisst die Wäsche von der Leine", en:"a goat eating laundry off the clothesline"},
+    {de:"Ein Schaf hat sich von der Herde getrennt und steht im Gemüsebeet", en:"a sheep separated from the flock standing in the vegetable patch"},
+    {de:"Zwei Kinder tragen zusammen einen viel zu schweren Eimer Futter", en:"two kids carrying one far too heavy bucket of feed together"},
+    {de:"Ein Kalb leckt an einem Gummistiefel, der noch am Fuß steckt", en:"a calf licking a rubber boot that is still on someone's foot"},
+    {de:"Der Misthaufen ist umgekippt und die Hühner stürmen hinein", en:"a toppled muck heap with chickens storming into it"},
+    {de:"Ein Kind sitzt auf dem Traktorsitz und hält das Lenkrad fest", en:"a child sitting on the tractor seat gripping the steering wheel"},
+    {de:"Eine Katze schleicht sich an eine Schüssel Milch heran", en:"a cat creeping up on a bowl of milk"},
+    {de:"Jemand bindet Strohballen mit einem viel zu kurzen Seil zusammen", en:"someone tying straw bales with a far too short rope"},
+    {de:"Eine Schubkarre voller Äpfel kippt an einer Steigung", en:"a wheelbarrow full of apples tipping on a slope"},
+    {de:"Ein Hund treibt drei Enten in die falsche Richtung", en:"a dog herding three ducks in the wrong direction"},
+    {de:"Ein Kind pflückt Kirschen und hat schon rote Finger", en:"a child picking cherries with already red fingers"},
+    {de:"Der Brunnen läuft über und bildet eine Pfütze", en:"the well overflowing into a puddle"},
+    {de:"Zwei Ziegen stehen auf dem Dach des Hühnerstalls", en:"two goats standing on the roof of the chicken coop"},
+    {de:"Jemand balanciert auf dem Weidezaun, Arme weit ausgestreckt", en:"someone balancing on the pasture fence with arms spread wide"},
+    {de:"Ein Ferkel rennt mit einem Kohlkopf im Maul davon", en:"a piglet running off with a cabbage in its mouth"},
+    {de:"Ein Kind füttert ein Lamm aus der Flasche und wird angerempelt", en:"a child bottle-feeding a lamb and getting nudged"},
+    {de:"Der Heuboden wird über eine Leiter erklommen, unten wartet schon jemand", en:"someone climbing a ladder to the hayloft while another waits below"},
+    {de:"Eine Schubkarre wird als Rennwagen benutzt, zwei Kinder schieben", en:"a wheelbarrow used as a race car with two kids pushing"},
+    {de:"Ein Storch landet auf dem Schornstein des Bauernhauses", en:"a stork landing on the farmhouse chimney"},
+    {de:"Kartoffeln rollen aus einem geplatzten Sack über den Hof", en:"potatoes rolling across the yard from a burst sack"},
+    {de:"Ein Kind schaut mit Hut und Schleier in einen Bienenstock", en:"a child in a veiled hat peering into a beehive"}
   ],
   zoo: [
     {de:"Ein Affe klaut jemandem die Mütze", en:"a monkey stealing someone's hat"},
@@ -709,7 +769,27 @@ const GAG_LIBRARY = {
     {de:"Ein Fahrradkurier balanciert einen riesigen Stapel Pakete", en:"a bike courier balancing a huge stack of packages"},
     {de:"Ein Eiswagen hat eine lange Schlange", en:"an ice cream van with a long queue"},
     {de:"Eine Tüte Orangen fällt jemandem hin und kullert über den Gehweg", en:"a bag of oranges spilling and rolling across the sidewalk"},
-    {de:"Ein Straßenkünstler steht so still, dass ihn alle für eine Statue halten", en:"a street performer standing so still everyone thinks he's a statue"}
+    {de:"Ein Straßenkünstler steht so still, dass ihn alle für eine Statue halten", en:"a street performer standing so still everyone thinks he's a statue"},
+    {de:"Ein Kind zieht einen Erwachsenen zum Schaufenster einer Bäckerei", en:"a child pulling an adult towards a bakery window"},
+    {de:"Zwei Handwerker tragen eine Fensterscheibe über den Platz", en:"two workmen carrying a pane of glass across the square"},
+    {de:"Ein Straßenkehrer sammelt Blätter, der Wind verteilt sie neu", en:"a street sweeper gathering leaves that the wind scatters again"},
+    {de:"Jemand schiebt ein Fahrrad mit platten Reifen", en:"someone pushing a bicycle with a flat tyre"},
+    {de:"Ein Blumenstand wird aufgebaut, Eimer überall", en:"a flower stall being set up with buckets everywhere"},
+    {de:"Ein Kellner balanciert ein Tablett zwischen den Tischen", en:"a waiter balancing a tray between the tables"},
+    {de:"Ein Kind zählt Münzen für den Eisstand", en:"a child counting coins for the ice cream stand"},
+    {de:"Ein Paket fällt vom Stapel eines Lieferwagens", en:"a parcel falling from a stack on a delivery van"},
+    {de:"Zwei Tauben sitzen auf dem Lenker eines Rollers", en:"two pigeons sitting on a scooter's handlebars"},
+    {de:"Jemand hält eine Ladentür für eine ganze Familie auf", en:"someone holding a shop door for an entire family"},
+    {de:"Ein Kind sitzt auf Schultern und schaut über die Menge", en:"a child on someone's shoulders looking over the crowd"},
+    {de:"Ein Straßenmusiker stimmt die Gitarre, ein Hund wartet daneben", en:"a busker tuning a guitar with a dog waiting beside him"},
+    {de:"Auf dem Markt wird ein Fisch in Papier gewickelt", en:"a fish being wrapped in paper at the market"},
+    {de:"Ein Kinderwagen wird über eine Bordsteinkante gehoben", en:"a pram being lifted over a kerb"},
+    {de:"Jemand gießt Blumenkästen an einem Fenster im ersten Stock", en:"someone watering flower boxes at a first-floor window"},
+    {de:"Zwei Kinder wetteifern, wer schneller die Treppe hochkommt", en:"two kids racing each other up the steps"},
+    {de:"Ein Hund ist an einem Laternenpfahl angebunden und wartet", en:"a dog tied to a lamppost waiting"},
+    {de:"Eine Marktfrau stapelt Melonen zu einer Pyramide", en:"a market woman stacking melons into a pyramid"},
+    {de:"Ein Kind läuft mit einem Luftballon durch die Menge", en:"a child running through the crowd with a balloon"},
+    {de:"Jemand trägt einen Stapel Kisten und sieht nichts", en:"someone carrying a stack of crates with no view ahead"}
   ],
   mountains: [
     {de:"Eine Kuh mit Glocke steht mitten auf dem Wanderweg", en:"a cow with a bell standing in the middle of the hiking trail"},
@@ -721,7 +801,27 @@ const GAG_LIBRARY = {
     {de:"Ein Wanderer hat sich verlaufen und studiert die Karte", en:"a hiker totally lost, studying a map"},
     {de:"Ein Schmetterling landet auf jemandes Nase", en:"a butterfly landing on someone's nose"},
     {de:"Ein Hund apportiert einen viel zu großen Stock", en:"a dog fetching a way too big stick"},
-    {de:"Am Gipfel jubeln alle und schwenken die Arme", en:"everyone cheering and waving their arms at the summit"}
+    {de:"Am Gipfel jubeln alle und schwenken die Arme", en:"everyone cheering and waving their arms at the summit"},
+    {de:"Zwei Wanderer teilen sich eine Brotzeit auf einem Felsen", en:"two hikers sharing a packed lunch on a rock"},
+    {de:"Ein Kind trinkt aus einem Bergbach", en:"a child drinking from a mountain stream"},
+    {de:"Eine Ziege versperrt den schmalen Pfad", en:"a goat blocking the narrow path"},
+    {de:"Jemand schnürt die Wanderschuhe neu, der Rucksack liegt daneben", en:"someone relacing their hiking boots with the backpack beside them"},
+    {de:"Ein Kind sammelt bunte Steine in die Jackentasche", en:"a child collecting coloured stones in a jacket pocket"},
+    {de:"Eine Seilbahngondel schwebt über die Köpfe hinweg", en:"a cable car gondola floating over people's heads"},
+    {de:"Zwei Kinder rollen einen Stein den Hang hinunter", en:"two kids rolling a stone down the slope"},
+    {de:"Eine Wandergruppe stapft im Gänsemarsch bergauf", en:"a hiking group trudging uphill in single file"},
+    {de:"Jemand hält die Karte falsch herum, ein anderer dreht sie", en:"someone holding the map upside down while another turns it"},
+    {de:"Ein Kind springt über einen Bach, der Rucksack fliegt mit", en:"a child jumping a stream with the backpack flying along"},
+    {de:"Kühe liegen mitten auf dem Weg und rühren sich nicht", en:"cows lying in the middle of the path not moving"},
+    {de:"Ein Zelt wird aufgebaut, eine Stange fehlt", en:"a tent being pitched with one pole missing"},
+    {de:"Ein Kind wird auf den letzten Metern zum Gipfel getragen", en:"a child being carried the last few metres to the summit"},
+    {de:"Jemand hängt nasse Socken an den Rucksack", en:"someone hanging wet socks on their backpack"},
+    {de:"Ein Murmeltier verschwindet im Loch, zwei Kinder knien davor", en:"a marmot disappearing into its hole with two kids kneeling in front"},
+    {de:"Eine Almhütte ist belagert, alle Bänke sind voll", en:"a mountain hut besieged by hikers with every bench taken"},
+    {de:"Ein Kind malt mit dem Finger in ein Altschneefeld", en:"a child drawing with a finger in an old snow patch"},
+    {de:"Jemand rutscht auf Geröll und wird am Arm gehalten", en:"someone slipping on scree and being held by the arm"},
+    {de:"Zwei Wanderstöcke stehen verlassen an einem Baum", en:"two hiking poles left standing against a tree"},
+    {de:"Ein Rucksack wird geöffnet und der halbe Inhalt fällt heraus", en:"a backpack opened with half its contents falling out"}
   ],
   school: [
     {de:"Beim Basteln landet mehr Kleber auf den Fingern als auf dem Papier", en:"more glue ending up on fingers than on the paper during crafts"},
@@ -750,7 +850,25 @@ const GAG_LIBRARY = {
     {de:"Ein Türchen des Adventskalenders wurde viel zu früh geöffnet", en:"an advent calendar door opened way too early"},
     {de:"Opa nickt im Sessel ein, während um ihn herum Geschenke eingepackt werden", en:"grandpa dozing off in his armchair while presents get wrapped all around him"},
     {de:"Eine Rolle Geschenkband rollt quer durchs Zimmer", en:"a roll of ribbon unspooling across the room"},
-    {de:"Draußen baut jemand hastig einen schiefen Schneemann, bevor es dunkel wird", en:"someone hastily building a lopsided snowman outside before it gets dark"}
+    {de:"Draußen baut jemand hastig einen schiefen Schneemann, bevor es dunkel wird", en:"someone hastily building a lopsided snowman outside before it gets dark"},
+    {de:"Ein Stiefel steht vor der Tür, der Hund schnuppert daran", en:"a boot placed outside the door with the dog sniffing it"},
+    {de:"Zwei Kinder schmücken den Baum nur unten, oben bleibt leer", en:"two kids decorating only the bottom of the tree, the top left bare"},
+    {de:"Jemand trägt einen Stapel Teller in die Stube", en:"someone carrying a stack of plates into the parlour"},
+    {de:"Ein Kind zählt die Geschenke unter dem Baum", en:"a child counting the presents under the tree"},
+    {de:"Eine Kerze wird angezündet, alle schauen hin", en:"a candle being lit with everyone looking"},
+    {de:"Der Braten wird aus dem Ofen gezogen, Dampf überall", en:"the roast pulled from the oven with steam everywhere"},
+    {de:"Zwei Kinder warten auf der Treppe und schauen durchs Geländer", en:"two kids waiting on the stairs and looking through the banister"},
+    {de:"Jemand versteckt ein Geschenk hinter dem Rücken", en:"someone hiding a present behind their back"},
+    {de:"Der Christbaumständer wackelt, zwei halten den Baum fest", en:"the tree stand wobbling with two people steadying the tree"},
+    {de:"Ein Kind hat Watte als Schneebart im Gesicht", en:"a child with cotton wool as a snowy beard on their face"},
+    {de:"Draußen wird eine Laterne aus Schneebällen gebaut", en:"a lantern being built from snowballs outside"},
+    {de:"Jemand trägt Brennholz herein, ein Scheit fällt", en:"someone carrying firewood in with one log falling"},
+    {de:"Zwei Kinder ziehen an denselben Geschenkbändern", en:"two kids pulling on the same gift ribbons"},
+    {de:"Der Hund liegt unter dem Baum auf dem Geschenkpapier", en:"the dog lying on the wrapping paper under the tree"},
+    {de:"Jemand klebt einen Stern ans Fenster", en:"someone sticking a star onto the window"},
+    {de:"Ein Kind steht auf einem Stuhl, um an die oberste Kugel zu kommen", en:"a child standing on a chair to reach the topmost bauble"},
+    {de:"Eine Schlittenfahrt endet in einer Schneewehe", en:"a sledge ride ending in a snowdrift"},
+    {de:"Die Tischdecke wird mit vier Händen gerade gezogen", en:"the tablecloth being straightened by four hands"}
   ],
   generic: [
     {de:"Jemand verliert beim Rennen einen Schuh", en:"someone losing a shoe while running"},
@@ -762,7 +880,21 @@ const GAG_LIBRARY = {
     {de:"Jemand hat sich verkleidet und sorgt für Aufsehen", en:"someone in a costume causing a stir"},
     {de:"Zwei Freunde teilen sich ein Eis, bevor es schmilzt", en:"two friends sharing an ice cream before it melts"},
     {de:"Ein Vogel landet frech mitten in der Szene", en:"a bird cheekily landing right in the middle of the scene"},
-    {de:"Jemand winkt fröhlich allen anderen zu", en:"someone waving happily at everyone else"}
+    {de:"Jemand winkt fröhlich allen anderen zu", en:"someone waving happily at everyone else"},
+    {de:"Jemand bindet sich im Laufen den Schnürsenkel", en:"someone tying a shoelace while still moving"},
+    {de:"Zwei Kinder zählen etwas auf den Fingern ab", en:"two kids counting something on their fingers"},
+    {de:"Ein Kind zeigt auf etwas außerhalb des Bildes", en:"a child pointing at something outside the picture"},
+    {de:"Jemand trägt zwei Sachen und bräuchte eine dritte Hand", en:"someone carrying two things and needing a third hand"},
+    {de:"Zwei Leute tragen etwas Langes und kommen um die Ecke nicht herum", en:"two people carrying something long and unable to get round a corner"},
+    {de:"Ein Kind hält einem anderen die Augen zu", en:"a child covering another's eyes with their hands"},
+    {de:"Jemand sucht etwas in einer viel zu großen Tasche", en:"someone searching in a far too large bag"},
+    {de:"Ein Hut wird im letzten Moment festgehalten", en:"a hat grabbed at the last moment"},
+    {de:"Ein Kind läuft rückwärts und schaut nach vorn", en:"a child walking backwards while looking forward"},
+    {de:"Zwei Geschwister tragen eine Kiste, eine Seite hängt durch", en:"two siblings carrying a crate together with one side dipping"},
+    {de:"Jemand winkt jemandem zu, der schon weit weg ist", en:"someone waving to a person already far away"},
+    {de:"Ein Kind sammelt etwas vom Boden in die Hosentasche", en:"a child gathering something from the ground into a trouser pocket"},
+    {de:"Jemand schaut durch ein Fernglas in die falsche Richtung", en:"someone looking through binoculars the wrong way round"},
+    {de:"Ein Kind trägt etwas Zerbrechliches mit beiden Händen", en:"a child carrying something fragile with both hands"}
   ]
 };
 
@@ -791,27 +923,75 @@ function pickGagChips(loc, count, excludeSet) {
 // einer weihnachtlichen Wohnzimmerszene sofort wieder unpassend wirken, genau das Problem, das der
 // neue christmas-Pool beheben soll. Reicht der 12er-Pool fuer das target nicht, greift stattdessen
 // der "Letzter Notstand"-Wiederholungsfallback unten (Wiederholung statt thematischem Bruch).
-function topUpSituations(list, locId, target) {
-  target = target || 15;
+// NEU GESCHRIEBEN (17.09.2026, D3 "Gag-Pools vergroessern, Wiederholung pro Buch verhindern").
+//
+// DER BEFUND, der das noetig gemacht hat: der Nutzer hat nach Ansicht von 27 generierten Bildern
+// bemerkt, dass sich die Situationen "viel zu stark" wiederholen und dabei einen Gag genannt, der in
+// fast JEDEM Bild vorkam (ein rennendes Kind verliert einen Schuh), dazu Regenschirm im Wind, Eis
+// teilen und weitere. Die Ursache steckte in der Arithmetik dieser Funktion: die Zielzahl liegt bei
+// 20, der Themenpool hatte 10 Eintraege und der generische Pool ebenfalls 10. Zusammen genau 20 --
+// also wurden BEIDE Pools vollstaendig eingesetzt, in jeder einzelnen Szene. Es gab keine Auswahl
+// und damit keine Variation: jedes Bauernhof-Bild bekam dieselben 20 Situationen, und jedes Bild
+// ueberhaupt bekam alle 10 generischen dazu, darunter den Schuh.
+//
+// DREI AENDERUNGEN:
+// 1. Die Pools der sechs live genutzten Themen sind auf je 30 Eintraege gewachsen, der generische
+//    auf 24 (siehe GAG_LIBRARY oben). Bei Zielzahl 20 ist die Auswahl damit erstmals eine echte
+//    Auswahl -- rund 30 Millionen moegliche Kombinationen pro Thema statt genau einer.
+// 2. Der Themenpool hat jetzt VORRANG und wird zufaellig gemischt; der generische Pool fuellt nur
+//    noch auf, wenn der Themenpool nicht reicht. Fuer die sechs Live-Themen (30 >= 20) heisst das:
+//    gar keine generischen Situationen mehr. Genau die waren die auffaelligen Wiederholungen.
+//    Die kleineren Pools (home, zoo, pool, school -- nur ueber den Chat-Weg erreichbar, je 10
+//    Eintraege) greifen weiterhin auf den generischen Pool zurueck.
+// 3. usedTexts: buchweite Sperrliste. Jede Situation, die in einem frueheren Bild DESSELBEN Buches
+//    schon vorkam, wird uebersprungen (Nutzer-Vorgabe: "pro Buch jede Situation hoechstens einmal").
+//    Die Liste lebt im AppState (usedSituations, siehe state.js) und uebersteht damit Reloads.
+//    Reicht der Pool nicht mehr aus -- bei 30 Eintraeggen und 20 pro Bild ab dem zweiten Bild
+//    desselben Themas --, wird die Sperre stufenweise gelockert, statt zu wenige Situationen zu
+//    liefern: erst der Themenpool erneut, dann der generische, zuletzt Wiederholung innerhalb der
+//    Szene. Ein drittes Bild desselben Themas hat also wieder Ueberschneidungen, aber in anderer
+//    Zusammensetzung.
+function shuffledPool(pool) {
+  const kopie = pool.slice();
+  for (let i = kopie.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const t = kopie[i]; kopie[i] = kopie[j]; kopie[j] = t;
+  }
+  return kopie;
+}
+
+function topUpSituations(list, locId, target, usedTexts) {
+  target = target || 20;
   if (list.length >= target) return list.slice(0, target);
-  const used = new Set(list.map((s) => s.text));
-  const pools = [];
-  if (locId && GAG_LIBRARY[locId]) pools.push(GAG_LIBRARY[locId]);
-  if (locId !== "generic" && locId !== "christmas") pools.push(GAG_LIBRARY.generic);
-  pools.forEach((pool) => {
-    pool.forEach((g) => {
+  const inDieserSzene = new Set(list.map((s) => s.text));
+  const imBuchSchonBenutzt = new Set(usedTexts || []);
+  const themenPool = (locId && GAG_LIBRARY[locId]) ? GAG_LIBRARY[locId] : GAG_LIBRARY.generic;
+  // "christmas" bleibt wie bisher vom generischen Zumischen ausgenommen: der generische Pool ist
+  // jahreszeitlich neutral bis sommerlich und wuerde in einer Weihnachtsszene sofort unpassend
+  // wirken (Befund vom 16.09.2026). Bei 30 Weihnachts-Eintraegen ist er dort ohnehin unnoetig.
+  const generischErlaubt = locId !== "generic" && locId !== "christmas";
+
+  function nimm(pool, sperreAchten) {
+    shuffledPool(pool).forEach((g) => {
       if (list.length >= target) return;
-      if (!used.has(g.en)) { list.push({ text: g.en, de: g.de }); used.add(g.en); }
+      if (inDieserSzene.has(g.en)) return;
+      if (sperreAchten && imBuchSchonBenutzt.has(g.en)) return;
+      list.push({ text: g.en, de: g.de });
+      inDieserSzene.add(g.en);
     });
-  });
-  // Letzter Notstand (in der Praxis nur bei sehr vielen Personen/hohem target relevant, mit den
-  // aktuellen Pool-Groessen von max. 20 einzigartigen Eintraegen bei target=16 nicht erreichbar):
-  // Eintraege wiederholt zulassen statt zu wenige Vignetten auszuliefern.
-  if (list.length < target && pools.length) {
-    const combined = pools[0].concat(pools[1] || []);
+  }
+
+  nimm(themenPool, true);
+  if (generischErlaubt) nimm(GAG_LIBRARY.generic, true);
+  // Sperre stufenweise lockern, bevor zu wenige Situationen geliefert werden.
+  if (list.length < target) nimm(themenPool, false);
+  if (list.length < target && generischErlaubt) nimm(GAG_LIBRARY.generic, false);
+  // Letzter Notstand: Wiederholung innerhalb derselben Szene zulassen.
+  if (list.length < target && themenPool.length) {
+    const kombiniert = generischErlaubt ? themenPool.concat(GAG_LIBRARY.generic) : themenPool.slice();
     let i = 0;
-    while (list.length < target && combined.length) {
-      const g = combined[i % combined.length];
+    while (list.length < target && kombiniert.length) {
+      const g = kombiniert[i % kombiniert.length];
       list.push({ text: g.en, de: g.de });
       i++;
     }
@@ -909,7 +1089,7 @@ var SCENE_PHASES = {
     // zeigt (Haus PLUS Strasse und Umgebung), liegt das Ziel etwas darueber, aber nicht viel: der
     // Nutzer hat Bild 26/27 ausdruecklich als "viel zu viel Gewimmel" abgelehnt.
     totalCharacters: "roughly 90 to 120",
-    compositions: ["overview"],
+    compositions: ["overview_cutaway", "overview_open"],
     // SCHARF GEZOGEN (17.09.2026), OBERGRENZE ANGEHOBEN nach dem dritten Lauf: die Vorbilder des
     // Nutzers, Bild 23 und 24, sind ausdruecklich auch die Obergrenze ("das ist das MAXIMUM"). Die
     // ueberladenen Bilder liegen klar darueber: Bild 22 auf 110, Bild 26 auf 115 bis 120, Bild 27
@@ -1083,6 +1263,110 @@ function compareSeverity(a, b) {
 // deshalb angenommen -- das ist ein Fall fuer die Prompt-Regeln, nicht fuer einen weiteren Wurf.
 function isGoodEnough(severity) {
   return !!severity && severity.heavy === 0;
+}
+
+
+// NEU (17.09.2026, D3): eigene Handlungen fuer die benannten Helden.
+//
+// DER BEFUND: der Nutzer hat gefragt, warum der Schuh-Gag so dominant ist, und selbst die Spur
+// gelegt -- "er haengt oft direkt an der Heldin. Die Heldin soll wechselnde eigene Handlungen
+// bekommen." Das trifft die Ursache genau: die Helden standen im Prompt bisher nur als
+// "actively taking part in the action described below", also ohne eigene Handlung. Das Modell hat
+// sich dann eine der 20 Vignetten gegriffen, und von denen war "someone losing a shoe while
+// running" die einzige, die wie eine Hauptfigur-Handlung klingt -- entsprechend landete sie Bild
+// fuer Bild bei der Heldin.
+//
+// Jetzt bekommt jeder Held eine eigene, zufaellig gezogene Handlung aus diesem Pool, die im Prompt
+// namentlich an ihm haengt. Die Vignetten bleiben davon unberuehrt und gehoeren den
+// Hintergrundfiguren.
+//
+// Auswahl-Regeln: pro Szene bekommt jeder Held eine ANDERE Handlung, und die buchweite Sperrliste
+// (usedSituations, dieselbe wie bei den Vignetten) wird beachtet, damit die Heldin nicht in jedem
+// Bild des Buches dasselbe tut. Die Handlungen sind bewusst still und koerperlich formuliert, ohne
+// Gefuehlswoerter (siehe EMOTION_WORDS_RULE) und ohne Mund.
+const HERO_ACTION_LIBRARY = {
+  farm: [
+    {de:"füttert ein Lamm aus der Flasche", en:"feeding a lamb from a bottle"},
+    {de:"trägt einen Eimer Futter mit beiden Händen", en:"carrying a bucket of feed with both hands"},
+    {de:"klettert auf einen Strohballen", en:"climbing onto a straw bale"},
+    {de:"streichelt ein Kalb über die Stirn", en:"stroking a calf on the forehead"},
+    {de:"sitzt auf dem Zaun und schaut über den Hof", en:"sitting on the fence looking across the yard"},
+    {de:"hält ein Huhn im Arm", en:"holding a chicken in their arms"},
+    {de:"schiebt eine Schubkarre voller Äpfel", en:"pushing a wheelbarrow full of apples"},
+    {de:"sammelt Eier in einen Korb", en:"gathering eggs into a basket"},
+  ],
+  beach: [
+    {de:"gräbt den Graben um eine Sandburg", en:"digging the moat around a sandcastle"},
+    {de:"hält ein Holzboot ins Wasser", en:"holding a wooden boat into the water"},
+    {de:"springt über eine auslaufende Welle", en:"jumping over a running-out wave"},
+    {de:"trägt zwei Eimer Wasser", en:"carrying two buckets of water"},
+    {de:"sucht Muscheln im Spülsaum", en:"searching for shells along the waterline"},
+    {de:"hält einen Drachen an der Schnur", en:"holding a kite by its string"},
+    {de:"steht bis zu den Knien im Wasser und schaut hinunter", en:"standing knee-deep in the water looking down"},
+    {de:"schaufelt Sand über die Füße von jemandem", en:"shovelling sand over someone's feet"},
+  ],
+  park: [
+    {de:"schaukelt im Stehen", en:"swinging while standing up"},
+    {de:"klettert die Leiter zur Rutsche hoch", en:"climbing the ladder to the slide"},
+    {de:"hält einen Ball unter dem Arm", en:"holding a ball under one arm"},
+    {de:"malt mit Kreide auf den Weg", en:"drawing on the path with chalk"},
+    {de:"füttert Enten am Teich", en:"feeding ducks at the pond"},
+    {de:"hängt am Klettergerüst", en:"hanging from the climbing frame"},
+    {de:"zieht einen Bollerwagen hinter sich her", en:"pulling a handcart along behind them"},
+    {de:"pustet Seifenblasen", en:"blowing soap bubbles"},
+  ],
+  city: [
+    {de:"zeigt auf ein Schaufenster", en:"pointing at a shop window"},
+    {de:"hält eine Tüte Obst vom Markt", en:"holding a bag of fruit from the market"},
+    {de:"steht an der Eisdiele in der Schlange", en:"standing in the queue at the ice cream parlour"},
+    {de:"sitzt auf Schultern und schaut über die Menge", en:"sitting on someone's shoulders looking over the crowd"},
+    {de:"schiebt einen Roller neben sich", en:"pushing a scooter along beside them"},
+    {de:"zählt Münzen in der Hand", en:"counting coins in their hand"},
+    {de:"trägt ein langes Brot unter dem Arm", en:"carrying a long loaf under one arm"},
+    {de:"bleibt vor einem Straßenmusiker stehen", en:"stopping in front of a street musician"},
+  ],
+  mountains: [
+    {de:"trinkt aus der Feldflasche", en:"drinking from a water bottle"},
+    {de:"klettert über einen Felsblock", en:"climbing over a boulder"},
+    {de:"sammelt Steine in die Jackentasche", en:"collecting stones into a jacket pocket"},
+    {de:"zeigt ins Tal hinunter", en:"pointing down into the valley"},
+    {de:"stapft im Gänsemarsch voran", en:"trudging ahead in single file"},
+    {de:"hält einen Wanderstock in der Hand", en:"holding a hiking pole"},
+    {de:"sitzt auf dem Rucksack und bindet den Schuh", en:"sitting on a backpack tying a shoe"},
+    {de:"streichelt eine Kuh am Wegrand", en:"stroking a cow at the side of the path"},
+  ],
+  christmas: [
+    {de:"hängt eine Kugel an einen unteren Zweig", en:"hanging a bauble on a lower branch"},
+    {de:"trägt einen Teller Plätzchen mit beiden Händen", en:"carrying a plate of biscuits with both hands"},
+    {de:"sitzt vor dem Kamin und hält eine Tasse", en:"sitting by the fireplace holding a mug"},
+    {de:"wickelt ein Geschenk in viel zu viel Papier", en:"wrapping a present in far too much paper"},
+    {de:"schaut durchs Treppengeländer nach unten", en:"looking down through the banister"},
+    {de:"steckt eine Kerze in den Halter", en:"putting a candle into its holder"},
+    {de:"zieht am Band eines Geschenks", en:"pulling the ribbon on a present"},
+    {de:"hält den Baum fest, während jemand den Ständer richtet", en:"steadying the tree while someone adjusts the stand"},
+  ],
+  generic: [
+    {de:"kniet am Boden und betrachtet etwas ganz genau", en:"kneeling on the ground studying something very closely"},
+    {de:"trägt etwas Zerbrechliches mit beiden Händen", en:"carrying something fragile with both hands"},
+    {de:"streckt sich nach etwas, das zu hoch hängt", en:"stretching for something hanging too high"},
+    {de:"läuft mit weit ausgestreckten Armen", en:"running with arms stretched wide"},
+    {de:"hält etwas hinter dem Rücken versteckt", en:"holding something hidden behind their back"},
+    {de:"schaut über die Schulter zurück", en:"looking back over one shoulder"},
+    {de:"hockt und bindet etwas zusammen", en:"crouching and tying something together"},
+    {de:"balanciert auf einem Bein", en:"balancing on one leg"},
+  ],
+};
+
+// pickHeroActions(heroSpecs, locId, usedTexts): eine Handlung je Held, innerhalb der Szene
+// verschieden, buchweit moeglichst nicht wiederholt. Liefert ein Array in der Reihenfolge der
+// heroSpecs.
+function pickHeroActions(heroSpecs, locId, usedTexts) {
+  const pool = (locId && HERO_ACTION_LIBRARY[locId]) ? HERO_ACTION_LIBRARY[locId] : HERO_ACTION_LIBRARY.generic;
+  const imBuch = new Set(usedTexts || []);
+  const frisch = shuffledPool(pool).filter((a) => !imBuch.has(a.en));
+  const rest = shuffledPool(pool).filter((a) => imBuch.has(a.en));
+  const reihe = frisch.concat(rest);
+  return (heroSpecs || []).map((_, i) => reihe[i % reihe.length] || pool[0]);
 }
 
 // GEAENDERT (17.09.2026, D2): die Hoehenangaben waren Prozentwerte (20 / 14 / 7). Nutzer-Vorgabe
@@ -1390,10 +1674,12 @@ const LAYER_CYCLE = [
   "midground", "background", "midground", "background", "midground",
 ];
 const SIDE_CYCLE = ["left", "center", "right"];
-function autoSituations(theme, existing, target) {
+// GEAENDERT (17.09.2026, D3): vierter Parameter usedTexts -- die buchweite Sperrliste, siehe
+// topUpSituations().
+function autoSituations(theme, existing, target, usedTexts) {
   target = target || 20;
   let list = (existing || []).map((s) => ({ text: s.en || s.text, de: s.de || s.text }));
-  list = topUpSituations(list, theme.locId, target);
+  list = topUpSituations(list, theme.locId, target, usedTexts);
   return list.map((s, i) => Object.assign({}, s, {
     layer: LAYER_CYCLE[i % LAYER_CYCLE.length],
     side: SIDE_CYCLE[i % SIDE_CYCLE.length],
@@ -1460,24 +1746,52 @@ const COMPOSITION_TYPES = {
     kw: "building cut open into many small rooms like a printer's type case, each room its own little scene",
     text: "Composition: a building cut open into MANY small rooms, arranged like a printer's type case — at least eight or nine separate rooms across several floors, each one a complete little scene of its own with its own furniture and its own activity. Rather than a few large rooms, use many small ones; the pleasure of this composition is the number of separate places to discover.",
   },
-  overview: {
-    id: "overview",
+  // Phase 2 hat zwei Spielarten desselben Ueberblicks -- GEFUNDEN beim Dokumentieren der
+  // Themen-Zuordnung (17.09.2026): eine einzige overview-Variante setzte ein aufgeschnittenes Haus
+  // in die Mitte, was bei Strand, Berg oder Bauernhof unsinnig ist. Jetzt entscheidet das Thema,
+  // ob ueberhaupt ein Gebaeude aufgeschnitten wird.
+  overview_cutaway: {
+    id: "overview_cutaway",
     kw: "large place seen obliquely from above, a cut-open house together with the street and surroundings around it",
     text: "Composition: a large place seen obliquely from above, roughly from the height of a first-floor window. A house cut open towards the viewer sits in the middle, and around it the street, the square and the surroundings continue with their own life — market stalls, front gardens, a path, whatever the theme brings. Inside and outside are visible at once, side by side, each with its own ground.",
+  },
+  overview_open: {
+    id: "overview_open",
+    kw: "large place seen obliquely from above, the whole site and its surroundings visible at once",
+    text: "Composition: a large place seen obliquely from above, roughly from the height of a first-floor window, wide enough that the whole site and what lies around it are visible at once — the main area in the middle, and around it the paths, the edges and the neighbouring ground, each with its own activity. Several separate corners of activity rather than one single spot.",
   },
 };
 
 // pickComposition(theme, phase, forced): waehlt den Kompositionstyp.
-// Nicht jeder Typ passt zu jedem Thema -- ein Bauernhof oder ein Strand laesst sich nicht als
-// Haus-Querschnitt zeichnen. Deshalb entscheidet zuerst THEME_META.type, ob das Thema ueberhaupt
-// im Gebaeude spielt ("cutaway", derzeit nur Weihnachten) oder im Freien ("landscape").
-// In Phase 2 gibt es nur einen Typ (overview), unabhaengig vom Thema.
+//
+// WELCHES THEMA TRAEGT WELCHEN TYP (Stand 17.09.2026, auf Nachfrage des Nutzers hier notiert).
+// Entscheidend ist THEME_META[...].type: "cutaway" heisst, das Thema spielt IN einem Gebaeude,
+// "landscape" heisst im Freien. Ein Bauernhof oder ein Strand laesst sich nicht als Haus-Querschnitt
+// zeichnen, ein Weihnachtsabend im Wohnzimmer nicht als offene Landschaft.
+//
+//   Thema         locId       type        Phase 1                    Phase 2
+//   ------------- ----------- ----------- -------------------------- -----------------
+//   Bauernhof     farm        landscape   open                       overview_open
+//   Weihnachten   christmas   cutaway     cutaway | gridhouse (~1/4) overview_cutaway
+//   Urlaub        beach       landscape   open                       overview_open
+//   Berg          mountains   landscape   open                       overview_open
+//   Stadt         city        landscape   open                       overview_open
+//   Spielplatz    park        landscape   open                       overview_open
+//
+// Derzeit traegt also nur "Weihnachten" die Querschnitt-Typen. Soll ein weiteres Thema sie tragen
+// (ein Stadtbild als aufgeschnittenes Haus an einer Strasse waere denkbar), genuegt es, dessen
+// "type" in THEME_META auf "cutaway" zu setzen -- die Auswahl hier folgt automatisch. Frei erzaehlte
+// Orte aus dem Chat-Weg bekommen ihren type in buildThemeFromLocation() (szene.js).
+//
 // forced: erlaubt, den Typ fuer einen gezielten Testlauf festzulegen (D5) statt zu wuerfeln.
 function pickComposition(theme, phase, forced) {
   if (forced && COMPOSITION_TYPES[forced]) return COMPOSITION_TYPES[forced];
+  const istGebaeude = !!(theme && theme.type === "cutaway");
   const erlaubt = (phase.compositions || ["open"]).filter((id) => {
-    if (id === "open") return !theme || theme.type !== "cutaway";
-    if (id === "cutaway" || id === "gridhouse") return theme && theme.type === "cutaway";
+    if (id === "open") return !istGebaeude;
+    if (id === "cutaway" || id === "gridhouse") return istGebaeude;
+    if (id === "overview_cutaway") return istGebaeude;
+    if (id === "overview_open") return !istGebaeude;
     return true;
   });
   const liste = erlaubt.length ? erlaubt : ["open"];
@@ -1552,7 +1866,7 @@ const FOREGROUND_HERO_CAP = 3;
 // ohnehin. Wuerde hier "bis zu drei" stehen, waeren es entsprechend mehr. Dieselbe Asymmetrie wie
 // beim Stil (Pruefung tolerant, Anweisung streng), die der Nutzer am 17.09.2026 ausdruecklich
 // bestaetigt hat.
-function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount, phase, composition }) {
+function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount, phase, composition, heroActions }) {
   const kw = "wmlstil, " + theme.en + ", " + composition.kw;
   const sentences = [];
   // Ganz vorne, noch vor der Helden-Zuordnung -- Primacy-Haelfte des Mund-Sandwiches (siehe
@@ -1569,10 +1883,19 @@ function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount, phase, co
   sentences.push(ZOOM_OUT_RULE);
   const foregroundHeroes = heroSpecs.slice(0, FOREGROUND_HERO_CAP);
   const midgroundHeroes = heroSpecs.slice(FOREGROUND_HERO_CAP);
-  const foregroundBits = foregroundHeroes.map((s) => s.name + " (" + stripEmotionWords(describeHero(s)) + ")").join(", ");
-  if (foregroundBits) sentences.push("In the foreground (each one " + layerSizeText("foreground", phase) + "), actively taking part in the action described below, not standing still and not posed neutrally: " + foregroundBits + ".");
-  const midgroundBits = midgroundHeroes.map((s) => s.name + " (" + stripEmotionWords(describeHero(s)) + ")").join(", ");
-  if (midgroundBits) sentences.push("Also present, in the midground (each one " + layerSizeText("midground", phase) + "), still clearly recognizable according to their reference image and actively doing something of their own: " + midgroundBits + ".");
+  // GEAENDERT (17.09.2026, D3): jeder Held bekommt seine EIGENE Handlung, namentlich an ihm haengend
+  // (pickHeroActions() oben). Vorher stand hier nur "actively taking part in the action described
+  // below" -- das Modell hat sich dann eine der Hintergrund-Vignetten fuer die Heldin gegriffen,
+  // und zwar Bild fuer Bild dieselbe. Der letzte Satz macht die Trennung ausdruecklich.
+  const aktion = (i) => {
+    const a = (heroActions || [])[i];
+    return a ? ", right now " + a.en : "";
+  };
+  const foregroundBits = foregroundHeroes.map((s, i) => s.name + " (" + stripEmotionWords(describeHero(s)) + ")" + aktion(i)).join("; ");
+  if (foregroundBits) sentences.push("In the foreground (each one " + layerSizeText("foreground", phase) + "), each doing their own thing, never standing still and never posed neutrally: " + foregroundBits + ".");
+  const midgroundBits = midgroundHeroes.map((s, i) => s.name + " (" + stripEmotionWords(describeHero(s)) + ")" + aktion(FOREGROUND_HERO_CAP + i)).join("; ");
+  if (midgroundBits) sentences.push("Also present, in the midground (each one " + layerSizeText("midground", phase) + "), still clearly recognizable according to their reference image: " + midgroundBits + ".");
+  if (foregroundBits || midgroundBits) sentences.push("The named characters above do exactly the activity given for each of them and nothing else. The little scenes and running gags listed further below belong to the unnamed background characters — never hand one of them to a named character instead of their own activity.");
   // NEU (D2): Zielzahl aus der Phase.
   sentences.push("Populate the whole scene with " + phase.totalCharacters + " individual characters in total, combining the named heroes with the midground and background layers described below — a genuinely busy, richly populated seek-and-find scene, not a sparse one.");
   sentences.push(THREE_LAYER_RULE);
@@ -1869,7 +2192,7 @@ function buildVerifyPrompt(heroSpecs, phaseId) {
 // damit spaeter nachvollziehbar ist, welcher Typ ein Bild erzeugt hat. opts.composition erlaubt,
 // den Typ fuer einen gezielten Testlauf festzulegen statt zu wuerfeln (D5: "verschiedene Themen und
 // Kompositionstypen").
-function buildSceneComposeInputs({ heroSpecs, theme, situations, phase, composition }) {
+function buildSceneComposeInputs({ heroSpecs, theme, situations, phase, composition, usedTexts }) {
   const phaseId = (phase && SCENE_PHASES[phase]) ? phase : ACTIVE_SCENE_PHASE;
   const phaseObj = SCENE_PHASES[phaseId];
   const comp = pickComposition(theme, phaseObj, composition);
@@ -1881,7 +2204,9 @@ function buildSceneComposeInputs({ heroSpecs, theme, situations, phase, composit
   const bgCount = Math.min(bgBudget, 3 + Math.round(Math.random())); // 3 oder 4 Blaetter
   const bgUrls = bgCount > 0 ? pickBackgroundCharacterSheets(bgCount) : [];
   const styleRefUrls = heroStyleRefUrls.concat(bgUrls);
-  const promptText = scenePrompt({ heroSpecs: refHeroes, theme, situations, bgCharacterCount: bgUrls.length, phase: phaseObj, composition: comp });
+  // D3: eigene Handlung je Held, buchweite Sperrliste beachtet.
+  const heroActions = pickHeroActions(refHeroes, theme && theme.locId, usedTexts);
+  const promptText = scenePrompt({ heroSpecs: refHeroes, theme, situations, bgCharacterCount: bgUrls.length, phase: phaseObj, composition: comp, heroActions });
   const instruction = sceneComposeInstruction(promptText);
   const verifyPrompt = buildVerifyPrompt(refHeroes, phaseId);
   // figuresBand reist mit zum Server: dort wird figures_est dagegen geprueft (siehe
@@ -1892,7 +2217,11 @@ function buildSceneComposeInputs({ heroSpecs, theme, situations, phase, composit
   // Bibliotheksblaetter (bgUrls), die fuer den Identitaets-/Stil-Abgleich beim Verify irrelevant/
   // verwirrend waeren (sie zeigen KEINE benannten Helden). heroRefUrls = nur die echten Helden-
   // Referenzbilder, in derselben Reihenfolge wie buildVerifyPrompt()'s Bild-2-bis-N-Zuordnung.
-  return { refHeroes, editImageUrl, styleRefUrls, heroRefUrls, promptText, instruction, verifyPrompt, phaseId, figuresBand, compositionId: comp.id };
+  // usedNow: alles, was diese Szene belegt -- Vignetten UND Heldenhandlungen. Der Aufrufer haengt
+  // das nach einer erfolgreichen Generierung an die buchweite Sperrliste (siehe szene.js).
+  const usedNow = (situations || []).map((s) => s.text || s.en).filter(Boolean)
+    .concat(heroActions.map((a) => a && a.en).filter(Boolean));
+  return { refHeroes, editImageUrl, styleRefUrls, heroRefUrls, promptText, instruction, verifyPrompt, phaseId, figuresBand, compositionId: comp.id, heroActions, usedNow };
 }
 
 async function composeSceneImage({ heroSpecs, theme, situations, phase, composition }) {
@@ -2245,6 +2574,11 @@ async function runSceneJobPolling(sceneInputs, opts) {
         // Job-Datensatz selbst, ist also in beiden Faellen die WIRKLICH verwendete.
         promptText: built ? built.promptText : null,
         instruction: built ? built.instruction : (job.instruction || null),
+        // D3: was diese Szene an Vignetten und Heldenhandlungen belegt hat -- der Aufrufer haengt es
+        // nach Erfolg an die buchweite Sperrliste. Beim Fortsetzen nach einem Reload nicht
+        // rekonstruierbar (die Auswahl lag im verlorenen Browser-Zustand), dann leer: eine Situation
+        // kann dadurch im naechsten Bild des Buches ein zweites Mal vorkommen, was hinnehmbar ist.
+        usedNow: built ? built.usedNow : [],
         candidates: job.candidates,
       };
     }
@@ -2376,6 +2710,7 @@ window.Pipeline = {
   resizeImageToDataUri, generateImage, generateImageWithRetry, verifyImage, countViolations,
   SCENE_PHASES, ACTIVE_SCENE_PHASE, DEPTH_MIN_RATIO, severityOf, compareSeverity, isGoodEnough,
   COMPOSITION_TYPES, pickComposition, layerSizeText,
+  HERO_ACTION_LIBRARY, pickHeroActions, shuffledPool,
   // Szenen-Komposition (neu, siehe Modul-Abschnitt oben)
   GAG_LIBRARY, THEME_META, pickGagChips, topUpSituations,
   // GEAENDERT (Sammel-Runde 15.09.2026, Punkt 2): defaultBubbleLayout/sizePx/regionLabel/

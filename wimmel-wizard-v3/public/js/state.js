@@ -99,6 +99,13 @@ const DEFAULT_STATE = {
   // weiterlief und bezahlt wurde. Wird beim Start gesetzt, sobald die jobId feststeht, und bei
   // Erfolg wie Fehlschlag wieder geleert (siehe szene.js Screens.zaubern).
   pendingSceneJob: null,
+  // NEU (17.09.2026, D3 "keine Wiederholung pro Buch"): englische Texte aller Situationen und
+  // Heldenhandlungen, die in diesem Buch schon vorgekommen sind. topUpSituations()/
+  // pickHeroActions() in pipeline.js ueberspringen sie bei der Auswahl fuer das naechste Bild.
+  // Nutzer-Vorgabe: "pro Buch jede Situation hoechstens einmal". Lebt hier im AppState und nicht in
+  // einer Laufzeit-Variablen, damit die Sperre einen Reload uebersteht -- gleiches Prinzip wie
+  // shownJokes. Wird bei "von vorne starten" mit dem ganzen State zurueckgesetzt.
+  usedSituations: [],
 
   // Entscheidung / Widmung / Bestellung
   tier: 1, // 0 Poster, 1 Wimmelbuch (ab 2 Bildern), 2 Wimmelbuch (ab 5 Bildern, comingSoon -- siehe entscheidung.js TIERS)
