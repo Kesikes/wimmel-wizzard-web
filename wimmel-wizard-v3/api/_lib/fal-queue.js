@@ -192,7 +192,10 @@ const VIOLATION_SEVERITY = {
   // der zweiten Haelfte kommen. Seit dem Notizfeld steht im Verify-JSON, welche -- vor einem
   // Zurueckdrehen dort nachsehen, statt die Gewichtung blind zu aendern.
   scale_ok: "heavy",
-  figures_est: "medium", mouths_ok: "medium",
+  // heads_ok: NEU (18.09.2026), die aus scale_ok herausgeloeste zweite Haelfte -- Kopfgroessen
+  // innerhalb einer Tiefenebene. Bewusst "mittel": es war nie der Grund, aus dem der Nutzer ein
+  // Bild abgelehnt hat, und es soll kein Geld ausgeben.
+  figures_est: "medium", mouths_ok: "medium", heads_ok: "medium",
   // leicht (Szenen-Verify)
   no_text_ok: "light", logic_ok: "light",
   // Charakter-Verify (buildCharacterVerifyPrompt() in char-job-engine.js)

@@ -1397,7 +1397,10 @@ var VIOLATION_SEVERITY = {
   // der zweiten Haelfte kommen. Seit dem Notizfeld steht im Verify-JSON, welche -- vor einem
   // Zurueckdrehen dort nachsehen, statt die Gewichtung blind zu aendern.
   scale_ok: "heavy",
-  figures_est: "medium", mouths_ok: "medium",
+  // heads_ok: NEU (18.09.2026), die aus scale_ok herausgeloeste zweite Haelfte -- Kopfgroessen
+  // innerhalb einer Tiefenebene. Bewusst "mittel": es war nie der Grund, aus dem der Nutzer ein
+  // Bild abgelehnt hat, und es soll kein Geld ausgeben.
+  figures_est: "medium", mouths_ok: "medium", heads_ok: "medium",
   // leicht
   no_text_ok: "light", logic_ok: "light",
   // Charakter-Verify (eigener Prompt, buildCharacterVerifyPrompt() unten)
@@ -2080,6 +2083,13 @@ function sizeRule(phase) {
 // Text-Regel. Dasselbe Muster, das bei NO_MOUTH_EMPHASIS nachweislich wirkt (vorne ausfuehrlich,
 // hinten knapp). Bewusst anders formuliert als sizeRule(), damit es als Erinnerung gelesen wird
 // und nicht als versehentlich doppelter Absatz.
+// NEU (18.09.2026, zweiter Durchgang): das Strandbild hatte am unteren Rand wieder einzelne
+// angeschnittene Figuren und leere Gesichter -- schwaecher als vorher, aber nicht weg. Die
+// Position war es nicht: nachgemessen steht EDGE_AND_FACE_RULE in ALLEN sechs Themen und beiden
+// Phasen bei Zeichen 2128 bis 2205, also ueberall gleich weit vorne. Was fehlte, war die zweite
+// Haelfte des Sandwiches -- dasselbe Muster, das beim Mund-Verbot und bei der Groessenregel wirkt.
+const EDGE_AND_FACE_REMINDER = "And two last things to check before drawing: nobody is cut off by the edge of the picture, least of all along the bottom edge — no half figures, no oversized head pushed into the frame from below. And every face in the image, down to the smallest, actually has its two dot eyes and its nose line drawn on it; no blank faces anywhere.";
+
 function sizeRuleReminder(phase) {
   return "Last check on scale before drawing: divide the image height into " + phase.figureFitCount + " equal horizontal bands. No person in this image, not even the one standing closest to the viewer, may be taller than one of those bands. If the front figures are bigger than that, the image is wrong — move the camera back and redraw the whole scene smaller and busier.";
 }
@@ -2233,6 +2243,7 @@ function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount, phase, co
   sentences.push(EMOTION_WORDS_RULE);
   sentences.push(allCharactersRule(heroSpecs));
   sentences.push(sizeRuleReminder(phase));
+  sentences.push(EDGE_AND_FACE_REMINDER);
   sentences.push(ZERO_TEXT_RULE);
   return kw + ". " + sentences.filter(Boolean).join(" ");
 }
@@ -2419,7 +2430,7 @@ function buildVerifyPrompt(heroSpecs, phaseId) {
     : "";
   const parts = [
     "Du prüfst ein Wimmelbild für ein Kinderbuch gegen eine feste Stilvorgabe. Das ERSTE Bild ist die zu bewertende Szene." + refMapping,
-    "Beantworte genau diese acht Punkte:",
+    "Beantworte genau diese zehn Punkte:",
 
     "1. HELDEN: Kommen alle " + n + " benannten Figuren (" + names + ") vor, jede GENAU EINMAL (nicht doppelt) und grob passend zu ihrem Referenzbild? Verglichen werden nur GROBE Merkmale: Frisur/Haarform, Haarfarbe, wichtigstes Kleidungsstück samt Farbe, Altersstufe (Kind / Erwachsener / älterer Mensch). Kleinstdetails wie Sommersprossen, Streifenmuster oder Knöpfe sind ausdrücklich KEIN Grund für ein Nein.",
     "Wo die Figuren im Bild stehen, ist dabei ausdrücklich FREI: eine benannte Figur darf vorne groß, im Mittelgrund oder weiter hinten und klein im Bild stehen, auch abseits vom Zentrum. Das ist so gewollt -- Suchen gehört zum Spiel. Sie zu suchen ist Teil deiner Aufgabe, und dass du sie erst suchen musstest, ist KEIN Verstoß.",
@@ -2434,20 +2445,33 @@ function buildVerifyPrompt(heroSpecs, phaseId) {
 
     "3. TIEFENSTAFFELUNG: Such die GRÖSSTE Figur im Bild (meist ganz vorne) und die KLEINSTE noch erkennbare Figur (meist weit hinten, in der Bildtiefe oder in einem hinteren Raum). Schätze dann: wie oft würde die kleinste Figur ihrer Höhe nach in die größte hineinpassen? Antworte hier nicht mit true/false, sondern mit einer einzelnen Zahl, gern mit einer Dezimalstelle. Ein Bild mit kräftiger Tiefe liefert einen hohen Wert, ein Bild, in dem alle Figuren in einem ähnlichen Größenband liegen, einen Wert nahe 1. Das gilt genauso für einen Gebäude-Querschnitt: dort vergleichst du einfach die größte Figur vorne mit der kleinsten in den hinteren Räumen oder draußen. Zähle nur Menschen, keine Tiere.",
 
-    "4. GRÖSSE: Wie oft würde eine der GRÖSSTEN Figuren im Vordergrund ihrer Höhe nach übereinander in die Bildhöhe passen? Ziel ist " + phase.scaleText + ". Passt sie deutlich seltener hinein, sind die Figuren zu groß -- das ist ein Nein. Prüfe zusätzlich, ob die Köpfe innerhalb derselben Tiefenebene ungefähr gleich groß sind, unabhängig davon, ob es Kinder, Erwachsene oder ältere Menschen sind.",
+    // UMGEBAUT (18.09.2026). Punkt 4 fragte zwei Dinge in einem Feld (Figurengroesse UND
+    // Kopfgroessen) und haengte die Figurengroesse an eine Zahl, die nachweislich nicht das
+    // entscheidet, was der Nutzer sieht: im Bauernhofbild passte die groesste Vordergrundfigur
+    // gemessen DREIMAL in die Bildhoehe, der Verify sagte scale_ok true, und der Nutzer fand das
+    // Bild gut. Im Strandbild meldete derselbe Verify bei "ca. 4 Mal" einen Verstoss. Die Zahl im
+    // Prompt steuert die Antwort also nicht -- der Gesamteindruck tut es, und der deckt sich mit
+    // dem Urteil des Nutzers. Deshalb: scale_ok fragt jetzt genau diesen Eindruck ab (und ist seit
+    // 113effc "schwer" gewichtet, darf also keine Scheinpraezision vortaeuschen), die Kopfgroessen
+    // bekommen mit heads_ok ein eigenes, mittleres Feld, und die Zahl wandert als scale_est in die
+    // reinen Messwerte -- unbewertet, wie es depth_ratio und figures_est vorgemacht haben, bis
+    // genug Bilder da sind, um eine Spanne zu ziehen.
+    "4. GRÖSSENWIRKUNG: Schau auf das Bild als Ganzes. Wirken die vordersten Figuren wie Teilnehmer einer großen, weiten Szene -- oder drängen sie sich als große Einzelfiguren in den Vordergrund und beherrschen das Bild? Ein Nein ist fällig, wenn mindestens eines davon zutrifft: eine einzelne Figur ist so groß, dass man sie als das Motiv des Bildes lesen würde; eine Figur reicht über mehr als ein Drittel der Bildhöhe; eine Figur ist so groß, dass ihr Gesicht auf den ersten Blick Einzelheiten zeigt; oder eine übergroße Figur steht angeschnitten am Bildrand und rahmt die Szene. Trifft nichts davon zu, ist scale_ok true -- auch dann, wenn die vorderen Figuren für deinen Geschmack recht groß wirken. Entscheidend ist, ob eine Figur das Bild an sich zieht, nicht ihre genaue Höhe.",
+    "5. GRÖSSE ALS ZAHL: Wie oft würde eine der GRÖSSTEN Figuren im Vordergrund ihrer Höhe nach übereinander in die Bildhöhe passen? Antworte hier nicht mit true/false, sondern mit einer einzelnen Zahl, gern mit einer Dezimalstelle. Diese Zahl wird NICHT bewertet, sie wird nur gesammelt.",
+    "6. KOPFGRÖSSEN: Sind die Köpfe innerhalb derselben Tiefenebene ungefähr gleich groß, unabhängig davon, ob es Kinder, Erwachsene oder ältere Menschen sind? Größenunterschiede zwischen Kind und Erwachsenem gehören in die Körperproportionen, nicht in den Kopf. Ein Nein nur, wenn es deutlich auffällt.",
 
-    "5. FIGURENZAHL: Schätze, wie viele MENSCHEN insgesamt im Bild zu sehen sind -- alle zusammengezählt, auch die ganz kleinen im Hintergrund. TIERE NICHT MITZÄHLEN. Antworte hier nicht mit true/false, sondern mit einer einzelnen ganzen Zahl, deiner besten Schätzung, gern gerundet.",
+    "7. FIGURENZAHL: Schätze, wie viele MENSCHEN insgesamt im Bild zu sehen sind -- alle zusammengezählt, auch die ganz kleinen im Hintergrund. TIERE NICHT MITZÄHLEN. Antworte hier nicht mit true/false, sondern mit einer einzelnen ganzen Zahl, deiner besten Schätzung, gern gerundet.",
 
-    "6. MÜNDER: Wirkt das Bild so, als hätten auffällig viele MENSCHLICHE Figuren einen sichtbaren Mund? Gemeint ist der Gesamteindruck, keine genaue Zählung: bei den meisten menschlichen Gesichtern soll unter den Punktaugen und dem Nasenstrich nichts weiter zu sehen sein. Einzelne Figuren mit Mund sind gewollt und kein Verstoß. Ein Nein ist erst fällig, wenn ein Mund bei den menschlichen Figuren eher die Regel als die Ausnahme ist.",
+    "8. MÜNDER: Wirkt das Bild so, als hätten auffällig viele MENSCHLICHE Figuren einen sichtbaren Mund? Gemeint ist der Gesamteindruck, keine genaue Zählung: bei den meisten menschlichen Gesichtern soll unter den Punktaugen und dem Nasenstrich nichts weiter zu sehen sein. Einzelne Figuren mit Mund sind gewollt und kein Verstoß. Ein Nein ist erst fällig, wenn ein Mund bei den menschlichen Figuren eher die Regel als die Ausnahme ist.",
     "TIERE ZÄHLEN HIER UNTER KEINEN UMSTÄNDEN MIT: ein Hund mit offenem Maul oder heraushängender Zunge, ein offener Vogelschnabel, eine Kuh, ein Hahn, eine Gans, ein fressendes oder brüllendes Tier -- all das ist vollkommen in Ordnung und darf dein Urteil zu diesem Punkt nicht beeinflussen. Zähle ausschließlich Menschen.",
 
-    "7. LOGIK: Werden Innenraum und Außenwelt vermischt? Ein Nein ist fällig, wenn Wetter oder Untergrund am falschen Ort auftauchen: Schnee, Regen, Sand, Wellen, Rasen oder Himmel innerhalb eines Zimmers, Straßenpflaster in einer Küche, Wohnzimmermöbel mitten im Freien ohne erkennbaren Grund.",
+    "9. LOGIK: Werden Innenraum und Außenwelt vermischt? Ein Nein ist fällig, wenn Wetter oder Untergrund am falschen Ort auftauchen: Schnee, Regen, Sand, Wellen, Rasen oder Himmel innerhalb eines Zimmers, Straßenpflaster in einer Küche, Wohnzimmermöbel mitten im Freien ohne erkennbaren Grund.",
     "Zur Abgrenzung beim Gebäude-Querschnitt, denn das ist der knifflige Fall: dass Innenräume und Außenwelt NEBENEINANDER zu sehen sind, ist völlig in Ordnung und genau so gewollt. Ein Verstoß ist es aber, wenn eine Außenfläche unmittelbar in einen Innenraum-Boden übergeht, ohne Wand, Tür, Fensterrahmen oder Hauskante dazwischen -- also etwa eine Schneefläche, die direkt an den Küchenboden anschließt, oder Rasen, der ohne Grenze im Wohnzimmer weiterläuft. Prüfe dafür jede Stelle, an der ein Innenraum an eine Außenfläche grenzt, und schau, ob dort eine bauliche Grenze zu sehen ist.",
     "AUSDRÜCKLICH KEIN VERSTOSS gegen die Logik: unterschiedliche Kleidung der Figuren (Winterjacke neben Sommerkleidung), nicht zur Jahreszeit passende Details, oder dass eine Situation unwahrscheinlich oder albern wirkt. Beurteile allein die Vermischung von Innen und Außen.",
 
-    "8. TEXT: Ist das Bild vollständig frei von Text -- keine Buchstaben, Wörter, Zahlen, Schilder, Poster, Beschriftungen oder Aufschriften auf Kleidung und Gegenständen, auch nicht klein oder im Hintergrund?",
+    "10. TEXT: Ist das Bild vollständig frei von Text -- keine Buchstaben, Wörter, Zahlen, Schilder, Poster, Beschriftungen oder Aufschriften auf Kleidung und Gegenständen, auch nicht klein oder im Hintergrund?",
 
-    "Antworte NUR als JSON-Objekt mit genau diesen neun Feldern, notiz immer als LETZTES: {\"heroes_ok\": true/false, \"style_ok\": true/false, \"depth_ratio\": Zahl, \"scale_ok\": true/false, \"figures_est\": Zahl, \"mouths_ok\": true/false, \"logic_ok\": true/false, \"no_text_ok\": true/false, \"notiz\": \"kurzer Text\"}.",
+    "Antworte NUR als JSON-Objekt mit genau diesen elf Feldern, notiz immer als LETZTES: {\"heroes_ok\": true/false, \"style_ok\": true/false, \"depth_ratio\": Zahl, \"scale_ok\": true/false, \"scale_est\": Zahl, \"heads_ok\": true/false, \"figures_est\": Zahl, \"mouths_ok\": true/false, \"logic_ok\": true/false, \"no_text_ok\": true/false, \"notiz\": \"kurzer Text\"}.",
     // NEU (18.09.2026): notiz. Grund: der Prompt verlangte an zwei Stellen eine Begruendung ("nenne,
     // welche Figur du meinst"), das Antwortformat liess aber nur die acht Wertungsfelder zu -- die
     // Begruendung ging also jedes Mal verloren. Sichtbar wurde das, als bei einem Bild zwei von drei
@@ -2458,7 +2482,7 @@ function buildVerifyPrompt(heroSpecs, phaseId) {
     // Angezeigt wird es ohne Zusatzarbeit, weil buildDebugDetails() (szene.js) das rohe Verify-JSON
     // je Kandidat ausgibt.
     "notiz ist ein kurzer deutscher Freitext, höchstens zwei Sätze, und wird NICHT bewertet -- er dient nur dazu, dass ein Mensch nachvollziehen kann, warum ein Feld false ist. Steht irgendwo false, schreib dort in Stichworten hin, was du gesehen hast; ist alles in Ordnung, schreib eine leere Zeichenkette. Verwende darin KEINE Anführungszeichen und KEINE Zeilenumbrüche, damit das JSON gültig bleibt.",
-    "Bei allen *_ok-Feldern bedeutet true: kein Verstoß. Also style_ok=true, wenn weder eine plastische Nase noch ein naturalistisches Tier zu finden ist; mouths_ok=true, wenn ein Mund bei den Menschen die Ausnahme bleibt; logic_ok=true, wenn Innen und Außen NICHT vermischt sind. depth_ratio und figures_est sind keine Bewertungen, sondern nur deine geschätzten Zahlen.",
+    "Bei allen *_ok-Feldern bedeutet true: kein Verstoß. Also style_ok=true, wenn weder eine plastische Nase noch ein naturalistisches Tier zu finden ist; mouths_ok=true, wenn ein Mund bei den Menschen die Ausnahme bleibt; logic_ok=true, wenn Innen und Außen NICHT vermischt sind. depth_ratio, scale_est und figures_est sind keine Bewertungen, sondern nur deine geschätzten Zahlen.",
     "Wichtig zur Strenge: bewerte nur, was du tatsächlich siehst. Wenn du dir bei einem der Ja/Nein-Punkte nicht sicher bist, antworte dort true -- ein vermuteter Verstoß ist kein Verstoß. Das gilt aber NICHT für die gezielte Suche unter Punkt 2: dort sollst du wirklich nachsehen und einen gefundenen Ausreißer auch benennen, statt vorsichtshalber true zu antworten.",
 
   ];

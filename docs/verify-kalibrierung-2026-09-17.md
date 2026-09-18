@@ -291,3 +291,75 @@ Dazu im Prüf-Prompt: `heroes_ok` bestraft eine Heldin weiter hinten **nicht** m
 nur noch, wenn eine Figur ganz fehlt, doppelt vorkommt, bei den groben Merkmalen klar nicht passt,
 oder so verdeckt/klein/abgewandt ist, dass die Merkmale gar nicht mehr prüfbar sind. Damit ist die
 Bedingung „muss erkennbar bleiben" eine echte Prüfung und nicht nur eine Bitte an das Bildmodell.
+
+---
+
+## 9. Referenzstand 18.09.2026 — Bauernhof, Phase 1, offene Szene
+
+**Hinter diesen Stand wollen wir nicht zurückfallen.** Beurteilung des Nutzers: kleine Figuren,
+dichtes Gewimmel (rund 60 bis 70 Menschen, davor 30 bis 35), klare Tiefenstaffelung, keine
+angeschnittenen Riesenköpfe, keine leeren Gesichter, Kleidung passend zur Jahreszeit.
+
+Erreicht wurde das durch drei Änderungen zusammen — keine davon hätte allein gereicht:
+
+1. **Gruppen-Vignetten** (`GROUP_LIBRARY`, `GROUP_SLOTS = 3`). Drei der zwanzig Vignetten-Plätze
+   nennen ausdrücklich Menschenmengen. Eine Gruppe bringt acht bis zwölf Menschen statt einem.
+2. **Zonen statt Zahlen** in `densityInstruction()`. Räumliche Anweisungen („entlang jedes Weges,
+   bis zum Horizont") statt Mindestzahlen je Region.
+3. **Größenregel nach ganz vorn**, an Position ~860 des Prompts, vor jeder Erwähnung eines
+   Referenzbildes. Dazu `EDGE_AND_FACE_RULE` direkt dahinter.
+
+Dazu der **Tier-Deckel** (höchstens ein Viertel reine Tier-Gags) und die **Bibliothek als
+Ensemble** (vier bis sechs Figuren erkennbar übernommen, an die Mittelgrund-Größe gebunden,
+vollständig neu eingekleidet).
+
+### 9.1 Die Zahl im Prompt ist eine Richtung, kein Ziel
+
+Der wichtigste Einzelbefund dieses Tages, und er gilt über die Figurengröße hinaus:
+
+**Ein Bildmodell liest eine Zahl als Richtung, nicht als Vorgabe, und was VOR einer Regel steht,
+entscheidet mehr als ihr Wortlaut.** Dreimal dasselbe Muster an einem Tag:
+
+| Was | Symptom | Ursache | Abhilfe |
+|---|---|---|---|
+| Figurengröße, erster Anlauf | Figuren 3–4× statt 8× | Die Regel stand in ~20 Vignetten-Klammern und las sich wie Formatierung | Eine Regel, prominent, plus Wiederholung am Ende |
+| Menschenzahl | 30–35 statt 100–130 | 12 von 20 Vignetten enthielten keinen Menschen; die Zielzahl war nur eine Zahl | Gruppen aufzählen statt Zahlen nennen |
+| Figurengröße, Rückfall | Figuren 2,7× | Über 1000 Zeichen über das Einzeichnen von Personen standen VOR der Größenregel | Kamera und Größe an den Anfang |
+
+Praktische Folge für alle künftigen Änderungen: **Position im Prompt vor Wortlaut, aufgezählte
+Bildinhalte vor Zahlen.** `dev-tools/prompt-laenge.js` und `dev-tools/gag-mix.js` prüfen beides,
+ohne dass ein Bild erzeugt werden muss.
+
+### 9.2 Der Widerspruch Lineal gegen Auge, und wie er aufgelöst wurde
+
+Am Referenzbild gemessen passt die größte Vordergrundfigur **dreimal** in die Bildhöhe. Der Prompt
+fordert acht- bis zehnmal. Der Nutzer findet das Bild trotzdem gut, und `scale_ok` sagt `true`.
+Im Strandbild dagegen meldete derselbe Verify bei geschätzt „ca. 4 Mal" einen Verstoß.
+
+Daraus folgt: **die Zahl steuert die Antwort des Verify nicht.** Was sie steuert, ist der
+Gesamteindruck — und der deckt sich mit dem Urteil des Nutzers, nicht mit dem Lineal. Deshalb
+
+- fragt `scale_ok` seit 18.09. genau diesen Eindruck ab (beherrscht eine Einzelfigur das Bild?),
+- steht die Zahl als **`scale_est`** unter den reinen Messwerten, unbewertet, bis genug Bilder für
+  eine Spanne da sind — dasselbe Vorgehen, das bei `figures_est` und `depth_ratio` funktioniert hat,
+- sind die **Kopfgrößen** als `heads_ok` (mittel) aus `scale_ok` herausgelöst; vorher prüfte ein
+  Feld zwei Dinge, und niemand konnte sehen, welche Hälfte ausgelöst hatte.
+
+**Die Zahl im BILD-Prompt bleibt bei acht bis zehn.** Sie ist die einzige Kraft nach unten, und das
+Modell unterschreitet die Forderung ohnehin um den Faktor zweieinhalb bis drei. Senkt man sie auf
+das, was tatsächlich herauskommt, wandert das Ergebnis mit nach unten. Anweisung und Prüfung dürfen
+hier also bewusst auseinanderlaufen: die Anweisung zieht, die Prüfung urteilt.
+
+### 9.3 Gemessene Werte zum Vergleich
+
+| Bild | figures_est | scale_ok | Urteil Nutzer |
+|---|---|---|---|
+| Bauernhof, 18.09. vormittags | 35 | false | zu leer, Figuren zu groß |
+| Bauernhof, 18.09. Referenz | 60–70 (gezählt) | true | **Referenzstand** |
+| Strand, Kandidat 1 | 65 | false | Nase plastisch, Text auf Schild, Figuren zu groß |
+| Strand, Kandidat 2 (gewählt) | 55 | true | angenommen |
+
+Im Druck (Seitenhöhe 148 mm) ist eine Vordergrundfigur bei Faktor 8 rund 18,5 mm hoch, eine
+Mittelgrundfigur 10,6 mm, eine Hintergrundfigur 5,9 mm. Bei den ersten beiden tragen Haarform,
+Haarfarbe und Kleidungsfarbe, bei der dritten nichts davon — das ist die Grenze, an der
+Wiedererkennen aufhört.
