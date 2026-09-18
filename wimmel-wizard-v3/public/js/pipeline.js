@@ -1672,14 +1672,24 @@ function backgroundLibraryInstruction(startIndex, count) {
   if (!count) return "";
   const endIndex = startIndex + count - 1;
   const range = count === 1 ? ("Reference image " + startIndex) : ("Reference images " + startIndex + " through " + endIndex);
-  // GEAENDERT (18.09.2026, Nutzer-Befund: "Ich erkenne im Bild keine Figuren aus der Bibliothek
-  // wieder"). Die Blaetter kommen nachweislich beim Modell an (sie stehen in styleRefUrls und damit
-  // in image_urls, siehe buildSceneComposeInputs()), die Anweisung hat sie aber ausdruecklich
-  // freigestellt ("you do not need to include every character ... invent further ones yourself") --
-  // eine Einladung, sie zu ignorieren. Jetzt verbindlich, mit einer Mindestzahl, und in der
-  // Mittelgrund-Ebene statt ganz hinten, weil eine Figur im hintersten Band ohnehin zu klein waere,
-  // um wiedererkannt zu werden.
-  return range + " show a library of additional background-character designs — NOT named heroes, no names or identities attached to them. Take at least six of the people shown on these sheets and actually draw them into this scene, keeping their hairstyle, their clothing and their colours clearly recognisable, and place those six in the middle distance rather than in the far background, where they would be too small to recognise. Adapt what they are wearing to this scene if the theme calls for it, but keep each one recognisably the same person. Invent all further background characters yourself to reach the required number.";
+  // ZWECK DER BIBLIOTHEK, festgelegt am 18.09.2026 (Produktentscheidung des Nutzers, Weg 1):
+  // STIL-ANKER, nicht wiedererkennbare Nebenrollen. Vorgeschichte in zwei Schritten.
+  //   Erstens der Befund: "Ich erkenne im Bild keine Figuren aus der Bibliothek wieder." Die
+  //   Blaetter kommen beim Modell an (sie stehen in styleRefUrls und damit in image_urls, siehe
+  //   buildSceneComposeInputs()) -- die Anweisung hatte sie nur ausdruecklich freigestellt ("you do
+  //   not need to include every character ... invent further ones yourself"), also faktisch
+  //   abgeschaltet.
+  //   Zweitens der Grund, es NICHT einfach verbindlich zu machen: die Blaetter sind Nahaufnahmen,
+  //   fuenf bis sieben Figuren im vollen Format, und ihre Identitaet steckt in feinen Details
+  //   (Mantelknoepfe, Brille, Zoepfe, Schuhfarbe). Eine Figur, die ein Achtel der Bildhoehe misst,
+  //   kann davon fast nichts tragen. Der Anspruch "einzelne Figuren wiedererkennen" ist bei dieser
+  //   Figurengroesse bauartbedingt nicht einloesbar, und der Nutzer hat ihn deshalb aufgegeben.
+  // Was bleibt und was die Blaetter tatsaechlich leisten koennen: den Massstab dafuer setzen, wie
+  // viel Eigenleben eine Nebenfigur hat. Nutzer, woertlich: "Die Nebenfiguren sollen wie
+  // gezeichnete Charaktere mit Frisur, Kleidung und Farbe wirken, nicht wie Platzhalter."
+  // OFFEN: ob die Blaetter (ueberwiegend Winter und Stadt -- Maentel, Schals, Muetzen) in einem
+  // Herbst-/Sommerbild inhaltlich stoeren. Zeigt das Kontrollbild das, kommen thematische Sets.
+  return range + " show a library of additional background-character designs — NOT named heroes, and you do not need to reproduce any particular person from them. What they show you is the standard every unnamed person in this scene has to meet: each one a properly drawn character with their own hairstyle, their own clothes and their own combination of colours, as varied from one another as the people on these sheets are. No repeated silhouettes, no grey filler shapes, nobody left as a vague blob — even the small figures far back get their own hair and their own colours. Take the sheets as the yardstick for that variety and for the drawing style, and dress everyone to suit this scene's place and season.";
 }
 
 // NEU: "Alle-Charaktere-müssen-vorkommen"-Regel, verallgemeinert von der Spezifikations-Formulierung

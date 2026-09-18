@@ -215,3 +215,79 @@ python3 asset-originals-v3/stiltests-2026-09-16/verify-kalibrierung.py 21,2,6   
 ```
 
 Ein Lauf über alle 27 Bilder sind 27 Vision-Aufrufe; das Endpunkt-Limit liegt bei 40 pro Stunde.
+
+---
+
+## 8. Nachtrag 18.09.2026 — Entscheidungen aus den ersten echten Testbildern
+
+Die Kalibrierung oben entstand an 27 bereits vorhandenen Bildern. Die ersten Bilder aus der
+laufenden App haben zwei ihrer Festlegungen verändert. Beides ist bewusst entschieden, nicht
+nachjustiert.
+
+### 8.1 Untergrenze der Figurenzahl: 30 → 55 (Phase 1)
+
+Die alte Untergrenze war an Bild 11 kalibriert, damals das Vorbild („gute Richtung"), vom Modell
+auf 35 bis 40 Figuren geschätzt. Das Kontrollbild vom 18.09. liegt mit geschätzt 25 bis 30
+**Menschen** knapp darunter und wurde als zu leer bewertet.
+
+Folge, ausdrücklich mitentschieden: **ein Bild auf dem Niveau von Bild 11 fällt heute als zu leer
+durch.** Der Nutzer dazu: „Das war damals die beste Richtung unter den damaligen Bildern, ich habe
+aber auch dort schon ‚könnte mehr passieren' gesagt." Die Obergrenze ist mit der Zielzahl
+mitgewandert (80 → 130), sie ist nur eine Notbremse.
+
+Kostenneutral: eine Abweichung bei `figures_est` zählt als **mittlerer** Verstoß und löst keinen
+dritten Generierungsversuch aus.
+
+Phase 2 bleibt bei `[40, 95]`. Deren Zahlen hängen an den zwei Bildern, die der Nutzer ausdrücklich
+als Obergrenze benannt hat („das ist das MAXIMUM") — dort wird erst nach einem eigenen
+Phase-2-Kontrollbild geschraubt.
+
+### 8.2 Menschen statt „characters"
+
+Der Bild-Prompt forderte „individual characters". Das Modell hat Tiere mitgezählt und ein
+Bauernhofbild mit sehr vielen Tieren und rund 25 bis 30 Menschen geliefert. Der Prompt sagt jetzt
+ausdrücklich **HUMAN figures**, mit einem eigenen Satz dazu, dass Tiere obendrauf kommen und die
+Menschen nie ersetzen. `figures_est` im Prüf-Prompt zählte bereits vorher nur Menschen
+(„TIERE NICHT MITZÄHLEN") — dort war nichts zu ändern.
+
+Zusätzlich ist die Zielzahl auf die drei Tiefenebenen aufgeteilt (`SCENE_PHASES[...].humanSplit`).
+Eine einzelne große Zahl hält ein Bildmodell schlecht ein, weil es nicht mitzählt; eine Zahl pro
+Ebene schon — dasselbe Prinzip, das bei den regionalen Mindestzahlen in `densityInstruction()`
+nachweislich funktioniert.
+
+### 8.3 Zweck der Figurenbibliothek: Stil-Anker
+
+**Festgelegt: die 13 Blätter in `public/assets/bgchars/` sind ein Stil-Anker, keine
+wiedererkennbare Nebenrollen-Besetzung.**
+
+Vorgeschichte: Der Nutzer erkannte im Bild keine Figur aus der Bibliothek wieder. Die Blätter
+kommen beim Modell an — sie stehen in `styleRefUrls` und damit in `image_urls` des Edit-Aufrufs,
+drei bis vier pro Szene. Die Anweisung hatte sie nur ausdrücklich freigestellt („you do not need to
+include every character … invent further ones yourself") und damit faktisch abgeschaltet.
+
+Sie verbindlich zu machen wäre trotzdem falsch gewesen: die Blätter sind Nahaufnahmen von fünf bis
+sieben Figuren im vollen Format, und ihre Identität steckt in feinen Details — Mantelknöpfe,
+Brille, Zöpfe, Schuhfarbe. Eine Figur, die ein Achtel der Bildhöhe misst, kann davon fast nichts
+tragen. Der Anspruch ist bei dieser Figurengröße bauartbedingt nicht einlösbar.
+
+Der Zweck ab jetzt, Nutzer wörtlich: „Die Nebenfiguren sollen wie gezeichnete Charaktere mit
+Frisur, Kleidung und Farbe wirken, nicht wie Platzhalter." Die Blätter setzen also den Maßstab für
+Eigenleben und Vielfalt, nicht für Identität.
+
+**Offen:** ob die Blätter inhaltlich stören. Sie zeigen überwiegend Winter und Stadt — Mäntel,
+Schals, Mützen, Regenjacken. In einem Herbst- oder Sommerbild kann das schief wirken. Zeigt ein
+Kontrollbild das, folgen thematische Sets (Bauernhof, Strand, Weihnachten); dann braucht es vorher
+eine Kostenschätzung fürs Neu-Erzeugen.
+
+### 8.4 Heldenposition ist nicht mehr fest
+
+Bis 18.09. standen die ersten drei benannten Figuren immer im Vordergrund, der Rest immer im
+Mittelgrund — über ein ganzes Buch hinweg jedes Bild gleich gebaut. Jetzt würfelt jede Szene Platz
+(vorne / Mitte / weiter hinten) und Bildseite neu; beides wird reihum aus zwei durchmischten Listen
+vergeben, damit bei mehreren Helden nicht zwei am selben Platz landen. „Weiter hinten" ist bewusst
+nicht die unterste Größenebene — dort wäre niemand mehr zu erkennen.
+
+Dazu im Prüf-Prompt: `heroes_ok` bestraft eine Heldin weiter hinten **nicht** mehr. Ein Nein gibt es
+nur noch, wenn eine Figur ganz fehlt, doppelt vorkommt, bei den groben Merkmalen klar nicht passt,
+oder so verdeckt/klein/abgewandt ist, dass die Merkmale gar nicht mehr prüfbar sind. Damit ist die
+Bedingung „muss erkennbar bleiben" eine echte Prüfung und nicht nur eine Bitte an das Bildmodell.
