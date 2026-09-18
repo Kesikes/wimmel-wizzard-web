@@ -2392,13 +2392,13 @@ function buildVerifyPrompt(heroSpecs, phaseId) {
 
     "1. HELDEN: Kommen alle " + n + " benannten Figuren (" + names + ") vor, jede GENAU EINMAL (nicht doppelt) und grob passend zu ihrem Referenzbild? Verglichen werden nur GROBE Merkmale: Frisur/Haarform, Haarfarbe, wichtigstes Kleidungsstück samt Farbe, Altersstufe (Kind / Erwachsener / älterer Mensch). Kleinstdetails wie Sommersprossen, Streifenmuster oder Knöpfe sind ausdrücklich KEIN Grund für ein Nein.",
     "Wo die Figuren im Bild stehen, ist dabei ausdrücklich FREI: eine benannte Figur darf vorne groß, im Mittelgrund oder weiter hinten und klein im Bild stehen, auch abseits vom Zentrum. Das ist so gewollt -- Suchen gehört zum Spiel. Sie zu suchen ist Teil deiner Aufgabe, und dass du sie erst suchen musstest, ist KEIN Verstoß.",
-    "Ein Nein ist nur in diesen Fällen fällig: eine der Figuren fehlt ganz; eine kommt doppelt vor; eine passt bei den groben Merkmalen klar nicht zu ihrem Referenzbild; oder eine ist zwar irgendwo vorhanden, aber so stark verdeckt, so klein oder so abgewandt gezeichnet, dass du ihre groben Merkmale gar nicht mehr prüfen kannst. Nenne in deiner kurzen Begründung, welche Figur betroffen ist und was auf sie zutrifft.",
+    "Ein Nein ist nur in diesen Fällen fällig: eine der Figuren fehlt ganz; eine kommt doppelt vor; eine passt bei den groben Merkmalen klar nicht zu ihrem Referenzbild; oder eine ist zwar irgendwo vorhanden, aber so stark verdeckt, so klein oder so abgewandt gezeichnet, dass du ihre groben Merkmale gar nicht mehr prüfen kannst. Schreib bei einem Nein ins Feld notiz, welche Figur betroffen ist und welcher dieser vier Fälle zutrifft.",
 
     "2. STIL. Es geht bei diesem Punkt AUSSCHLIESSLICH um menschliche Gesichter. Tiere sind hier vollständig ausgenommen, egal wie sie gezeichnet sind -- ein Hund mit ausgearbeitetem Fell, eine gefiederte Gans, ein Hahn, ein Adler, ein plastisch gezeichnetes Pferd: alles in Ordnung, nichts davon darf dein Urteil beeinflussen. Ebenso ausgenommen ist die Kulisse: Schattierung, Textur und Farbverläufe auf Requisiten, Gebäuden, Fahrzeugen, Landschaft, Boden, Sand, Heu, Wasser und Himmel sind der gewünschte Stil.",
     "Der gewünschte Gesichtsstil ist: runder Kopf, zwei Punktaugen, ein einzelner dünner senkrechter Strich als Nase, meist kein Mund, oft leichte runde Wangenröte, alles flach und ohne Modellierung. Genau so sehen praktisch alle Figuren aus, und das ist richtig.",
     "Die Frage ist nun: fällt EIN EINZELNES menschliches Gesicht aus diesem Schema heraus, weil es plastischer gezeichnet ist als alle anderen? Anzeichen dafür, einzeln durchzugehen: eine Nase, die als Form gezeichnet ist statt als Strich (mit Nasenrücken, Nasenspitze, Nasenflügeln oder Schatten daran); sichtbare Bartstoppeln oder Schattierung auf Wangen, Kinn oder Hals; ein im Halbprofil gezeichnetes Gesicht mit modellierten Zügen, während alle übrigen frontal und flach sind. Schau dafür besonders die großen Figuren im Vordergrund an -- dort tritt es auf.",
     "AUSNAHME, die dir sonst einen Fehlalarm beschert: der WEIHNACHTSMANN (roter Mantel, rote Zipfelmütze, weißer Vollbart) darf Nase und Bart haben, er ist als Figur so vorgesehen. Dasselbe gilt für andere Figuren, deren Bart zur Rolle gehört, etwa einen Nikolaus. Solche Figuren sind KEIN Verstoß.",
-    "style_ok ist false, wenn du ein solches einzelnes, plastischer gezeichnetes Gesicht findest -- sonst true. Ist es false, nenne in deiner kurzen Begründung, welche Figur du meinst und wo im Bild sie steht.",
+    "style_ok ist false, wenn du ein solches einzelnes, plastischer gezeichnetes Gesicht findest -- sonst true. Ist es false, schreib ins Feld notiz, welche Figur du meinst und wo im Bild sie steht.",
 
     "3. TIEFENSTAFFELUNG: Such die GRÖSSTE Figur im Bild (meist ganz vorne) und die KLEINSTE noch erkennbare Figur (meist weit hinten, in der Bildtiefe oder in einem hinteren Raum). Schätze dann: wie oft würde die kleinste Figur ihrer Höhe nach in die größte hineinpassen? Antworte hier nicht mit true/false, sondern mit einer einzelnen Zahl, gern mit einer Dezimalstelle. Ein Bild mit kräftiger Tiefe liefert einen hohen Wert, ein Bild, in dem alle Figuren in einem ähnlichen Größenband liegen, einen Wert nahe 1. Das gilt genauso für einen Gebäude-Querschnitt: dort vergleichst du einfach die größte Figur vorne mit der kleinsten in den hinteren Räumen oder draußen. Zähle nur Menschen, keine Tiere.",
 
@@ -2415,7 +2415,17 @@ function buildVerifyPrompt(heroSpecs, phaseId) {
 
     "8. TEXT: Ist das Bild vollständig frei von Text -- keine Buchstaben, Wörter, Zahlen, Schilder, Poster, Beschriftungen oder Aufschriften auf Kleidung und Gegenständen, auch nicht klein oder im Hintergrund?",
 
-    "Antworte NUR als JSON-Objekt mit genau diesen acht Feldern: {\"heroes_ok\": true/false, \"style_ok\": true/false, \"depth_ratio\": Zahl, \"scale_ok\": true/false, \"figures_est\": Zahl, \"mouths_ok\": true/false, \"logic_ok\": true/false, \"no_text_ok\": true/false}.",
+    "Antworte NUR als JSON-Objekt mit genau diesen neun Feldern, notiz immer als LETZTES: {\"heroes_ok\": true/false, \"style_ok\": true/false, \"depth_ratio\": Zahl, \"scale_ok\": true/false, \"figures_est\": Zahl, \"mouths_ok\": true/false, \"logic_ok\": true/false, \"no_text_ok\": true/false, \"notiz\": \"kurzer Text\"}.",
+    // NEU (18.09.2026): notiz. Grund: der Prompt verlangte an zwei Stellen eine Begruendung ("nenne,
+    // welche Figur du meinst"), das Antwortformat liess aber nur die acht Wertungsfelder zu -- die
+    // Begruendung ging also jedes Mal verloren. Sichtbar wurde das, als bei einem Bild zwei von drei
+    // Kandidaten an heroes_ok scheiterten (und damit einen dritten, separat bezahlten Versuch
+    // ausloesten) und niemand sagen konnte, ob das Bildmodell die Heldin weggelassen hatte oder der
+    // Verify sie nicht gefunden hat. notiz wird NICHT gewertet: severityOf()/countViolations()
+    // beachten nur Felder auf "_ok" sowie figures_est und depth_ratio, alles andere faellt durch.
+    // Angezeigt wird es ohne Zusatzarbeit, weil buildDebugDetails() (szene.js) das rohe Verify-JSON
+    // je Kandidat ausgibt.
+    "notiz ist ein kurzer deutscher Freitext, höchstens zwei Sätze, und wird NICHT bewertet -- er dient nur dazu, dass ein Mensch nachvollziehen kann, warum ein Feld false ist. Steht irgendwo false, schreib dort in Stichworten hin, was du gesehen hast; ist alles in Ordnung, schreib eine leere Zeichenkette. Verwende darin KEINE Anführungszeichen und KEINE Zeilenumbrüche, damit das JSON gültig bleibt.",
     "Bei allen *_ok-Feldern bedeutet true: kein Verstoß. Also style_ok=true, wenn weder eine plastische Nase noch ein naturalistisches Tier zu finden ist; mouths_ok=true, wenn ein Mund bei den Menschen die Ausnahme bleibt; logic_ok=true, wenn Innen und Außen NICHT vermischt sind. depth_ratio und figures_est sind keine Bewertungen, sondern nur deine geschätzten Zahlen.",
     "Wichtig zur Strenge: bewerte nur, was du tatsächlich siehst. Wenn du dir bei einem der Ja/Nein-Punkte nicht sicher bist, antworte dort true -- ein vermuteter Verstoß ist kein Verstoß. Das gilt aber NICHT für die gezielte Suche unter Punkt 2: dort sollst du wirklich nachsehen und einen gefundenen Ausreißer auch benennen, statt vorsichtshalber true zu antworten.",
 
@@ -2974,8 +2984,20 @@ function countViolations(verifyOutputText, figuresBand) {
   const match = String(verifyOutputText || "").match(/\{[\s\S]*\}/);
   const fail = { violations: 99, parsed: null, severity: { heavy: 99, medium: 99, light: 99 } };
   if (!match) return fail;
+  // NEU (18.09.2026), ZWEI KOPIEN (hier und in api/_lib/fal-queue.js) -- beide anpassen:
+  // "notiz" ist das einzige Freitextfeld der Antwort und damit die einzige Stelle, an der ein
+  // unmaskiertes Anfuehrungszeichen das ganze JSON ungueltig machen kann. Ohne dieses Netz wuerde
+  // ein sonst tadelloses Verify-Ergebnis als kompletter Fehlschlag gewertet (violations 99), nur
+  // weil im Begruendungstext ein Anfuehrungszeichen steht. Der Prompt verlangt notiz als LETZTES
+  // Feld, deshalb laesst es sich verlustfrei abschneiden. Wertungsrelevant ist es ohnehin nicht.
+  function ohneNotiz(roh) {
+    return String(roh).replace(/,?\s*"notiz"\s*:[\s\S]*$/, "") + "}";
+  }
   let parsed;
-  try { parsed = JSON.parse(match[0]); } catch (e) { return fail; }
+  try { parsed = JSON.parse(match[0]); }
+  catch (e) {
+    try { parsed = JSON.parse(ohneNotiz(match[0])); } catch (e2) { return fail; }
+  }
   const severity = severityOf(parsed, figuresBand);
   return { violations: severity.heavy + severity.medium + severity.light, parsed, severity };
 }

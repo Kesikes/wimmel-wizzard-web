@@ -211,8 +211,20 @@ function countViolations(verifyOutputText, figuresBand) {
   const match = String(verifyOutputText || "").match(/\{[\s\S]*\}/);
   const fail = { violations: 99, parsed: null, severity: { heavy: 99, medium: 99, light: 99 } };
   if (!match) return fail;
+  // NEU (18.09.2026), ZWEI KOPIEN (hier und in public/js/pipeline.js) -- beide anpassen:
+  // "notiz" ist das einzige Freitextfeld der Antwort und damit die einzige Stelle, an der ein
+  // unmaskiertes Anfuehrungszeichen das ganze JSON ungueltig machen kann. Ohne dieses Netz wuerde
+  // ein sonst tadelloses Verify-Ergebnis als kompletter Fehlschlag gewertet (violations 99), nur
+  // weil im Begruendungstext ein Anfuehrungszeichen steht. Der Prompt verlangt notiz als LETZTES
+  // Feld, deshalb laesst es sich verlustfrei abschneiden. Wertungsrelevant ist es ohnehin nicht.
+  function ohneNotiz(roh) {
+    return String(roh).replace(/,?\s*"notiz"\s*:[\s\S]*$/, "") + "}";
+  }
   let parsed;
-  try { parsed = JSON.parse(match[0]); } catch (e) { return fail; }
+  try { parsed = JSON.parse(match[0]); }
+  catch (e) {
+    try { parsed = JSON.parse(ohneNotiz(match[0])); } catch (e2) { return fail; }
+  }
   const severity = { heavy: 0, medium: 0, light: 0 };
   Object.keys(parsed).forEach((k) => {
     let bad;
