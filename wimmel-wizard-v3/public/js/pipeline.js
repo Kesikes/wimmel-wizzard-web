@@ -1862,7 +1862,7 @@ function backgroundLibraryInstruction(startIndex, count) {
   //   Frisur, Kleidung und Farbe wirken, nicht wie Platzhalter."
   // OFFEN: ob die Blaetter (ueberwiegend Winter und Stadt -- Maentel, Schals, Muetzen) in einem
   // Herbst-/Sommerbild inhaltlich stoeren. Zeigt das Kontrollbild das, kommen thematische Sets.
-  return range + " show a library of additional background-character designs — NOT named heroes, no names or identities attached to them. Do two things with them. FIRST: pick four to six of the people shown on these sheets and actually draw them into this scene, all of them in the middle distance, where a figure is still big enough to be made out. Keep each of those four to six recognisably the same person — the same hair, the same build, the same combination of colours — but dress them for where and when this scene happens, so that a winter coat becomes whatever this place and this season call for. Recognisable here means the silhouette, the hair and the colours, not small details. SECOND: the sheets set the standard for everybody else in the picture. Every unnamed person in this scene is a properly drawn character with their own hairstyle, their own clothes and their own combination of colours, as varied from one another as the people on these sheets are. No repeated silhouettes, no grey filler shapes, nobody left as a vague blob — even the small figures far back get their own hair and their own colours. Invent all those further characters yourself.";
+  return range + " show a library of additional background-character designs — NOT named heroes, no names or identities attached to them. Do two things with them. FIRST: pick four to six of the people shown on these sheets and draw them into this scene, all of them in the middle distance and all of them at exactly the midground size given by the size rule above — this instruction never makes anybody bigger, and none of these four to six may come near the front edge of the picture. Keep each of them recognisably the same person in hair, build and colour combination; recognisable here means the silhouette, the hair and the colours, nothing smaller than that. RE-DRESS THEM COMPLETELY for this scene: the sheets show people in coats, scarves, woolly hats and rain macs, and none of that may appear in this image unless this scene's own place and season actually call for it. A figure from the sheets keeps their hair and their colours and gets the clothes that belong here — a winter coat becomes a shirt, an apron, a summer dress, whatever is right for this place and this time of year. A single scarf or woolly hat that does not belong to this scene is a mistake. SECOND: the sheets set the standard for everybody else in the picture. Every unnamed person in this scene is a properly drawn character with their own hairstyle, their own clothes and their own combination of colours, as varied from one another as the people on these sheets are. No repeated silhouettes, no grey filler shapes, nobody left as a vague blob — even the small figures far back get their own hair and their own colours. Invent all those further characters yourself.";
 }
 
 // NEU: "Alle-Charaktere-müssen-vorkommen"-Regel, verallgemeinert von der Spezifikations-Formulierung
@@ -2078,6 +2078,18 @@ function sizeRuleReminder(phase) {
 // Groessenband standen. Die bereits vorhandene DEPTH_COHERENCE_RULE beschreibt den GLEITENDEN
 // Uebergang -- dieser Satz verlangt zusaetzlich, dass die drei Ebenen ueberhaupt als drei
 // unterschiedliche Groessen erkennbar sind.
+// NEU (18.09.2026, zwei Fehler aus demselben Bild): am unteren Bildrand standen drei Figuren so
+// gross, dass nur ein Teil ihres Kopfes im Bild war -- und ihre Gesichter waren voellig leer, ohne
+// Augen und ohne Nase. Beides kommt aus derselben Ursache: das Modell schiebt einzelne Figuren als
+// "Rahmen" an den vorderen Bildrand, und was dort abgeschnitten ist, zeichnet es nicht mehr aus.
+// Die Regel steht direkt bei der Groessenregel, weil sie deren Gegenprobe ist: die Groessenregel
+// sagt, wie klein eine Figur sein muss, diese hier verbietet den einen Trick, mit dem das Modell
+// sie sonst umgeht.
+// WICHTIG beim Formulieren: "vollstaendiges Gesicht" darf nicht als Einladung zum Mund gelesen
+// werden. Deshalb steht hier ausdruecklich, WAS ein vollstaendiges Gesicht in diesem Stil hat --
+// zwei Punktaugen und ein Nasenstrich -- und dass der Mund weiterhin wegbleibt.
+const EDGE_AND_FACE_RULE = "Two things are never allowed in this image, and they go together. First: no figure is cut off by the edge of the picture. Nobody stands half in and half out at the bottom, the top or the sides, and there is no oversized head or shoulder pushed up against the front edge as a framing device — every single person in this scene stands fully inside the picture, complete from head to foot, and no person anywhere is drawn larger than the size limit given above. Second: every face that appears is actually drawn. Each one shows the two small dot eyes and the single short vertical nose line — never an empty, blank oval with nothing on it, however small or however near the edge the figure is. The mouth stays absent, as the rule above says; eyes and nose do not.";
+
 const THREE_LAYER_RULE = "The scene must show three clearly different character sizes: the front figures (the biggest in the picture, but still small against the whole scene), noticeably smaller midground figures, and a lot of much smaller background figures. A viewer should be able to tell at a glance which layer any character belongs to, just from its size. An image in which nearly all characters are about the same size across the whole surface is a failed image, no matter how much is going on in it.";
 
 // NEU (17.09.2026, D2): Nutzer-Befund an einem Weihnachtsbild, woertlich: "Logikfehler: Schnee in
@@ -2147,6 +2159,17 @@ function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount, phase, co
   // Ganz vorne, noch vor der Helden-Zuordnung -- Primacy-Haelfte des Mund-Sandwiches (siehe
   // Kommentar bei NO_MOUTH_EMPHASIS oben).
   sentences.push(NO_MOUTH_EMPHASIS);
+  // GEAENDERT (18.09.2026, zweiter Groessen-Rueckfall): Kamera und Figurengroesse stehen jetzt GANZ
+  // VORNE, noch vor jeder Erwaehnung von Referenzbildern. Vorher standen sie an Position ~2400 bzw.
+  // ~2900 des Prompts -- davor lagen die Helden-Zuordnung und der lange Bibliotheks-Absatz, der
+  // ueber tausend Zeichen lang vom Einzeichnen von Personen sprach, bevor ueberhaupt eine
+  // Groessenvorgabe kam (und dabei sogar "big enough to be made out" sagte). Gemessenes Ergebnis:
+  // die groesste Vordergrundfigur passte nur noch 2,7-mal in die Bildhoehe statt achtmal -- ein
+  // Rueckschritt gegenueber dem Bild davor. Dasselbe Muster wie bei den 20 Vignetten-Klammern:
+  // nicht der Wortlaut der Groessenregel war das Problem, sondern was VOR ihr steht.
+  sentences.push(ZOOM_OUT_RULE);
+  sentences.push(sizeRule(phase));
+  sentences.push(EDGE_AND_FACE_RULE);
   sentences.push(imageRefMapping(heroSpecs));
   // Direkt nach der Helden-Zuordnung, bevor irgendetwas anderes ueber Referenzbilder gesagt wird --
   // sonst koennte das Modell die nachfolgenden Bibliotheks-Blaetter (image_urls-Reihenfolge, siehe
@@ -2155,11 +2178,6 @@ function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount, phase, co
   // NEU (D2): Komposition und Kameraabstand direkt nach den Referenzbildern -- beides betrifft das
   // ganze Bild und gehoert daher vor die Einzelanweisungen.
   sentences.push(composition.text);
-  sentences.push(ZOOM_OUT_RULE);
-  // NEU (18.09.2026): unmittelbar nach der Kamera-Anweisung, weil beides dieselbe Sache von zwei
-  // Seiten beschreibt (weiter weg <-> kleinere Figuren). Vorher war die Groesse nirgends als
-  // eigener Satz im Prompt -- sie stand nur in den Vignetten-Klammern und kam nicht an.
-  sentences.push(sizeRule(phase));
   const placements = pickHeroPlacements(heroSpecs.length);
   // GEAENDERT (17.09.2026, D3): jeder Held bekommt seine EIGENE Handlung, namentlich an ihm haengend
   // (pickHeroActions() oben). Vorher stand hier nur "actively taking part in the action described
@@ -2398,7 +2416,8 @@ function buildVerifyPrompt(heroSpecs, phaseId) {
     "Der gewünschte Gesichtsstil ist: runder Kopf, zwei Punktaugen, ein einzelner dünner senkrechter Strich als Nase, meist kein Mund, oft leichte runde Wangenröte, alles flach und ohne Modellierung. Genau so sehen praktisch alle Figuren aus, und das ist richtig.",
     "Die Frage ist nun: fällt EIN EINZELNES menschliches Gesicht aus diesem Schema heraus, weil es plastischer gezeichnet ist als alle anderen? Anzeichen dafür, einzeln durchzugehen: eine Nase, die als Form gezeichnet ist statt als Strich (mit Nasenrücken, Nasenspitze, Nasenflügeln oder Schatten daran); sichtbare Bartstoppeln oder Schattierung auf Wangen, Kinn oder Hals; ein im Halbprofil gezeichnetes Gesicht mit modellierten Zügen, während alle übrigen frontal und flach sind. Schau dafür besonders die großen Figuren im Vordergrund an -- dort tritt es auf.",
     "AUSNAHME, die dir sonst einen Fehlalarm beschert: der WEIHNACHTSMANN (roter Mantel, rote Zipfelmütze, weißer Vollbart) darf Nase und Bart haben, er ist als Figur so vorgesehen. Dasselbe gilt für andere Figuren, deren Bart zur Rolle gehört, etwa einen Nikolaus. Solche Figuren sind KEIN Verstoß.",
-    "style_ok ist false, wenn du ein solches einzelnes, plastischer gezeichnetes Gesicht findest -- sonst true. Ist es false, schreib ins Feld notiz, welche Figur du meinst und wo im Bild sie steht.",
+    "ZWEITER FALL unter demselben Feld, der GEGENTEILIGE Fehler: ein menschliches Gesicht, das gar nicht gezeichnet wurde -- eine leere Fläche ohne Augen und ohne Nasenstrich, ein blanker Kopf. Der fehlende MUND ist dabei ausdrücklich richtig und kein Fehler; es geht nur um Gesichter, bei denen auch Augen und Nase fehlen. Schau dafür besonders die größten Figuren ganz vorne und die am unteren Bildrand an, auch angeschnittene. Ein einzelnes solches leeres Gesicht genügt für ein Nein.",
+    "style_ok ist also false, wenn du entweder ein einzelnes, plastischer gezeichnetes Gesicht findest ODER ein leeres Gesicht ohne Augen und Nase -- sonst true. Ist es false, schreib ins Feld notiz, welcher der beiden Fälle vorliegt, welche Figur du meinst und wo im Bild sie steht.",
 
     "3. TIEFENSTAFFELUNG: Such die GRÖSSTE Figur im Bild (meist ganz vorne) und die KLEINSTE noch erkennbare Figur (meist weit hinten, in der Bildtiefe oder in einem hinteren Raum). Schätze dann: wie oft würde die kleinste Figur ihrer Höhe nach in die größte hineinpassen? Antworte hier nicht mit true/false, sondern mit einer einzelnen Zahl, gern mit einer Dezimalstelle. Ein Bild mit kräftiger Tiefe liefert einen hohen Wert, ein Bild, in dem alle Figuren in einem ähnlichen Größenband liegen, einen Wert nahe 1. Das gilt genauso für einen Gebäude-Querschnitt: dort vergleichst du einfach die größte Figur vorne mit der kleinsten in den hinteren Räumen oder draußen. Zähle nur Menschen, keine Tiere.",
 

@@ -69,7 +69,13 @@ module.exports = async (req, res) => {
   // 12 bis 14 KB gewachsen (fuenf Helden, Phase 2: 14,1 KB gemessen). Die alte Grenze von 16000 war
   // laut Kommentar unten kein fal.ai-Limit, sondern ein Missbrauchsschutz -- 20000 laesst dem
   // Wachstum Luft und schuetzt weiterhin gegen aufgeblasene Anfragen.
-  if (instruction.length > 20000) {
+  // NOCHMALS ANGEHOBEN (18.09.2026, 20000 -> 24000): nach den Gruppen-Vignetten, der Rand-/
+  // Gesicht-Regel und dem erweiterten Bibliotheks-Absatz misst der laengste Fall (fuenf Helden,
+  // Phase 2, Weihnachten) 18,6 KB. Bis zur Grenze blieben damit noch 1,4 KB -- die naechste
+  // Prompt-Ergaenzung haette den Aufruf mit "instruction zu lang" abgewiesen, und zwar erst beim
+  // Generieren, nicht beim Entwickeln. Nachgemessen wird der laengste Fall mit
+  // dev-tools/prompt-laenge.js.
+  if (instruction.length > 24000) {
     res.status(400).json({ error: "instruction zu lang." });
     return;
   }
