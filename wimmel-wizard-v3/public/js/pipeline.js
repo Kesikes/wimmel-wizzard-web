@@ -1393,10 +1393,16 @@ function layerSizeText(layerName, phase) {
 // (nur noch links/mitte/rechts fuer etwas horizontale Varianz, keine vertikale top/middle/bottom-
 // Achse mehr, da die Tiefenebene selbst schon die Groessen-/Wichtigkeits-Semantik traegt, die vorher
 // über oben/unten/S/M/L kommuniziert wurde).
-function sceneLayerText(s, phase) {
+// GEAENDERT (18.09.2026, nach den ersten echten Testbildern): die Groessenangabe stand hier in
+// JEDER der rund 20 Vignetten-Zeilen in Klammern. Im fertigen Prompt war derselbe Halbsatz damit
+// ueber 20 Mal zu lesen -- er liest sich dadurch wie Formatierung, nicht wie eine Anweisung, und er
+// draengt sich zwischen Ortsangabe und eigentlichen Inhalt der Vignette. Die Groesse steht jetzt
+// EINMAL und prominent bei der Kamera-Anweisung (sizeRule() unten). Hier bleibt nur noch die
+// Tiefenebene, die die Groesse ohnehin benennt.
+function sceneLayerText(s) {
   const layer = SCENE_LAYERS[s.layer] || SCENE_LAYERS.midground;
   const side = s.side ? ", on the " + s.side + " side of the scene" : "";
-  return "In the " + layer.label + side + " (" + layerSizeText(s.layer, phase) + "): " + s.text + ".";
+  return "In the " + layer.label + side + ": " + s.text + ".";
 }
 
 // NEU (nicht im Original vorhanden): die Spezifikation (Abschnitt 2) verbietet Emotionswörter für
@@ -1572,7 +1578,7 @@ const COHERENCE_RULE = "The whole scene is ONE continuous space seen from a slig
 // "Ja, einbeziehen" -- eine grosse Kuh direkt neben einer winzigen Hintergrundfigur ohne Tiefenstaffelung
 // soll genauso als Verstoss gelten wie bei zwei Menschen). Urspruenglicher, vom Nutzer wortwoertlich
 // vorgegebener Regelsatz (erster Satz) bleibt UNVERAENDERT, nur der klarstellende zweite Satz ist neu.
-const DEPTH_COHERENCE_RULE = "Depth and scale must be spatially coherent: characters transition smoothly from large in the foreground to small in the background along continuous receding ground. Never place a foreground-sized character immediately next to a background-sized character with no spatial separation between them – each character's size must match its actual distance within the single continuous scene. This applies to animals exactly as it does to human characters — a large animal belongs in the foreground, a small one in the background, following the same continuous depth progression as everyone else, never placed at a size that ignores its actual distance in the scene.";
+const DEPTH_COHERENCE_RULE = "Depth and scale must be spatially coherent: characters shrink smoothly and continuously from the front of the scene towards the back along receding ground. Never place a foreground-sized character immediately next to a background-sized character with no spatial separation between them – each character's size must match its actual distance within the single continuous scene. This applies to animals exactly as it does to human characters — an animal drawn bigger belongs nearer the front, a smaller one further back, following the same continuous depth progression as everyone else, never placed at a size that ignores its actual distance in the scene.";
 
 // HEAD_SCALE_CONSISTENCY_RULE: Nutzer-Begruendung -- SCENE_LAYERS' Hoehenvorgaben (20%/14%/7%)
 // beziehen sich auf die GESAMTE Figur; bei unterschiedlichen Figurentypen (Kind vs. Erwachsener)
@@ -1828,7 +1834,26 @@ const PHASE2_FOREGROUND_RULE = "Because this scene is large and densely populate
 // SCENE_LAYERS), deshalb steht hier zusaetzlich die Kamera-Anweisung: nicht "zeichne die Figuren
 // kleiner", sondern "geh weiter weg" -- das ist fuer ein Bildmodell die greifbarere Anweisung, weil
 // sie die ganze Komposition betrifft und nicht nur ein Detail.
-const ZOOM_OUT_RULE = "Camera distance is critical for this image: pull back much further than feels natural, as if photographing the whole place from across the street or from an upper window. Even the largest character in the very front must read as part of the scene, never as a portrait — the scene itself is the subject, not any single figure. Getting further away is what creates the room for the large number of characters required below.";
+const ZOOM_OUT_RULE = "Camera distance is critical for this image: pull back much further than feels natural, as if photographing the whole place from across the street or from an upper window. This is a wide establishing shot of an entire place, not a scene staged around a few characters — the place is the subject, and the people are what fills it. Getting further away is what creates the room for the large number of characters required below.";
+
+// NEU (18.09.2026): die Figurengroesse als EINE zusammenhaengende Anweisung, unmittelbar nach der
+// Kamera-Anweisung. Vorher war sie ueber rund 20 Vignetten-Klammern verstreut (siehe
+// sceneLayerText()), und im ersten echten Testlauf kam sie nicht an: die groesste Vordergrundfigur
+// passte gemessen 3- bis 4-mal in die Bildhoehe statt der geforderten 8- bis 10-mal.
+// Dazu die Negativ-Probe am Ende: ein Bildmodell kann "passt achtmal hinein" schlecht ausrechnen,
+// aber sehr wohl erkennen, ob eine Figur wie ein Portraet wirkt.
+function sizeRule(phase) {
+  return "Character size, and this is the single most important compositional constraint in this image: the tallest person standing at the very front of the scene must fit into the image height " + phase.figureFitCount + " times over. Picture the image height divided into " + phase.figureFitCount + " equal horizontal bands — a front figure is no taller than one of those bands. People in the middle distance are about half that height again, and the many people further back are smaller still, barely more than a thumbnail each. "
+    + "Use this as a check while composing: if any single character is large enough that a viewer would read them as the subject of a portrait, or if their face carries recognisable detail at a glance, the camera is far too close and the whole composition must be pulled back.";
+}
+
+// Recency-Haelfte des Groessen-Sandwiches: dieselbe Zahl noch einmal, kurz, als Letztes vor der
+// Text-Regel. Dasselbe Muster, das bei NO_MOUTH_EMPHASIS nachweislich wirkt (vorne ausfuehrlich,
+// hinten knapp). Bewusst anders formuliert als sizeRule(), damit es als Erinnerung gelesen wird
+// und nicht als versehentlich doppelter Absatz.
+function sizeRuleReminder(phase) {
+  return "Last check on scale before drawing: divide the image height into " + phase.figureFitCount + " equal horizontal bands. No person in this image, not even the one standing closest to the viewer, may be taller than one of those bands. If the front figures are bigger than that, the image is wrong — move the camera back and redraw the whole scene smaller and busier.";
+}
 
 // NEU (17.09.2026, D2): Tiefenstaffelung als PFLICHT, nicht als Empfehlung. Nutzer, woertlich:
 // "Tiefenstaffelung ist PFLICHT: Vorder-/Mittel-/Hintergrund mit klar abnehmender Figurengroesse.
@@ -1837,7 +1862,7 @@ const ZOOM_OUT_RULE = "Camera distance is critical for this image: pull back muc
 // Groessenband standen. Die bereits vorhandene DEPTH_COHERENCE_RULE beschreibt den GLEITENDEN
 // Uebergang -- dieser Satz verlangt zusaetzlich, dass die drei Ebenen ueberhaupt als drei
 // unterschiedliche Groessen erkennbar sind.
-const THREE_LAYER_RULE = "The scene must show three clearly different character sizes: large foreground figures, noticeably smaller midground figures, and a lot of much smaller background figures. A viewer should be able to tell at a glance which layer any character belongs to, just from its size. An image in which nearly all characters are about the same size across the whole surface is a failed image, no matter how much is going on in it.";
+const THREE_LAYER_RULE = "The scene must show three clearly different character sizes: the front figures (the biggest in the picture, but still small against the whole scene), noticeably smaller midground figures, and a lot of much smaller background figures. A viewer should be able to tell at a glance which layer any character belongs to, just from its size. An image in which nearly all characters are about the same size across the whole surface is a failed image, no matter how much is going on in it.";
 
 // NEU (17.09.2026, D2): Nutzer-Befund an einem Weihnachtsbild, woertlich: "Logikfehler: Schnee in
 // der Kueche". Der Verify prueft das inzwischen (logic_ok) -- hier die entsprechende Anweisung an
@@ -1881,6 +1906,10 @@ function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount, phase, co
   // ganze Bild und gehoert daher vor die Einzelanweisungen.
   sentences.push(composition.text);
   sentences.push(ZOOM_OUT_RULE);
+  // NEU (18.09.2026): unmittelbar nach der Kamera-Anweisung, weil beides dieselbe Sache von zwei
+  // Seiten beschreibt (weiter weg <-> kleinere Figuren). Vorher war die Groesse nirgends als
+  // eigener Satz im Prompt -- sie stand nur in den Vignetten-Klammern und kam nicht an.
+  sentences.push(sizeRule(phase));
   const foregroundHeroes = heroSpecs.slice(0, FOREGROUND_HERO_CAP);
   const midgroundHeroes = heroSpecs.slice(FOREGROUND_HERO_CAP);
   // GEAENDERT (17.09.2026, D3): jeder Held bekommt seine EIGENE Handlung, namentlich an ihm haengend
@@ -1900,7 +1929,7 @@ function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount, phase, co
   sentences.push("Populate the whole scene with " + phase.totalCharacters + " individual characters in total, combining the named heroes with the midground and background layers described below — a genuinely busy, richly populated seek-and-find scene, not a sparse one.");
   sentences.push(THREE_LAYER_RULE);
   sentences.push(densityInstruction(theme, phase));
-  const situationText = (situations || []).map((s) => sceneLayerText(s, phase)).join(" ");
+  const situationText = (situations || []).map((s) => sceneLayerText(s)).join(" ");
   if (situationText) sentences.push(stripEmotionWords(situationText));
   if (phase.id === "phase2") sentences.push(PHASE2_FOREGROUND_RULE);
   sentences.push(SCENE_STYLE_BLOCK);
@@ -1913,6 +1942,7 @@ function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount, phase, co
   sentences.push(SAFE_MARGIN_RULE);
   sentences.push(EMOTION_WORDS_RULE);
   sentences.push(allCharactersRule(heroSpecs));
+  sentences.push(sizeRuleReminder(phase));
   sentences.push(ZERO_TEXT_RULE);
   return kw + ". " + sentences.filter(Boolean).join(" ");
 }
@@ -1922,7 +1952,7 @@ function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount, phase, co
 // scenePrompt() um die Anweisung, wie die mitgeschickten Referenzbilder zu benutzen sind (Identitaet
 // fix, Pose frei) -- analog zum bestaetigten Muster aus kontextInstruction() fuer Charakter-Edits.
 function sceneComposeInstruction(promptText) {
-  return promptText + " The attached reference images show the exact established design of each named character listed above by reference-image number — their face, proportions, hair color, clothing and identifying details. Draw each one into this new scene keeping their identity and design EXACTLY the same as their reference (same face, same proportions, same hair, same clothing colors); only their pose changes to match the action described above — dynamic, natural poses that actively show them taking part in the scene, never simply copied standing still from the reference. Every other character in the scene, including all small background characters, must be drawn in the exact same flat-color, thick black marker outline, graphic-recording sketchnote illustration style as the reference images, applied consistently across the entire image — no character anywhere in the picture may be drawn in a more detailed, more realistic, differently line-weighted, shaded, gradient, or softly airbrushed style."
+  return promptText + " The attached reference images show the exact established design of each named character listed above by reference-image number — their face, proportions, hair color, clothing and identifying details. Draw each one into this new scene keeping their identity and design EXACTLY the same as their reference (same face, same proportions, same hair, same clothing colors); only their pose changes to match the action described above — dynamic, natural poses that actively show them taking part in the scene, never simply copied standing still from the reference. Take their identity from those reference images, but NOT their size: the references are close-up character sheets in which one person fills the frame, and that is a property of the reference sheet, not of this scene. In the scene each of them is one small figure among many, at the size given by the size rule above. Every other character in the scene, including all small background characters, must be drawn in the exact same flat-color, thick black marker outline, graphic-recording sketchnote illustration style as the reference images, applied consistently across the entire image — no character anywhere in the picture may be drawn in a more detailed, more realistic, differently line-weighted, shaded, gradient, or softly airbrushed style."
     // NEU: ganz am Ende, das Letzte, was das Modell vor der Generierung liest -- Recency-Haelfte des
     // Mund-Sandwiches (siehe Kommentar bei NO_MOUTH_EMPHASIS oben). Bewusst knapper/direkter als die
     // Version vorne im Prompt, damit es als abschliessende Erinnerung wirkt statt als Wiederholung.
