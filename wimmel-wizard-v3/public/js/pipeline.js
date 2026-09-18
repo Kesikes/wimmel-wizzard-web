@@ -1049,7 +1049,17 @@ var SCENE_PHASES = {
     // bewertet hat (eigene Zaehlung an Bild 11, seinem Vorbild: rund 60 bis 70 Figuren). Er will
     // "deutlich mehr Figuren und mehr Handlung als jetzt", also muss die Anweisung ueber dem liegen,
     // was Bild 11 tatsaechlich hat.
-    totalCharacters: "roughly 70 to 100",
+    // GEAENDERT (18.09.2026, nach dem Bauernhof-Kontrollbild): das Bild hatte geschaetzt 25 bis 30
+    // MENSCHEN bei sehr vielen Tieren -- der Nutzer: "fuer das kleine Format zu leer". Die alte
+    // Zahl stand bei 70 bis 100 und wurde um rund das Dreifache verfehlt. Zwei Aenderungen dagegen:
+    // die Zahl steigt, und sie ist im Prompt jetzt ausdruecklich als MENSCHEN formuliert (siehe
+    // scenePrompt() unten) -- vorher stand dort "characters", und Tiere haben das Bild mitgefuellt.
+    totalCharacters: "roughly 100 to 130",
+    // humanSplit: die Zahl auf die drei Tiefenebenen verteilt. Eine einzelne grosse Zahl ist fuer
+    // ein Bildmodell schwer einzuhalten (es zaehlt nicht mit), eine Aufteilung pro Ebene ist
+    // greifbarer -- dasselbe Prinzip, das bei densityInstruction() mit den regionalen
+    // Mindestzahlen nachweislich funktioniert.
+    humanSplit: "Roughly how the people are spread: a small handful at the very front, two to three dozen in the middle distance, and the clear majority as small figures further back, filling the scene all the way to the horizon.",
     // Kompositionstypen fuer diese Phase, in der Reihenfolge ihrer Haeufigkeit. Welcher davon zu
     // einem Thema passt, entscheidet pickComposition() unten -- ein Bauernhof laesst sich nicht als
     // Haus-Querschnitt zeichnen.
@@ -1059,7 +1069,15 @@ var SCENE_PHASES = {
     // leer bewerteten Bilder liegen bei 11 bis 28. Untergrenze 30 nimmt Bild 11 also an und weist
     // die leeren ab. Obergrenze 80: in Phase 1 war zu viel Gewimmel nie das Problem, die Grenze ist
     // nur eine Notbremse -- und sie muss Luft lassen, weil D2 die Dichte gezielt hochtreiben wird.
-    figuresBand: [30, 80],
+    // GEAENDERT (18.09.2026): Untergrenze von 30 auf 55, Obergrenze von 80 auf 130. Die alte
+    // Untergrenze stammte aus der Kalibrierung an Bild 11 (damals "gute Richtung", vom Modell auf
+    // 35 bis 40 geschaetzt). Das Kontrollbild vom 18.09. liegt mit geschaetzt 25 bis 30 Menschen
+    // knapp darunter -- und wurde als zu leer bewertet. Damit ist die alte Untergrenze zu tief: ein
+    // Bild auf dem Niveau von Bild 11 gilt jetzt ebenfalls als zu leer, was der aktuellen
+    // Produktentscheidung entspricht. Obergrenze mit der Zielzahl mitgezogen, sie ist nur die
+    // Notbremse. Kostenneutral: eine Abweichung hier zaehlt als MITTLERER Verstoss und loest
+    // keinen dritten Generierungsversuch aus (siehe isGoodEnough() in api/_lib/fal-queue.js).
+    figuresBand: [55, 130],
   },
   phase2: {
     id: "phase2",
@@ -1088,7 +1106,12 @@ var SCENE_PHASES = {
     // Figuren -- also kaum mehr als Phase 1 heute hat. Weil Phase 2 einen groesseren Schauplatz
     // zeigt (Haus PLUS Strasse und Umgebung), liegt das Ziel etwas darueber, aber nicht viel: der
     // Nutzer hat Bild 26/27 ausdruecklich als "viel zu viel Gewimmel" abgelehnt.
+    // UNVERAENDERT (18.09.2026): Phase 2 bleibt vorerst stehen. Der Befund "zu leer" stammt aus
+    // einem Phase-1-Bild; die Phase-2-Zahlen sind an den beiden Bildern kalibriert, die der Nutzer
+    // ausdruecklich als OBERGRENZE benannt hat ("das ist das MAXIMUM"). Bevor hier etwas steigt,
+    // braucht es ein eigenes Phase-2-Kontrollbild.
     totalCharacters: "roughly 90 to 120",
+    humanSplit: "Roughly how the people are spread: a small handful at the very front, two to three dozen in the middle distance, and the clear majority as small figures further back and in the surrounding streets and rooms.",
     compositions: ["overview_cutaway", "overview_open"],
     // SCHARF GEZOGEN (17.09.2026), OBERGRENZE ANGEHOBEN nach dem dritten Lauf: die Vorbilder des
     // Nutzers, Bild 23 und 24, sind ausdruecklich auch die Obergrenze ("das ist das MAXIMUM"). Die
@@ -1491,7 +1514,8 @@ const THEME_META = {
 function densityInstruction(theme, phase) {
   const regions = (theme && theme.regions && theme.regions.length) ? theme.regions : ["across the scene"];
   const min = ((theme && theme.regionMin) || 6) * 2;
-  const parts = regions.map((r) => "at least " + min + " small background characters " + r);
+  // GEAENDERT (18.09.2026): "characters" -> "people", gleicher Grund wie bei totalCharacters oben.
+  const parts = regions.map((r) => "at least " + min + " small background people " + r);
   return "In the background layer (" + layerSizeText("background", phase) + "), densely populate the scene: " + parts.join(", ") + " — each one doing their own tiny activity or little visual joke, true busy seek-and-find picture-book density.";
 }
 
@@ -1648,7 +1672,14 @@ function backgroundLibraryInstruction(startIndex, count) {
   if (!count) return "";
   const endIndex = startIndex + count - 1;
   const range = count === 1 ? ("Reference image " + startIndex) : ("Reference images " + startIndex + " through " + endIndex);
-  return range + " show a library of additional background-character designs — NOT named heroes, no names or identities attached to them. Use them as design inspiration (face, hairstyle, clothing, colors) for SOME of the small background and midground characters in this scene, drawn in the exact same style as shown. You do not need to include every character from these sheets, and you should still invent further original background characters yourself to fill out the required density.";
+  // GEAENDERT (18.09.2026, Nutzer-Befund: "Ich erkenne im Bild keine Figuren aus der Bibliothek
+  // wieder"). Die Blaetter kommen nachweislich beim Modell an (sie stehen in styleRefUrls und damit
+  // in image_urls, siehe buildSceneComposeInputs()), die Anweisung hat sie aber ausdruecklich
+  // freigestellt ("you do not need to include every character ... invent further ones yourself") --
+  // eine Einladung, sie zu ignorieren. Jetzt verbindlich, mit einer Mindestzahl, und in der
+  // Mittelgrund-Ebene statt ganz hinten, weil eine Figur im hintersten Band ohnehin zu klein waere,
+  // um wiedererkannt zu werden.
+  return range + " show a library of additional background-character designs — NOT named heroes, no names or identities attached to them. Take at least six of the people shown on these sheets and actually draw them into this scene, keeping their hairstyle, their clothing and their colours clearly recognisable, and place those six in the middle distance rather than in the far background, where they would be too small to recognise. Adapt what they are wearing to this scene if the theme calls for it, but keep each one recognisably the same person. Invent all further background characters yourself to reach the required number.";
 }
 
 // NEU: "Alle-Charaktere-müssen-vorkommen"-Regel, verallgemeinert von der Spezifikations-Formulierung
@@ -1816,18 +1847,16 @@ function pickComposition(theme, phase, forced) {
 // im Hintergrund duerfen Figuren generisch sein." Und: "Heldinnen/Helden brauchen einen gezielten,
 // gut sichtbaren Platz, sonst gehen sie im Gewimmel unter." Beides sind Reaktionen auf die
 // Phase-2-Testbilder, in denen die Heldin im Gewuehl verschwand und die Figuren farblos blieben.
-const PHASE2_FOREGROUND_RULE = "Because this scene is large and densely populated, the front of the image carries the recognisability: every character in the foreground and midground is drawn as an individual with their own clothing colours, their own posture and their own small activity — no filler, no repeated silhouettes. Only in the far background may characters become simple and generic. Give each named hero a deliberately chosen, clearly visible spot with space around them, so they stand out from the crowd instead of disappearing into it.";
+const PHASE2_FOREGROUND_RULE = "Because this scene is large and densely populated, the front of the image carries the recognisability: every character in the foreground and midground is drawn as an individual with their own clothing colours, their own posture and their own small activity — no filler, no repeated silhouettes. Only in the far background may characters become simple and generic. Give each named hero a deliberately chosen spot with a little space around them, wherever in the depth of the scene they have been placed above, so they can be found instead of disappearing into the crowd.";
 
 // scenePrompt(): NEU synthetisiert nach Spezifikation Abschnitt 2 (siehe Modul-Kommentar oben).
 // heroSpecs: Array von CharacterSpec (makeCharacterSpec()), je mit .name und gefuelltem
 // identityCore/defaultOutfit. theme: ein THEME_META[...]-Eintrag. situations: Array wie von
 // autoSituations() geliefert ({text, de, layer, side}).
-// GEAENDERT (Sammel-Runde 15.09.2026, Punkt 2): vorher standen ALLE Heroes pauschal "im
-// Vordergrund". Jetzt: hoechstens FOREGROUND_HERO_CAP (3) Heroes werden als Vordergrund beschrieben
-// (Nutzer-Vorgabe "2-3 der Heroes agieren hier") -- bei mehr als 3 benannten Charakteren (in der
-// App bereits heute moeglich, heroSpecs kommt aus allen Personen mit status:"done") werden die
-// restlichen 1-2 explizit dem Mittelgrund zugeordnet, bleiben aber weiterhin laut
-// allCharactersRule() Pflicht-Bestandteil der Szene (nur eben nicht mehr zwingend gross/vorne).
+// HISTORISCH (bis 18.09.2026): die ersten drei Heroes standen fest im Vordergrund, der Rest im
+// Mittelgrund. Ersetzt durch pickHeroPlacements() oben -- Platz und Bildseite wechseln jetzt je
+// Szene. Unveraendert gilt allCharactersRule(): jeder benannte Charakter MUSS vorkommen, genau
+// einmal, egal auf welcher Ebene er gelandet ist.
 // NEU (17.09.2026, D2): der wichtigste einzelne Befund aus der Bewertung der 27 Bilder. Nutzer,
 // woertlich: "Figuren kleiner / weiter rauszoomen, mehr los" und "Grundprinzip: kleinere Figuren ->
 // mehr Platz -> mehr Gewimmel". Die Groessenangabe allein hat nicht gewirkt (siehe Kommentar bei
@@ -1876,7 +1905,41 @@ const FLAT_FACE_RULE = "Every human face in this image stays completely flat, an
 
 const INDOOR_OUTDOOR_RULE = "Keep inside and outside strictly separate. Weather and outdoor ground — snow, rain, sand, waves, grass, sky, street paving — belong outdoors only and must never appear on the floor of a room. In a building cut open for the viewer, every interior room keeps its own floor, walls and ceiling, and the outside world only ever begins beyond a wall, a window frame or the edge of the house.";
 
-const FOREGROUND_HERO_CAP = 3;
+// NEU (18.09.2026, Nutzer-Vorgabe): "Die Heldin soll wechselnd im Vordergrund, Mittelgrund oder
+// Hintergrund auftauchen -- suchen ist Teil des Spasses." Vorher standen die ersten drei Helden
+// IMMER im Vordergrund (FOREGROUND_HERO_CAP), der Rest immer im Mittelgrund -- ueber ein ganzes
+// Buch hinweg also jedes Bild gleich aufgebaut. Jetzt wuerfelt jede Szene neu.
+// Zwei Bedingungen des Nutzers sind eingebaut: erkennbar bleiben (HERO_FINDABILITY_RULE unten) und
+// bei mehreren Helden nicht alle an derselben Stelle (deshalb werden Platz UND Bildseite reihum
+// aus zwei durchmischten Listen vergeben, nicht je Held unabhaengig gewuerfelt -- unabhaengiges
+// Wuerfeln wuerde bei zwei Helden in einem von drei Faellen denselben Platz ziehen).
+// "back" bewusst NICHT die unterste Ebene: eine Heldin im hintersten Groessenband (ein
+// Fuenfundzwanzigstel der Bildhoehe) waere nicht mehr wiederzuerkennen, und genau das hat der
+// Nutzer ausgeschlossen. "back" heisst hier: weiter hinten als der Mittelgrund, aber noch mit
+// lesbarem Gesicht und lesbarer Kleidung.
+const HERO_SPOTS = ["front", "middle", "back"];
+const HERO_SIDES = ["left", "centre", "right"];
+function shuffledCopy(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const t = a[i]; a[i] = a[j]; a[j] = t;
+  }
+  return a;
+}
+function heroSpotText(spot, phase) {
+  if (spot === "front") return "at the front of the scene, " + layerSizeText("foreground", phase);
+  if (spot === "middle") return "in the middle distance, " + layerSizeText("midground", phase);
+  return "well back in the scene, noticeably smaller than the people at the front, but still drawn with enough care that hair, face and clothing read clearly — never shrunk down to one of the tiny background figures";
+}
+function pickHeroPlacements(n) {
+  const spots = shuffledCopy(HERO_SPOTS);
+  const sides = shuffledCopy(HERO_SIDES);
+  const out = [];
+  for (let i = 0; i < n; i++) out.push({ spot: spots[i % spots.length], side: sides[i % sides.length] });
+  return out;
+}
+const HERO_FINDABILITY_RULE = "Finding the named characters is meant to be a small game for the reader, so they are spread across the picture and never grouped together in one spot. But each of them must still be easy to identify once found: fully visible, never half hidden behind an object or another character, never cut off by the edge of the image, never turned away from the viewer, and always drawn with the same care as the figures at the very front, whatever their size.";
 // GEAENDERT (17.09.2026, D2 "Prompt-Regeln getrennt fuer Phase 1 und Phase 2"): nimmt jetzt die
 // Phase (SCENE_PHASES) und einen Kompositionstyp (COMPOSITION_TYPES) dazu. Drei inhaltliche
 // Neuerungen gegenueber vorher:
@@ -1910,8 +1973,7 @@ function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount, phase, co
   // Seiten beschreibt (weiter weg <-> kleinere Figuren). Vorher war die Groesse nirgends als
   // eigener Satz im Prompt -- sie stand nur in den Vignetten-Klammern und kam nicht an.
   sentences.push(sizeRule(phase));
-  const foregroundHeroes = heroSpecs.slice(0, FOREGROUND_HERO_CAP);
-  const midgroundHeroes = heroSpecs.slice(FOREGROUND_HERO_CAP);
+  const placements = pickHeroPlacements(heroSpecs.length);
   // GEAENDERT (17.09.2026, D3): jeder Held bekommt seine EIGENE Handlung, namentlich an ihm haengend
   // (pickHeroActions() oben). Vorher stand hier nur "actively taking part in the action described
   // below" -- das Modell hat sich dann eine der Hintergrund-Vignetten fuer die Heldin gegriffen,
@@ -1920,13 +1982,23 @@ function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount, phase, co
     const a = (heroActions || [])[i];
     return a ? ", right now " + a.en : "";
   };
-  const foregroundBits = foregroundHeroes.map((s, i) => s.name + " (" + stripEmotionWords(describeHero(s)) + ")" + aktion(i)).join("; ");
-  if (foregroundBits) sentences.push("In the foreground (each one " + layerSizeText("foreground", phase) + "), each doing their own thing, never standing still and never posed neutrally: " + foregroundBits + ".");
-  const midgroundBits = midgroundHeroes.map((s, i) => s.name + " (" + stripEmotionWords(describeHero(s)) + ")" + aktion(FOREGROUND_HERO_CAP + i)).join("; ");
-  if (midgroundBits) sentences.push("Also present, in the midground (each one " + layerSizeText("midground", phase) + "), still clearly recognizable according to their reference image: " + midgroundBits + ".");
-  if (foregroundBits || midgroundBits) sentences.push("The named characters above do exactly the activity given for each of them and nothing else. The little scenes and running gags listed further below belong to the unnamed background characters — never hand one of them to a named character instead of their own activity.");
+  const heroBits = heroSpecs.map((s, i) => {
+    const pl = placements[i] || { spot: "middle", side: "centre" };
+    const seite = pl.side === "centre" ? "in the centre of the image" : "on the " + pl.side + " of the image";
+    return s.name + " (" + stripEmotionWords(describeHero(s)) + ")" + aktion(i) + ", " + heroSpotText(pl.spot, phase) + ", " + seite;
+  }).join("; ");
+  if (heroBits) {
+    sentences.push("Where the named characters are in this particular scene — they are NOT all lined up at the front, each one stands exactly where it says here, each doing their own thing, never standing still and never posed neutrally: " + heroBits + ".");
+    sentences.push(HERO_FINDABILITY_RULE);
+  }
+  if (heroBits) sentences.push("The named characters above do exactly the activity given for each of them and nothing else. The little scenes and running gags listed further below belong to the unnamed background characters — never hand one of them to a named character instead of their own activity.");
   // NEU (D2): Zielzahl aus der Phase.
-  sentences.push("Populate the whole scene with " + phase.totalCharacters + " individual characters in total, combining the named heroes with the midground and background layers described below — a genuinely busy, richly populated seek-and-find scene, not a sparse one.");
+  // GEAENDERT (18.09.2026): hier stand "individual characters in total". Das Modell hat Tiere
+  // mitgezaehlt und das Bild mit Huehnern, Kuehen und Hunden gefuellt, bei rund 25 bis 30 Menschen.
+  // Jetzt ausdruecklich MENSCHEN, mit einem eigenen Satz dazu, dass Tiere obendrauf kommen und die
+  // Menschen nicht ersetzen.
+  sentences.push("Populate the whole scene with " + phase.totalCharacters + " individual HUMAN figures — people, and only people count towards this number. Animals do not count towards it at all: a place full of animals with only a couple of dozen people in it is a failed image. Draw plenty of animals as well, but on top of the people, never instead of them.");
+  if (phase.humanSplit) sentences.push(phase.humanSplit);
   sentences.push(THREE_LAYER_RULE);
   sentences.push(densityInstruction(theme, phase));
   const situationText = (situations || []).map((s) => sceneLayerText(s)).join(" ");
@@ -2132,6 +2204,8 @@ function buildVerifyPrompt(heroSpecs, phaseId) {
     "Beantworte genau diese acht Punkte:",
 
     "1. HELDEN: Kommen alle " + n + " benannten Figuren (" + names + ") vor, jede GENAU EINMAL (nicht doppelt) und grob passend zu ihrem Referenzbild? Verglichen werden nur GROBE Merkmale: Frisur/Haarform, Haarfarbe, wichtigstes Kleidungsstück samt Farbe, Altersstufe (Kind / Erwachsener / älterer Mensch). Kleinstdetails wie Sommersprossen, Streifenmuster oder Knöpfe sind ausdrücklich KEIN Grund für ein Nein.",
+    "Wo die Figuren im Bild stehen, ist dabei ausdrücklich FREI: eine benannte Figur darf vorne groß, im Mittelgrund oder weiter hinten und klein im Bild stehen, auch abseits vom Zentrum. Das ist so gewollt -- Suchen gehört zum Spiel. Sie zu suchen ist Teil deiner Aufgabe, und dass du sie erst suchen musstest, ist KEIN Verstoß.",
+    "Ein Nein ist nur in diesen Fällen fällig: eine der Figuren fehlt ganz; eine kommt doppelt vor; eine passt bei den groben Merkmalen klar nicht zu ihrem Referenzbild; oder eine ist zwar irgendwo vorhanden, aber so stark verdeckt, so klein oder so abgewandt gezeichnet, dass du ihre groben Merkmale gar nicht mehr prüfen kannst. Nenne in deiner kurzen Begründung, welche Figur betroffen ist und was auf sie zutrifft.",
 
     "2. STIL. Es geht bei diesem Punkt AUSSCHLIESSLICH um menschliche Gesichter. Tiere sind hier vollständig ausgenommen, egal wie sie gezeichnet sind -- ein Hund mit ausgearbeitetem Fell, eine gefiederte Gans, ein Hahn, ein Adler, ein plastisch gezeichnetes Pferd: alles in Ordnung, nichts davon darf dein Urteil beeinflussen. Ebenso ausgenommen ist die Kulisse: Schattierung, Textur und Farbverläufe auf Requisiten, Gebäuden, Fahrzeugen, Landschaft, Boden, Sand, Heu, Wasser und Himmel sind der gewünschte Stil.",
     "Der gewünschte Gesichtsstil ist: runder Kopf, zwei Punktaugen, ein einzelner dünner senkrechter Strich als Nase, meist kein Mund, oft leichte runde Wangenröte, alles flach und ohne Modellierung. Genau so sehen praktisch alle Figuren aus, und das ist richtig.",
