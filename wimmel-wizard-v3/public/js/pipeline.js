@@ -960,33 +960,192 @@ function shuffledPool(pool) {
   return kopie;
 }
 
+// ===========================================================================
+// GRUPPEN-VIGNETTEN (NEU, 18.09.2026) -- der wichtigste Hebel fuer Menschenmenge.
+//
+// BEFUND, der dazu gefuehrt hat: das Kontrollbild hatte rund 30 bis 35 Menschen bei einer
+// Zielvorgabe von 100 bis 130. Die Erhoehung der Zielzahl von 70-100 auf 100-130 hatte so gut wie
+// nichts bewirkt. Nachgezaehlt am fertigen Bauernhof-Prompt: von den 20 Vignetten, die dort
+// aufgezaehlt werden, enthielten ZWOELF ueberhaupt keinen Menschen -- der Bauernhof-Pool hat elf
+// reine Tier-Gags (entlaufenes Schwein, Ziege an der Waescheleine, Hahn auf dem Dach ...).
+//
+// DIE EINSICHT: ein Bildmodell zeichnet das, was AUFGEZAEHLT ist. Zahlen kann es nicht pruefen --
+// es zaehlt nicht mit, und alles oberhalb von etwa zwanzig bedeutet fuer das Modell schlicht
+// "viele". Deshalb war "100 bis 130" nicht wirksamer als "70 bis 100". Menschenmenge muss also
+// ueber den Kanal kommen, der nachweislich befolgt wird: ueber benannte Bildinhalte.
+//
+// Eine einzige Gruppen-Vignette bringt acht bis zwoelf Menschen statt einem. GROUP_SLOTS (unten)
+// davon pro Szene sind rechnerisch bereits +30 Menschen, ueber denselben Weg, ueber den die
+// Einzel-Gags heute schon zuverlaessig im Bild landen.
+//
+// Die Zahlenangaben IM VIGNETTEN-TEXT ("at least eight people one behind the other") sind bewusst
+// klein und konkret. Sie liegen in dem Bereich, in dem ein Bildmodell eine Anzahl noch tatsaechlich
+// umsetzt, und sie haengen an einem Bildinhalt statt frei im Raum zu stehen.
+//
+// layer steht hier FEST am Eintrag (autoSituations() respektiert ein vorgegebenes layer): eine
+// Menschenmenge gehoert in den Mittel- oder Hintergrund, nicht nach ganz vorne -- vorne sollen laut
+// Zielverteilung nur eine Handvoll Menschen stehen.
+const GROUP_LIBRARY = {
+  farm: [
+    {de:"Eine Schlange am Hofladen, mindestens acht Leute hintereinander", en:"a queue at the little farm shop, at least eight people standing one behind the other", layer:"midground"},
+    {de:"Eine Kindergruppe klettert gemeinsam ueber die Strohballen", en:"a group of about ten children clambering over a stack of straw bales together", layer:"midground"},
+    {de:"Eine fuenfkoepfige Familie beim Picknick in der Obstwiese", en:"a family of five spread out on a picnic blanket in the orchard", layer:"midground"},
+    {de:"Zuschauer am Koppelzaun, acht oder neun nebeneinander", en:"a row of spectators leaning on the paddock fence, eight or nine of them side by side", layer:"background"},
+    {de:"Ein Erntetrupp von acht Leuten in der Apfelbaumreihe, teils auf Leitern", en:"a harvest crew of eight working along a row of apple trees, some up ladders, some carrying crates", layer:"background"},
+    {de:"Eine lange Tafel im Hof, ein Dutzend Leute sitzt und isst", en:"a long table out in the yard with a dozen people sitting along it, eating together", layer:"midground"},
+    {de:"Acht Leute draengen sich um einen Traktor, den jemand vorfuehrt", en:"a cluster of about eight people crowding around a tractor that someone is showing off", layer:"background"},
+    {de:"Eine Schulklasse von zwoelf Kindern wird in loser Reihe ueber den Hof gefuehrt", en:"a school class of twelve children being led across the yard in a straggly line", layer:"background"},
+  ],
+  christmas: [
+    {de:"Ein Chor von etwa zehn Leuten singt gemeinsam an der Tuer", en:"a choir of about ten people singing together by the door", layer:"midground"},
+    {de:"Eine achtkoepfige Familie draengt sich um den Esstisch", en:"a family of eight squeezed around the dinner table, plates and glasses everywhere", layer:"midground"},
+    {de:"Acht Kinder warten in einer Reihe, bis sie ihr Geschenk bekommen", en:"a queue of eight children waiting their turn at the presents", layer:"midground"},
+    {de:"Neun Verwandte draengen sich gleichzeitig in den Flur, Maentel halb aus", en:"a knot of about nine relatives crowded into the hallway, coats half off, all arriving at once", layer:"background"},
+    {de:"Zehn Sternsinger mit Laternen vor dem Fenster", en:"a group of ten carol singers with lanterns outside the window", layer:"background"},
+    {de:"Ein Dutzend Leute auf und um ein einziges Sofa vor dem Baum", en:"a dozen people packed onto and around one single sofa in front of the tree", layer:"midground"},
+    {de:"Acht Leute stehen in der Kuechentuer und wollen alle gleichzeitig helfen", en:"a cluster of eight people in the kitchen doorway, all trying to help at once", layer:"background"},
+    {de:"Neun Kinder sitzen in einer Reihe auf der Treppe und schauen zu", en:"a row of nine children sitting on the stairs watching the grown-ups", layer:"background"},
+  ],
+  beach: [
+    {de:"Eine Schlange von zehn Leuten am Eisstand", en:"a queue of about ten people at the ice cream stand", layer:"midground"},
+    {de:"Ein Volleyballspiel mit zwoelf Spielern und einem Ring Zuschauer", en:"a volleyball game with twelve players and a ring of onlookers around it", layer:"background"},
+    {de:"Eine sechskoepfige Familie unter einem viel zu kleinen Sonnenschirm", en:"a family of six crowded under one far too small parasol", layer:"midground"},
+    {de:"Ein Schwimmkurs, ein Dutzend Kinder in einer Reihe im flachen Wasser", en:"a swimming lesson with a dozen children lined up in the shallows", layer:"background"},
+    {de:"Acht Sonnenbadende dicht nebeneinander im Sand", en:"a row of eight sunbathers packed side by side on the sand", layer:"midground"},
+    {de:"Neun Leute draengen sich um ein Tretboot, das den Strand hochgezogen wird", en:"a cluster of about nine people crowded around a pedalo being dragged up the beach", layer:"background"},
+    {de:"Zehn Kinder graben gemeinsam ein riesiges Loch", en:"a group of ten children digging one enormous hole together", layer:"midground"},
+    {de:"Zwoelf Leute warten am Strandkiosk", en:"a line of twelve people waiting at the beach kiosk", layer:"background"},
+  ],
+  mountains: [
+    {de:"Eine Schlange von zehn Wanderern an der Bergbahn", en:"a queue of about ten walkers at the cable car station", layer:"midground"},
+    {de:"Ein Dutzend Leute an den langen Tischen der Huettenterrasse", en:"a dozen people packed onto the terrace of the mountain hut, all at long tables", layer:"midground"},
+    {de:"Eine Wandergruppe von neun Leuten im Gaensemarsch auf dem Pfad", en:"a hiking group of nine strung out along the path in single file", layer:"background"},
+    {de:"Eine Schulgruppe von zwoelf Kindern mit Fuehrer am Aussichtspunkt", en:"a school group of twelve children with a guide at a viewpoint", layer:"background"},
+    {de:"Acht Leute stehen um einen Wegweiser und zeigen in verschiedene Richtungen", en:"a cluster of eight people crowded around a signpost, all pointing in different directions", layer:"midground"},
+    {de:"Zehn Leute warten am Sessellift", en:"a queue of ten people waiting at the chairlift", layer:"background"},
+    {de:"Eine sechskoepfige Familie rastet gemeinsam auf einer Bank mit Aussicht", en:"a family of six resting together on a bench with a view", layer:"midground"},
+    {de:"Neun Leute sammeln sich um das Gipfelkreuz", en:"a group of about nine people gathered around a summit cross", layer:"background"},
+  ],
+  city: [
+    {de:"Eine Schlange von einem Dutzend Leuten an einem Marktstand", en:"a queue of a dozen people at a market stall", layer:"midground"},
+    {de:"Etwa fuenfzehn Leute warten an der Tramhaltestelle", en:"a crowd of about fifteen people waiting at the tram stop", layer:"background"},
+    {de:"Zehn Leute ueberqueren gleichzeitig den Zebrastreifen", en:"a group of ten people packed onto a zebra crossing, all crossing at once", layer:"midground"},
+    {de:"Ein Strassencafe mit einem Dutzend Leuten an den Aussentischen", en:"a pavement cafe with a dozen people at the outside tables", layer:"midground"},
+    {de:"Ein Ring von zehn Zuschauern um einen Strassenmusiker", en:"a ring of about ten onlookers around a street musician", layer:"background"},
+    {de:"Eine Schulklasse von zwoelf Kindern geht zu zweit den Gehweg entlang", en:"a school class of twelve children walking along the pavement two by two", layer:"background"},
+    {de:"Neun Leute draengen sich um einen Zeitungskiosk", en:"a cluster of nine people crowded around a newspaper kiosk", layer:"midground"},
+    {de:"Zehn Leute stehen vor einer Baeckerei bis auf den Gehweg hinaus", en:"a queue of ten people outside a bakery, out of the door and along the wall", layer:"background"},
+  ],
+  park: [
+    {de:"Acht Kinder warten in einer Reihe an der Rutsche", en:"a queue of about eight children waiting their turn at the slide", layer:"midground"},
+    {de:"Ein Familienpicknick mit neun Leuten auf zwei Decken", en:"a family picnic with nine people spread over two blankets", layer:"midground"},
+    {de:"Ein Dutzend Kinder spielt Fangen quer ueber die Wiese", en:"a group of a dozen children playing a chasing game across the grass", layer:"background"},
+    {de:"Zehn Eltern stehen im Kreis und reden, waehrend die Kinder um sie herumrennen", en:"a ring of ten parents standing and talking while children run around them", layer:"midground"},
+    {de:"Ein Geburtstag mit elf Kindern um einen Tisch", en:"a birthday party with eleven children around one table", layer:"background"},
+    {de:"Acht Kinder warten an den Schaukeln", en:"a line of eight children waiting at the swings", layer:"background"},
+    {de:"Ein Fussballspiel mit zwoelf Kindern und einer Handvoll Zuschauer", en:"a football game with twelve children and a handful of watchers", layer:"background"},
+    {de:"Neun Leute draengen sich um den Eiswagen", en:"a cluster of nine people around the ice cream van", layer:"midground"},
+  ],
+  generic: [
+    {de:"Eine Schlange von etwa zehn Leuten, die auf etwas warten", en:"a queue of about ten people waiting their turn at something", layer:"midground"},
+    {de:"Eine sechskoepfige Familie dicht beieinander", en:"a family of six standing close together in one spot", layer:"midground"},
+    {de:"Ein Dutzend Kinder zieht gemeinsam durch die Szene", en:"a group of a dozen children moving through the scene together", layer:"background"},
+    {de:"Neun Zuschauer stehen im Ring um etwas herum, das gerade passiert", en:"a ring of nine onlookers around something that is happening", layer:"background"},
+  ],
+};
+
+// Wie viele der 20 Vignetten-Plaetze fest an Gruppen gehen. Drei, weil sie rechnerisch bereits rund
+// 30 Menschen bringen und gleichzeitig 17 Plaetze fuer die eigentlichen Gags uebrig lassen -- die
+// Gags sind der Grund, warum man ein Wimmelbild ueberhaupt anschaut, sie duerfen nicht verdraengt
+// werden. Bei acht Gruppen je Thema und der buchweiten Sperrliste reicht der Vorrat fuer mehrere
+// Bilder eines Buches, bevor sich eine Gruppe wiederholt.
+const GROUP_SLOTS = 3;
+
+// ---------------------------------------------------------------------------
+// TIER-ANTEIL DECKELN (NEU, 18.09.2026, Nutzer-Vorgabe: "hoechstens ein Viertel reine Tier-Gags").
+// Die Tier-Gags bleiben vollstaendig in der Bibliothek -- sie sollen nur nicht die Mehrheit der 20
+// Plaetze belegen, wie es beim Bauernhof mit zwoelf von zwanzig der Fall war.
+//
+// Die Einordnung laeuft ueber eine Wortliste auf dem ENGLISCHEN Text, nicht ueber ein Feld am
+// Eintrag: 294 Eintraege von Hand zu markieren waere fehleranfaellig und muesste bei jedem neuen
+// Gag nachgezogen werden. Die Liste ist bewusst eine Heuristik, und sie irrt in die harmlose
+// Richtung -- erkennt sie einen Tier-Gag nicht als solchen, rutscht ein Tier-Gag mehr ins Bild;
+// haelt sie faelschlich einen Menschen-Gag fuer einen Tier-Gag, faellt ein Gag weg, der sonst
+// dringewesen waere. Beides ist folgenlos. Gegengeprueft wird sie mit dev-tools/gag-mix.js.
+const TIER_WOERTER = ["dog","dogs","puppy","cat","cats","kitten","chicken","chickens","hen","hens","rooster","cock","cow","cows","calf","bull","pig","pigs","piglet","goat","goats","sheep","lamb","horse","horses","pony","foal","donkey","duck","ducks","goose","geese","turkey","bird","birds","seagull","seagulls","gull","stork","swallow","owl","rabbit","rabbits","hare","mouse","mice","hedgehog","fox","squirrel","deer","cattle","crab","crabs","fish","dolphin","seal","penguin","monkey","elephant","lion","bear","bears","wolf","goldfish","hamster","guinea","parrot","budgie","pigeon","pigeons","crow","duckling","ducklings","chick","chicks","marmot","ibex","chamois","cowbell"]
+const MENSCH_WOERTER = ["someone","somebody","anyone","person","people","child","children","kid","kids","boy","boys","girl","girls","man","men","woman","women","farmer","farmers","family","families","grandmother","grandfather","grandma","grandpa","toddler","baby","babies","father","mother","dad","mum","parent","parents","tourist","tourists","hiker","hikers","walker","walkers","waiter","fisherman","lifeguard","driver","cyclist","skier","class","group","crowd","queue","everyone","teenager","teenagers","neighbour","neighbours","santa","owner","owners","visitor","visitors","busker","passer","passersby","shopper","shoppers","spectator","spectators","guest","guests"]
+function hatWort(text, woerter) {
+  const low = " " + String(text || "").toLowerCase().replace(/[^a-z]+/g, " ") + " ";
+  for (let i = 0; i < woerter.length; i++) if (low.indexOf(" " + woerter[i] + " ") >= 0) return true;
+  return false;
+}
+// istNurTier(): Tier kommt vor, Mensch nicht. Ein Gag mit beidem ("ein Hund zieht an der Leine
+// eines Kindes") zaehlt NICHT als reiner Tier-Gag -- er bringt ja einen Menschen ins Bild.
+function istNurTier(en) {
+  return hatWort(en, TIER_WOERTER) && !hatWort(en, MENSCH_WOERTER);
+}
+// Nur fuer die Gegenpruefung in dev-tools/gag-mix.js -- im Prompt-Aufbau wird sie nicht gebraucht.
+// Bewusst hier und nicht dort, damit die Wortliste nur an EINER Stelle steht.
+function hatMensch(en) { return hatWort(en, MENSCH_WOERTER); }
+
 function topUpSituations(list, locId, target, usedTexts) {
   target = target || 20;
   if (list.length >= target) return list.slice(0, target);
   const inDieserSzene = new Set(list.map((s) => s.text));
   const imBuchSchonBenutzt = new Set(usedTexts || []);
   const themenPool = (locId && GAG_LIBRARY[locId]) ? GAG_LIBRARY[locId] : GAG_LIBRARY.generic;
+  const gruppenPool = (locId && GROUP_LIBRARY[locId]) ? GROUP_LIBRARY[locId] : GROUP_LIBRARY.generic;
   // "christmas" bleibt wie bisher vom generischen Zumischen ausgenommen: der generische Pool ist
   // jahreszeitlich neutral bis sommerlich und wuerde in einer Weihnachtsszene sofort unpassend
   // wirken (Befund vom 16.09.2026). Bei 30 Weihnachts-Eintraegen ist er dort ohnehin unnoetig.
   const generischErlaubt = locId !== "generic" && locId !== "christmas";
 
-  function nimm(pool, sperreAchten) {
+  // NEU (18.09.2026): hoechstens ein Viertel der Plaetze an reine Tier-Gags (Nutzer-Vorgabe). Beim
+  // Bauernhof waren es vorher zwoelf von zwanzig -- siehe Kommentar bei GROUP_LIBRARY oben.
+  const tierDeckel = Math.floor(target / 4);
+  let tierBisher = list.filter((s) => istNurTier(s.text)).length;
+
+  function push(g) {
+    const eintrag = { text: g.en, de: g.de };
+    // layer nur bei Gruppen-Vignetten gesetzt; autoSituations() laesst ein vorgegebenes layer stehen.
+    if (g.layer) eintrag.layer = g.layer;
+    list.push(eintrag);
+    inDieserSzene.add(g.en);
+    if (istNurTier(g.en)) tierBisher++;
+  }
+
+  // hoechstens: obere Schranke fuer list.length in diesem Durchgang (fuer die Gruppen-Plaetze),
+  // sonst bis target. tierDeckelAchten wird nur im allerletzten Notfall abgeschaltet.
+  function nimm(pool, sperreAchten, hoechstens, tierDeckelAchten) {
+    const grenze = hoechstens != null ? Math.min(target, list.length + hoechstens) : target;
     shuffledPool(pool).forEach((g) => {
-      if (list.length >= target) return;
+      if (list.length >= grenze) return;
       if (inDieserSzene.has(g.en)) return;
       if (sperreAchten && imBuchSchonBenutzt.has(g.en)) return;
-      list.push({ text: g.en, de: g.de });
-      inDieserSzene.add(g.en);
+      if (tierDeckelAchten !== false && istNurTier(g.en) && tierBisher >= tierDeckel) return;
+      push(g);
     });
   }
 
+  // 1. ZUERST die Gruppen-Vignetten: sie sind der Mengen-Hebel und duerfen nicht hinten runterfallen,
+  //    wenn die Gag-Pools die 20 Plaetze schon gefuellt haben.
+  const vorGruppen = list.length;
+  nimm(gruppenPool, true, GROUP_SLOTS);
+  const nochOffen = GROUP_SLOTS - (list.length - vorGruppen);
+  // Buchweite Sperre lockern, bevor eine Szene ganz ohne Gruppe bleibt -- eine wiederholte Gruppe
+  // faellt weit weniger auf als ein halb leeres Bild.
+  if (nochOffen > 0) nimm(gruppenPool, false, nochOffen);
+
+  // 2. Dann die eigentlichen Gags, wie bisher: Thema vor generisch, Sperre stufenweise lockern.
   nimm(themenPool, true);
   if (generischErlaubt) nimm(GAG_LIBRARY.generic, true);
-  // Sperre stufenweise lockern, bevor zu wenige Situationen geliefert werden.
   if (list.length < target) nimm(themenPool, false);
   if (list.length < target && generischErlaubt) nimm(GAG_LIBRARY.generic, false);
-  // Letzter Notstand: Wiederholung innerhalb derselben Szene zulassen.
+  // 3. Reicht es immer noch nicht, faellt zuerst der Tier-Deckel -- ein Tier-Gag zu viel ist besser
+  //    als ein leerer Platz.
+  if (list.length < target) nimm(themenPool, false, null, false);
+  if (list.length < target && generischErlaubt) nimm(GAG_LIBRARY.generic, false, null, false);
+  // 4. Letzter Notstand: Wiederholung innerhalb derselben Szene zulassen.
   if (list.length < target && themenPool.length) {
     const kombiniert = generischErlaubt ? themenPool.concat(GAG_LIBRARY.generic) : themenPool.slice();
     let i = 0;
@@ -1514,9 +1673,18 @@ const THEME_META = {
 function densityInstruction(theme, phase) {
   const regions = (theme && theme.regions && theme.regions.length) ? theme.regions : ["across the scene"];
   const min = ((theme && theme.regionMin) || 6) * 2;
-  // GEAENDERT (18.09.2026): "characters" -> "people", gleicher Grund wie bei totalCharacters oben.
-  const parts = regions.map((r) => "at least " + min + " small background people " + r);
-  return "In the background layer (" + layerSizeText("background", phase) + "), densely populate the scene: " + parts.join(", ") + " — each one doing their own tiny activity or little visual joke, true busy seek-and-find picture-book density.";
+  // GEAENDERT (18.09.2026, Nutzer-Vorgabe "Zonen fuellen statt Zahlen nennen"): hier standen bis
+  // eben Mindestzahlen je Region ("at least 12 small background people in the farmyard", viermal).
+  // Rechnerisch waren das allein im Hintergrund 48 Menschen; im Bild angekommen sind insgesamt 30
+  // bis 35. Zahlen sind fuer ein Bildmodell keine pruefbare Vorgabe -- es zaehlt nicht mit, und
+  // alles ueber etwa zwanzig bedeutet fuer es schlicht "viele". Die Regionen bleiben, sie werden
+  // jetzt nur raeumlich bespielt statt beziffert: "ueberall entlang" statt "mindestens zwoelf".
+  // "min" wird dadurch nicht mehr gebraucht, regionMin bleibt aber in THEME_META stehen -- es
+  // beschreibt weiterhin, wie viel in einem Thema ueberhaupt los ist, und ist die Reserve, falls
+  // wir doch wieder eine Zahl brauchen.
+  const zonen = regions.length === 1 ? regions[0]
+    : regions.slice(0, -1).join(", ") + " and " + regions[regions.length - 1];
+  return "In the background layer (" + layerSizeText("background", phase) + ") there are people absolutely everywhere, and this is not a counted number but a continuous presence across the whole depth of the picture: " + zonen + " — along every path, every edge, every doorway and every open stretch of ground, people working, walking, standing about and watching, some alone, many in twos and threes, and in places whole clusters of them, carrying on unbroken all the way back to the horizon. Nowhere in the back half of this image is there a stretch of ground, a path or a building without people on or around it. Each of them is doing their own tiny activity or little visual joke — true busy seek-and-find picture-book density.";
 }
 
 // NEU (Punkt 1: Figurenbibliothek fuer Hintergrundfiguren, Sammel-Runde 15.09.2026 Fortsetzung --
@@ -1672,24 +1840,29 @@ function backgroundLibraryInstruction(startIndex, count) {
   if (!count) return "";
   const endIndex = startIndex + count - 1;
   const range = count === 1 ? ("Reference image " + startIndex) : ("Reference images " + startIndex + " through " + endIndex);
-  // ZWECK DER BIBLIOTHEK, festgelegt am 18.09.2026 (Produktentscheidung des Nutzers, Weg 1):
-  // STIL-ANKER, nicht wiedererkennbare Nebenrollen. Vorgeschichte in zwei Schritten.
+  // ZWECK DER BIBLIOTHEK, Stand 18.09.2026 (zweite, endgueltige Fassung -- der Nutzer hat seine
+  // Entscheidung "nur Stil-Anker" am selben Tag korrigiert: "Ich haette doch gerne beides").
+  // BEIDES also: vier bis sechs Figuren werden erkennbar uebernommen, alle uebrigen Nebenfiguren
+  // werden im selben Geist frei erfunden. Vorgeschichte in drei Schritten.
   //   Erstens der Befund: "Ich erkenne im Bild keine Figuren aus der Bibliothek wieder." Die
   //   Blaetter kommen beim Modell an (sie stehen in styleRefUrls und damit in image_urls, siehe
   //   buildSceneComposeInputs()) -- die Anweisung hatte sie nur ausdruecklich freigestellt ("you do
   //   not need to include every character ... invent further ones yourself"), also faktisch
   //   abgeschaltet.
-  //   Zweitens der Grund, es NICHT einfach verbindlich zu machen: die Blaetter sind Nahaufnahmen,
-  //   fuenf bis sieben Figuren im vollen Format, und ihre Identitaet steckt in feinen Details
-  //   (Mantelknoepfe, Brille, Zoepfe, Schuhfarbe). Eine Figur, die ein Achtel der Bildhoehe misst,
-  //   kann davon fast nichts tragen. Der Anspruch "einzelne Figuren wiedererkennen" ist bei dieser
-  //   Figurengroesse bauartbedingt nicht einloesbar, und der Nutzer hat ihn deshalb aufgegeben.
-  // Was bleibt und was die Blaetter tatsaechlich leisten koennen: den Massstab dafuer setzen, wie
-  // viel Eigenleben eine Nebenfigur hat. Nutzer, woertlich: "Die Nebenfiguren sollen wie
-  // gezeichnete Charaktere mit Frisur, Kleidung und Farbe wirken, nicht wie Platzhalter."
+  //   Zweitens die Einschraenkung, und sie haengt an der Tiefenebene. Im Druck (Seitenhoehe
+  //   148 mm) ist eine Vordergrundfigur 18,5 mm hoch, eine Mittelgrundfigur 10,6 mm, eine
+  //   Hintergrundfigur 5,9 mm. Bei 18,5 und 10,6 mm tragen Haarform, Haarfarbe, Kleidungsfarbe und
+  //   Silhouette -- bei 5,9 mm nichts davon. "Erkennbar" heisst deshalb DIE BLONDE MIT DEN ZOEPFEN
+  //   IN LATZHOSE, nicht Brille, Knoepfe oder Muster. Der Nutzer hat das ausdruecklich so
+  //   angenommen: "Ich will keine Brillen und Knoepfe wiedererkennen, sondern dass die Figuren aus
+  //   einem gemeinsamen Ensemble stammen." Darum die Bindung an den Mittelgrund: weiter hinten
+  //   traegt es nicht, und weiter vorne sollen laut Zielverteilung nur eine Handvoll Menschen stehen.
+  //   Drittens der Rest: die Blaetter setzen den Massstab dafuer, wie viel Eigenleben eine
+  //   Nebenfigur hat. Nutzer, woertlich: "Die Nebenfiguren sollen wie gezeichnete Charaktere mit
+  //   Frisur, Kleidung und Farbe wirken, nicht wie Platzhalter."
   // OFFEN: ob die Blaetter (ueberwiegend Winter und Stadt -- Maentel, Schals, Muetzen) in einem
   // Herbst-/Sommerbild inhaltlich stoeren. Zeigt das Kontrollbild das, kommen thematische Sets.
-  return range + " show a library of additional background-character designs — NOT named heroes, and you do not need to reproduce any particular person from them. What they show you is the standard every unnamed person in this scene has to meet: each one a properly drawn character with their own hairstyle, their own clothes and their own combination of colours, as varied from one another as the people on these sheets are. No repeated silhouettes, no grey filler shapes, nobody left as a vague blob — even the small figures far back get their own hair and their own colours. Take the sheets as the yardstick for that variety and for the drawing style, and dress everyone to suit this scene's place and season.";
+  return range + " show a library of additional background-character designs — NOT named heroes, no names or identities attached to them. Do two things with them. FIRST: pick four to six of the people shown on these sheets and actually draw them into this scene, all of them in the middle distance, where a figure is still big enough to be made out. Keep each of those four to six recognisably the same person — the same hair, the same build, the same combination of colours — but dress them for where and when this scene happens, so that a winter coat becomes whatever this place and this season call for. Recognisable here means the silhouette, the hair and the colours, not small details. SECOND: the sheets set the standard for everybody else in the picture. Every unnamed person in this scene is a properly drawn character with their own hairstyle, their own clothes and their own combination of colours, as varied from one another as the people on these sheets are. No repeated silhouettes, no grey filler shapes, nobody left as a vague blob — even the small figures far back get their own hair and their own colours. Invent all those further characters yourself.";
 }
 
 // NEU: "Alle-Charaktere-müssen-vorkommen"-Regel, verallgemeinert von der Spezifikations-Formulierung
@@ -1727,9 +1900,13 @@ function autoSituations(theme, existing, target, usedTexts) {
   target = target || 20;
   let list = (existing || []).map((s) => ({ text: s.en || s.text, de: s.de || s.text }));
   list = topUpSituations(list, theme.locId, target, usedTexts);
+  // GEAENDERT (18.09.2026): ein am Eintrag bereits gesetztes layer bleibt stehen. Nur die
+  // Gruppen-Vignetten aus GROUP_LIBRARY bringen eines mit -- eine Menschenmenge gehoert in den
+  // Mittel- oder Hintergrund und darf nicht per Zyklus vorne landen, wo laut Zielverteilung nur
+  // eine Handvoll Menschen stehen soll.
   return list.map((s, i) => Object.assign({}, s, {
-    layer: LAYER_CYCLE[i % LAYER_CYCLE.length],
-    side: SIDE_CYCLE[i % SIDE_CYCLE.length],
+    layer: s.layer || LAYER_CYCLE[i % LAYER_CYCLE.length],
+    side: s.side || SIDE_CYCLE[i % SIDE_CYCLE.length],
   }));
 }
 
@@ -2827,6 +3004,8 @@ window.Pipeline = {
   HERO_ACTION_LIBRARY, pickHeroActions, shuffledPool,
   // Szenen-Komposition (neu, siehe Modul-Abschnitt oben)
   GAG_LIBRARY, THEME_META, pickGagChips, topUpSituations,
+  // NEU (18.09.2026): Gruppen-Vignetten und die Tier-Heuristik -- exportiert fuer dev-tools/gag-mix.js.
+  GROUP_LIBRARY, GROUP_SLOTS, istNurTier, hatMensch,
   // GEAENDERT (Sammel-Runde 15.09.2026, Punkt 2): defaultBubbleLayout/sizePx/regionLabel/
   // situationPlacementText entfernt (ersetzt durch SCENE_LAYERS/sceneLayerText, siehe dort) --
   // kein Aufrufer ausserhalb dieser Datei brauchte sie direkt, ausser test_scene.js (dort ebenfalls
