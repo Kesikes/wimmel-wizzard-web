@@ -65,9 +65,18 @@ const PRINT_ASPECT_RATIO = "2 / 1";
 // den sichtbaren Bereich hinaus, overflow:hidden auf der aeusseren Box blendet genau diesen Ueberhang
 // aus. borderTop/borderBottom/background wandern von imgWrap hierher, damit der schwarze Rahmen den
 // SICHTBAREN (beschnittenen) Bereich einrahmt statt des vollen Bildes.
+// BUGFIX (18.09.2026, nach dem ersten echten Testbild: "in der Desktop-App wurde mir das fertige
+// Bild NICHT angezeigt"). width:100% ist hier NICHT kosmetisch, sondern zwingend. Der einzige Inhalt
+// dieser Box ist "inner", und das ist position:absolute -- die Box hat damit von sich aus null
+// Inhaltsbreite. Mobil faellt das nicht auf: dort ist sie ein normales Block-Element und nimmt
+// automatisch die volle Breite des Abschnitts ein. Im Desktop-Layout haengt sie dagegen in einer
+// Flex-Spalte (buildDesktopErgebnis(), left), und ein Flex-Kind ohne Breitenangabe wird auf seine
+// Inhaltsbreite geschrumpft -- gemessen im Nachbau: 8 x 8 Pixel (nur der Rahmen), Bild 0 x 0. Das
+// Bild war also die ganze Zeit korrekt im DOM und trotzdem unsichtbar. Mit width:100% misst
+// derselbe Nachbau 1008 x 508 Pixel. Hat nichts mit dem Wechsel auf JPEG zu tun.
 function buildCropViewport(inner, extraStyle) {
   const viewport = h("div", { style: Object.assign({
-    position: "relative", overflow: "hidden", aspectRatio: PRINT_ASPECT_RATIO,
+    position: "relative", overflow: "hidden", aspectRatio: PRINT_ASPECT_RATIO, width: "100%",
     borderTop: "4px solid var(--ink)", borderBottom: "4px solid var(--ink)", background: "var(--ink)",
   }, extraStyle || {}) });
   inner.style.position = "absolute";
@@ -1396,13 +1405,19 @@ function buildDesktopErgebnis(s, image) {
   top.appendChild(h("p", { class: "caveat", style: { margin: "8px 0 0", fontSize: "23px", lineHeight: "1.1" } }, "schau erst mal in Ruhe."));
   // Siehe Kommentar bei Screens.ergebnis.render() (Punkt C3+C4) -- gleicher sichtbarer Hinweis auch
   // in der Desktop-Ansicht, nicht nur mobil.
-  if (!image.verify || (image.violations || 0) > 0) {
+  // BUGFIX (18.09.2026): hier stand noch die alte Bedingung "irgendein Verstoss" -- die Umstellung
+  // auf "nur bei SCHWEREN Verstoessen" (D1, siehe ausfuehrlicher Kommentar in
+  // Screens.ergebnis.render() oben) war nur in der mobilen Ansicht nachgezogen worden. Auf dem
+  // Desktop erschien der Warnkasten dadurch ueber praktisch jedem Bild und war damit wertlos.
+  const dSevBand = (Pipeline.SCENE_PHASES[Pipeline.ACTIVE_SCENE_PHASE] || {}).figuresBand;
+  const dSev = image.verify ? Pipeline.severityOf(image.verify, dSevBand) : null;
+  if (!image.verify || (dSev && dSev.heavy > 0)) {
     const dNoticeBox = h("div", { style: { marginTop: "12px", background: "var(--yellow)", border: "4px solid var(--ink)", padding: "13px 14px", boxShadow: "5px 6px 0 var(--ink)" } });
     dNoticeBox.appendChild(h("p", { class: "h-black", style: { margin: "0 0 5px", fontSize: "12px", letterSpacing: ".04em" } }, "⚠ Bitte einmal gegenchecken"));
     dNoticeBox.appendChild(h("p", { style: { margin: "0", fontSize: "13px", lineHeight: "1.45" } },
       !image.verify
         ? "Unsere automatische Qualitätsprüfung konnte dieses Bild nicht auswerten (technischer Fehler beim Prüf-Schritt) — wir wissen nicht sicher, ob alles passt. Bitte einmal selbst durchschauen, bevor du weitermachst."
-        : "Unsere automatische Qualitätsprüfung hat bei diesem Bild mögliche Abweichungen gefunden (z. B. eine fehlende Person oder ein sichtbarer Mund) — der beste von mehreren Versuchen wurde trotzdem gewählt. Bitte einmal selbst durchschauen, bevor du weitermachst."));
+        : "Unsere automatische Qualitätsprüfung hat bei diesem Bild etwas Grundlegendes gefunden — beim Zeichenstil, bei einer eurer Figuren oder bei der räumlichen Tiefe. Der beste von mehreren Versuchen wurde trotzdem gewählt. Bitte einmal selbst durchschauen, bevor du weitermachst."));
     top.appendChild(dNoticeBox);
   }
   aside.appendChild(top);
