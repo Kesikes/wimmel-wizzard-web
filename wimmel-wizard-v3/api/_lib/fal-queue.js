@@ -179,7 +179,20 @@ const VIOLATION_SEVERITY = {
   // "figures_est" (geschaetzte Zahl, bewertet gegen figuresBand aus SCENE_PHASES in pipeline.js),
   // und "noses_ok" ist entfallen -- es meldete in 27 von 27 Bildern "kein Verstoss", auch bei dem
   // einen Bild, in dem eine plastische Nase das Problem war. Wird jetzt in style_ok mitgeprueft.
-  scale_ok: "medium", figures_est: "medium", mouths_ok: "medium",
+  // HOCHGESTUFT (18.09.2026, Nutzer-Entscheidung): scale_ok von "mittel" auf "schwer". Nutzer,
+  // woertlich: "Zu grosse Figuren sind mein wiederkehrender Killer, und so ein Bild ist fuer mich
+  // unbrauchbar -- dann lieber 0,30 $ fuer einen dritten Versuch." Das Kriterium hat sich zudem als
+  // treffsicher erwiesen: im Bild vom 18.09. meldete es bei allen drei Kandidaten false, und die
+  // Nachmessung in Photoshop gab ihm recht (2,7-mal statt achtmal in die Bildhoehe).
+  // ZURUECKDREHEN, WENN: es staendig ausloest und dadurch fast jede Szene einen dritten Kandidaten
+  // bekommt -- dann zurueck auf "medium". Der Nutzer hat das ausdruecklich als Rueckfalloption
+  // vereinbart. Woran man es merkt: Anteil der Szenen mit drittem Versuch (siehe isGoodEnough()).
+  // ACHTUNG, scale_ok prueft ZWEI Dinge in einem Feld (Punkt 4 des Verify-Prompts): die
+  // Figurengroesse UND die Kopfgroessen innerhalb einer Tiefenebene. Ein false kann also auch von
+  // der zweiten Haelfte kommen. Seit dem Notizfeld steht im Verify-JSON, welche -- vor einem
+  // Zurueckdrehen dort nachsehen, statt die Gewichtung blind zu aendern.
+  scale_ok: "heavy",
+  figures_est: "medium", mouths_ok: "medium",
   // leicht (Szenen-Verify)
   no_text_ok: "light", logic_ok: "light",
   // Charakter-Verify (buildCharacterVerifyPrompt() in char-job-engine.js)
