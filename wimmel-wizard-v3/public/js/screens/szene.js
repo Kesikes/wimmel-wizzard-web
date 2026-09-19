@@ -1018,7 +1018,15 @@ Screens.zaubern = {
       // Handvoll Bilder, 400 Eintraege sind weit mehr als je gebraucht werden).
       const bisher = AppState.data.usedSituations || [];
       const neu = bisher.concat((result && result.usedNow) || []).slice(-400);
-      AppState.update({ pendingSceneJob: null, usedSituations: neu });
+      // BUGFIX (19.09.2026, Nutzer: "Nach dem Generieren lande ich direkt im Editieren"): penOn
+      // liegt im dauerhaft gespeicherten Zustand und wurde bei einem NEUEN Bild nie
+      // zurueckgesetzt. Wer den Stift einmal benutzt hat, kam ab da bei jedem frisch gezauberten
+      // Bild sofort wieder im Editiermodus heraus -- ohne etwas angetippt zu haben. Ein frisches
+      // Bild will man zuerst ansehen, nicht bemalen.
+      AppState.update({
+        pendingSceneJob: null, usedSituations: neu,
+        penOn: false, penMode: null, penChangeText: "",
+      });
       AppState.addImage({
         title: title, src: result.best.url,
         promptText: result.promptText, instruction: result.instruction,
@@ -1611,7 +1619,7 @@ let penApplyBusy = false;
 // gegengeprueft, und der bereits vorhandene "Bitte einmal gegenchecken"-Hinweis (Punkt C3+C4, siehe
 // Screens.ergebnis.render()) greift dadurch automatisch auch hier, statt eine ungeprüfte Korrektur
 // stillschweigend als endgueltig sauber darzustellen.
-async function applyPenEdit({ image, canvas, img, mark, mode, errorId, applyBtn, cancelBtn }) {
+async function applyPenEdit({ image, canvas, img, mark, mode, errorId, applyBtn, cancelBtn, exitBtn }) {
   if (penApplyBusy) return;
   const errorEl = () => document.getElementById(errorId);
   const showError = (msg) => { const el = errorEl(); if (el) { el.textContent = msg; el.style.display = "block"; } };
@@ -1626,7 +1634,9 @@ async function applyPenEdit({ image, canvas, img, mark, mode, errorId, applyBtn,
   }
   { const el = errorEl(); if (el) el.style.display = "none"; }
   penApplyBusy = true;
-  const buttons = [applyBtn, cancelBtn].filter(Boolean);
+  // exitBtn gehoert mit in die Liste: waehrend eine Korrektur laeuft, soll man den Modus nicht
+  // verlassen koennen -- das Ergebnis kaeme sonst an, waehrend die Nutzerin schon woanders ist.
+  const buttons = [applyBtn, cancelBtn, exitBtn].filter(Boolean);
   buttons.forEach((b) => { b.disabled = true; });
   if (applyBtn) { applyBtn.dataset.prevText = applyBtn.textContent; applyBtn.textContent = "Wird bearbeitet …"; }
   try {
@@ -1728,19 +1738,40 @@ function buildPenPanel({ image, canvas, img, mark, errorId }) {
   wrap.appendChild(h("div", { style: { height: "10px" } }));
 
   const btnRow = h("div", { style: { display: "flex", gap: "8px" } });
+  // GEAENDERT (19.09.2026): hiess "Löschen" und loescht nur die Markierung -- das klang nach
+  // "Abbrechen" und war der Grund, warum der Editiermodus wie eine Sackgasse wirkte. Jetzt sagt
+  // die Beschriftung, was der Knopf tut.
   const cancelBtn = h("button", {
     type: "button", class: "h-black",
     style: { flex: "1", minHeight: "44px", fontSize: "12px", border: "3px solid var(--ink)", background: "var(--paper)", color: "var(--ink)", cursor: "pointer" },
     onClick: () => { mark.clear(); }
-  }, "Löschen");
+  }, "Markierung löschen");
   const applyBtn = h("button", {
     type: "button", class: "h-black",
     style: { flex: "1", minHeight: "44px", fontSize: "12px", border: "3px solid var(--ink)", background: "var(--yellow)", color: "var(--ink)", cursor: "pointer" }
   }, "Anwenden");
-  applyBtn.addEventListener("click", () => applyPenEdit({ image, canvas, img, mark, mode, errorId, applyBtn, cancelBtn }));
+  applyBtn.addEventListener("click", () => applyPenEdit({ image, canvas, img, mark, mode, errorId, applyBtn, cancelBtn, exitBtn }));
   btnRow.appendChild(cancelBtn);
   btnRow.appendChild(applyBtn);
   wrap.appendChild(btnRow);
+
+  // NEU (19.09.2026, Nutzer: "komme dort nicht mehr heraus"): ein ausdruecklicher Ausweg. Technisch
+  // gab es ihn schon -- ein zweiter Druck auf "Stift" beendet den Modus --, aber dieser Knopf
+  // heisst weiterhin "Stift" und wechselt nur die Farbe, taugt also nicht als erkennbarer Ausgang.
+  // Eigene Zeile statt in die Reihe oben: drei Knoepfe nebeneinander werden auf dem Handy zu
+  // schmal, und ein Ausgang gehoert optisch nicht neben "Anwenden".
+  // Steht hier in buildPenPanel() und damit an EINER Stelle fuer mobil und Desktop -- genau das
+  // Muster, das die Zusammenfuehrung in Phase 0.3 fuer den Rest des Screens herstellen soll.
+  const exitBtn = h("button", {
+    type: "button", class: "h-black",
+    style: { marginTop: "8px", width: "100%", minHeight: "44px", fontSize: "12px", border: "3px dashed rgba(26,26,24,.5)", background: "transparent", color: "var(--ink)", cursor: "pointer" },
+    onClick: () => {
+      mark.clear();
+      AppState.update({ penOn: false, penMode: null, penChangeText: "" });
+      Router.goScreen("ergebnis");
+    }
+  }, "Fertig – zurück zum Bild");
+  wrap.appendChild(exitBtn);
 
   wrap.appendChild(h("p", { id: errorId, style: { margin: "8px 0 0", fontSize: "12px", color: "var(--red)", display: "none" } }, ""));
   return wrap;
