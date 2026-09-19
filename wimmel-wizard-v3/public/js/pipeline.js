@@ -1368,7 +1368,7 @@ var ACTIVE_SCENE_PHASE = "phase1";
 // in den Kompositionstypen, aendert sich die Pruefsumme -- ohne dass jemand daran denken muss.
 // Das von Hand gepflegte Datum bleibt als lesbare Ergaenzung daneben stehen; verlassen tun wir uns
 // auf die Pruefsumme.
-var PROMPT_LABEL = "2026-09-19f";
+var PROMPT_LABEL = "2026-09-19g";
 
 // FNV-1a, 32 Bit. Bewusst kein crypto.subtle: das ist asynchron, und diese Kennung soll ohne
 // Umstand synchron beim Laden feststehen. Kollisionen sind hier belanglos -- es geht nicht um
@@ -1438,6 +1438,19 @@ var SCALE_MIN_FIT = 2.8;
 // Regel und nicht die Ausnahme. Siehe Punkt 8 in buildVerifyPrompt().
 var MOUTHS_MAX_OF_TEN = 3;
 
+// SHADED_MAX_OF_TEN: wie viele der zehn groessten Gesichter plastisch gezeichnet sein duerfen.
+// EINS, nicht zwei oder drei -- Nutzer-Entscheidung nach folgender Ueberlegung: der gewuenschte
+// Stil hat NULL schattierte Gesichter, eine 0 ist also der Normalfall und kein Gluecksfall. Alles
+// ab zwei ist damit eine echte Abweichung und kein Rauschen. Die Beanstandung, die zu diesem
+// Umbau gefuehrt hat, waren genau zwei plastische Gesichter ("der Mann rechts ... die Frau am
+// Kamin") -- mit einer Grenze von 2 oder 3 waere genau dieses Bild sauber durchgelaufen.
+// Kostenneutral, weil mittel gewichtet: eine zu strenge Grenze verschiebt nur die Reihenfolge der
+// Kandidaten, eine zu laxe erkennt wieder nichts.
+var SHADED_MAX_OF_TEN = 1;
+// BLANK_MAX_OF_TEN: leere Gesichter. Null -- ein einziges genuegt, der Nutzer hat es an den
+// angeschnittenen Riesenkoepfen ausdruecklich beanstandet.
+var BLANK_MAX_OF_TEN = 0;
+
 // NEU (17.09.2026, Bildbewertung, Abschnitt D1 "Gewichtung einfuehren"): nicht jeder Verify-Verstoss
 // ist gleich schwer. Nutzer-Vorgabe woertlich: "Ein Kandidat mit falschem Stil darf nicht gewinnen,
 // nur weil er weniger Kleinigkeiten hat."
@@ -1503,7 +1516,10 @@ var VIOLATION_SEVERITY = {
   // Bild abgelehnt hat, und es soll kein Geld ausgeben.
   // mouths_of_ten traegt die Gewichtung von mouths_ok; der alte Schluessel bleibt fuer Bilder
   // stehen, die vor der Umstellung im AppState gelandet sind.
+  // shaded_of_ten / blank_of_ten tragen die Gewichtung von style_ok; der alte Schluessel bleibt
+  // fuer Bilder stehen, die vor der Umstellung im AppState gelandet sind.
   figures_est: "medium", mouths_of_ten: "medium", mouths_ok: "medium", heads_ok: "medium",
+  shaded_of_ten: "medium", blank_of_ten: "medium",
   // leicht
   no_text_ok: "light", logic_ok: "light",
   // Charakter-Verify (eigener Prompt, buildCharacterVerifyPrompt() unten)
@@ -1520,11 +1536,33 @@ var DEFAULT_SEVERITY = "medium";
 // GEAENDERT (17.09.2026): zweites Argument figuresBand ([min, max]) -- nur damit kann figures_est
 // bewertet werden. OHNE Spanne wird das Feld bewusst ignoriert statt geraten: ein fehlender
 // Vergleichsmaßstab darf keinen Verstoss erfinden.
+// GEAENDERT (19.09.2026): zwei Neuerungen.
+// ERSTENS die BEDINGTE WERTUNG von scale_est. scale_est und depth_ratio ziehen in offenen Szenen
+// gegeneinander: eine grosse Vordergrundfigur senkt scale_est (schlecht) und hebt depth_ratio
+// (gut). Solange beide schwer gewichtet waren, entschied bei zwei Kandidaten mit je einem Verstoss
+// nicht mehr der Bildeindruck, sondern welches Feld zuerst geprueft wird. Geloest wird das nicht
+// nach Kompositionstyp, sondern an der Ursache: eine grosse Figur vorne ist nur dann ein Fehler,
+// wenn sie KEINE Tiefe erkauft. Ist depth_ratio in Ordnung, zaehlt ein zu kleines scale_est nur
+// mittel; ist die Tiefe schwach oder gar nicht erhoben (im Querschnitt ist depth_ratio null),
+// zaehlt es schwer. Das ergibt im Querschnitt automatisch dasselbe wie eine Sonderregel je
+// Kompositionstyp -- und faengt zusaetzlich den Fall ab, den eine solche Sonderregel durchliesse:
+// offene Szene, Figuren riesig UND keine Tiefe (das 2,7-Bild mit den angeschnittenen Riesenkoepfen).
+// ZWEITENS die BEGRUENDUNGEN. Eine Bewertung, die von einem zweiten Feld abhaengt, darf nicht
+// unsichtbar sein -- sonst ist im Panel nicht nachvollziehbar, warum derselbe Wert einmal schwer
+// und einmal mittel zaehlt. out.gruende sammelt je Verstoss einen Klartext-Satz, den das
+// Test-Details-Panel ausgibt. compareSeverity() liest ausschliesslich heavy/medium/light, das
+// zusaetzliche Feld stoert dort nicht.
 function severityOf(parsed, figuresBand) {
-  var out = { heavy: 0, medium: 0, light: 0 };
+  var out = { heavy: 0, medium: 0, light: 0, gruende: [] };
   if (!parsed || typeof parsed !== "object") return out;
+  // Tiefe vorab bestimmen, sie beeinflusst die Wertung von scale_est.
+  var tiefe = Number(parsed.depth_ratio);
+  var tiefeErhoben = isFinite(tiefe) && tiefe > 0;
+  var tiefeOk = tiefeErhoben && tiefe >= DEPTH_MIN_RATIO;
   Object.keys(parsed).forEach(function (k) {
     var bad = false;
+    var tierUeberschrieben = null;
+    var grund = null;
     if (k === "figures_est") {
       if (!figuresBand) return;
       var n = Number(parsed[k]);
@@ -1545,6 +1583,28 @@ function severityOf(parsed, figuresBand) {
       var g = Number(parsed[k]);
       if (!isFinite(g) || g <= 0) return;
       bad = g < SCALE_MIN_FIT;
+      if (bad) {
+        tierUeberschrieben = tiefeOk ? "medium" : "heavy";
+        grund = tiefeOk
+          ? "scale_est " + g + " unter " + SCALE_MIN_FIT + ", aber nur MITTEL gewertet: depth_ratio " + tiefe + " liegt über " + DEPTH_MIN_RATIO + ", die großen Figuren erkaufen also Tiefe."
+          : (tiefeErhoben
+              ? "scale_est " + g + " unter " + SCALE_MIN_FIT + " und SCHWER gewertet: depth_ratio " + tiefe + " liegt unter " + DEPTH_MIN_RATIO + ", die großen Figuren erkaufen keine Tiefe."
+              : "scale_est " + g + " unter " + SCALE_MIN_FIT + " und SCHWER gewertet: depth_ratio wurde nicht erhoben (Querschnitt), es gibt also kein Gegengewicht.");
+      }
+    }
+    // NEU (19.09.2026): Stil wird gezaehlt statt beurteilt -- zwei entgegengesetzte Fehler,
+    // zwei Zahlen. Siehe SHADED_MAX_OF_TEN / BLANK_MAX_OF_TEN oben.
+    else if (k === "shaded_of_ten") {
+      var sz = Number(parsed[k]);
+      if (!isFinite(sz) || sz < 0) return;
+      bad = sz > SHADED_MAX_OF_TEN;
+      if (bad) grund = sz + " von zehn großen Gesichtern sind plastisch gezeichnet (erlaubt: " + SHADED_MAX_OF_TEN + ").";
+    }
+    else if (k === "blank_of_ten") {
+      var bz = Number(parsed[k]);
+      if (!isFinite(bz) || bz < 0) return;
+      bad = bz > BLANK_MAX_OF_TEN;
+      if (bad) grund = bz + " von zehn großen Gesichtern sind leer, ohne Augen und Nase.";
     }
     // NEU (19.09.2026): eine Zahl je benannter Figur, 1 ist richtig. 0 heisst fehlt, 2+ heisst
     // doppelt -- beides zerstoert ein Suchbild und zaehlt gleich schwer.
@@ -1561,8 +1621,9 @@ function severityOf(parsed, figuresBand) {
     else if (/_ok$/.test(k)) bad = parsed[k] === false;
     else return;
     if (!bad) return;
-    var tier = VIOLATION_SEVERITY[k] || DEFAULT_SEVERITY;
+    var tier = tierUeberschrieben || VIOLATION_SEVERITY[k] || DEFAULT_SEVERITY;
     out[tier] = (out[tier] || 0) + 1;
+    out.gruende.push(grund || (k + ": Verstoß, " + tier));
   });
   return out;
 }
@@ -2732,10 +2793,17 @@ function buildVerifyPrompt(heroSpecs, phaseId, compositionId) {
 
     "3. STIL. Es geht bei diesem Punkt AUSSCHLIESSLICH um menschliche Gesichter. Tiere sind hier vollständig ausgenommen, egal wie sie gezeichnet sind -- ein Hund mit ausgearbeitetem Fell, eine gefiederte Gans, ein Hahn, ein Adler, ein plastisch gezeichnetes Pferd: alles in Ordnung, nichts davon darf dein Urteil beeinflussen. Ebenso ausgenommen ist die Kulisse: Schattierung, Textur und Farbverläufe auf Requisiten, Gebäuden, Fahrzeugen, Landschaft, Boden, Sand, Heu, Wasser und Himmel sind der gewünschte Stil.",
     "Der gewünschte Gesichtsstil ist: runder Kopf, zwei Punktaugen, ein einzelner dünner senkrechter Strich als Nase, meist kein Mund, oft leichte runde Wangenröte, alles flach und ohne Modellierung. Genau so sehen praktisch alle Figuren aus, und das ist richtig.",
-    "Die Frage ist nun: fällt EIN EINZELNES menschliches Gesicht aus diesem Schema heraus, weil es plastischer gezeichnet ist als alle anderen? Anzeichen dafür, einzeln durchzugehen: eine Nase, die als Form gezeichnet ist statt als Strich (mit Nasenrücken, Nasenspitze, Nasenflügeln oder Schatten daran); sichtbare Bartstoppeln oder Schattierung auf Wangen, Kinn oder Hals; ein im Halbprofil gezeichnetes Gesicht mit modellierten Zügen, während alle übrigen frontal und flach sind. Schau dafür besonders die großen Figuren im Vordergrund an -- dort tritt es auf.",
-    "AUSNAHME, die dir sonst einen Fehlalarm beschert: der WEIHNACHTSMANN (roter Mantel, rote Zipfelmütze, weißer Vollbart) darf Nase und Bart haben, er ist als Figur so vorgesehen. Dasselbe gilt für andere Figuren, deren Bart zur Rolle gehört, etwa einen Nikolaus. Solche Figuren sind KEIN Verstoß.",
-    "ZWEITER FALL unter demselben Feld, der GEGENTEILIGE Fehler: ein menschliches Gesicht, das gar nicht gezeichnet wurde -- eine leere Fläche ohne Augen und ohne Nasenstrich, ein blanker Kopf. Der fehlende MUND ist dabei ausdrücklich richtig und kein Fehler; es geht nur um Gesichter, bei denen auch Augen und Nase fehlen. Schau dafür besonders die größten Figuren ganz vorne und die am unteren Bildrand an, auch angeschnittene. Ein einzelnes solches leeres Gesicht genügt für ein Nein.",
-    "style_ok ist also false, wenn du entweder ein einzelnes, plastischer gezeichnetes Gesicht findest ODER ein leeres Gesicht ohne Augen und Nase -- sonst true. Ist es false, schreib ins Feld notiz, welcher der beiden Fälle vorliegt, welche Figur du meinst und wo im Bild sie steht.",
+    // UMGEBAUT (19.09.2026, Nutzer-Entscheidung). style_ok war das letzte reine Eindrucksfeld und
+    // hat bei einem Bild, das den Stil komplett verfehlte, true gemeldet -- nachdem es vorher
+    // dreimal erfolglos nachformuliert worden war. Der Nutzer dazu: "Meine Entscheidung 'nicht
+    // weiter kalibrieren' galt dem Versuch, es als Eindrucksfeld hinzubiegen. Zaehlen statt
+    // urteilen ist etwas anderes und hat bei vier Kriterien funktioniert."
+    // Also derselbe Umbau wie bei Dichte, Tiefe, Figurengroesse, Helden und Muendern: das Modell
+    // zaehlt, der Code bewertet. Zwei getrennte Zahlen, weil es zwei entgegengesetzte Fehler sind.
+    "3b. STIL, ZÄHLUNG DER PLASTISCHEN GESICHTER: Nimm die ZEHN GRÖSSTEN menschlichen Gesichter im Bild und geh sie einzeln durch. Bei wie vielen davon ist das Gesicht PLASTISCHER gezeichnet als der beschriebene flache Stil? Anzeichen: eine Nase, die als Form gezeichnet ist statt als Strich (mit Nasenrücken, Nasenspitze, Nasenflügeln oder Schatten daran); sichtbare Bartstoppeln oder Schattierung auf Wangen, Kinn oder Hals; ein im Halbprofil gezeichnetes Gesicht mit modellierten Zügen, während die übrigen frontal und flach sind. Antworte im Feld shaded_of_ten mit einer ganzen Zahl von 0 bis 10. Der gewünschte Stil ergibt 0 -- jede höhere Zahl ist eine echte Abweichung.",
+    "AUSNAHME, die dir sonst einen Fehlalarm beschert: der WEIHNACHTSMANN (roter Mantel, rote Zipfelmütze, weißer Vollbart) darf Nase und Bart haben, er ist als Figur so vorgesehen. Dasselbe gilt für andere Figuren, deren Bart zur Rolle gehört, etwa einen Nikolaus. Solche Gesichter zählst du NICHT mit.",
+    "3c. STIL, ZÄHLUNG DER LEEREN GESICHTER -- der entgegengesetzte Fehler: bei wie vielen der zehn größten menschlichen Gesichter ist gar nichts gezeichnet, also eine leere Fläche ohne Punktaugen und ohne Nasenstrich? Der fehlende MUND ist dabei ausdrücklich richtig und zählt nicht; es geht nur um Gesichter, bei denen auch Augen und Nase fehlen. Schau besonders die größten Figuren ganz vorne und die am unteren Bildrand an, auch angeschnittene. Antworte im Feld blank_of_ten mit einer ganzen Zahl von 0 bis 10; erwartet wird 0.",
+    "Bei beiden Zählungen gilt: sind weniger als zehn Gesichter groß genug zum Beurteilen, zähle unter denen, die es gibt, und rechne auf zehn hoch. Schreib auffällige Funde zusätzlich ins Feld notiz -- welche Figur und wo im Bild.",
 
     querschnitt
       ? "4. TIEFENSTAFFELUNG entfällt bei diesem Bild: es zeigt ein aufgeschnittenes Gebäude, in dem alle Räume gleich weit vom Betrachter entfernt sind und alle Figuren deshalb ABSICHTLICH gleich groß gezeichnet sind. Antworte bei depth_ratio mit null. Beurteile stattdessen hier: sind die Figuren über alle Räume hinweg tatsächlich gleich groß? Falls nicht — etwa winzige Figuren oben und große unten — schreib das ins Feld notiz, denn das ist in diesem Bildtyp ein Fehler."
@@ -2782,7 +2850,7 @@ function buildVerifyPrompt(heroSpecs, phaseId, compositionId) {
 
     "10. TEXT: Ist das Bild vollständig frei von Text -- keine Buchstaben, Wörter, Zahlen, Schilder, Poster, Beschriftungen oder Aufschriften auf Kleidung und Gegenständen, auch nicht klein oder im Hintergrund?",
 
-    "Antworte NUR als JSON-Objekt mit genau diesen elf Feldern, notiz immer als LETZTES: {\"heroes_found\": [Zahlen], \"heroes_ok\": true/false, \"style_ok\": true/false, \"depth_ratio\": Zahl, \"scale_est\": Zahl, \"heads_ok\": true/false, \"figures_est\": Zahl, \"mouths_of_ten\": Zahl, \"logic_ok\": true/false, \"no_text_ok\": true/false, \"notiz\": \"kurzer Text\"}.",
+    "Antworte NUR als JSON-Objekt mit genau diesen elf Feldern, notiz immer als LETZTES: {\"heroes_found\": [Zahlen], \"heroes_ok\": true/false, \"shaded_of_ten\": Zahl, \"blank_of_ten\": Zahl, \"depth_ratio\": Zahl, \"scale_est\": Zahl, \"heads_ok\": true/false, \"figures_est\": Zahl, \"mouths_of_ten\": Zahl, \"logic_ok\": true/false, \"no_text_ok\": true/false, \"notiz\": \"kurzer Text\"}.",
     // NEU (18.09.2026): notiz. Grund: der Prompt verlangte an zwei Stellen eine Begruendung ("nenne,
     // welche Figur du meinst"), das Antwortformat liess aber nur die acht Wertungsfelder zu -- die
     // Begruendung ging also jedes Mal verloren. Sichtbar wurde das, als bei einem Bild zwei von drei
@@ -2793,7 +2861,7 @@ function buildVerifyPrompt(heroSpecs, phaseId, compositionId) {
     // Angezeigt wird es ohne Zusatzarbeit, weil buildDebugDetails() (szene.js) das rohe Verify-JSON
     // je Kandidat ausgibt.
     "notiz ist ein kurzer deutscher Freitext, höchstens zwei Sätze, und wird NICHT bewertet -- er dient nur dazu, dass ein Mensch nachvollziehen kann, warum ein Feld false ist. Steht irgendwo false, schreib dort in Stichworten hin, was du gesehen hast; ist alles in Ordnung, schreib eine leere Zeichenkette. Verwende darin KEINE Anführungszeichen und KEINE Zeilenumbrüche, damit das JSON gültig bleibt.",
-    "Bei allen *_ok-Feldern bedeutet true: kein Verstoß. Also style_ok=true, wenn weder eine plastische Nase noch ein naturalistisches Tier zu finden ist; logic_ok=true, wenn Innen und Außen NICHT vermischt sind. heroes_found, depth_ratio, scale_est, figures_est und mouths_of_ten sind keine true/false-Urteile, sondern deine gemessenen Zahlen — bewertet werden sie hinterher im Code.",
+    "Bei allen *_ok-Feldern bedeutet true: kein Verstoß. logic_ok=true, wenn Innen und Außen NICHT vermischt sind. heroes_found, depth_ratio, scale_est, figures_est, mouths_of_ten, shaded_of_ten und blank_of_ten sind keine true/false-Urteile, sondern deine gemessenen Zahlen — bewertet werden sie hinterher im Code.",
     "Wichtig zur Strenge: bewerte nur, was du tatsächlich siehst. Wenn du dir bei einem der Ja/Nein-Punkte nicht sicher bist, antworte dort true -- ein vermuteter Verstoß ist kein Verstoß. Das gilt aber NICHT für die gezielte Suche unter Punkt 2: dort sollst du wirklich nachsehen und einen gefundenen Ausreißer auch benennen, statt vorsichtshalber true zu antworten.",
 
   ];

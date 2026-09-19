@@ -1380,14 +1380,29 @@ function buildDebugDetails(image) {
   const toggle = h("button", { type: "button", class: "h-black", style: { minHeight: "44px", width: "100%", background: "rgba(26,26,24,.08)", border: "3px dashed rgba(26,26,24,.4)", fontSize: "12px", cursor: "pointer" } }, "🔧 Test-Details anzeigen (Prompt, Vignetten, Verify-Ergebnis)");
   const box = h("div", { style: { display: "none", marginTop: "12px", fontSize: "12px", lineHeight: "1.5", whiteSpace: "pre-wrap", background: "#fff", border: "2px solid rgba(26,26,24,.3)", padding: "12px" } });
   const verifyText = image.verify ? JSON.stringify(image.verify) : "(kein Verify-Ergebnis)";
+  // NEU (19.09.2026): die Begruendungen der Wertung. Sie stehen ABSICHTLICH nicht im Notizfeld des
+  // Verify-Ergebnisses -- notiz schreibt das Pruef-Modell, und das kann gar nicht wissen, welche
+  // Gewichtung unser Code auf seine Zahlen angewendet hat. Seit scale_est je nach depth_ratio
+  // einmal schwer und einmal mittel zaehlt, waere ohne diese Zeilen im Panel nicht erkennbar,
+  // welcher der beiden Faelle gegriffen hat. severityOf() sammelt sie deshalb im Code mit.
+  const gruendeBand = (window.Pipeline && Pipeline.SCENE_PHASES) ? (Pipeline.SCENE_PHASES[Pipeline.ACTIVE_SCENE_PHASE] || {}).figuresBand : null;
+  function gruendeText(v) {
+    if (!v || !window.Pipeline || !Pipeline.severityOf) return "(keine Wertung)";
+    const s = Pipeline.severityOf(v, gruendeBand);
+    const kopf = s.heavy + " schwer / " + s.medium + " mittel / " + s.light + " leicht";
+    if (!s.gruende || !s.gruende.length) return kopf + " — keine Verstöße";
+    return kopf + "\n    · " + s.gruende.join("\n    · ");
+  }
   box.textContent =
     // NEU (19.09.2026): Prompt-Fassung ganz oben. Siehe PROMPT_VERSION in pipeline.js -- damit ist
     // sofort klar, welcher Stand das Bild erzeugt hat, statt es aus den Symptomen zu erraten.
     "Prompt-Fassung: " + (window.Pipeline && Pipeline.PROMPT_VERSION ? Pipeline.PROMPT_VERSION : "unbekannt") + "\n" +
     "Verstöße im gewählten Kandidaten: " + (image.violations != null ? image.violations : "?") + "\n" +
+    "Wertung: " + gruendeText(image.verify) + "\n" +
     "Verify-JSON: " + verifyText + "\n\n" +
     "--- Kandidaten ---\n" +
-    (image.candidates || []).map((c, i) => "Kandidat " + (i + 1) + " (" + c.url + "): " + (c.violations != null ? c.violations + " Verstöße" : "?") + " — " + JSON.stringify(c.verify)).join("\n") +
+    (image.candidates || []).map((c, i) => "Kandidat " + (i + 1) + " (" + c.url + "): " + (c.violations != null ? c.violations + " Verstöße" : "?") +
+      "\n  Wertung: " + gruendeText(c.verify) + "\n  " + JSON.stringify(c.verify)).join("\n") +
     "\n\n--- scenePrompt() ---\n" + (image.promptText || "(kein Prompt gespeichert)") +
     "\n\n--- sceneComposeInstruction() (tatsächlich an fal.ai gesendet) ---\n" + (image.instruction || "(keine Instruction gespeichert)");
   toggle.addEventListener("click", () => { box.style.display = box.style.display === "none" ? "block" : "none"; });

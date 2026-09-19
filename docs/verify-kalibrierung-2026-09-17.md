@@ -485,3 +485,71 @@ Gemessen an einer Attrappe ohne fal-Zugriff:
 | Wettlauf: zwei Durchläufe auf demselben Stand, Sperre absichtlich umgangen | 4, dann Schluss |
 
 Der dritte Fall ist der wichtige: ohne `genCount` lief er unbegrenzt weiter.
+
+## 13. Stil wird gezählt, Figurengröße wird bedingt gewertet (19.09.2026)
+
+Prompt-Fassung `2026-09-19g · f6a75742`. Zwei Änderungen, beide auf ausdrückliche Entscheidung
+des Nutzers, beide nach demselben Muster wie schon Dichte, Tiefe und Münder: **das Modell misst,
+der Code urteilt.**
+
+### 13.1 `style_ok` → `shaded_of_ten` und `blank_of_ten`
+
+`style_ok` war ein Eindrucksurteil und hat entsprechend geurteilt: in 17 von 21 Phase-1-Bildern
+schlug es an, darunter bei den zwei Bildern, die der Nutzer ausdrücklich gelobt hat. Umgekehrt
+ließ es das Bild mit den zwei plastisch schattierten Gesichtern glatt durch. Ein Kriterium, das
+gleichzeitig zu oft und an der falschen Stelle anschlägt, ist kein Kriterium.
+
+Ersetzt durch zwei Zählfragen im Verify-Prompt (Punkte 3b und 3c), die beide dieselbe Stichprobe
+nehmen — die zehn größten menschlichen Gesichter:
+
+| Feld | Frage | Grenze | Warum diese Grenze |
+|---|---|---|---|
+| `shaded_of_ten` | Wie viele sind plastisch gezeichnet statt flach? | `SHADED_MAX_OF_TEN = 1` | Der gewünschte Stil ergibt 0. Eine 0 ist also der Normalfall, kein Glücksfall — ab zwei ist es eine echte Abweichung. Mit einer Grenze von 2 oder 3 wäre genau das beanstandete Bild sauber durchgelaufen. |
+| `blank_of_ten` | Bei wie vielen fehlen auch Augen und Nasenstrich? | `BLANK_MAX_OF_TEN = 0` | Der entgegengesetzte Fehler. Ein einziges leeres Gesicht genügt; der Nutzer hat es an den angeschnittenen Riesenköpfen beanstandet. |
+
+Der fehlende **Mund** ist ausdrücklich richtig und zählt in 3c nicht mit — das misst weiterhin
+`mouths_of_ten`. Beide Felder sind mittel gewichtet, geben also kein Geld aus, sondern verschieben
+nur die Reihenfolge der Kandidaten. Der alte Schlüssel `style_ok` bleibt in `VIOLATION_SEVERITY`
+stehen, damit Bilder, die vor der Umstellung im AppState lagen, weiter bewertbar bleiben.
+
+### 13.2 `scale_est` zählt nur schwer, wenn die Tiefe fehlt
+
+`scale_est` und `depth_ratio` ziehen in offenen Szenen gegeneinander: eine große Vordergrundfigur
+senkt `scale_est` (schlecht) und hebt `depth_ratio` (gut). Solange beide schwer wogen, entschied
+bei zwei Kandidaten mit je einem Verstoß nicht mehr der Bildeindruck, sondern welches Feld zuerst
+geprüft wird.
+
+Gelöst **nicht nach Kompositionstyp, sondern an der Ursache**: eine große Figur vorne ist nur dann
+ein Fehler, wenn sie keine Tiefe erkauft.
+
+| `depth_ratio` | Wertung eines zu kleinen `scale_est` |
+|---|---|
+| ≥ `DEPTH_MIN_RATIO` (1,8) | **mittel** — die großen Figuren erkaufen Tiefe |
+| < 1,8 | **schwer** — groß und trotzdem flach |
+| nicht erhoben (`null`, Querschnitt) | **schwer** — kein Gegengewicht vorhanden |
+
+Im Querschnitt ergibt das automatisch dasselbe wie eine Sonderregel je Kompositionstyp, und es
+fängt zusätzlich den Fall ab, den eine solche Sonderregel durchließe: offene Szene, Figuren riesig
+**und** keine Tiefe — also genau das 2,7-Bild mit den angeschnittenen Riesenköpfen.
+
+### 13.3 Warum die Begründung nicht im Notizfeld steht
+
+Der Nutzer hatte darum gebeten, im Notizfeld mit auszugeben, welche Wertung gegriffen hat. Das
+geht dort nicht: `notiz` schreibt das Prüf-Modell, und das kann nicht wissen, welche Gewichtung
+unser Code auf seine Zahlen anwendet. Die Begründung entsteht deshalb im Code —
+`severityOf()` sammelt zu jedem Verstoß einen Klartext-Satz in `severity.gruende`, und das
+Test-Details-Panel gibt sie unter „Wertung" aus, für das gewählte Bild und für jeden Kandidaten
+einzeln. Beispiel:
+
+```
+Wertung: 0 schwer / 1 mittel / 0 leicht
+    · scale_est 2.2 unter 2.8, aber nur MITTEL gewertet: depth_ratio 3.2 liegt über 1.8,
+      die großen Figuren erkaufen also Tiefe.
+```
+
+### 13.4 Beide Kopien geprüft
+
+Die Wertungslogik liegt doppelt vor (`public/js/pipeline.js` für die Anzeige,
+`api/_lib/fal-queue.js` für die Auswahl). `dev-tools/wertung-vergleich.js` rechnet sieben Fälle
+durch beide Kopien und vergleicht Schwere **und** Begründungstexte — ohne einen einzigen
+fal-Aufruf. Vor jedem Commit an einer der beiden Dateien laufen lassen.

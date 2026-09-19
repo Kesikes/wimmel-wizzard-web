@@ -229,7 +229,10 @@ const VIOLATION_SEVERITY = {
   // heads_ok: NEU (18.09.2026), die aus scale_ok herausgeloeste zweite Haelfte -- Kopfgroessen
   // innerhalb einer Tiefenebene. Bewusst "mittel": es war nie der Grund, aus dem der Nutzer ein
   // Bild abgelehnt hat, und es soll kein Geld ausgeben.
+  // shaded_of_ten / blank_of_ten tragen ab 19.09.2026 die Gewichtung von style_ok; der alte
+  // Schluessel bleibt fuer Bilder stehen, die vor der Umstellung im AppState gelandet sind.
   figures_est: "medium", mouths_of_ten: "medium", mouths_ok: "medium", heads_ok: "medium",
+  shaded_of_ten: "medium", blank_of_ten: "medium",
   // leicht (Szenen-Verify)
   no_text_ok: "light", logic_ok: "light",
   // Charakter-Verify (buildCharacterVerifyPrompt() in char-job-engine.js)
@@ -248,6 +251,10 @@ const DEPTH_MIN_RATIO = 1.8;
 const SCALE_MIN_FIT = 2.8;
 // MOUTHS_MAX_OF_TEN: zweite Kopie -- Herleitung in public/js/pipeline.js.
 const MOUTHS_MAX_OF_TEN = 3;
+// SHADED_MAX_OF_TEN / BLANK_MAX_OF_TEN: zweite Kopie -- Herleitung in public/js/pipeline.js.
+// Zwei entgegengesetzte Stilfehler, seit 19.09.2026 gezaehlt statt beurteilt (frueher style_ok).
+const SHADED_MAX_OF_TEN = 1;
+const BLANK_MAX_OF_TEN = 0;
 
 // countViolations(): wertet die JSON-Antwort des Verify-Aufrufs aus.
 // Zwei Feldformen werden erkannt: "*_ok"-Felder (false = Verstoss) und das dreiwertige "density"
@@ -264,7 +271,7 @@ const MOUTHS_MAX_OF_TEN = 3;
 // erfinden. Der Charakter-Verify kennt das Feld gar nicht und uebergibt entsprechend nichts.
 function countViolations(verifyOutputText, figuresBand) {
   const match = String(verifyOutputText || "").match(/\{[\s\S]*\}/);
-  const fail = { violations: 99, parsed: null, severity: { heavy: 99, medium: 99, light: 99 } };
+  const fail = { violations: 99, parsed: null, severity: { heavy: 99, medium: 99, light: 99, gruende: [] } };
   if (!match) return fail;
   // NEU (18.09.2026), ZWEI KOPIEN (hier und in public/js/pipeline.js) -- beide anpassen:
   // "notiz" ist das einzige Freitextfeld der Antwort und damit die einzige Stelle, an der ein
@@ -280,9 +287,17 @@ function countViolations(verifyOutputText, figuresBand) {
   catch (e) {
     try { parsed = JSON.parse(ohneNotiz(match[0])); } catch (e2) { return fail; }
   }
-  const severity = { heavy: 0, medium: 0, light: 0 };
+  const severity = { heavy: 0, medium: 0, light: 0, gruende: [] };
+  // NEU (19.09.2026), zweite Kopie -- die ausfuehrliche Begruendung steht bei severityOf() in
+  // public/js/pipeline.js. Kurz: die Tiefe entscheidet mit, wie schwer ein zu kleines scale_est
+  // zaehlt, und jede so zustandegekommene Wertung schreibt ihren Grund im Klartext mit.
+  const tiefe = Number(parsed.depth_ratio);
+  const tiefeErhoben = isFinite(tiefe) && tiefe > 0;
+  const tiefeOk = tiefeErhoben && tiefe >= DEPTH_MIN_RATIO;
   Object.keys(parsed).forEach((k) => {
     let bad;
+    let tierUeberschrieben = null;
+    let grund = null;
     if (k === "figures_est") {
       if (!Array.isArray(figuresBand)) return;
       const anzahl = Number(parsed[k]);
@@ -300,6 +315,28 @@ function countViolations(verifyOutputText, figuresBand) {
       const groesse = Number(parsed[k]);
       if (!isFinite(groesse) || groesse <= 0) return;
       bad = groesse < SCALE_MIN_FIT;
+      if (bad) {
+        tierUeberschrieben = tiefeOk ? "medium" : "heavy";
+        grund = tiefeOk
+          ? "scale_est " + groesse + " unter " + SCALE_MIN_FIT + ", aber nur MITTEL gewertet: depth_ratio " + tiefe + " liegt \u00fcber " + DEPTH_MIN_RATIO + ", die gro\u00dfen Figuren erkaufen also Tiefe."
+          : (tiefeErhoben
+              ? "scale_est " + groesse + " unter " + SCALE_MIN_FIT + " und SCHWER gewertet: depth_ratio " + tiefe + " liegt unter " + DEPTH_MIN_RATIO + ", die gro\u00dfen Figuren erkaufen keine Tiefe."
+              : "scale_est " + groesse + " unter " + SCALE_MIN_FIT + " und SCHWER gewertet: depth_ratio wurde nicht erhoben (Querschnitt), es gibt also kein Gegengewicht.");
+      }
+    }
+    // NEU (19.09.2026), siehe severityOf() in pipeline.js: Stil wird gezaehlt statt beurteilt --
+    // zwei entgegengesetzte Fehler, zwei Zahlen.
+    else if (k === "shaded_of_ten") {
+      const sz = Number(parsed[k]);
+      if (!isFinite(sz) || sz < 0) return;
+      bad = sz > SHADED_MAX_OF_TEN;
+      if (bad) grund = sz + " von zehn gro\u00dfen Gesichtern sind plastisch gezeichnet (erlaubt: " + SHADED_MAX_OF_TEN + ").";
+    }
+    else if (k === "blank_of_ten") {
+      const bz = Number(parsed[k]);
+      if (!isFinite(bz) || bz < 0) return;
+      bad = bz > BLANK_MAX_OF_TEN;
+      if (bad) grund = bz + " von zehn gro\u00dfen Gesichtern sind leer, ohne Augen und Nase.";
     }
     // NEU (19.09.2026), siehe severityOf() in pipeline.js: eine Zahl je benannter Figur, 1 ist
     // richtig, 0 heisst fehlt, 2+ heisst doppelt.
@@ -316,8 +353,9 @@ function countViolations(verifyOutputText, figuresBand) {
     else if (/_ok$/.test(k)) bad = parsed[k] === false;
     else return;
     if (!bad) return;
-    const tier = VIOLATION_SEVERITY[k] || DEFAULT_SEVERITY;
+    const tier = tierUeberschrieben || VIOLATION_SEVERITY[k] || DEFAULT_SEVERITY;
     severity[tier] += 1;
+    severity.gruende.push(grund || (k + ": Versto\u00df, " + tier));
   });
   return { violations: severity.heavy + severity.medium + severity.light, parsed, severity };
 }
@@ -346,5 +384,6 @@ function isGoodEnough(severity) {
 module.exports = {
   VERIFY_MODEL, falHeaders, falBaseAppId, mediaLifecycleHeaders, MEDIA_TTL_SECONDS,
   submitFalQueue, falQueueStatus, falQueueResult, callFalVerifySync,
-  countViolations, compareSeverity, isGoodEnough, VIOLATION_SEVERITY, DEPTH_MIN_RATIO, SCALE_MIN_FIT, MOUTHS_MAX_OF_TEN, logFalError,
+  countViolations, compareSeverity, isGoodEnough, VIOLATION_SEVERITY, DEPTH_MIN_RATIO, SCALE_MIN_FIT, MOUTHS_MAX_OF_TEN,
+  SHADED_MAX_OF_TEN, BLANK_MAX_OF_TEN, logFalError,
 };
