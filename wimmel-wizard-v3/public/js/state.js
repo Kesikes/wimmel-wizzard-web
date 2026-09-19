@@ -410,9 +410,14 @@ const AppState = {
   // liefert bereits das beste von zwei geprueften Kandidaten, siehe pipeline.js) und macht es zum
   // aktuellen Bild. Es gibt (anders als bei Personen) kein "offen"-Zwischenstadium fuer Bilder in
   // v3 -- ein Bild entsteht erst, wenn die Generierung fertig ist.
+  // GEAENDERT (19.09.2026): bildFassung/pruefFassung werden AM BILD gespeichert. Vorher las das
+  // Test-Details-Panel die Fassung des gerade geladenen Codes -- ein drei Tage altes Bild zeigte
+  // also den heutigen Stand und damit eine Unwahrheit. Genau darauf stuetzt sich die Messreihe.
   addImage({ title, src, promptText, instruction, violations, verify, candidates }) {
     const id = "img-" + (this.data.images.length + 1) + "-" + Date.now().toString(36);
-    const image = { id, title: title || "", src, status: "done", promptText, instruction, violations, verify, candidates };
+    const P = window.Pipeline || {};
+    const image = { id, title: title || "", src, status: "done", promptText, instruction, violations, verify, candidates,
+      bildFassung: P.BILD_FASSUNG || null, pruefFassung: P.PRUEF_FASSUNG || null };
     const images = this.data.images.concat([image]);
     this.update({ images, currentImageId: id });
     return image;

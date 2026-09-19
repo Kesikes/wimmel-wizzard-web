@@ -1391,6 +1391,11 @@ function buildDebugDetails(image) {
   const toggle = h("button", { type: "button", class: "h-black", style: { minHeight: "44px", width: "100%", background: "rgba(26,26,24,.08)", border: "3px dashed rgba(26,26,24,.4)", fontSize: "12px", cursor: "pointer" } }, "🔧 Test-Details anzeigen (Prompt, Vignetten, Verify-Ergebnis)");
   const box = h("div", { style: { display: "none", marginTop: "12px", fontSize: "12px", lineHeight: "1.5", whiteSpace: "pre-wrap", background: "#fff", border: "2px solid rgba(26,26,24,.3)", padding: "12px" } });
   const verifyText = image.verify ? JSON.stringify(image.verify) : "(kein Verify-Ergebnis)";
+  function fassung(gespeichert, schluessel) {
+    if (gespeichert) return gespeichert;
+    const jetzt = (window.Pipeline && Pipeline[schluessel]) || null;
+    return jetzt ? jetzt + "  (nicht am Bild gespeichert — das ist der aktuell geladene Stand)" : "unbekannt";
+  }
   // NEU (19.09.2026): die Begruendungen der Wertung. Sie stehen ABSICHTLICH nicht im Notizfeld des
   // Verify-Ergebnisses -- notiz schreibt das Pruef-Modell, und das kann gar nicht wissen, welche
   // Gewichtung unser Code auf seine Zahlen angewendet hat. Seit scale_est je nach depth_ratio
@@ -1407,7 +1412,12 @@ function buildDebugDetails(image) {
   box.textContent =
     // NEU (19.09.2026): Prompt-Fassung ganz oben. Siehe PROMPT_VERSION in pipeline.js -- damit ist
     // sofort klar, welcher Stand das Bild erzeugt hat, statt es aus den Symptomen zu erraten.
-    "Prompt-Fassung: " + (window.Pipeline && Pipeline.PROMPT_VERSION ? Pipeline.PROMPT_VERSION : "unbekannt") + "\n" +
+    // GEAENDERT (19.09.2026): zwei getrennte Fassungen, und zwar die AM BILD gespeicherten. Nur so
+    // steht hier, womit dieses Bild entstanden ist, und nicht, was gerade im Browser geladen ist.
+    // Faellt das gespeicherte Feld weg (Bilder von vor dieser Aenderung), wird der laufende Stand
+    // gezeigt und ausdruecklich als solcher gekennzeichnet.
+    "Bild-Fassung:   " + fassung(image.bildFassung, "BILD_FASSUNG") + "\n" +
+    "Prüf-Fassung:   " + fassung(image.pruefFassung, "PRUEF_FASSUNG") + "\n" +
     "Verstöße im gewählten Kandidaten: " + (image.violations != null ? image.violations : "?") + "\n" +
     "Wertung: " + gruendeText(image.verify) + "\n" +
     "Verify-JSON: " + verifyText + "\n\n" +

@@ -1,0 +1,6 @@
+# Keine Bilddateien ins Repository (Nutzer-Regel: keine grossen Dateien in wimmel-wizard-v3/).
+*.jpg
+*.jpeg
+*.png
+*.webp
+!LIESMICH.md

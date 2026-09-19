@@ -1382,10 +1382,22 @@ function fnv1a(text) {
   return ("0000000" + h.toString(16)).slice(-8);
 }
 
-function promptFingerprint() {
+// GETRENNT (19.09.2026, Nutzer-Vorgabe). Vorher gab es EINE Pruefsumme ueber Bildprompt UND
+// Pruefprompt zusammen. Das hat am selben Tag zu einem handfesten Fehlschluss eingeladen: Commit
+// 8ef4d85 aenderte ausschliesslich den Pruefprompt, die Fassung sprang trotzdem von 4d0f6e17 auf
+// f6a75742 -- und ein danach erzeugtes Bild mit abgedriftetem Stil sah aus, als haette eine
+// Prompt-Aenderung ihn verursacht. Mit zwei Zahlen ist auf einen Blick zu sehen, welche Haelfte
+// sich bewegt hat.
+//
+// WAS WOHIN GEHOERT: alles, was in den Text an das Bildmodell einfliesst, zaehlt zur Bild-Fassung;
+// alles, was nur ueber Annahme und Ablehnung entscheidet, zur Pruef-Fassung. Deshalb liegen die
+// Regel-Konstanten bei Bild (sie stehen woertlich im Bildprompt) und die Schwellen DEPTH_MIN_RATIO
+// und SCALE_MIN_FIT bei Pruefung (sie aendern kein Bild, nur seine Bewertung). GROUP_SLOTS bleibt
+// bei Bild: die Zahl bestimmt, wie viele Gruppen-Vignetten im Prompt landen.
+function bildFingerprint() {
   var teile = [];
-  // Alle Funktionen, die Prompt-Text erzeugen, und alle Tabellen, aus denen er sich speist.
-  [scenePrompt, sceneComposeInstruction, buildVerifyPrompt, sizeRule, sizeRuleReminder,
+  // Alle Funktionen, die BILDprompt-Text erzeugen, und alle Tabellen, aus denen er sich speist.
+  [scenePrompt, sceneComposeInstruction, sizeRule, sizeRuleReminder,
    heroSpotText, densityInstruction, backgroundLibraryInstruction, allCharactersRule,
    sceneLayerText, layerSizeText, imageRefMapping].forEach(function (fn) {
     teile.push(String(fn));
@@ -1393,15 +1405,29 @@ function promptFingerprint() {
   [SCENE_PHASES, COMPOSITION_TYPES, THEME_META].forEach(function (tabelle) {
     try { teile.push(JSON.stringify(tabelle)); } catch (e) { /* zyklisch waere hier unmoeglich */ }
   });
-  // Die grossen Regel-Konstanten, die als fertiger Text im Prompt landen.
+  // Die grossen Regel-Konstanten, die als fertiger Text im Bildprompt landen.
   teile.push([NO_MOUTH_EMPHASIS, ZOOM_OUT_RULE, EDGE_AND_FACE_RULE, EDGE_AND_FACE_REMINDER,
     CUTAWAY_SCALE_RULE, THREE_LAYER_RULE, FLAT_FACE_RULE, INDOOR_OUTDOOR_RULE,
     SCENE_STYLE_BLOCK, FILL_EMPTY_SPACE_RULE, FILL_EMPTY_SPACE_RULE_HAUS, COHERENCE_RULE,
     DEPTH_COHERENCE_RULE, HEAD_SCALE_CONSISTENCY_RULE, SAFE_MARGIN_RULE, EMOTION_WORDS_RULE,
     ZERO_TEXT_RULE, PHASE2_FOREGROUND_RULE, HERO_FINDABILITY_RULE].join("|"));
-  // Die Schwellen, die ueber Annahme und Ablehnung entscheiden.
-  teile.push([DEPTH_MIN_RATIO, SCALE_MIN_FIT, GROUP_SLOTS].join(","));
+  teile.push(String(GROUP_SLOTS));
   return fnv1a(teile.join("\u0000"));
+}
+
+// pruefFingerprint(): der Pruefprompt und die Schwellen, die seine Zahlen bewerten.
+function pruefFingerprint() {
+  var teile = [String(buildVerifyPrompt)];
+  teile.push([DEPTH_MIN_RATIO, SCALE_MIN_FIT, MOUTHS_MAX_OF_TEN, SHADED_MAX_OF_TEN,
+    BLANK_MAX_OF_TEN].join(","));
+  try { teile.push(JSON.stringify(VIOLATION_SEVERITY)); } catch (e) { /* flach */ }
+  return fnv1a(teile.join("\u0000"));
+}
+
+// promptFingerprint(): bleibt als eine Zeichenkette fuer alles, was beide Haelften auf einmal
+// braucht. Sie ist die Zusammensetzung, keine dritte Rechnung.
+function promptFingerprint() {
+  return bildFingerprint() + "/" + pruefFingerprint();
 }
 
 // Die Zuweisung steht NICHT hier, sondern ganz unten kurz vor window.Pipeline -- promptFingerprint()
@@ -1409,6 +1435,10 @@ function promptFingerprint() {
 // sie in deren zeitliche Totzone und wuerde beim Laden von pipeline.js einen ReferenceError werfen,
 // also die ganze App lahmlegen. Einmal beim Laden reicht, nur eben spaeter.
 var PROMPT_VERSION = null;
+// Zwei getrennte Fassungen, siehe bildFingerprint()/pruefFingerprint(). Gleiche Totzonen-Regel:
+// die Zuweisung steht unten kurz vor window.Pipeline.
+var BILD_FASSUNG = null;
+var PRUEF_FASSUNG = null;
 
 var DEPTH_MIN_RATIO = 1.8;
 
@@ -3449,6 +3479,8 @@ function countViolations(verifyOutputText, figuresBand) {
    JOKE_LIBRARY in szene.js. */
 
 // Jetzt sind alle Regeln und Tabellen angelegt (siehe Kommentar bei PROMPT_VERSION oben).
+BILD_FASSUNG = PROMPT_LABEL + " \u00b7 Bild " + bildFingerprint();
+PRUEF_FASSUNG = PROMPT_LABEL + " \u00b7 Pr\u00fcfung " + pruefFingerprint();
 PROMPT_VERSION = PROMPT_LABEL + " \u00b7 " + promptFingerprint();
 
 window.Pipeline = {
@@ -3461,7 +3493,7 @@ window.Pipeline = {
   kontextInstruction, photoStyleInstruction, traitBitFromPhotoDescription, describePhotoTraits,
   PEN_INSTRUCTION_REMOVE, PEN_INSTRUCTION_REDO,
   resizeImageToDataUri, generateImage, generateImageWithRetry, verifyImage, countViolations,
-  SCENE_PHASES, ACTIVE_SCENE_PHASE, DEPTH_MIN_RATIO, SCALE_MIN_FIT, PROMPT_VERSION, PROMPT_LABEL, promptFingerprint, severityOf, compareSeverity, isGoodEnough,
+  SCENE_PHASES, ACTIVE_SCENE_PHASE, DEPTH_MIN_RATIO, SCALE_MIN_FIT, PROMPT_VERSION, PROMPT_LABEL, promptFingerprint, BILD_FASSUNG, PRUEF_FASSUNG, bildFingerprint, pruefFingerprint, severityOf, compareSeverity, isGoodEnough,
   COMPOSITION_TYPES, pickComposition, layerSizeText,
   HERO_ACTION_LIBRARY, pickHeroActions, shuffledPool,
   // Szenen-Komposition (neu, siehe Modul-Abschnitt oben)
