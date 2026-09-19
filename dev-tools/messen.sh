@@ -22,6 +22,11 @@ cd "$(dirname "$0")/.." || exit 1
 APP=${APP:-https://wimmel-wizard-v3.vercel.app}
 REFERENZ=docs/ref/referenz.jpg
 ERGEBNIS=docs/ref/ergebnis.txt
+# Rohdaten aufheben: ohne sie laesst sich hinterher nicht mehr nachrechnen, warum ein Kandidat
+# gewonnen hat -- die gespeicherten Verify-Werte stehen NUR in der Sitzung. Beide Dateien sind in
+# docs/ref/.gitignore und verlassen das Verzeichnis nicht.
+SITZUNG_KOPIE=docs/ref/sitzung.json
+MESSWERTE_KOPIE=docs/ref/messwerte.tsv
 
 command -v node >/dev/null 2>&1 || { echo "node wird gebraucht, ist aber nicht da."; exit 1; }
 
@@ -42,6 +47,8 @@ else
     -d "{\"mode\":\"load\",\"sessionId\":\"$SESSION\"}" \
     -o "$ARBEIT/sitzung.json" || { echo "Der Server war nicht erreichbar."; exit 1; }
 fi
+
+cp "$ARBEIT/sitzung.json" "$SITZUNG_KOPIE" 2>/dev/null
 
 # ---------- 2. Kandidaten herausziehen ----------
 # Ausgabe je Zeile: bildNr <TAB> bildTitel <TAB> kandNr <TAB> ja|nein <TAB> url
@@ -107,6 +114,7 @@ else
 
   echo "Pruefe $ANZAHL_GESAMT Bilder, das dauert einen Moment ..."
   FAL_KEY="$FAL_KEY" AUSGABE=tsv node dev-tools/stil-nachmessen.js "${QUELLEN[@]}" > "$ARBEIT/messwerte.tsv"
+  cp "$ARBEIT/messwerte.tsv" "$MESSWERTE_KOPIE" 2>/dev/null
 fi
 
 # ---------- 4. Tabelle bauen ----------
@@ -114,3 +122,5 @@ node dev-tools/_messen-tabelle.js \
   "$ARBEIT/kandidaten.tsv" "$ARBEIT/messwerte.tsv" "$REFERENZ" "$ERGEBNIS" || exit 1
 
 echo "Gespeichert in $ERGEBNIS"
+echo "Rohdaten fuer die Auswertung: $SITZUNG_KOPIE und $MESSWERTE_KOPIE"
+echo "Auswertung (ohne Netz, ohne Kosten): node dev-tools/auswertung.js"

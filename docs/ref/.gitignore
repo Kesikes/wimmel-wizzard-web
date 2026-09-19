@@ -5,3 +5,5 @@
 *.webp
 !LIESMICH.md
 ergebnis.txt
+sitzung.json
+messwerte.tsv

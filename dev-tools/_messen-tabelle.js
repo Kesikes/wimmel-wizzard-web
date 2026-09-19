@@ -4,7 +4,9 @@
 //     node dev-tools/_messen-tabelle.js <kandidaten.tsv> <messwerte.tsv> <referenzbild> <ausgabe.txt>
 //
 // kandidaten.tsv: bildNr, bildTitel, kandNr, ja|nein, url
-// messwerte.tsv:  eingabe, shaded, blank, mouths, schwer, mittel, leicht, notiz (aus AUSGABE=tsv)
+// messwerte.tsv:  eingabe, shaded, blank, mouths, shadows, light, schwer, mittel, leicht, notiz
+//                 (aus AUSGABE=tsv). shadows/light sind Werkzeug-Messgroessen, die Live-Pruefung
+//                 kennt sie nicht -- sie werden angezeigt, aber nirgends gewertet.
 const fs = require("fs");
 const path = require("path");
 const [kandDatei, messDatei, referenz, ausgabeDatei] = process.argv.slice(2);
@@ -28,16 +30,16 @@ function wert(url, i) {
 function notiz(url) {
   const f = mess.get(url);
   if (!f) return "";
-  return f[1] === "FEHLER" ? f[7] : (f[7] || "");
+  return f[1] === "FEHLER" ? f[9] : (f[9] || "");
 }
 
-const kopf = ["Bild", "Kandidat", "gewählt", "shaded", "blank", "mouths"];
+const kopf = ["Bild", "Kandidat", "gewählt", "shaded", "blank", "mouths", "shadows", "licht"];
 const reihen = [];
 if (referenz && fs.existsSync(referenz)) {
-  reihen.push(["REF", path.basename(referenz), "—", wert(referenz, 1), wert(referenz, 2), wert(referenz, 3)]);
+  reihen.push(["REF", path.basename(referenz), "—", wert(referenz, 1), wert(referenz, 2), wert(referenz, 3), wert(referenz, 4), wert(referenz, 5)]);
 }
 kandidaten.forEach((k) => {
-  reihen.push([k[0] + " " + k[1], "K" + k[2], k[3], wert(k[4], 1), wert(k[4], 2), wert(k[4], 3)]);
+  reihen.push([k[0] + " " + k[1], "K" + k[2], k[3], wert(k[4], 1), wert(k[4], 2), wert(k[4], 3), wert(k[4], 4), wert(k[4], 5)]);
 });
 
 const breite = kopf.map((h, i) => Math.max(h.length, ...reihen.map((r) => String(r[i]).length)));
@@ -46,6 +48,7 @@ const linie = (r) => r.map((z, i) => String(z).padEnd(breite[i])).join("  ").rep
 const aus = [];
 aus.push("Stilmessung — " + new Date().toISOString().slice(0, 16).replace("T", " "));
 aus.push("Grenzen: shaded <= 1, blank = 0, mouths <= 3. Gedankenstrich = nicht gemessen.");
+aus.push("shadows und licht werden nur gemessen, nicht gewertet — die Live-Prüfung kennt sie nicht.");
 aus.push("");
 aus.push(linie(kopf));
 aus.push(breite.map((b) => "-".repeat(b)).join("  "));
