@@ -1364,6 +1364,9 @@ function buildDebugDetails(image) {
   const box = h("div", { style: { display: "none", marginTop: "12px", fontSize: "12px", lineHeight: "1.5", whiteSpace: "pre-wrap", background: "#fff", border: "2px solid rgba(26,26,24,.3)", padding: "12px" } });
   const verifyText = image.verify ? JSON.stringify(image.verify) : "(kein Verify-Ergebnis)";
   box.textContent =
+    // NEU (19.09.2026): Prompt-Fassung ganz oben. Siehe PROMPT_VERSION in pipeline.js -- damit ist
+    // sofort klar, welcher Stand das Bild erzeugt hat, statt es aus den Symptomen zu erraten.
+    "Prompt-Fassung: " + (window.Pipeline && Pipeline.PROMPT_VERSION ? Pipeline.PROMPT_VERSION : "unbekannt") + "\n" +
     "Verstöße im gewählten Kandidaten: " + (image.violations != null ? image.violations : "?") + "\n" +
     "Verify-JSON: " + verifyText + "\n\n" +
     "--- Kandidaten ---\n" +

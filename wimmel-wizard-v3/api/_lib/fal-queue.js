@@ -193,6 +193,7 @@ const VIOLATION_SEVERITY = {
   // Zurueckdrehen dort nachsehen, statt die Gewichtung blind zu aendern.
   // scale_est traegt ab 19.09.2026 die Gewichtung, die bei scale_ok lag -- zweite Kopie, siehe
   // pipeline.js.
+  heroes_found: "heavy",
   scale_est: "heavy", scale_ok: "heavy",
   // heads_ok: NEU (18.09.2026), die aus scale_ok herausgeloeste zweite Haelfte -- Kopfgroessen
   // innerhalb einer Tiefenebene. Bewusst "mittel": es war nie der Grund, aus dem der Nutzer ein
@@ -266,6 +267,12 @@ function countViolations(verifyOutputText, figuresBand) {
       const groesse = Number(parsed[k]);
       if (!isFinite(groesse) || groesse <= 0) return;
       bad = groesse < SCALE_MIN_FIT;
+    }
+    // NEU (19.09.2026), siehe severityOf() in pipeline.js: eine Zahl je benannter Figur, 1 ist
+    // richtig, 0 heisst fehlt, 2+ heisst doppelt.
+    else if (k === "heroes_found") {
+      if (!Array.isArray(parsed[k]) || !parsed[k].length) return;
+      bad = parsed[k].some((z) => { const m = Number(z); return !isFinite(m) || m !== 1; });
     }
     else if (/_ok$/.test(k)) bad = parsed[k] === false;
     else return;

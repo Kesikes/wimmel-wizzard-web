@@ -1352,6 +1352,15 @@ var ACTIVE_SCENE_PHASE = "phase1";
 // 1,8 liegt mit Abstand unter 2,0 und mit Abstand ueber 1,2 -- also in der Mitte des sicheren
 // Bereichs. Strenger als 2,0 waere nur sinnvoll, wenn die Schwankung kleiner waere als gemessen.
 // ZWEITE KOPIE in api/_lib/fal-queue.js (gleiche Begruendung wie bei VIOLATION_SEVERITY dort).
+// PROMPT_VERSION: steht im Test-Details-Panel und beantwortet in einer Sekunde die Frage, die uns
+// am 19.09.2026 einen ganzen Testlauf gekostet hat -- "ist meine Aenderung ueberhaupt im Bild
+// angekommen?". Damals war der Code korrigiert und gepusht, das erzeugende Geraet hatte aber noch
+// die vorherige Fassung von pipeline.js. Vier gemeldete "Fixes wirken nicht" waren in Wahrheit
+// eine alte Datei im Browser.
+// BEI JEDER AENDERUNG AM BILD- ODER PRUEF-PROMPT HOCHZAEHLEN. Die Nutzerin nennt den Wert aus dem
+// Panel, und damit ist geklaert, welcher Stand tatsaechlich gelaufen ist.
+var PROMPT_VERSION = "2026-09-19c";
+
 var DEPTH_MIN_RATIO = 1.8;
 
 // SCALE_MIN_FIT: wie oft die groesste Figur mindestens in die Bildhoehe passen muss, damit ein
@@ -1425,6 +1434,7 @@ var VIOLATION_SEVERITY = {
   // scale_ok ist aus dem Verify-Prompt verschwunden (Begruendung bei SCALE_MIN_FIT oben). Der alte
   // Schluessel bleibt stehen: Bilder, die vorher im AppState gelandet sind, tragen ihn noch, und
   // der Warnkasten auf dem Ergebnis-Screen rechnet die Schwere nachtraeglich aus.
+  heroes_found: "heavy",
   scale_est: "heavy", scale_ok: "heavy",
   // heads_ok: NEU (18.09.2026), die aus scale_ok herausgeloeste zweite Haelfte -- Kopfgroessen
   // innerhalb einer Tiefenebene. Bewusst "mittel": es war nie der Grund, aus dem der Nutzer ein
@@ -1471,6 +1481,12 @@ function severityOf(parsed, figuresBand) {
       var g = Number(parsed[k]);
       if (!isFinite(g) || g <= 0) return;
       bad = g < SCALE_MIN_FIT;
+    }
+    // NEU (19.09.2026): eine Zahl je benannter Figur, 1 ist richtig. 0 heisst fehlt, 2+ heisst
+    // doppelt -- beides zerstoert ein Suchbild und zaehlt gleich schwer.
+    else if (k === "heroes_found") {
+      if (!Array.isArray(parsed[k]) || !parsed[k].length) return;
+      bad = parsed[k].some(function (z) { var m = Number(z); return !isFinite(m) || m !== 1; });
     }
     else if (/_ok$/.test(k)) bad = parsed[k] === false;
     else return;
@@ -1755,7 +1771,14 @@ function densityInstruction(theme, phase, composition) {
   //     kein Boden im Freien.
   //   - Querschnitt PLUS Umgebung (overview_cutaway): beides, aber ausdruecklich getrennt
   //     benannt -- drinnen die Raeume, draussen Strasse und Umgebung.
-  const drinnen = "In the background layer (" + layerSizeText("background", phase) + ") there are people absolutely everywhere inside this building, and this is not a counted number but a continuous presence through the whole depth of it: " + zonen + " — in every room, on the stairs, in every doorway, hallway and corner, people busy with something, some alone, many in twos and threes, and in places whole clusters of them, carrying on unbroken right through to the furthest room at the back. No room and no corner of this house is left without people in it. Each of them is doing their own tiny activity or little visual joke — true busy seek-and-find picture-book density.";
+  // BUGFIX (19.09.2026, vom Nutzer im fertigen Prompt gefunden): hier stand auch in der
+  // Innenraum-Fassung noch layerSizeText("background") -- "drawn small enough that it would fit at
+  // least twenty-five times over into the image height". Das ist die Groesse der hintersten
+  // Tiefenebene einer Landschaft und steht in direktem Widerspruch zu CUTAWAY_SCALE_RULE, die im
+  // Haus EINE Groesse fuer alle verlangt. Genau das hat der Verify dann gemeldet: Erdgeschoss
+  // groesser als Obergeschoss. Im Haus gibt es keine Hintergrundebene, also auch keine eigene
+  // Groesse dafuer.
+  const drinnen = "Throughout the house there are people absolutely everywhere, and this is not a counted number but a continuous presence through the whole depth of it: " + zonen + " — in every room, on the stairs, in every doorway, hallway and corner, people busy with something, some alone, many in twos and threes, and in places whole clusters of them, carrying on unbroken right through to the furthest room at the back. No room and no corner of this house is left without people in it. Each of them is doing their own tiny activity or little visual joke — true busy seek-and-find picture-book density.";
   const draussen = "In the background layer (" + layerSizeText("background", phase) + ") there are people absolutely everywhere, and this is not a counted number but a continuous presence across the whole depth of the picture: " + zonen + " — along every path, every edge, every doorway and every open stretch of ground, people working, walking, standing about and watching, some alone, many in twos and threes, and in places whole clusters of them, carrying on unbroken all the way back to the horizon. Nowhere in the back half of this image is there a stretch of ground, a path or a building without people on or around it. Each of them is doing their own tiny activity or little visual joke — true busy seek-and-find picture-book density.";
   const beides = "In the background layer (" + layerSizeText("background", phase) + ") there are people absolutely everywhere, and this is not a counted number but a continuous presence across the whole depth of the picture: " + zonen + ". Inside the cut-open building that means every room, the stairs, the doorways and the corners, right through to the furthest room at the back. Outside it means the street, the paths and the surrounding ground, carrying on unbroken to the horizon. Keep the two apart — indoor floors indoors, outdoor ground outdoors — but leave neither of them empty of people: some alone, many in twos and threes, and in places whole clusters of them, each doing their own tiny activity or little visual joke — true busy seek-and-find picture-book density.";
   const id = (composition && composition.id) || "open";
@@ -1953,7 +1976,11 @@ function allCharactersRule(heroSpecs) {
   const n = heroSpecs.length;
   const names = heroSpecs.map((s) => s.name);
   const namesList = names.length <= 2 ? names.join(" and ") : names.slice(0, -1).join(", ") + " and " + names[names.length - 1];
-  return "Each of the " + n + " named characters (" + namesList + ") appears in exactly ONE vignette across the whole scene, never duplicated. All " + n + " named characters must each appear at least once, clearly recognizable according to their reference image and the mapping above. None of them may be omitted.";
+  // VERSCHAERFT (19.09.2026): "never duplicated" allein hat nicht gereicht -- in einem
+  // Haus-Querschnitt kam eine Heldin dreimal vor, in Bad, Kueche und Schlafzimmer. Der Zusatz
+  // argumentiert physisch statt formal: dieselbe Person kann nicht in zwei Raeumen gleichzeitig
+  // sein. Das ist fuer ein Bildmodell greifbarer als eine Zaehlvorgabe.
+  return "Each of the " + n + " named characters (" + namesList + ") appears in exactly ONE vignette across the whole scene, never duplicated. This is not a stylistic preference but a fact about the scene: all of it happens at the same moment, so the same person cannot be in two places at once — not in two rooms of the same house, not on two floors, not once indoors and once outdoors. If you have already drawn " + names[0] + " somewhere, " + names[0] + " does not appear again anywhere else in this picture. All " + n + " named characters must each appear at least once, clearly recognizable according to their reference image and the mapping above. None of them may be omitted.";
 }
 
 // NEU: baut die Vignetten fuer eine Szene: vorhandene (z.B. nutzereigene) Situationen plus
@@ -2573,13 +2600,20 @@ function buildVerifyPrompt(heroSpecs, phaseId, compositionId) {
     : "";
   const parts = [
     "Du prüfst ein Wimmelbild für ein Kinderbuch gegen eine feste Stilvorgabe. Das ERSTE Bild ist die zu bewertende Szene." + refMapping,
-    "Beantworte genau diese neun Punkte:",
+    "Beantworte genau diese zehn Punkte:",
 
-    "1. HELDEN: Kommen alle " + n + " benannten Figuren (" + names + ") vor, jede GENAU EINMAL (nicht doppelt) und grob passend zu ihrem Referenzbild? Verglichen werden nur GROBE Merkmale: Frisur/Haarform, Haarfarbe, wichtigstes Kleidungsstück samt Farbe, Altersstufe (Kind / Erwachsener / älterer Mensch). Kleinstdetails wie Sommersprossen, Streifenmuster oder Knöpfe sind ausdrücklich KEIN Grund für ein Nein.",
-    "Wo die Figuren im Bild stehen, ist dabei ausdrücklich FREI: eine benannte Figur darf vorne groß, im Mittelgrund oder weiter hinten und klein im Bild stehen, auch abseits vom Zentrum. Das ist so gewollt -- Suchen gehört zum Spiel. Sie zu suchen ist Teil deiner Aufgabe, und dass du sie erst suchen musstest, ist KEIN Verstoß.",
-    "Ein Nein ist nur in diesen Fällen fällig: eine der Figuren fehlt ganz; eine kommt doppelt vor; eine passt bei den groben Merkmalen klar nicht zu ihrem Referenzbild; oder eine ist zwar irgendwo vorhanden, aber so stark verdeckt, so klein oder so abgewandt gezeichnet, dass du ihre groben Merkmale gar nicht mehr prüfen kannst. Schreib bei einem Nein ins Feld notiz, welche Figur betroffen ist und welcher dieser vier Fälle zutrifft.",
+    // UMGEBAUT (19.09.2026). heroes_ok hat "jede genau einmal" zwar abgefragt, aber nie erkannt:
+    // in einem Bild kam eine Heldin DREIMAL vor, eine zweite doppelt, eine dritte gar nicht -- und
+    // das Feld stand auf true. Ein Ja/Nein ueber mehrere Figuren gleichzeitig ueberfordert die
+    // Frage. Deshalb dasselbe Mittel wie bei Dichte, Tiefe und Figurengroesse: das Modell ZAEHLT,
+    // der Code bewertet. heroes_found ist eine Liste mit einer Zahl je Figur; jede Zahl ungleich 1
+    // ist ein schwerer Verstoss (fehlt oder doppelt). heroes_ok beurteilt nur noch die
+    // Aehnlichkeit derer, die da sind.
+    "1. HELDEN, ZAEHLUNG: Geh das Bild Raum für Raum beziehungsweise Bereich für Bereich systematisch durch und zähle für JEDE der " + n + " benannten Figuren (" + names + ") EINZELN, wie oft sie im Bild vorkommt. Eine Figur gilt als dieselbe, wenn Frisur, Haarfarbe und das wichtigste Kleidungsstück übereinstimmen -- auch wenn sie etwas anderes tut oder in einem anderen Raum steht. Antworte im Feld heroes_found mit einer Liste von " + n + " ganzen Zahlen, in genau der Reihenfolge der Referenzbilder (" + names + "): 0 heißt, die Figur fehlt, 1 heißt genau einmal vorhanden, 2 oder mehr heißt mehrfach. Rate nicht -- wenn du unsicher bist, zähle lieber ein zweites Mal. Doppelte Figuren zerstören ein Suchbild, das ist der wichtigste Punkt dieser ganzen Prüfung.",
+    "2. HELDEN, ÄHNLICHKEIT: Passen die Figuren, die du gefunden hast, grob zu ihrem Referenzbild? Verglichen werden nur GROBE Merkmale: Frisur/Haarform, Haarfarbe, wichtigstes Kleidungsstück samt Farbe, Altersstufe (Kind / Erwachsener / älterer Mensch). Kleinstdetails wie Sommersprossen, Streifenmuster oder Knöpfe sind ausdrücklich KEIN Grund für ein Nein. heroes_ok ist nur dann false, wenn eine gefundene Figur klar nicht zu ihrem Referenzbild passt oder so verdeckt, klein oder abgewandt ist, dass du es nicht beurteilen kannst. Ob eine Figur fehlt oder doppelt vorkommt, gehört NICHT hierher -- das steckt schon in der Zählung oben.",
+    "Wo die Figuren im Bild stehen, ist bei beiden Punkten ausdrücklich FREI: eine benannte Figur darf vorne groß, im Mittelgrund oder weiter hinten und klein im Bild stehen, auch abseits vom Zentrum. Das ist so gewollt -- Suchen gehört zum Spiel, und dass du sie erst suchen musstest, ist kein Verstoß. Schreib bei einer Zahl ungleich 1 oder bei heroes_ok false ins Feld notiz, welche Figur betroffen ist und was du gesehen hast.",
 
-    "2. STIL. Es geht bei diesem Punkt AUSSCHLIESSLICH um menschliche Gesichter. Tiere sind hier vollständig ausgenommen, egal wie sie gezeichnet sind -- ein Hund mit ausgearbeitetem Fell, eine gefiederte Gans, ein Hahn, ein Adler, ein plastisch gezeichnetes Pferd: alles in Ordnung, nichts davon darf dein Urteil beeinflussen. Ebenso ausgenommen ist die Kulisse: Schattierung, Textur und Farbverläufe auf Requisiten, Gebäuden, Fahrzeugen, Landschaft, Boden, Sand, Heu, Wasser und Himmel sind der gewünschte Stil.",
+    "3. STIL. Es geht bei diesem Punkt AUSSCHLIESSLICH um menschliche Gesichter. Tiere sind hier vollständig ausgenommen, egal wie sie gezeichnet sind -- ein Hund mit ausgearbeitetem Fell, eine gefiederte Gans, ein Hahn, ein Adler, ein plastisch gezeichnetes Pferd: alles in Ordnung, nichts davon darf dein Urteil beeinflussen. Ebenso ausgenommen ist die Kulisse: Schattierung, Textur und Farbverläufe auf Requisiten, Gebäuden, Fahrzeugen, Landschaft, Boden, Sand, Heu, Wasser und Himmel sind der gewünschte Stil.",
     "Der gewünschte Gesichtsstil ist: runder Kopf, zwei Punktaugen, ein einzelner dünner senkrechter Strich als Nase, meist kein Mund, oft leichte runde Wangenröte, alles flach und ohne Modellierung. Genau so sehen praktisch alle Figuren aus, und das ist richtig.",
     "Die Frage ist nun: fällt EIN EINZELNES menschliches Gesicht aus diesem Schema heraus, weil es plastischer gezeichnet ist als alle anderen? Anzeichen dafür, einzeln durchzugehen: eine Nase, die als Form gezeichnet ist statt als Strich (mit Nasenrücken, Nasenspitze, Nasenflügeln oder Schatten daran); sichtbare Bartstoppeln oder Schattierung auf Wangen, Kinn oder Hals; ein im Halbprofil gezeichnetes Gesicht mit modellierten Zügen, während alle übrigen frontal und flach sind. Schau dafür besonders die großen Figuren im Vordergrund an -- dort tritt es auf.",
     "AUSNAHME, die dir sonst einen Fehlalarm beschert: der WEIHNACHTSMANN (roter Mantel, rote Zipfelmütze, weißer Vollbart) darf Nase und Bart haben, er ist als Figur so vorgesehen. Dasselbe gilt für andere Figuren, deren Bart zur Rolle gehört, etwa einen Nikolaus. Solche Figuren sind KEIN Verstoß.",
@@ -2587,8 +2621,8 @@ function buildVerifyPrompt(heroSpecs, phaseId, compositionId) {
     "style_ok ist also false, wenn du entweder ein einzelnes, plastischer gezeichnetes Gesicht findest ODER ein leeres Gesicht ohne Augen und Nase -- sonst true. Ist es false, schreib ins Feld notiz, welcher der beiden Fälle vorliegt, welche Figur du meinst und wo im Bild sie steht.",
 
     querschnitt
-      ? "3. TIEFENSTAFFELUNG entfällt bei diesem Bild: es zeigt ein aufgeschnittenes Gebäude, in dem alle Räume gleich weit vom Betrachter entfernt sind und alle Figuren deshalb ABSICHTLICH gleich groß gezeichnet sind. Antworte bei depth_ratio mit null. Beurteile stattdessen hier: sind die Figuren über alle Räume hinweg tatsächlich gleich groß? Falls nicht — etwa winzige Figuren oben und große unten — schreib das ins Feld notiz, denn das ist in diesem Bildtyp ein Fehler."
-      : "3. TIEFENSTAFFELUNG: Such die GRÖSSTE Figur im Bild (meist ganz vorne) und die KLEINSTE noch erkennbare Figur (meist weit hinten, in der Bildtiefe oder in einem hinteren Raum). Schätze dann: wie oft würde die kleinste Figur ihrer Höhe nach in die größte hineinpassen? Antworte hier nicht mit true/false, sondern mit einer einzelnen Zahl, gern mit einer Dezimalstelle. Ein Bild mit kräftiger Tiefe liefert einen hohen Wert, ein Bild, in dem alle Figuren in einem ähnlichen Größenband liegen, einen Wert nahe 1. Zähle nur Menschen, keine Tiere.",
+      ? "4. TIEFENSTAFFELUNG entfällt bei diesem Bild: es zeigt ein aufgeschnittenes Gebäude, in dem alle Räume gleich weit vom Betrachter entfernt sind und alle Figuren deshalb ABSICHTLICH gleich groß gezeichnet sind. Antworte bei depth_ratio mit null. Beurteile stattdessen hier: sind die Figuren über alle Räume hinweg tatsächlich gleich groß? Falls nicht — etwa winzige Figuren oben und große unten — schreib das ins Feld notiz, denn das ist in diesem Bildtyp ein Fehler."
+      : "4. TIEFENSTAFFELUNG: Such die GRÖSSTE Figur im Bild (meist ganz vorne) und die KLEINSTE noch erkennbare Figur (meist weit hinten, in der Bildtiefe oder in einem hinteren Raum). Schätze dann: wie oft würde die kleinste Figur ihrer Höhe nach in die größte hineinpassen? Antworte hier nicht mit true/false, sondern mit einer einzelnen Zahl, gern mit einer Dezimalstelle. Ein Bild mit kräftiger Tiefe liefert einen hohen Wert, ein Bild, in dem alle Figuren in einem ähnlichen Größenband liegen, einen Wert nahe 1. Zähle nur Menschen, keine Tiere.",
 
     // UMGEBAUT (18.09.2026). Punkt 4 fragte zwei Dinge in einem Feld (Figurengroesse UND
     // Kopfgroessen) und haengte die Figurengroesse an eine Zahl, die nachweislich nicht das
@@ -2605,21 +2639,21 @@ function buildVerifyPrompt(heroSpecs, phaseId, compositionId) {
     // 2,5 mit "true" und 2,2 mit "false" und ignorierte damit ihre eigene Messung. Bewertet wird
     // jetzt die Zahl, im Code, gegen SCALE_MIN_FIT. Uebrig bleibt die Messung, so eindeutig
     // gestellt wie moeglich, mit zwei Ankerbeispielen gegen Fehlinterpretation.
-    "4. GRÖSSE ALS ZAHL: Nimm die GRÖSSTE menschliche Figur im Bild. Wie oft würde sie ihrer Höhe nach übereinander in die Bildhöhe passen? Stell dir vor, du legst sie wieder und wieder übereinander, vom unteren bis zum oberen Bildrand. Reicht sie über die halbe Bildhöhe, ist die Antwort etwa 2; ist sie ein Achtel so hoch wie das Bild, ist sie 8. Antworte mit einer einzelnen Zahl, gern mit einer Dezimalstelle, nicht mit true/false. Miss so genau du kannst — von dieser Zahl hängt ab, ob das Bild angenommen wird.",
-    "5. KOPFGRÖSSEN: Sind die Köpfe innerhalb derselben Tiefenebene ungefähr gleich groß, unabhängig davon, ob es Kinder, Erwachsene oder ältere Menschen sind? Größenunterschiede zwischen Kind und Erwachsenem gehören in die Körperproportionen, nicht in den Kopf. Ein Nein nur, wenn es deutlich auffällt.",
+    "5. GRÖSSE ALS ZAHL: Nimm die GRÖSSTE menschliche Figur im Bild. Wie oft würde sie ihrer Höhe nach übereinander in die Bildhöhe passen? Stell dir vor, du legst sie wieder und wieder übereinander, vom unteren bis zum oberen Bildrand. Reicht sie über die halbe Bildhöhe, ist die Antwort etwa 2; ist sie ein Achtel so hoch wie das Bild, ist sie 8. Antworte mit einer einzelnen Zahl, gern mit einer Dezimalstelle, nicht mit true/false. Miss so genau du kannst — von dieser Zahl hängt ab, ob das Bild angenommen wird.",
+    "6. KOPFGRÖSSEN: Sind die Köpfe innerhalb derselben Tiefenebene ungefähr gleich groß, unabhängig davon, ob es Kinder, Erwachsene oder ältere Menschen sind? Größenunterschiede zwischen Kind und Erwachsenem gehören in die Körperproportionen, nicht in den Kopf. Ein Nein nur, wenn es deutlich auffällt.",
 
-    "6. FIGURENZAHL: Schätze, wie viele MENSCHEN insgesamt im Bild zu sehen sind -- alle zusammengezählt, auch die ganz kleinen im Hintergrund. TIERE NICHT MITZÄHLEN. Antworte hier nicht mit true/false, sondern mit einer einzelnen ganzen Zahl, deiner besten Schätzung, gern gerundet.",
+    "7. FIGURENZAHL: Schätze, wie viele MENSCHEN insgesamt im Bild zu sehen sind -- alle zusammengezählt, auch die ganz kleinen im Hintergrund. TIERE NICHT MITZÄHLEN. Antworte hier nicht mit true/false, sondern mit einer einzelnen ganzen Zahl, deiner besten Schätzung, gern gerundet.",
 
-    "7. MÜNDER: Wirkt das Bild so, als hätten auffällig viele MENSCHLICHE Figuren einen sichtbaren Mund? Gemeint ist der Gesamteindruck, keine genaue Zählung: bei den meisten menschlichen Gesichtern soll unter den Punktaugen und dem Nasenstrich nichts weiter zu sehen sein. Einzelne Figuren mit Mund sind gewollt und kein Verstoß. Ein Nein ist erst fällig, wenn ein Mund bei den menschlichen Figuren eher die Regel als die Ausnahme ist.",
+    "8. MÜNDER: Wirkt das Bild so, als hätten auffällig viele MENSCHLICHE Figuren einen sichtbaren Mund? Gemeint ist der Gesamteindruck, keine genaue Zählung: bei den meisten menschlichen Gesichtern soll unter den Punktaugen und dem Nasenstrich nichts weiter zu sehen sein. Einzelne Figuren mit Mund sind gewollt und kein Verstoß. Ein Nein ist erst fällig, wenn ein Mund bei den menschlichen Figuren eher die Regel als die Ausnahme ist.",
     "TIERE ZÄHLEN HIER UNTER KEINEN UMSTÄNDEN MIT: ein Hund mit offenem Maul oder heraushängender Zunge, ein offener Vogelschnabel, eine Kuh, ein Hahn, eine Gans, ein fressendes oder brüllendes Tier -- all das ist vollkommen in Ordnung und darf dein Urteil zu diesem Punkt nicht beeinflussen. Zähle ausschließlich Menschen.",
 
-    "8. LOGIK: Werden Innenraum und Außenwelt vermischt? Ein Nein ist fällig, wenn Wetter oder Untergrund am falschen Ort auftauchen: Schnee, Regen, Sand, Wellen, Rasen oder Himmel innerhalb eines Zimmers, Straßenpflaster in einer Küche, Wohnzimmermöbel mitten im Freien ohne erkennbaren Grund.",
+    "9. LOGIK: Werden Innenraum und Außenwelt vermischt? Ein Nein ist fällig, wenn Wetter oder Untergrund am falschen Ort auftauchen: Schnee, Regen, Sand, Wellen, Rasen oder Himmel innerhalb eines Zimmers, Straßenpflaster in einer Küche, Wohnzimmermöbel mitten im Freien ohne erkennbaren Grund.",
     "Zur Abgrenzung beim Gebäude-Querschnitt, denn das ist der knifflige Fall: dass Innenräume und Außenwelt NEBENEINANDER zu sehen sind, ist völlig in Ordnung und genau so gewollt. Ein Verstoß ist es aber, wenn eine Außenfläche unmittelbar in einen Innenraum-Boden übergeht, ohne Wand, Tür, Fensterrahmen oder Hauskante dazwischen -- also etwa eine Schneefläche, die direkt an den Küchenboden anschließt, oder Rasen, der ohne Grenze im Wohnzimmer weiterläuft. Prüfe dafür jede Stelle, an der ein Innenraum an eine Außenfläche grenzt, und schau, ob dort eine bauliche Grenze zu sehen ist.",
     "AUSDRÜCKLICH KEIN VERSTOSS gegen die Logik: unterschiedliche Kleidung der Figuren (Winterjacke neben Sommerkleidung), nicht zur Jahreszeit passende Details, oder dass eine Situation unwahrscheinlich oder albern wirkt. Beurteile allein die Vermischung von Innen und Außen.",
 
-    "9. TEXT: Ist das Bild vollständig frei von Text -- keine Buchstaben, Wörter, Zahlen, Schilder, Poster, Beschriftungen oder Aufschriften auf Kleidung und Gegenständen, auch nicht klein oder im Hintergrund?",
+    "10. TEXT: Ist das Bild vollständig frei von Text -- keine Buchstaben, Wörter, Zahlen, Schilder, Poster, Beschriftungen oder Aufschriften auf Kleidung und Gegenständen, auch nicht klein oder im Hintergrund?",
 
-    "Antworte NUR als JSON-Objekt mit genau diesen zehn Feldern, notiz immer als LETZTES: {\"heroes_ok\": true/false, \"style_ok\": true/false, \"depth_ratio\": Zahl, \"scale_est\": Zahl, \"heads_ok\": true/false, \"figures_est\": Zahl, \"mouths_ok\": true/false, \"logic_ok\": true/false, \"no_text_ok\": true/false, \"notiz\": \"kurzer Text\"}.",
+    "Antworte NUR als JSON-Objekt mit genau diesen elf Feldern, notiz immer als LETZTES: {\"heroes_found\": [Zahlen], \"heroes_ok\": true/false, \"style_ok\": true/false, \"depth_ratio\": Zahl, \"scale_est\": Zahl, \"heads_ok\": true/false, \"figures_est\": Zahl, \"mouths_ok\": true/false, \"logic_ok\": true/false, \"no_text_ok\": true/false, \"notiz\": \"kurzer Text\"}.",
     // NEU (18.09.2026): notiz. Grund: der Prompt verlangte an zwei Stellen eine Begruendung ("nenne,
     // welche Figur du meinst"), das Antwortformat liess aber nur die acht Wertungsfelder zu -- die
     // Begruendung ging also jedes Mal verloren. Sichtbar wurde das, als bei einem Bild zwei von drei
@@ -2630,7 +2664,7 @@ function buildVerifyPrompt(heroSpecs, phaseId, compositionId) {
     // Angezeigt wird es ohne Zusatzarbeit, weil buildDebugDetails() (szene.js) das rohe Verify-JSON
     // je Kandidat ausgibt.
     "notiz ist ein kurzer deutscher Freitext, höchstens zwei Sätze, und wird NICHT bewertet -- er dient nur dazu, dass ein Mensch nachvollziehen kann, warum ein Feld false ist. Steht irgendwo false, schreib dort in Stichworten hin, was du gesehen hast; ist alles in Ordnung, schreib eine leere Zeichenkette. Verwende darin KEINE Anführungszeichen und KEINE Zeilenumbrüche, damit das JSON gültig bleibt.",
-    "Bei allen *_ok-Feldern bedeutet true: kein Verstoß. Also style_ok=true, wenn weder eine plastische Nase noch ein naturalistisches Tier zu finden ist; mouths_ok=true, wenn ein Mund bei den Menschen die Ausnahme bleibt; logic_ok=true, wenn Innen und Außen NICHT vermischt sind. depth_ratio, scale_est und figures_est sind keine true/false-Urteile, sondern deine gemessenen Zahlen — bewertet werden sie hinterher im Code.",
+    "Bei allen *_ok-Feldern bedeutet true: kein Verstoß. Also style_ok=true, wenn weder eine plastische Nase noch ein naturalistisches Tier zu finden ist; mouths_ok=true, wenn ein Mund bei den Menschen die Ausnahme bleibt; logic_ok=true, wenn Innen und Außen NICHT vermischt sind. heroes_found, depth_ratio, scale_est und figures_est sind keine true/false-Urteile, sondern deine gemessenen Zahlen — bewertet werden sie hinterher im Code.",
     "Wichtig zur Strenge: bewerte nur, was du tatsächlich siehst. Wenn du dir bei einem der Ja/Nein-Punkte nicht sicher bist, antworte dort true -- ein vermuteter Verstoß ist kein Verstoß. Das gilt aber NICHT für die gezielte Suche unter Punkt 2: dort sollst du wirklich nachsehen und einen gefundenen Ausreißer auch benennen, statt vorsichtshalber true zu antworten.",
 
   ];
@@ -3225,7 +3259,7 @@ window.Pipeline = {
   kontextInstruction, photoStyleInstruction, traitBitFromPhotoDescription, describePhotoTraits,
   PEN_INSTRUCTION_REMOVE, PEN_INSTRUCTION_REDO,
   resizeImageToDataUri, generateImage, generateImageWithRetry, verifyImage, countViolations,
-  SCENE_PHASES, ACTIVE_SCENE_PHASE, DEPTH_MIN_RATIO, severityOf, compareSeverity, isGoodEnough,
+  SCENE_PHASES, ACTIVE_SCENE_PHASE, DEPTH_MIN_RATIO, SCALE_MIN_FIT, PROMPT_VERSION, severityOf, compareSeverity, isGoodEnough,
   COMPOSITION_TYPES, pickComposition, layerSizeText,
   HERO_ACTION_LIBRARY, pickHeroActions, shuffledPool,
   // Szenen-Komposition (neu, siehe Modul-Abschnitt oben)
