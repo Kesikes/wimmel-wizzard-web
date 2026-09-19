@@ -19,4 +19,12 @@
 # BLINDWAHL je Szene (Variante D). Eintragen, was auf docs/ref/paare.html steht: "links" oder
 # "rechts". Welche Seite welcher Kandidat war, loest das Werkzeug ueber paare-zuordnung.tsv auf --
 # so muss niemand nachschlagen und sich dabei selbst beeinflussen. "K1"/"K2" geht auch.
-# Beispiel:  7 Berg<TAB>besser<TAB>links
+# "gleich" = kein klarer Sieger; solche Szenen zaehlen nicht in die Quote.
+# Blindwahl vom 20.09.2026, vor dem D-Lauf eingetragen:
+1 Stadt	besser	rechts
+2 Weihnachten	besser	rechts
+3 Weihnachten	besser	links
+4 Stadt	besser	gleich
+5 Berg	besser	rechts
+6 Berg	besser	gleich
+7 Berg	besser	links
