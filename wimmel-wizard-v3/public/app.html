@@ -23,7 +23,13 @@
         <img src="/assets/wizard-badge.webp" alt="" style="width: 30px; height: 30px; flex: none; transform: rotate(-6deg);" />
         <span class="h-black" style="font-size: 12px; letter-spacing: -.01em;">Wimmel&nbsp;Wizard<sup style="font-size: 7px; vertical-align: super;">™</sup></span>
       </a>
-      <nav id="desktop-nav" style="display: none;" aria-label="Fortschritt"></nav>
+      <!-- Sichtbarkeit steuert AUSSCHLIESSLICH das CSS (#desktop-nav in css/app.css: none als
+           Grundregel, flex ab 1024px). Hier stand bis 19.09.2026 ein Inline-style="display:none" --
+           und ein Inline-Style schlaegt jede Regel aus einer Datei. Die Desktop-Navigation war
+           damit IMMER unsichtbar, obwohl renderRail() sie bei jedem Rendern brav befuellt hat.
+           Zusammen mit #app-header-mobile-row2 (ab 1024px ausgeblendet) hatte der Desktop dadurch
+           ueberhaupt keine Navigation. -->
+      <nav id="desktop-nav" aria-label="Fortschritt"></nav>
       <span id="app-saved-label" style="display: none; margin-left: auto; font-family: 'Archivo', sans-serif; font-size: 12px; letter-spacing: .05em; text-transform: uppercase; color: var(--paper-a65);">alles gespeichert</span>
       <button type="button" id="save-hint" style="flex: none; background: none; border: 2px solid var(--paper-a40); color: var(--paper); font-family: 'Archivo', sans-serif; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; padding: 6px 8px; min-height: 32px;">gespeichert</button>
       <!-- ENTFERNT (Sammel-Runde 11.09.2026, letzter Punkt: "entferne auch den Button im Header mit

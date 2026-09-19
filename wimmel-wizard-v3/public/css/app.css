@@ -78,6 +78,12 @@ textarea.field { min-height: 108px; resize: none; padding: 11px; line-height: 1.
    Desktop (Schritt 7) — Breakpoint ab 1024px
    Quelle: referenz/Desktop-v4-OatlyWimmel.dc.html
    ========================================================================== */
+/* Desktop-Navigation: unterhalb von 1024px aus, ab 1024px an. Die Grundregel MUSS hier
+   stehen und nicht als Inline-Style im HTML -- ein Inline-Style laesst sich von der
+   Medienabfrage unten nicht mehr ueberschreiben, und genau daran war die
+   Desktop-Navigation bis 19.09.2026 unsichtbar. */
+#desktop-nav { display: none; }
+
 @media (min-width: 1024px) {
   /* Fixed-Header auf Desktop wieder volle Viewport-Breite (wie vorher via sticky im dann
      max-width:none-.app-shell) -- .app-header-inner bleibt separat auf 1360px zentriert. */
