@@ -70,14 +70,28 @@ Stand der Recherche (19.09.2026, fal-Dokumentation):
 **Bewertung:** Wir hängen derzeit an einem undokumentierten Standard. Das ist für ein Produkt, das
 Nachdrucke verspricht, nicht tragbar — und es blockiert die Wechsel-Entscheidung.
 
-**Empfehlung, zwei Stufen:**
+### Entscheidung (19.09.2026): Lebensdauer selbst setzen, 90 Tage
 
-1. **Sofort und klein:** den Header bei den Generierungs-Aufrufen mitschicken und die Lebensdauer
-   selbst setzen — naheliegend 90 Tage, passend zur Aufbewahrung der Sitzung. Eine Zeile in
-   `fal-proxy.js` und in der Job-Engine. Kostenseite bei fal: Speicher, Preis nicht verifiziert.
-   **Braucht eine Freigabe, weil es die Abrechnung berührt.**
-2. **Mittelfristig:** Phase 2.2, eigene Auslieferung. Sobald wir die Druckdatei selbst vorhalten,
-   hängt nichts Verkauftes mehr an einer fremden Adresse.
+**Umgesetzt.** Alle Aufrufe, die Bilder erzeugen, schicken jetzt
+`X-Fal-Object-Lifecycle-Preference: {"expiration_duration_seconds": 7776000}` mit. 90 Tage, damit
+Bild und Sitzung gemeinsam ablaufen statt getrennt — `SESSION_TTL_SECONDS` in `api/session.js` hat
+denselben Wert. Begründung des Nutzers: „Die Speicherkosten sind gegenüber 0,30 $ pro Bild
+vernachlässigbar, das Risiko ohne ist ein verlorener Kundenauftrag."
+
+Der Wert steht als `MEDIA_TTL_SECONDS` in `api/_lib/fal-queue.js` und fließt über `falHeaders()` in
+den Warteschlangen-Pfad sowie an den zwei bildgebenden Stellen in `fal-proxy.js` ein. Der
+Verify-Aufruf bekommt ihn bewusst nicht: er liefert Text, keine Datei, die wir aufbewahren wollen.
+
+**Damit sich niemand darauf ausruht — zwei Vorbehalte, ausdrücklich festgehalten:**
+
+1. Das ist ein **selbst gesetzter Wert bei einem fremden Dienst**, keine Zusicherung. Er hängt
+   davon ab, dass fal den Header weiter unterstützt und respektiert. Endgültig gelöst wird es erst
+   mit der **eigenen Speicherung in Phase 2.2**.
+2. **Spätestens beim Kauf muss die Druckdatei in unseren eigenen Speicher.** Sonst kann eine offene
+   Bestellung ihre Datei verlieren — ein Auftrag, der im Januar eingeht und im April nachgedruckt
+   werden soll, liegt außerhalb jedes 90-Tage-Fensters. Ab dem Kauf ist der fal-Wert irrelevant, er
+   deckt nur die Zeit **davor** ab: Erzeugung, Ansehen, Wechseln zwischen den Kandidaten.
+   **Das ist eine harte Voraussetzung für den ersten echten Verkauf**, nicht nur für den Druck.
 
 ---
 

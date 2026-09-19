@@ -91,7 +91,7 @@ async function fetchFalWithRetry(url, options, maxRetries) {
 }
 
 const { checkRateLimit } = require("./_lib/rate-limit");
-const { logFalError } = require("./_lib/fal-queue");
+const { logFalError, mediaLifecycleHeaders } = require("./_lib/fal-queue");
 
 // BUGFIX (Sammel-Runde 16.09.2026, live gefunden: "fal.ai 403 User is locked. Reason: TOP_UP").
 // Bisher landete JEDER rohe fal.ai-Fehlertext (Status + bis zu 200 Zeichen Rohtext, z.B. genau
@@ -240,7 +240,8 @@ module.exports = async (req, res) => {
     try {
       const resp = await fetchFalWithRetry("https://fal.run/fal-ai/flux-lora/image-to-image", {
         method: "POST",
-        headers: { Authorization: "Key " + FAL_KEY, "Content-Type": "application/json" },
+        // Aufbewahrungsdauer der erzeugten Datei, siehe MEDIA_TTL_SECONDS in _lib/fal-queue.js.
+        headers: Object.assign({ Authorization: "Key " + FAL_KEY, "Content-Type": "application/json" }, mediaLifecycleHeaders()),
         body: JSON.stringify({
           prompt: stylePrompt,
           image_url: sourceUrl,
@@ -440,7 +441,8 @@ module.exports = async (req, res) => {
   try {
     const resp = await fetchFalWithRetry(falEndpoint, {
       method: "POST",
-      headers: { Authorization: "Key " + FAL_KEY, "Content-Type": "application/json" },
+      // Aufbewahrungsdauer der erzeugten Datei, siehe MEDIA_TTL_SECONDS in _lib/fal-queue.js.
+      headers: Object.assign({ Authorization: "Key " + FAL_KEY, "Content-Type": "application/json" }, mediaLifecycleHeaders()),
       body: JSON.stringify(falBody),
     });
 

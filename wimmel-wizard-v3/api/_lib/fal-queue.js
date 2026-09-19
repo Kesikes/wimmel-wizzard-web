@@ -56,8 +56,32 @@ async function logFalError(context, message) {
   return "Da hat gerade etwas nicht geklappt. Versuch es bitte in ein paar Minuten nochmal.";
 }
 
+// MEDIA_TTL_SECONDS: wie lange fal.ai die erzeugten Bilddateien aufbewahren soll. NEU
+// (19.09.2026), und der Grund ist ein Rechercheergebnis, das unangenehmer war als erwartet:
+// fal nennt fuer erzeugte MEDIENDATEIEN ueberhaupt keine Standard-Aufbewahrung. Ohne diesen Header
+// gilt ein undokumentierter Wert (eine Fremdquelle berichtet von rund zwei Monaten, das ist keine
+// Zusage), und die Dokumentation sagt ausdruecklich: "Expired files are permanently deleted and
+// cannot be recovered." Einen konkreten Wert nennt fal nur fuer die Anfrage-JSONs: 30 Tage.
+// Ein Produkt, das Nachdrucke verspricht, darf nicht an einer undokumentierten Zahl haengen.
+// 90 Tage, damit Bild und Sitzung gemeinsam ablaufen statt getrennt -- SESSION_TTL_SECONDS in
+// api/session.js hat denselben Wert. Nutzer-Entscheidung 19.09.2026: "Die Speicherkosten sind
+// gegenueber 0,30 $ pro Bild vernachlaessigbar, das Risiko ohne ist ein verlorener Kundenauftrag."
+// WICHTIG, DAMIT NIEMAND SICH DARAUF AUSRUHT: das ist ein selbst gesetzter Wert bei einem fremden
+// Dienst, keine Zusicherung. Endgueltig geloest wird es erst mit der eigenen Speicherung
+// (Phase 2.2). Und spaetestens beim KAUF muss die Druckdatei in unseren eigenen Speicher, sonst
+// kann eine offene Bestellung ihre Datei verlieren -- siehe docs/kandidatenwahl-und-kriterien.
+const MEDIA_TTL_SECONDS = 90 * 24 * 3600;
+
+// Header-Format woertlich aus der fal-Dokumentation: ein JSON-Objekt als Header-Wert.
+function mediaLifecycleHeaders() {
+  return { "X-Fal-Object-Lifecycle-Preference": JSON.stringify({ expiration_duration_seconds: MEDIA_TTL_SECONDS }) };
+}
+
 function falHeaders(FAL_KEY) {
-  return { Authorization: "Key " + FAL_KEY, "Content-Type": "application/json" };
+  return Object.assign(
+    { Authorization: "Key " + FAL_KEY, "Content-Type": "application/json" },
+    mediaLifecycleHeaders()
+  );
 }
 
 // falBaseAppId(): GEFUNDEN per Live-Test 15.09.2026 direkt nach dem Szenen-Deploy -- alle 3
@@ -305,7 +329,7 @@ function isGoodEnough(severity) {
 }
 
 module.exports = {
-  VERIFY_MODEL, falHeaders, falBaseAppId,
+  VERIFY_MODEL, falHeaders, falBaseAppId, mediaLifecycleHeaders, MEDIA_TTL_SECONDS,
   submitFalQueue, falQueueStatus, falQueueResult, callFalVerifySync,
   countViolations, compareSeverity, isGoodEnough, VIOLATION_SEVERITY, DEPTH_MIN_RATIO, SCALE_MIN_FIT, logFalError,
 };
