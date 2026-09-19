@@ -10,6 +10,11 @@
 //
 //     FAL_KEY=... node dev-tools/stil-nachmessen.js <bild> [<bild> ...]
 //
+// Mit AUSGABE=tsv kommt statt des Fliesstexts eine Zeile je Bild, durch Tabulatoren getrennt:
+// eingabe, shaded_of_ten, blank_of_ten, mouths_of_ten, schwer, mittel, leicht, notiz. Das nutzt
+// dev-tools/messen.sh, um daraus eine Tabelle zu bauen. Bei einem Fehler steht in der zweiten
+// Spalte FEHLER und in der letzten der Grund -- die Zeile faellt also nie weg.
+//
 // <bild> ist entweder eine URL (aus dem Test-Details-Panel, "Kandidat 1 (https://fal.media/...)",
 // oder aus der fal-History) ODER ein lokaler Dateipfad, etwa docs/ref/referenzbild.jpg. Lokale
 // Dateien werden als data-URI mitgeschickt.
@@ -55,7 +60,16 @@ function alsBildquelle(eingabe) {
     throw new Error("Datei zu gross fuer einen data-URI (" + Math.round(roh.length / 1048576) +
       " MB, Grenze 8 MB): " + eingabe + " -- bitte verkleinern oder als URL angeben.");
   }
-  return "data:" + typ + ";base64," + roh.toString("base64");
+  const kodiert = "data:" + typ + ";base64," + roh.toString("base64");
+  // Warnung statt Abbruch: die 8-MB-Grenze oben gilt fuer die Rohdatei, der data-URI ist rund ein
+  // Drittel groesser. Wo genau der Endpunkt eine Anfrage ablehnt, wissen wir nicht -- deshalb ein
+  // Hinweis mit dem Ausweg, kein selbst erfundener Grenzwert.
+  if (kodiert.length > 4 * 1024 * 1024) {
+    console.error("  Hinweis: " + eingabe + " ist kodiert " + Math.round(kodiert.length / 1048576) +
+      " MB gross. Falls der Endpunkt die Anfrage ablehnt, vorher verkleinern, auf dem Mac z. B. mit:" +
+      "\n    sips -Z 2000 \"" + eingabe + "\" --out docs/ref/referenz-klein.jpg");
+  }
+  return kodiert;
 }
 
 // Minimaler Held: der Pruefprompt braucht einen, die Stilfragen 3b/3c haengen nicht davon ab.
@@ -63,19 +77,34 @@ function alsBildquelle(eingabe) {
 const held = P.makeCharacterSpec({ id: "x", name: "Kind", role: "girl", sourceType: "chips" });
 const prompt = P.buildVerifyPrompt([held], "phase1", "open");
 
+const TSV = String(process.env.AUSGABE || "").toLowerCase() === "tsv";
+function tsv(eingabe, felder) {
+  process.stdout.write([eingabe].concat(felder).join("\t") + "\n");
+}
+
 (async () => {
   for (const eingabe of bilder) {
-    process.stdout.write("\n" + eingabe + "\n");
+    if (!TSV) process.stdout.write("\n" + eingabe + "\n");
     let quelle;
     try { quelle = alsBildquelle(eingabe); }
-    catch (e) { console.log("  " + e.message); continue; }
-    if (quelle !== eingabe) console.log("  (lokale Datei, als data-URI mitgeschickt: " +
+    catch (e) { if (TSV) tsv(eingabe, ["FEHLER", "", "", "", "", "", e.message]); else console.log("  " + e.message); continue; }
+    if (quelle !== eingabe && !TSV) console.log("  (lokale Datei, als data-URI mitgeschickt: " +
       Math.round(quelle.length / 1024) + " KB kodiert)");
     let roh;
     try { roh = await Q.callFalVerifySync([quelle], prompt, FAL_KEY); }
-    catch (e) { console.log("  FEHLER beim Pruefaufruf: " + e.message); continue; }
+    catch (e) { if (TSV) tsv(eingabe, ["FEHLER", "", "", "", "", "", "Pruefaufruf: " + e.message]); else console.log("  FEHLER beim Pruefaufruf: " + e.message); continue; }
     const erg = Q.countViolations(roh, (P.SCENE_PHASES.phase1 || {}).figuresBand);
     const p = erg.parsed || {};
+    if (TSV) {
+      tsv(eingabe, [
+        p.shaded_of_ten != null ? p.shaded_of_ten : "?",
+        p.blank_of_ten != null ? p.blank_of_ten : "?",
+        p.mouths_of_ten != null ? p.mouths_of_ten : "?",
+        erg.severity.heavy, erg.severity.medium, erg.severity.light,
+        String(p.notiz || "").replace(/\s+/g, " ").slice(0, 160),
+      ]);
+      continue;
+    }
     console.log("  shaded_of_ten : " + p.shaded_of_ten + "   (Grenze " + Q.SHADED_MAX_OF_TEN + ")");
     console.log("  blank_of_ten  : " + p.blank_of_ten + "   (Grenze " + Q.BLANK_MAX_OF_TEN + ")");
     console.log("  mouths_of_ten : " + p.mouths_of_ten + "   (Grenze " + Q.MOUTHS_MAX_OF_TEN + ")");
