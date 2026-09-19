@@ -1469,7 +1469,7 @@ var VIOLATION_SEVERITY = {
   // wo sie hingehoert: als Merkmal einer Figur, die aus dem Zeichenstil faellt.
   // HOCHGESTUFT (18.09.2026, Nutzer-Entscheidung): scale_ok von "mittel" auf "schwer". Nutzer,
   // woertlich: "Zu grosse Figuren sind mein wiederkehrender Killer, und so ein Bild ist fuer mich
-  // unbrauchbar -- dann lieber 0,30 $ fuer einen dritten Versuch." Das Kriterium hat sich zudem als
+  // unbrauchbar -- dann lieber 0,30 $ fuer einen dritten Versuch." (Preis inzwischen korrigiert: ein Bild kostet 0,15 $, nicht 0,30 $ -- siehe Abschnitt 11 der Kalibrierungs-Doku. Die Entscheidung bleibt davon unberuehrt, sie wird nur billiger.) "" Das Kriterium hat sich zudem als
   // treffsicher erwiesen: im Bild vom 18.09. meldete es bei allen drei Kandidaten false, und die
   // Nachmessung in Photoshop gab ihm recht (2,7-mal statt achtmal in die Bildhoehe).
   // ZURUECKDREHEN, WENN: es staendig ausloest und dadurch fast jede Szene einen dritten Kandidaten
@@ -1483,7 +1483,14 @@ var VIOLATION_SEVERITY = {
   // scale_ok ist aus dem Verify-Prompt verschwunden (Begruendung bei SCALE_MIN_FIT oben). Der alte
   // Schluessel bleibt stehen: Bilder, die vorher im AppState gelandet sind, tragen ihn noch, und
   // der Warnkasten auf dem Ergebnis-Screen rechnet die Schwere nachtraeglich aus.
-  heroes_found: "heavy",
+  // VORLAEUFIG HERABGESTUFT (19.09.2026, Nutzer-Vorgabe): heroes_found war einen halben Tag lang
+  // "schwer" und hat damit fast bei jeder Szene einen weiteren bezahlten Versuch ausgeloest -- die
+  // Heldin fehlt derzeit in den meisten Kandidaten, das Kriterium schlaegt also fast immer an.
+  // Bleibt "mittel", bis der eigentliche Fehler behoben ist (der Prompt bekommt die Heldin nicht
+  // zuverlaessig ins Bild). Danach gehoert es zurueck auf "schwer": eine fehlende oder doppelte
+  // Heldin ist inhaltlich ein schwerer Fehler, nur darf ein Kriterium, das fast immer anschlaegt,
+  // kein Geld ausgeben.
+  heroes_found: "medium",
   scale_est: "heavy", scale_ok: "heavy",
   // heads_ok: NEU (18.09.2026), die aus scale_ok herausgeloeste zweite Haelfte -- Kopfgroessen
   // innerhalb einer Tiefenebene. Bewusst "mittel": es war nie der Grund, aus dem der Nutzer ein
