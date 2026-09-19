@@ -392,3 +392,18 @@ Wichtig bleibt die Trennung aus 9.2: der **Bild-Prompt** fordert weiterhin acht-
 ist die einzige Kraft nach unten, und das Modell unterschreitet ihn ohnehin um den Faktor
 zweieinhalb bis drei. Eine Prüfschwelle von 8 würde dagegen jedes Bild durchfallen lassen — auch
 die guten — und bei schwerer Gewichtung jedes Mal einen dritten, bezahlten Versuch auslösen.
+
+---
+
+## 10. Weiterführend: die Auswahl selbst steht zur Debatte (19.09.2026)
+
+Am 19.09. hat sich gezeigt, dass die **Auswahl** zwischen den Kandidaten nicht abbildet, was ein
+Bild gut macht — die App zeigte das schlechteste von mehreren guten. Daraus folgt der Umbau auf
+eine Kandidatenwahl durch die Nutzerin; die Prüfung bleibt, tritt aber in den Hintergrund.
+
+Das betrifft diese Kalibrierung unmittelbar: die Messreihe „welchen Kandidaten hätte der Nutzer
+genommen" wird zur besten Grundlage, die wir je hatten, um Kriterien wieder **abzuschaffen** statt
+weitere hinzuzufügen.
+
+Entscheidung, Begründung und Messreihe stehen in
+`docs/kandidatenwahl-und-kriterien-2026-09-19.md`.
