@@ -1997,7 +1997,14 @@ const COMPOSITION_TYPES = {
   cutaway: {
     id: "cutaway",
     kw: "building cut open from the side, several floors and rooms visible at once",
-    text: "Composition: a house cut open towards the viewer, several rooms and at least two floors visible at the same time, like an open doll's house. Each room keeps its own floor, walls and ceiling and holds its own little scene. Depth comes from the rooms being staggered and from the figures being larger in the rooms nearest the viewer.",
+    // GEAENDERT (19.09.2026, erstes cutaway-Testbild): hier stand "Depth comes from the rooms being
+    // staggered and from THE FIGURES BEING LARGER IN THE ROOMS NEAREST THE VIEWER". Damit haben wir
+    // selbst angeordnet, was der Nutzer dann im Bild fand: winzige Figuren in den oberen Raeumen,
+    // riesige unten -- kein Tiefeneindruck, sondern drei verschiedene Massstaebe nebeneinander. In
+    // einem Querschnitt gibt es diese Tiefe gar nicht: alle Raeume sind gleich weit vom Betrachter
+    // weg. Die Tiefe kommt aus der Staffelung und aus dem, was hinter den Tueren liegt -- nie aus
+    // unterschiedlich grossen Menschen.
+    text: "Composition: a house cut open towards the viewer, several rooms and at least two floors visible at the same time, like an open doll's house. Each room keeps its own floor, walls and ceiling and holds its own little scene. All the rooms are the same distance from the viewer, so depth comes from the rooms being staggered, from furniture overlapping, and from what can be seen through doorways and windows — never from drawing the people in one room bigger than the people in another.",
   },
   gridhouse: {
     id: "gridhouse",
@@ -2131,6 +2138,23 @@ function sizeRuleReminder(phase) {
 // zwei Punktaugen und ein Nasenstrich -- und dass der Mund weiterhin wegbleibt.
 const EDGE_AND_FACE_RULE = "Two things are never allowed in this image, and they go together. First: no figure is cut off by the edge of the picture. Nobody stands half in and half out at the bottom, the top or the sides, and there is no oversized head or shoulder pushed up against the front edge as a framing device — every single person in this scene stands fully inside the picture, complete from head to foot, and no person anywhere is drawn larger than the size limit given above. Second: every face that appears is actually drawn. Each one shows the two small dot eyes and the single short vertical nose line — never an empty, blank oval with nothing on it, however small or however near the edge the figure is. The mouth stays absent, as the rule above says; eyes and nose do not.";
 
+// NEU (19.09.2026, nach dem ersten cutaway-Testbild). Drei der vier Befunde dieses Bildes haengen
+// an derselben Stelle: Figuren viel zu gross, unterschiedliche Massstaebe je Raum, und Buchstaben
+// als Raumbeschriftung. Alle drei sind Eigenheiten des Querschnitts und nicht der offenen Szene,
+// deshalb eine eigene Regel statt weiterer Saetze im allgemeinen Teil.
+//   GROESSE: die allgemeine Groessenregel misst an der BILDhoehe. In einem Querschnitt ist das eine
+//   abstrakte Groesse -- das Modell sieht Raeume, nicht das Bild. Deshalb hier dieselbe Vorgabe
+//   noch einmal, gemessen am Raum: bei zwei Etagen ist ein Achtel der Bildhoehe etwa ein Viertel
+//   einer Raumhoehe, bei acht bis neun Raeumen (gridhouse) etwa ein Drittel. Die Spanne "ein
+//   Viertel bis ein Drittel" deckt beide Faelle und widerspricht der Bildhoehen-Regel nicht.
+//   MASSSTAB: ausdruecklich EINE Figurengroesse fuer alle Raeume. Siehe Kommentar beim
+//   Kompositionstext oben -- der alte Satz hat das Gegenteil verlangt.
+//   BUCHSTABEN: im Prompt steht nirgends "Raum A" (nachgeprueft), die Beschriftung ist ein Reflex
+//   des Modells -- ein aufgeschnittenes Haus kennt es als Schnittzeichnung, und Schnittzeichnungen
+//   sind beschriftet. ZERO_TEXT_RULE ganz am Ende sagt das allgemein; hier wird die konkrete
+//   Versuchung beim Namen genannt, an der Stelle, an der sie entsteht.
+const CUTAWAY_SCALE_RULE = "Because this is a building cut open for the viewer, three things about it are easy to get wrong. First, every room is exactly the same distance from the viewer, so all the people in this house are drawn at ONE single size: a person in the top left room is exactly as tall as a person in the bottom right room, upstairs as downstairs, front room as back room. A picture in which the people downstairs are large and the people upstairs are tiny is a failed picture. Second, that one size is small: a standing grown-up reaches only about a quarter to a third of the height of the room they are in. The rooms are drawn generously tall and nobody comes anywhere near filling one — if a person's head is close to the ceiling, every figure in the house must be redrawn smaller. Third, this is a picture and not an architectural drawing: never label the rooms, not with letters, not with numbers, not with name plates or little captions.";
+
 const THREE_LAYER_RULE = "The scene must show three clearly different character sizes: the front figures (the biggest in the picture, but still small against the whole scene), noticeably smaller midground figures, and a lot of much smaller background figures. A viewer should be able to tell at a glance which layer any character belongs to, just from its size. An image in which nearly all characters are about the same size across the whole surface is a failed image, no matter how much is going on in it.";
 
 // NEU (17.09.2026, D2): Nutzer-Befund an einem Weihnachtsbild, woertlich: "Logikfehler: Schnee in
@@ -2167,7 +2191,17 @@ function shuffledCopy(arr) {
   }
   return a;
 }
-function heroSpotText(spot, phase) {
+// GEAENDERT (19.09.2026): im Querschnitt gibt es keine Tiefenebenen. "Vordergrund, achtmal in die
+// Bildhoehe" und "Mittelgrund, vierzehnmal" waeren dort genau der Massstabsbruch, den
+// CUTAWAY_SCALE_RULE verbietet -- die Platzierung wechselt deshalb zwischen RAEUMEN statt zwischen
+// Tiefenebenen. Der Sinn bleibt derselbe: die Heldin steht nicht in jedem Bild an derselben Stelle.
+function heroSpotText(spot, phase, composition) {
+  const imHaus = composition && (composition.id === "cutaway" || composition.id === "gridhouse");
+  if (imHaus) {
+    if (spot === "front") return "in one of the rooms at the very front of the cut-open house, drawn at exactly the same size as everyone else in the building";
+    if (spot === "middle") return "in one of the middle rooms of the cut-open house, drawn at exactly the same size as everyone else in the building";
+    return "in one of the rooms towards the back or the top of the cut-open house, drawn at exactly the same size as everyone else in the building, and still with hair, face and clothing clearly readable";
+  }
   if (spot === "front") return "at the front of the scene, " + layerSizeText("foreground", phase);
   if (spot === "middle") return "in the middle distance, " + layerSizeText("midground", phase);
   return "well back in the scene, noticeably smaller than the people at the front, but still drawn with enough care that hair, face and clothing read clearly — never shrunk down to one of the tiny background figures";
@@ -2219,6 +2253,21 @@ function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount, phase, co
   // NEU (D2): Komposition und Kameraabstand direkt nach den Referenzbildern -- beides betrifft das
   // ganze Bild und gehoert daher vor die Einzelanweisungen.
   sentences.push(composition.text);
+  // NEU (19.09.2026): direkt hinter dem Kompositionstext, weil die Regel genau dessen Eigenheiten
+  // korrigiert. Bei overview_cutaway gilt sie ebenfalls -- dort betrifft sie die Raeume im
+  // aufgeschnittenen Haus; draussen auf Strasse und Umgebung greift wie sonst auch die normale
+  // Tiefenstaffelung, was der Satz durch "in this house" offen laesst.
+  if (composition.id === "cutaway" || composition.id === "gridhouse" || composition.id === "overview_cutaway") {
+    sentences.push(CUTAWAY_SCALE_RULE);
+    // Bei overview_cutaway laufen zwei Groessenregeln nebeneinander: drinnen eine einzige Groesse,
+    // draussen die normale Tiefenstaffelung (THREE_LAYER_RULE und DEPTH_COHERENCE_RULE bleiben dort
+    // im Prompt). Dieser Satz zieht die Grenze ausdruecklich -- sonst koennte der Halbsatz "an
+    // image in which nearly all characters are about the same size is a failed image" so gelesen
+    // werden, als gaelte er auch fuer die Raeume.
+    if (composition.id === "overview_cutaway") {
+      sentences.push("That one-size rule covers ONLY the rooms inside the cut-open building. Outside it, on the street and in the surroundings, the ordinary rules of depth apply as everywhere else: people nearer the front are larger, people further away smaller, shrinking towards the horizon.");
+    }
+  }
   const placements = pickHeroPlacements(heroSpecs.length);
   // GEAENDERT (17.09.2026, D3): jeder Held bekommt seine EIGENE Handlung, namentlich an ihm haengend
   // (pickHeroActions() oben). Vorher stand hier nur "actively taking part in the action described
@@ -2231,7 +2280,7 @@ function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount, phase, co
   const heroBits = heroSpecs.map((s, i) => {
     const pl = placements[i] || { spot: "middle", side: "centre" };
     const seite = pl.side === "centre" ? "in the centre of the image" : "on the " + pl.side + " of the image";
-    return s.name + " (" + stripEmotionWords(describeHero(s)) + ")" + aktion(i) + ", " + heroSpotText(pl.spot, phase) + ", " + seite;
+    return s.name + " (" + stripEmotionWords(describeHero(s)) + ")" + aktion(i) + ", " + heroSpotText(pl.spot, phase, composition) + ", " + seite;
   }).join("; ");
   if (heroBits) {
     sentences.push("Where the named characters are in this particular scene — they are NOT all lined up at the front, each one stands exactly where it says here, each doing their own thing, never standing still and never posed neutrally: " + heroBits + ".");
@@ -2245,7 +2294,12 @@ function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount, phase, co
   // Menschen nicht ersetzen.
   sentences.push("Populate the whole scene with " + phase.totalCharacters + " individual HUMAN figures — people, and only people count towards this number. Animals do not count towards it at all: a place full of animals with only a couple of dozen people in it is a failed image. Draw plenty of animals as well, but on top of the people, never instead of them.");
   if (phase.humanSplit) sentences.push(phase.humanSplit);
-  sentences.push(THREE_LAYER_RULE);
+  // GEAENDERT (19.09.2026): THREE_LAYER_RULE verlangt drei klar verschiedene Figurengroessen. In
+  // einer offenen Landschaft ist das richtig und war der wichtigste Befund der Bildbewertung. In
+  // einem reinen Querschnitt ist es genau falsch -- dort sollen alle Figuren gleich gross sein
+  // (CUTAWAY_SCALE_RULE oben), und zwei widersprechende Regeln im selben Prompt heben sich
+  // gegenseitig auf. overview_cutaway behaelt die Regel: dort gibt es draussen echte Tiefe.
+  if (composition.id !== "cutaway" && composition.id !== "gridhouse") sentences.push(THREE_LAYER_RULE);
   sentences.push(densityInstruction(theme, phase, composition));
   const situationText = (situations || []).map((s) => sceneLayerText(s)).join(" ");
   if (situationText) sentences.push(stripEmotionWords(situationText));
@@ -2254,7 +2308,10 @@ function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount, phase, co
   sentences.push(FLAT_FACE_RULE);
   sentences.push(FILL_EMPTY_SPACE_RULE);
   sentences.push(COHERENCE_RULE);
-  sentences.push(DEPTH_COHERENCE_RULE);
+  // GEAENDERT (19.09.2026): gleiche Begruendung wie bei THREE_LAYER_RULE oben -- "characters shrink
+  // smoothly from the front towards the back" ist im reinen Querschnitt das Gegenteil dessen, was
+  // CUTAWAY_SCALE_RULE verlangt.
+  if (composition.id !== "cutaway" && composition.id !== "gridhouse") sentences.push(DEPTH_COHERENCE_RULE);
   sentences.push(HEAD_SCALE_CONSISTENCY_RULE);
   sentences.push(INDOOR_OUTDOOR_RULE);
   sentences.push(SAFE_MARGIN_RULE);
@@ -2433,8 +2490,17 @@ function sceneComposeInstruction(promptText) {
 // durchfaellt"): der letzte Satz stellt das Modell ausdruecklich auf "im Zweifel kein Verstoss".
 // Zusammen mit der neuen Nachlege-Schwelle (isGoodEnough(): nur bei einem SCHWEREN Verstoss, siehe
 // oben) ist das die Kostenbremse.
-function buildVerifyPrompt(heroSpecs, phaseId) {
+// GEAENDERT (19.09.2026): drittes Argument compositionId. Grund ist ein Eigentor, das ohne diese
+// Aenderung entstanden waere: seit heute sollen in einem Querschnitt ALLE Figuren gleich gross sein
+// (CUTAWAY_SCALE_RULE). Genau das ergibt ein depth_ratio nahe 1,0 -- und depth_ratio ist mit
+// Schwelle 1,8 als SCHWERER Verstoss gewichtet. Der Verify haette also jedes gelungene
+// Querschnittsbild abgestraft und dazu jedes Mal einen dritten, bezahlten Versuch ausgeloest.
+// Die Loesung braucht keine neue Verkabelung: severityOf() ueberspringt depth_ratio, wenn der Wert
+// keine positive Zahl ist (siehe dort) -- fuer cutaway/gridhouse fordert der Prompt deshalb
+// ausdruecklich null an.
+function buildVerifyPrompt(heroSpecs, phaseId, compositionId) {
   const phase = SCENE_PHASES[phaseId] || SCENE_PHASES[ACTIVE_SCENE_PHASE];
+  const querschnitt = compositionId === "cutaway" || compositionId === "gridhouse";
   const n = heroSpecs.length;
   const names = heroSpecs.map((s) => s.name).join(", ");
   // Bild-zu-Name-Zuordnung: unveraendert uebernommen aus der vorherigen Fassung (Verify-Blindspot-Fix
@@ -2461,7 +2527,9 @@ function buildVerifyPrompt(heroSpecs, phaseId) {
     "ZWEITER FALL unter demselben Feld, der GEGENTEILIGE Fehler: ein menschliches Gesicht, das gar nicht gezeichnet wurde -- eine leere Fläche ohne Augen und ohne Nasenstrich, ein blanker Kopf. Der fehlende MUND ist dabei ausdrücklich richtig und kein Fehler; es geht nur um Gesichter, bei denen auch Augen und Nase fehlen. Schau dafür besonders die größten Figuren ganz vorne und die am unteren Bildrand an, auch angeschnittene. Ein einzelnes solches leeres Gesicht genügt für ein Nein.",
     "style_ok ist also false, wenn du entweder ein einzelnes, plastischer gezeichnetes Gesicht findest ODER ein leeres Gesicht ohne Augen und Nase -- sonst true. Ist es false, schreib ins Feld notiz, welcher der beiden Fälle vorliegt, welche Figur du meinst und wo im Bild sie steht.",
 
-    "3. TIEFENSTAFFELUNG: Such die GRÖSSTE Figur im Bild (meist ganz vorne) und die KLEINSTE noch erkennbare Figur (meist weit hinten, in der Bildtiefe oder in einem hinteren Raum). Schätze dann: wie oft würde die kleinste Figur ihrer Höhe nach in die größte hineinpassen? Antworte hier nicht mit true/false, sondern mit einer einzelnen Zahl, gern mit einer Dezimalstelle. Ein Bild mit kräftiger Tiefe liefert einen hohen Wert, ein Bild, in dem alle Figuren in einem ähnlichen Größenband liegen, einen Wert nahe 1. Das gilt genauso für einen Gebäude-Querschnitt: dort vergleichst du einfach die größte Figur vorne mit der kleinsten in den hinteren Räumen oder draußen. Zähle nur Menschen, keine Tiere.",
+    querschnitt
+      ? "3. TIEFENSTAFFELUNG entfällt bei diesem Bild: es zeigt ein aufgeschnittenes Gebäude, in dem alle Räume gleich weit vom Betrachter entfernt sind und alle Figuren deshalb ABSICHTLICH gleich groß gezeichnet sind. Antworte bei depth_ratio mit null. Beurteile stattdessen hier: sind die Figuren über alle Räume hinweg tatsächlich gleich groß? Falls nicht — etwa winzige Figuren oben und große unten — schreib das ins Feld notiz, denn das ist in diesem Bildtyp ein Fehler."
+      : "3. TIEFENSTAFFELUNG: Such die GRÖSSTE Figur im Bild (meist ganz vorne) und die KLEINSTE noch erkennbare Figur (meist weit hinten, in der Bildtiefe oder in einem hinteren Raum). Schätze dann: wie oft würde die kleinste Figur ihrer Höhe nach in die größte hineinpassen? Antworte hier nicht mit true/false, sondern mit einer einzelnen Zahl, gern mit einer Dezimalstelle. Ein Bild mit kräftiger Tiefe liefert einen hohen Wert, ein Bild, in dem alle Figuren in einem ähnlichen Größenband liegen, einen Wert nahe 1. Zähle nur Menschen, keine Tiere.",
 
     // UMGEBAUT (18.09.2026). Punkt 4 fragte zwei Dinge in einem Feld (Figurengroesse UND
     // Kopfgroessen) und haengte die Figurengroesse an eine Zahl, die nachweislich nicht das
@@ -2583,7 +2651,7 @@ function buildSceneComposeInputs({ heroSpecs, theme, situations, phase, composit
   const heroActions = pickHeroActions(refHeroes, theme && theme.locId, usedTexts);
   const promptText = scenePrompt({ heroSpecs: refHeroes, theme, situations, bgCharacterCount: bgUrls.length, phase: phaseObj, composition: comp, heroActions });
   const instruction = sceneComposeInstruction(promptText);
-  const verifyPrompt = buildVerifyPrompt(refHeroes, phaseId);
+  const verifyPrompt = buildVerifyPrompt(refHeroes, phaseId, comp.id);
   // figuresBand reist mit zum Server: dort wird figures_est dagegen geprueft (siehe
   // advanceSceneJob() in api/_lib/scene-job-engine.js). Die Spanne selbst steht in SCENE_PHASES.
   const figuresBand = (SCENE_PHASES[phaseId] || SCENE_PHASES[ACTIVE_SCENE_PHASE]).figuresBand;
