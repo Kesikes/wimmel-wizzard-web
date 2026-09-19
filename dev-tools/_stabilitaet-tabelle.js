@@ -63,8 +63,23 @@ daten.forEach((varianten, kennung) => {
     const laeufe = varianten[v] || [];
     if (!laeufe.length) return;
     const fehler = laeufe.map((f) => f[9]).filter(Boolean);
+    // NUR GUELTIGE LAEUFE (Bugfix 20.09.2026). Vorher lief hier Number("") durch, und das ist 0:
+    // ein gescheiterter Aufruf ging damit als gemessene Null in Spanne, Abstand zur Wahrheit und
+    // Zusammenfassung ein. So wurde Variante C zur "besten" erklaert, obwohl alle neun Aufrufe mit
+    // HTTP 400 gescheitert waren. Derselbe Fehlertyp wie violations 99: "nicht gemessen" darf nie
+    // wie ein Messwert aussehen.
+    const gueltig = laeufe.filter((f) => !f[9]);
+    if (!gueltig.length) {
+      s("  " + v + ":  KEINE DATEN — alle " + laeufe.length + " Laeufe gescheitert." +
+        (fehler.length ? "  Erster Grund: " + fehler[0].slice(0, 120) : ""));
+      return;
+    }
     const teile = FELDER.map((feld) => {
-      const werte = laeufe.map((f) => Number(f[feld.spalte])).filter((n) => isFinite(n));
+      const werte = gueltig
+        .map((f) => f[feld.spalte])
+        .filter((x) => x !== undefined && String(x).trim() !== "")
+        .map(Number)
+        .filter((n) => isFinite(n));
       if (!werte.length) return feld.name + " —";
       const spanne = Math.max(...werte) - Math.min(...werte);
       if (!spanneJeFeld[v][feld.name]) spanneJeFeld[v][feld.name] = [];
@@ -93,10 +108,11 @@ daten.forEach((varianten, kennung) => {
       }
       return feld.name + " " + werte.join("/") + "  Spanne " + spanne + wahr + marke;
     });
-    const licht = laeufe.map((f) => f[8]).filter(Boolean);
+    const licht = gueltig.map((f) => f[8]).filter(Boolean);
     s("  " + v + ":  " + teile.join("   |   ") +
       (licht.length ? "   |   licht " + licht.join("/") : "") +
-      (fehler.length ? "   |   FEHLER: " + fehler[0].slice(0, 80) : ""));
+      (fehler.length ? "   |   " + fehler.length + " von " + laeufe.length +
+        " Laeufen gescheitert und AUSGELASSEN: " + fehler[0].slice(0, 80) : ""));
   });
   s("");
 });
@@ -112,7 +128,10 @@ function block(titel, quelle) {
     const werte = VARIANTEN.map((v) => mittel(quelle[v][f]));
     if (werte.every((x) => x == null)) return;
     const da = VARIANTEN.filter((v, i) => werte[i] != null);
-    let bester = "—";
+    // Eine Variante ohne gueltigen Lauf hat hier keinen Wert und kann damit nicht "bester" werden.
+    // Bei nur EINER Variante mit Daten gibt es nichts zu vergleichen -- dann steht das auch da,
+    // statt den einzigen Wert zum Sieger zu kueren.
+    let bester = da.length === 1 ? ("nur " + da[0]) : "—";
     if (da.length > 1) {
       const kleinster = Math.min.apply(null, werte.filter((x) => x != null));
       const gleichauf = VARIANTEN.filter((v, i) => werte[i] != null && Math.abs(werte[i] - kleinster) < 0.05);
@@ -141,6 +160,7 @@ if (kippDetails.length) { s(""); s("  im Einzelnen:"); kippDetails.forEach((z) =
 s("");
 // Variante D: der Vergleich in einem Aufruf.
 const dZeilen = zeilen.filter((f) => f[2] === "D");
+// Auch hier: gescheiterte Laeufe werden gezeigt, zaehlen aber nirgends mit.
 if (dZeilen.length) {
   s("");
   s("VARIANTE D — Vergleich beider Kandidaten gegen die Referenz, in EINEM Aufruf");
@@ -166,18 +186,28 @@ s("");
 const mmAll = {};
 VARIANTEN.forEach((v) => { const a = Object.values(spanneJeFeld[v]).flat(); mmAll[v] = a.length ? a.reduce((x, y) => x + y, 0) / a.length : null; });
 const da = VARIANTEN.filter((v) => mmAll[v] != null);
-if (da.length) {
+const ohne = VARIANTEN.filter((v) => daten.size && mmAll[v] == null && [...daten.values()].some((x) => (x[v] || []).length));
+if (ohne.length) s("Ohne einen einzigen gueltigen Lauf und deshalb aus jeder Wertung heraus: " + ohne.join(", ") + ".");
+if (da.length > 1) {
   s("Ueber alle Felder schwankt: " + da.map((v) => v + " um " + mmAll[v].toFixed(2)).join(", ") + ".");
   const best = da.reduce((x, y) => (mmAll[y] < mmAll[x] ? y : x));
   s("Am ruhigsten: Variante " + best + " (" + NAME[best] + ").");
+} else if (da.length === 1) {
+  s("Nur Variante " + da[0] + " hat gueltige Laeufe (Spanne " + mmAll[da[0]].toFixed(2) +
+    ") -- ein Vergleich ist damit nicht moeglich.");
+} else {
+  s("Keine Variante hat gueltige Laeufe.");
 }
 const abAll = {};
 VARIANTEN.forEach((v) => { const a = Object.values(abstandJeFeld[v]).flat(); abAll[v] = a.length ? a.reduce((x, y) => x + y, 0) / a.length : null; });
 const daAb = VARIANTEN.filter((v) => abAll[v] != null);
-if (daAb.length) {
+if (daAb.length > 1) {
   s("Abstand zur Wahrheit: " + daAb.map((v) => v + " " + abAll[v].toFixed(2)).join(", ") + ".");
   const best = daAb.reduce((x, y) => (abAll[y] < abAll[x] ? y : x));
   s("Am naechsten an der Wahrheit: Variante " + best + " (" + NAME[best] + ").");
+} else if (daAb.length === 1) {
+  s("Abstand zur Wahrheit nur fuer Variante " + daAb[0] + " (" + abAll[daAb[0]].toFixed(2) +
+    ") -- ein Vergleich ist damit nicht moeglich.");
 } else {
   s("Kein Abstand zur Wahrheit berechnet — docs/ref/wahrheit.tsv enthaelt nichts zu diesen Bildern.");
 }

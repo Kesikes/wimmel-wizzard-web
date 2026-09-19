@@ -55,7 +55,11 @@ async function frag(modell, inhalt, maxTokens) {
   const resp = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "x-api-key": KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify({ model: modell, max_tokens: maxTokens || 1000, temperature: 0,
+    // KEIN temperature: neuere Modelle lehnen den Parameter ab ("`temperature` is deprecated for
+    // this model", HTTP 400, Live-Fehler 20.09.2026 mit claude-opus-5). Die Vorgabe des Modells
+    // ist fuer diesen Zweck gut genug -- und ein Parameter, der den Aufruf scheitern laesst, ist
+    // schlechter als gar keiner.
+    body: JSON.stringify({ model: modell, max_tokens: maxTokens || 1000,
       messages: [{ role: "user", content: inhalt }] }),
   });
   if (!resp.ok) throw new Error("Anthropic " + resp.status + ": " + (await resp.text()).slice(0, 200));

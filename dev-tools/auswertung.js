@@ -59,7 +59,12 @@ bilder.forEach((bild, bi) => {
     const zelle = FELDER.map(([kurz, lang]) => {
       const a = h[kurz];
       const bWert = v[lang];
-      if (bWert === undefined || bWert === null) { return (a != null ? a : "?") + " / —"; }
+      // GLEICHE REGEL WIE IM STABILITAETS-WERKZEUG (Bugfix 20.09.2026): eine heute GESCHEITERTE
+      // Messung ist kein Messwert. Sie darf weder als Uebereinstimmung noch als Abweichung
+      // gezaehlt werden -- sonst redet die Trefferquote ueber Aufrufe, die es nie gab.
+      const heuteFehlt = a === undefined || a === null || String(a).trim() === "" || String(a) === "FEHLER";
+      if (bWert === undefined || bWert === null) return (heuteFehlt ? "—" : a) + " / —";
+      if (heuteFehlt) return "FEHLER / " + bWert;
       verglichen++;
       const einig = String(a) === String(bWert);
       if (einig) gleich++;
