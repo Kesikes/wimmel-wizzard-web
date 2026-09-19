@@ -1352,14 +1352,63 @@ var ACTIVE_SCENE_PHASE = "phase1";
 // 1,8 liegt mit Abstand unter 2,0 und mit Abstand ueber 1,2 -- also in der Mitte des sicheren
 // Bereichs. Strenger als 2,0 waere nur sinnvoll, wenn die Schwankung kleiner waere als gemessen.
 // ZWEITE KOPIE in api/_lib/fal-queue.js (gleiche Begruendung wie bei VIOLATION_SEVERITY dort).
-// PROMPT_VERSION: steht im Test-Details-Panel und beantwortet in einer Sekunde die Frage, die uns
-// am 19.09.2026 einen ganzen Testlauf gekostet hat -- "ist meine Aenderung ueberhaupt im Bild
-// angekommen?". Damals war der Code korrigiert und gepusht, das erzeugende Geraet hatte aber noch
-// die vorherige Fassung von pipeline.js. Vier gemeldete "Fixes wirken nicht" waren in Wahrheit
-// eine alte Datei im Browser.
-// BEI JEDER AENDERUNG AM BILD- ODER PRUEF-PROMPT HOCHZAEHLEN. Die Nutzerin nennt den Wert aus dem
-// Panel, und damit ist geklaert, welcher Stand tatsaechlich gelaufen ist.
-var PROMPT_VERSION = "2026-09-19c";
+// PROMPT_VERSION: steht im Test-Details-Panel und beantwortet die Frage, die am 19.09.2026 zwei
+// Testlaeufe gekostet hat -- "ist meine Aenderung ueberhaupt im Bild angekommen?".
+//
+// ERSTER VERSUCH, GESCHEITERT: eine von Hand gepflegte Zeichenkette mit dem Hinweis "bei jeder
+// Aenderung hochzaehlen". Sie wurde in DERSELBEN Aenderung eingefuehrt, die auch den Prompt
+// umgebaut hat, und danach nicht hochgezaehlt -- der Wert "2026-09-19c" stand damit fuer zwei
+// verschiedene Prompt-Staende und taugte als Schutz genau gar nichts. Der Nutzer hat das zu Recht
+// beanstandet: eine Kennzeichnung, die von Disziplin abhaengt, ist keine.
+//
+// ZWEITER VERSUCH, JETZT: die Kennung rechnet sich selbst aus. promptFingerprint() bildet eine
+// Pruefsumme ueber den QUELLTEXT aller Funktionen und Tabellen, aus denen ein Prompt entsteht
+// (Function.prototype.toString liefert ihn, das Projekt hat keinen Build-Schritt, der ihn
+// veraendern koennte). Aendert sich irgendwo ein Wort in einer Prompt-Regel, in SCENE_PHASES oder
+// in den Kompositionstypen, aendert sich die Pruefsumme -- ohne dass jemand daran denken muss.
+// Das von Hand gepflegte Datum bleibt als lesbare Ergaenzung daneben stehen; verlassen tun wir uns
+// auf die Pruefsumme.
+var PROMPT_LABEL = "2026-09-19d";
+
+// FNV-1a, 32 Bit. Bewusst kein crypto.subtle: das ist asynchron, und diese Kennung soll ohne
+// Umstand synchron beim Laden feststehen. Kollisionen sind hier belanglos -- es geht nicht um
+// Sicherheit, sondern darum, zwei Staende unterscheiden zu koennen.
+function fnv1a(text) {
+  var h = 0x811c9dc5;
+  for (var i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0;
+  }
+  return ("0000000" + h.toString(16)).slice(-8);
+}
+
+function promptFingerprint() {
+  var teile = [];
+  // Alle Funktionen, die Prompt-Text erzeugen, und alle Tabellen, aus denen er sich speist.
+  [scenePrompt, sceneComposeInstruction, buildVerifyPrompt, sizeRule, sizeRuleReminder,
+   heroSpotText, densityInstruction, backgroundLibraryInstruction, allCharactersRule,
+   sceneLayerText, layerSizeText, imageRefMapping].forEach(function (fn) {
+    teile.push(String(fn));
+  });
+  [SCENE_PHASES, COMPOSITION_TYPES, THEME_META].forEach(function (tabelle) {
+    try { teile.push(JSON.stringify(tabelle)); } catch (e) { /* zyklisch waere hier unmoeglich */ }
+  });
+  // Die grossen Regel-Konstanten, die als fertiger Text im Prompt landen.
+  teile.push([NO_MOUTH_EMPHASIS, ZOOM_OUT_RULE, EDGE_AND_FACE_RULE, EDGE_AND_FACE_REMINDER,
+    CUTAWAY_SCALE_RULE, THREE_LAYER_RULE, FLAT_FACE_RULE, INDOOR_OUTDOOR_RULE,
+    SCENE_STYLE_BLOCK, FILL_EMPTY_SPACE_RULE, FILL_EMPTY_SPACE_RULE_HAUS, COHERENCE_RULE,
+    DEPTH_COHERENCE_RULE, HEAD_SCALE_CONSISTENCY_RULE, SAFE_MARGIN_RULE, EMOTION_WORDS_RULE,
+    ZERO_TEXT_RULE, PHASE2_FOREGROUND_RULE, HERO_FINDABILITY_RULE].join("|"));
+  // Die Schwellen, die ueber Annahme und Ablehnung entscheiden.
+  teile.push([DEPTH_MIN_RATIO, SCALE_MIN_FIT, GROUP_SLOTS].join(","));
+  return fnv1a(teile.join("\u0000"));
+}
+
+// Die Zuweisung steht NICHT hier, sondern ganz unten kurz vor window.Pipeline -- promptFingerprint()
+// liest Konstanten, die weiter unten in der Datei mit const angelegt werden. Hier aufgerufen liefe
+// sie in deren zeitliche Totzone und wuerde beim Laden von pipeline.js einen ReferenceError werfen,
+// also die ganze App lahmlegen. Einmal beim Laden reicht, nur eben spaeter.
+var PROMPT_VERSION = null;
 
 var DEPTH_MIN_RATIO = 1.8;
 
@@ -3249,6 +3298,9 @@ function countViolations(verifyOutputText, figuresBand) {
    niemand ihn versehentlich reaktiviert -- Witze kommen ausschließlich aus der kuratierten
    JOKE_LIBRARY in szene.js. */
 
+// Jetzt sind alle Regeln und Tabellen angelegt (siehe Kommentar bei PROMPT_VERSION oben).
+PROMPT_VERSION = PROMPT_LABEL + " \u00b7 " + promptFingerprint();
+
 window.Pipeline = {
   translate, translateChip, ageRole, twoColorBoost, makeCharacterSpec,
   charPrompt, charInScene, charPromptFromChips, charInSceneFromChips, describeHero, translateFreeText,
@@ -3259,7 +3311,7 @@ window.Pipeline = {
   kontextInstruction, photoStyleInstruction, traitBitFromPhotoDescription, describePhotoTraits,
   PEN_INSTRUCTION_REMOVE, PEN_INSTRUCTION_REDO,
   resizeImageToDataUri, generateImage, generateImageWithRetry, verifyImage, countViolations,
-  SCENE_PHASES, ACTIVE_SCENE_PHASE, DEPTH_MIN_RATIO, SCALE_MIN_FIT, PROMPT_VERSION, severityOf, compareSeverity, isGoodEnough,
+  SCENE_PHASES, ACTIVE_SCENE_PHASE, DEPTH_MIN_RATIO, SCALE_MIN_FIT, PROMPT_VERSION, PROMPT_LABEL, promptFingerprint, severityOf, compareSeverity, isGoodEnough,
   COMPOSITION_TYPES, pickComposition, layerSizeText,
   HERO_ACTION_LIBRARY, pickHeroActions, shuffledPool,
   // Szenen-Komposition (neu, siehe Modul-Abschnitt oben)
