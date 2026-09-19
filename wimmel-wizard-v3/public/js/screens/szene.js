@@ -1404,6 +1404,22 @@ function buildDebugDetails(image) {
   // einmal schwer und einmal mittel zaehlt, waere ohne diese Zeilen im Panel nicht erkennbar,
   // welcher der beiden Faelle gegriffen hat. severityOf() sammelt sie deshalb im Code mit.
   const gruendeBand = (window.Pipeline && Pipeline.SCENE_PHASES) ? (Pipeline.SCENE_PHASES[Pipeline.ACTIVE_SCENE_PHASE] || {}).figuresBand : null;
+  // NEU (20.09.2026): ein Kandidat, dessen Pruefung zweimal gescheitert ist, traegt
+  // verifyStatus "ungeprueft". Das ist etwas GANZ anderes als "schlecht bewertet" und muss im
+  // Panel auf den ersten Blick zu unterscheiden sein -- genau diese Verwechslung hat in Szene 7
+  // (Berg, 19.09.2026) das bessere Bild verlieren lassen.
+  // Welcher Kandidat ist der angezeigte? Ueber die URL, das ist der einzige verlaessliche Bezug.
+  function gewaehlterKandidat(bild) {
+    return (bild.candidates || []).find((c) => c && c.url === bild.src) || null;
+  }
+  function ungeprueftText(k) {
+    if (!k || k.verifyStatus !== "ungeprueft") return null;
+    let t = "UNGEPRÜFT — die Qualitätsprüfung ist " + (k.verifyVersuche || 2) + "-mal gescheitert, " +
+      "dieser Kandidat wurde NICHT bewertet (er gilt weder als gut noch als schlecht).";
+    if (k.verifyError) t += "\n    Grund: " + k.verifyError;
+    if (k.verifyRohAnfang) t += "\n    Antwort des Prüfmodells begann mit: " + k.verifyRohAnfang;
+    return t;
+  }
   function gruendeText(v) {
     if (!v || !window.Pipeline || !Pipeline.severityOf) return "(keine Wertung)";
     const s = Pipeline.severityOf(v, gruendeBand);
@@ -1421,11 +1437,12 @@ function buildDebugDetails(image) {
     "Bild-Fassung:   " + fassung(image.bildFassung, "BILD_FASSUNG") + "\n" +
     "Prüf-Fassung:   " + fassung(image.pruefFassung, "PRUEF_FASSUNG") + "\n" +
     "Verstöße im gewählten Kandidaten: " + (image.violations != null ? image.violations : "?") + "\n" +
-    "Wertung: " + gruendeText(image.verify) + "\n" +
+    "Wertung: " + (ungeprueftText(gewaehlterKandidat(image)) || gruendeText(image.verify)) + "\n" +
     "Verify-JSON: " + verifyText + "\n\n" +
     "--- Kandidaten ---\n" +
-    (image.candidates || []).map((c, i) => "Kandidat " + (i + 1) + " (" + c.url + "): " + (c.violations != null ? c.violations + " Verstöße" : "?") +
-      "\n  Wertung: " + gruendeText(c.verify) + "\n  " + JSON.stringify(c.verify)).join("\n") +
+    (image.candidates || []).map((c, i) => "Kandidat " + (i + 1) + " (" + c.url + "): " +
+      (ungeprueftText(c) || ((c.violations != null ? c.violations + " Verstöße" : "?") +
+        "\n  Wertung: " + gruendeText(c.verify) + "\n  " + JSON.stringify(c.verify)))).join("\n") +
     "\n\n--- scenePrompt() ---\n" + (image.promptText || "(kein Prompt gespeichert)") +
     "\n\n--- sceneComposeInstruction() (tatsächlich an fal.ai gesendet) ---\n" + (image.instruction || "(keine Instruction gespeichert)");
   toggle.addEventListener("click", () => { box.style.display = box.style.display === "none" ? "block" : "none"; });

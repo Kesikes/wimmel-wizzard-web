@@ -251,6 +251,11 @@ const DEPTH_MIN_RATIO = 1.8;
 const SCALE_MIN_FIT = 2.8;
 // MOUTHS_MAX_OF_TEN: zweite Kopie -- Herleitung in public/js/pipeline.js.
 const MOUTHS_MAX_OF_TEN = 3;
+// VERIFY_MAX_VERSUCHE: wie oft ein Pruefaufruf je Kandidat versucht wird, bevor er als
+// "ungeprueft" gilt. ZWEITE KOPIE in public/js/pipeline.js -- beide anpassen.
+// Zwei, nicht mehr: ein Pruefaufruf ist billig (kein Bildaufruf), aber wenn er zweimal
+// hintereinander scheitert, liegt es nicht am Zufall.
+const VERIFY_MAX_VERSUCHE = 2;
 // SHADED_MAX_OF_TEN / BLANK_MAX_OF_TEN: zweite Kopie -- Herleitung in public/js/pipeline.js.
 // Zwei entgegengesetzte Stilfehler, seit 19.09.2026 gezaehlt statt beurteilt (frueher style_ok).
 const SHADED_MAX_OF_TEN = 1;
@@ -270,8 +275,18 @@ const BLANK_MAX_OF_TEN = 0;
 // das Feld bewusst ignoriert statt geraten -- ein fehlender Vergleichsmassstab darf keinen Verstoss
 // erfinden. Der Charakter-Verify kennt das Feld gar nicht und uebergibt entsprechend nichts.
 function countViolations(verifyOutputText, figuresBand) {
-  const match = String(verifyOutputText || "").match(/\{[\s\S]*\}/);
-  const fail = { violations: 99, parsed: null, severity: { heavy: 99, medium: 99, light: 99, gruende: [] } };
+  const rohText = String(verifyOutputText || "");
+  const match = rohText.match(/\{[\s\S]*\}/);
+  // GEAENDERT (20.09.2026): der Rueckgabewert sagt jetzt AUSDRUECKLICH, ob die Antwort unlesbar
+  // war. Vorher war "unlesbar" von "sehr schlechtes Bild" nicht zu unterscheiden -- beides kam als
+  // violations 99 heraus, und ein Kandidat, dessen PRUEFUNG scheiterte, verlor damit automatisch
+  // gegen jedes andere Bild. Genau so ist am 19.09.2026 in Szene 7 (Berg, Lichttest) das sichtbar
+  // bessere Bild durchgefallen. rohAnfang haelt den Anfang der unlesbaren Antwort fest: ohne ihn
+  // war hinterher nicht mehr feststellbar, WAS das Modell geantwortet hat.
+  const fail = {
+    violations: 99, parsed: null, severity: { heavy: 99, medium: 99, light: 99, gruende: [] },
+    parseFehler: true, rohAnfang: rohText.slice(0, 300),
+  };
   if (!match) return fail;
   // NEU (18.09.2026), ZWEI KOPIEN (hier und in public/js/pipeline.js) -- beide anpassen:
   // "notiz" ist das einzige Freitextfeld der Antwort und damit die einzige Stelle, an der ein
@@ -357,7 +372,7 @@ function countViolations(verifyOutputText, figuresBand) {
     severity[tier] += 1;
     severity.gruende.push(grund || (k + ": Versto\u00df, " + tier));
   });
-  return { violations: severity.heavy + severity.medium + severity.light, parsed, severity };
+  return { violations: severity.heavy + severity.medium + severity.light, parsed, severity, parseFehler: false };
 }
 
 // compareSeverity(a, b): < 0 wenn a der bessere Kandidat ist. Stufenweise, siehe
@@ -385,5 +400,5 @@ module.exports = {
   VERIFY_MODEL, falHeaders, falBaseAppId, mediaLifecycleHeaders, MEDIA_TTL_SECONDS,
   submitFalQueue, falQueueStatus, falQueueResult, callFalVerifySync,
   countViolations, compareSeverity, isGoodEnough, VIOLATION_SEVERITY, DEPTH_MIN_RATIO, SCALE_MIN_FIT, MOUTHS_MAX_OF_TEN,
-  SHADED_MAX_OF_TEN, BLANK_MAX_OF_TEN, logFalError,
+  SHADED_MAX_OF_TEN, BLANK_MAX_OF_TEN, VERIFY_MAX_VERSUCHE, logFalError,
 };

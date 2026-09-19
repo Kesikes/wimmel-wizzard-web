@@ -1422,7 +1422,8 @@ function bildFingerprint() {
 function pruefFingerprint() {
   var teile = [String(buildVerifyPrompt)];
   teile.push([DEPTH_MIN_RATIO, SCALE_MIN_FIT, MOUTHS_MAX_OF_TEN, SHADED_MAX_OF_TEN,
-    BLANK_MAX_OF_TEN].join(","));
+    BLANK_MAX_OF_TEN, VERIFY_MAX_VERSUCHE].join(","));
+  teile.push(PRUEF_VERHALTEN);
   try { teile.push(JSON.stringify(VIOLATION_SEVERITY)); } catch (e) { /* flach */ }
   return fnv1a(teile.join("\u0000"));
 }
@@ -1470,6 +1471,17 @@ var SCALE_MIN_FIT = 2.8;
 // Nutzers ("hoechstens drei Muender"), uebersetzt auf die Stichprobe: darueber ist der Mund die
 // Regel und nicht die Ausnahme. Siehe Punkt 8 in buildVerifyPrompt().
 var MOUTHS_MAX_OF_TEN = 3;
+
+// VERIFY_MAX_VERSUCHE: zweite Kopie, Herleitung in api/_lib/fal-queue.js.
+var VERIFY_MAX_VERSUCHE = 2;
+
+// PRUEF_VERHALTEN: eine Kennung fuer das VERHALTEN der Pruefung, das nicht im Prompt steht.
+// WOZU: pruefFingerprint() hasht buildVerifyPrompt() und die Schwellen. Aendert sich, wie mit dem
+// Ergebnis umgegangen wird -- Wiederholung bei unlesbarer Antwort, ungeprueft statt schlechtester
+// Kandidat --, bleibt die Pruefsumme sonst gleich, obwohl die Pruefung sich anders verhaelt.
+// Diese Zeichenkette ist der Platz, an dem so eine Aenderung sichtbar wird. Sie gehoert bei jeder
+// Aenderung an der Pruef-LOGIK hochgezaehlt, auch wenn der Prompt gleich bleibt.
+var PRUEF_VERHALTEN = "2026-09-20a: ein Wiederholungsversuch bei unlesbarer Antwort, danach ungeprueft statt schlechtester Kandidat";
 
 // SHADED_MAX_OF_TEN: wie viele der zehn groessten Gesichter plastisch gezeichnet sein duerfen.
 // EINS, nicht zwei oder drei -- Nutzer-Entscheidung nach folgender Ueberlegung: der gewuenschte
@@ -3553,7 +3565,7 @@ window.Pipeline = {
   kontextInstruction, photoStyleInstruction, traitBitFromPhotoDescription, describePhotoTraits,
   PEN_INSTRUCTION_REMOVE, PEN_INSTRUCTION_REDO,
   resizeImageToDataUri, generateImage, generateImageWithRetry, verifyImage, countViolations,
-  SCENE_PHASES, ACTIVE_SCENE_PHASE, DEPTH_MIN_RATIO, SCALE_MIN_FIT, PROMPT_VERSION, PROMPT_LABEL, promptFingerprint, BILD_FASSUNG, PRUEF_FASSUNG, bildFingerprint, pruefFingerprint, heroRef, HERO_REF_START, lichtBlock, severityOf, compareSeverity, isGoodEnough,
+  SCENE_PHASES, ACTIVE_SCENE_PHASE, DEPTH_MIN_RATIO, SCALE_MIN_FIT, PROMPT_VERSION, PROMPT_LABEL, promptFingerprint, BILD_FASSUNG, PRUEF_FASSUNG, bildFingerprint, pruefFingerprint, heroRef, HERO_REF_START, lichtBlock, VERIFY_MAX_VERSUCHE, PRUEF_VERHALTEN, severityOf, compareSeverity, isGoodEnough,
   COMPOSITION_TYPES, pickComposition, layerSizeText,
   HERO_ACTION_LIBRARY, pickHeroActions, shuffledPool,
   // Szenen-Komposition (neu, siehe Modul-Abschnitt oben)

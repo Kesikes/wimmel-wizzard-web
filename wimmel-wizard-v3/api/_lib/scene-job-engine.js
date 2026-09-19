@@ -33,7 +33,7 @@
 // in pipeline.js (dessen Verhalten diese Datei ersetzt, sobald live bestaetigt).
 const {
   submitFalQueue, falQueueStatus, falQueueResult, callFalVerifySync, countViolations,
-  compareSeverity, isGoodEnough, logFalError,
+  compareSeverity, isGoodEnough, logFalError, VERIFY_MAX_VERSUCHE,
 } = require("./fal-queue");
 
 // SCENE_MODEL: identisch zum Default-Endpoint in api/fal-proxy.js fuer kind==="scene" mit gesetztem
@@ -179,6 +179,17 @@ async function advanceSceneJob(job, { FAL_KEY }) {
   if (allGenSettled) {
     for (const cand of next.candidates) {
       if (cand.genStatus !== "done" || cand.verifyStatus !== "pending") continue;
+      // NEU (20.09.2026): ein Pruefaufruf darf scheitern. Er wird EINMAL wiederholt (siehe
+      // VERIFY_MAX_VERSUCHE in fal-queue.js) -- das kostet nur einen Pruefaufruf, keinen
+      // Bildaufruf. Als "gescheitert" gelten ZWEI Faelle, die vorher verschieden behandelt wurden:
+      //   1. der Aufruf wirft (Netz, HTTP, Zeitueberschreitung)  -> schon immer erkannt
+      //   2. der Aufruf kommt zurueck, aber die Antwort ist kein lesbares JSON -> vorher NICHT
+      //      erkannt, sondern als violations 99 gewertet, also als allerschlechtestes Bild
+      // Fall 2 hat am 19.09.2026 in Szene 7 (Berg) dazu gefuehrt, dass das sichtbar bessere Bild
+      // automatisch verloren hat. Wiederholung hilft hier oft, weil das Pruefmodell beim zweiten
+      // Anlauf meist sauberes JSON liefert.
+      cand.verifyVersuche = (cand.verifyVersuche || 0) + 1;
+      const letzterVersuch = cand.verifyVersuche >= VERIFY_MAX_VERSUCHE;
       try {
         // GEAENDERT (Verify-Blindspot-Fix 16.09.2026, siehe Kommentar bei buildVerifyPrompt() in
         // pipeline.js): Helden-Referenzbilder MIT zum Verify schicken, nicht nur das generierte Bild --
@@ -186,14 +197,31 @@ async function advanceSceneJob(job, { FAL_KEY }) {
         // (Stiltreue) tatsaechlich gegen etwas abzugleichen, nur den Prompt-Text als vage Richtschnur.
         const output = await callFalVerifySync([cand.url].concat(next.heroRefUrls || []), next.verifyPrompt, FAL_KEY);
         const scored = countViolations(output, next.figuresBand);
-        cand.violations = scored.violations;
-        cand.severity = scored.severity;
-        cand.verify = scored.parsed;
-        cand.verifyStatus = "done";
+        if (scored.parseFehler) {
+          cand.verifyRohAnfang = scored.rohAnfang || "";
+          await logFalError("scene-job verify unlesbar (seed " + cand.seed + ", Versuch " + cand.verifyVersuche + ")",
+            "Antwort war kein lesbares JSON. Anfang: " + cand.verifyRohAnfang);
+          if (letzterVersuch) {
+            cand.verifyStatus = "ungeprueft";
+            cand.verifyError = "Das Pruefmodell hat zweimal keine lesbare Antwort geliefert.";
+            cand.violations = null; cand.severity = null; cand.verify = null;
+          }
+          // sonst: verifyStatus bleibt "pending", der naechste Durchlauf versucht es erneut.
+        } else {
+          cand.violations = scored.violations;
+          cand.severity = scored.severity;
+          cand.verify = scored.parsed;
+          cand.verifyStatus = "done";
+        }
       } catch (e) {
-        cand.verifyStatus = "error";
-        cand.verifyError = e && e.message ? e.message : String(e);
-        await logFalError("scene-job verify (seed " + cand.seed + ")", cand.verifyError);
+        const meldung = e && e.message ? e.message : String(e);
+        await logFalError("scene-job verify (seed " + cand.seed + ", Versuch " + cand.verifyVersuche + ")", meldung);
+        if (letzterVersuch) {
+          cand.verifyStatus = "ungeprueft";
+          cand.verifyError = meldung;
+          cand.violations = null; cand.severity = null; cand.verify = null;
+        }
+        // sonst: bleibt "pending" fuer den zweiten Versuch.
       }
     }
   }
@@ -202,17 +230,26 @@ async function advanceSceneJob(job, { FAL_KEY }) {
   // dritten Kandidaten nachschieben (wie composeSceneImage()s Verhalten bei Bedarf, hoechstens
   // EINMAL) oder Job abschliessen (besten verfuegbaren waehlen -- NIE hart abbrechen, gleiches
   // Prinzip wie beim Figuren-Pfad).
+  // "ungeprueft" zaehlt wie "done" als abgeschlossen -- der Kandidat ist fertig, nur seine
+  // Bewertung fehlt. "error" gibt es beim Verify seit dem 20.09.2026 nicht mehr, bleibt aber in
+  // der Bedingung stehen: Job-Datensaetze aus der Zeit davor koennen den Wert noch tragen.
   const allSettled = next.candidates.every((c) =>
-    (c.genStatus === "done" && c.verifyStatus === "done") || c.genStatus === "error" || c.verifyStatus === "error");
+    (c.genStatus === "done" && (c.verifyStatus === "done" || c.verifyStatus === "ungeprueft")) ||
+    c.genStatus === "error" || c.verifyStatus === "error");
   if (allSettled) {
-    const usable = next.candidates.filter((c) => c.genStatus === "done" && c.verifyStatus === "done");
+    const usable = next.candidates.filter((c) =>
+      c.genStatus === "done" && (c.verifyStatus === "done" || c.verifyStatus === "ungeprueft"));
     // GEAENDERT (17.09.2026, D1 "Kostenbremse"): vorher "kein Kandidat mit NULL Verstoessen -> dritten
     // nachschieben". Mit den jetzt neun Verify-Kriterien (siehe buildVerifyPrompt() in
     // public/js/pipeline.js) ist null Verstoesse praktisch unerreichbar -- der dritte, teure Lauf
     // waere damit bei JEDER Szene gelaufen. Jetzt entscheidet isGoodEnough(): nachgelegt wird nur
     // bei einem SCHWEREN Verstoss (Stil, Helden, Tiefe), nicht wegen Figurengroesse oder eines
     // Mundes zu viel.
-    const hasGoodEnough = usable.some((c) => isGoodEnough(c.severity));
+    const geprueft = usable.filter((c) => c.verifyStatus === "done");
+    // GEAENDERT (20.09.2026): nachgelegt wird nur, wenn ueberhaupt ETWAS geprueft werden konnte.
+    // Konnte kein einziger Kandidat geprueft werden, ist die Pruefung kaputt und nicht das Bild --
+    // ein weiterer, bezahlter Bildaufruf wuerde daran nichts aendern und nur Geld kosten.
+    const hasGoodEnough = !geprueft.length || geprueft.some((c) => isGoodEnough(c.severity));
     // GEAENDERT (19.09.2026): Deckel auf genCount statt auf candidates.length -- siehe
     // MAX_GENERATIONS oben. Alte Job-Datensaetze ohne genCount fallen auf die Listenlaenge
     // zurueck, damit ein zum Zeitpunkt des Deploys laufender Job nicht ploetzlich weiterzaehlt.
@@ -258,13 +295,30 @@ function finalizeJob(job, usableCandidates) {
   // GEAENDERT (17.09.2026, D1): Auswahl stufenweise nach Schwere statt nach der reinen Anzahl --
   // ein Kandidat mit falschem Stil darf nicht gewinnen, nur weil er weniger Kleinigkeiten hat
   // (Nutzer-Vorgabe). compareSeverity() vergleicht erst schwer, dann mittel, dann leicht.
-  const best = usableCandidates.reduce((a, b) => (compareSeverity(b.severity, a.severity) < 0 ? b : a));
+  // GEAENDERT (20.09.2026): ein Kandidat, dessen PRUEFUNG gescheitert ist, darf nicht automatisch
+  // verlieren -- aber auch nicht automatisch gewinnen. "Ungeprueft" heisst unbekannt, nicht gut.
+  // Drei Gruppen, in dieser Reihenfolge:
+  //   1. geprueft und ohne schweren Verstoss  -- nachweislich brauchbar
+  //   2. ungeprueft                           -- unbekannt, aber nichts spricht dagegen
+  //   3. geprueft mit schwerem Verstoss       -- nachweislich mangelhaft
+  // Innerhalb Gruppe 1 und 3 entscheidet wie bisher compareSeverity() stufenweise.
+  function gruppe(c) {
+    if (c.verifyStatus === "ungeprueft") return 2;
+    return isGoodEnough(c.severity) ? 1 : 3;
+  }
+  const best = usableCandidates.reduce((a, b) => {
+    const ga = gruppe(a), gb = gruppe(b);
+    if (ga !== gb) return gb < ga ? b : a;
+    if (ga === 2) return a; // beide ungeprueft: der erste bleibt, es gibt nichts zu vergleichen
+    return compareSeverity(b.severity, a.severity) < 0 ? b : a;
+  });
   job.status = "done";
   job.resultUrl = best.url;
   job.resultSeed = best.seed;
   job.resultViolations = best.violations;
   job.resultSeverity = best.severity || null;
   job.resultVerify = best.verify;
+  job.resultVerifyStatus = best.verifyStatus || null;
 }
 
 module.exports = {

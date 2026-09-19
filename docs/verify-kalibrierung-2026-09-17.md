@@ -670,3 +670,57 @@ Nicht behoben, wie verabredet. Zwei Dinge, die bei einer Behebung zu bedenken si
 derzeit das einzige, was die drei Stellen miteinander verklammert (Referenzbild ↔ Platzierung ↔
 Dopplungsverbot), ein Platzhalter müsste diese Klammer ersetzen. Und `ZERO_TEXT_RULE` verbietet
 Text im Bild bereits — das Leck ist also nicht die einzige Schutzlinie, sondern die zweite.
+
+## 15. Wenn die Prüfung scheitert, verliert das Bild — behoben (20.09.2026)
+
+**Befund.** Szene 7 (Berg, Lichttest) wählte K1, obwohl K2 sichtbar besser war. In der Sitzung
+steht bei K2:
+
+```
+verifyStatus: "done",  violations: 99,  verify: null,  verifyError: null
+```
+
+`verifyError: null` bei gleichzeitig `verify: null` ist die ganze Geschichte: der Prüfaufruf hat
+**nicht** geworfen. Er kam zurück, aber die Antwort enthielt kein lesbares JSON. `countViolations()`
+gab dafür sein `fail`-Objekt zurück — `violations: 99`, Schwere 99/99/99 — und der stufenweise
+Vergleich hat K2 damit gegen jedes denkbare Bild verlieren lassen. **Eine gescheiterte Prüfung war
+von einem katastrophal schlechten Bild nicht zu unterscheiden.**
+
+Was das Modell geantwortet hat, ließ sich nicht mehr feststellen: der Rohtext wurde verworfen.
+
+**Häufigkeit.** Alle vorhandenen Sitzungsdaten durchsucht (fünf Dateien, 17 Bilder, 31 Kandidaten
+mit Kandidatenliste): **genau ein Fall**, dieser. Kein Muster, aber auch kein Einzelfall, mit dem
+man leben will — bei zwei Kandidaten je Szene entscheidet er die Auswahl komplett.
+
+**Behebung.** Drei Teile:
+
+1. `countViolations()` sagt jetzt ausdrücklich, ob die Antwort unlesbar war (`parseFehler`), und
+   hält die ersten 300 Zeichen fest (`rohAnfang`). Beim nächsten Mal steht in den Logs und am
+   Kandidaten, *was* zurückkam.
+2. Ein gescheiterter Prüfaufruf wird **einmal wiederholt** — ein Prüfaufruf, kein Bildaufruf.
+   Als gescheitert gelten beide Fälle: geworfene Ausnahme *und* unlesbare Antwort. Der zweite
+   Anlauf liefert erfahrungsgemäß oft sauberes JSON.
+3. Scheitert er zweimal, bekommt der Kandidat `verifyStatus: "ungeprueft"` — **nicht** 99
+   Verstöße. Die Auswahl arbeitet mit drei Gruppen:
+
+   | Gruppe | | |
+   |---|---|---|
+   | 1 | geprüft, kein schwerer Verstoß | nachweislich brauchbar |
+   | 2 | ungeprüft | unbekannt, nichts spricht dagegen |
+   | 3 | geprüft, mit schwerem Verstoß | nachweislich mangelhaft |
+
+   Innerhalb 1 und 3 entscheidet wie bisher `compareSeverity()` stufenweise. Ungeprüft verliert
+   also nicht automatisch — gewinnt aber auch nicht automatisch.
+
+**Kostenregel mit angepasst:** ein weiterer, bezahlter Kandidat wird nur nachgeschoben, wenn
+mindestens ein Kandidat *überhaupt geprüft werden konnte*. Konnte keiner geprüft werden, ist die
+Prüfung kaputt und nicht das Bild — ein neues Bild ändert daran nichts und kostet nur Geld.
+
+**Geprüft** an fünf Fällen in einem fal-freien Prüfstand: A gut/B zweimal Müll (A gewinnt),
+A schwer/B zweimal Müll (B gewinnt), B beim zweiten Versuch gut (normal gewertet), beide Müll
+(kein zusätzlicher Bildaufruf), Netzfehler statt Müll (gleiche Behandlung).
+
+**Prompt-Fassung:** Bild-Prüfsumme unverändert `8e89ebe3`, Prüf-Prüfsumme `a0b2a9a3` → `d3de710a`.
+Damit die Prüfsumme auf Verhaltensänderungen reagiert, die nicht im Prompt stehen, hasht
+`pruefFingerprint()` jetzt zusätzlich die Zeichenkette `PRUEF_VERHALTEN`. Die gehört bei jeder
+Änderung an der Prüf-Logik hochgezählt, auch wenn der Prompt gleich bleibt.
