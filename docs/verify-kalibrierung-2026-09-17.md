@@ -553,3 +553,120 @@ Die Wertungslogik liegt doppelt vor (`public/js/pipeline.js` für die Anzeige,
 `api/_lib/fal-queue.js` für die Auswahl). `dev-tools/wertung-vergleich.js` rechnet sieben Fälle
 durch beide Kopien und vergleicht Schwere **und** Begründungstexte — ohne einen einzigen
 fal-Aufruf. Vor jedem Commit an einer der beiden Dateien laufen lassen.
+
+## 14. Diagnose zum gemeldeten Stilrückschritt nach 8ef4d85 (19.09.2026)
+
+Auftrag: berichten, nichts ändern. Am Stil ist nichts geändert worden.
+
+*(Angefragt war `docs/verify-kalibrierung.md` — die Datei heißt `verify-kalibrierung-2026-09-17.md`,
+eine andere gibt es nicht.)*
+
+### 14.1 Bildprompt gegen Prüfung getrennt — 8ef4d85 hat den Bildprompt nicht angefasst
+
+Erst der schnelle Blick auf den Commit, dann die belastbare Messung.
+
+`8ef4d85` ändert fünf Dateien:
+
+| Datei | Was | Betrifft |
+|---|---|---|
+| `public/js/pipeline.js` | `PROMPT_LABEL`, `SHADED_MAX_OF_TEN`, `BLANK_MAX_OF_TEN`, `VIOLATION_SEVERITY`, `severityOf()`, Punkte 3b/3c in `buildVerifyPrompt()` | Prüfung |
+| `api/_lib/fal-queue.js` | dieselben Konstanten, `countViolations()` | Prüfung |
+| `public/js/screens/szene.js` | `gruendeText()` im Test-Details-Panel | Anzeige |
+| `dev-tools/wertung-vergleich.js` | neu | Werkzeug |
+| `docs/verify-kalibrierung-2026-09-17.md` | Abschnitt 13 | Doku |
+
+Die einzigen geänderten Prompt-Zeilen stehen in `buildVerifyPrompt()`, also im Text an das
+**Prüf**modell. Alt und neu wörtlich:
+
+**vorher** (ein Eindrucksurteil, Feld `style_ok`):
+
+> „Die Frage ist nun: fällt EIN EINZELNES menschliches Gesicht aus diesem Schema heraus, weil es
+> plastischer gezeichnet ist als alle anderen? … Schau dafür besonders die großen Figuren im
+> Vordergrund an -- dort tritt es auf."
+>
+> „ZWEITER FALL unter demselben Feld, der GEGENTEILIGE Fehler: ein menschliches Gesicht, das gar
+> nicht gezeichnet wurde … Ein einzelnes solches leeres Gesicht genügt für ein Nein."
+>
+> „style_ok ist also false, wenn du entweder ein einzelnes, plastischer gezeichnetes Gesicht
+> findest ODER ein leeres Gesicht ohne Augen und Nase -- sonst true."
+
+**nachher** (zwei Zählungen, Felder `shaded_of_ten` / `blank_of_ten`):
+
+> „3b. STIL, ZÄHLUNG DER PLASTISCHEN GESICHTER: Nimm die ZEHN GRÖSSTEN menschlichen Gesichter im
+> Bild und geh sie einzeln durch. Bei wie vielen davon ist das Gesicht PLASTISCHER gezeichnet als
+> der beschriebene flache Stil? … Antworte im Feld shaded_of_ten mit einer ganzen Zahl von 0 bis 10."
+>
+> „3c. STIL, ZÄHLUNG DER LEEREN GESICHTER -- der entgegengesetzte Fehler: bei wie vielen der zehn
+> größten menschlichen Gesichter ist gar nichts gezeichnet …? Antworte im Feld blank_of_ten mit
+> einer ganzen Zahl von 0 bis 10; erwartet wird 0."
+
+Auch die Weihnachtsmann-Ausnahme wurde nur von „ist KEIN Verstoß" auf „zählst du NICHT mit"
+umformuliert — dieselbe Ausnahme, an die Zählform angepasst.
+
+**Beleg, nicht nur Lesart.** Ein erster Versuch, Bildprompts vor und nach dem Commit mit fester
+Zufallsfolge zu vergleichen, meldete Unterschiede in allen 30 Thema/Phase/Kompositions-Kombinationen.
+Das war ein Fehler meines Testaufbaus: eine Gegenprobe (derselbe Stand zweimal) zeigte, dass auch
+zwei Läufe **desselben** Codes verschiedene Prompts liefern — die zufällig gezogenen Vignetten und
+Heldenhandlungen ließen sich so nicht festhalten. Die Unterschiede waren ausschließlich diese
+Zufallsziehungen.
+
+Deterministisch geprüft wurde deshalb anders: Prüfsumme über den Quelltext **nur** der
+Bildprompt-Erzeuger (`scenePrompt`, `sceneComposeInstruction`, `sizeRule`, `sizeRuleReminder`,
+`heroSpotText`, `densityInstruction`, `backgroundLibraryInstruction`, `allCharactersRule`,
+`sceneLayerText`, `layerSizeText`, `imageRefMapping`) plus `SCENE_PHASES`, `COMPOSITION_TYPES`,
+`THEME_META`:
+
+| | vor 8ef4d85 | nach 8ef4d85 |
+|---|---|---|
+| nur Bildprompt | `2b5d392c` | `2b5d392c` — **identisch** |
+| mit `buildVerifyPrompt` (so rechnet `PROMPT_VERSION`) | `4d0f6e17` | `f6a75742` — abweichend, einzige Abweichung: `buildVerifyPrompt` |
+
+**Ergebnis: an dem Text, der zur Bilderzeugung an fal.ai geht, hat sich mit 8ef4d85 kein Zeichen
+geändert.** Ein Stilunterschied zwischen einem Bild von vorher und einem von nachher kann nicht von
+diesem Commit kommen.
+
+**Nebenbefund, wichtig fürs Lesen der Messreihe:** `promptFingerprint()` hasht `buildVerifyPrompt`
+mit. Eine geänderte Prüfsumme heißt also **nicht**, dass sich der Bildprompt geändert hat. Wer die
+Messreihe nach Prompt-Fassung gruppiert, gruppiert derzeit auch nach Prüf-Änderungen.
+
+### 14.2 Kalibrierungstest — nicht ausführbar, zwei Gründe
+
+Der Test konnte nicht laufen:
+
+1. **Die Bilder fehlen.** `docs/ref/` gibt es nicht, und im verbundenen Ordner liegen keine
+   Almbilder — die einzigen Bilddateien sind App-Grafiken und die Hintergrund-Bibliothek unter
+   `wimmel-wizard-v3/public/assets/`.
+2. **fal.ai ist aus meinen Umgebungen nicht erreichbar.** `https://fal.run/` liefert sowohl aus der
+   Cloud-Umgebung als auch aus der Sandbox auf dem Mac sofort HTTP 000 (curl-Exit 56). Das gilt
+   unabhängig von der Freigabe für Prüfaufrufe.
+
+Angelegt wurde deshalb `dev-tools/stil-nachmessen.js`: nimmt Bild-URLs, baut den echten
+Verify-Prompt, macht **nur** den Prüfaufruf und gibt `shaded_of_ten`, `blank_of_ten`,
+`mouths_of_ten` samt Wertung und Begründungen aus.
+
+```
+FAL_KEY=... node dev-tools/stil-nachmessen.js <bild-url> [<bild-url> ...]
+```
+
+Die URLs stehen im Test-Details-Panel jedes Bildes und in der fal-History. Ein Pruefaufruf je Bild,
+keine Bildaufrufe. Bis zum letzten Schritt — dem Netzzugriff — durchgetestet.
+
+### 14.3 Namens-Leck: der Figurenname steht fünfmal im Bildprompt
+
+Gemessen an einem Prompt mit zwei Helden, Name `Zwiebelfisch`: **fünf Vorkommen aus drei
+Code-Stellen**, alle in `public/js/pipeline.js`.
+
+| Stelle | Zeile | Was im Prompt landet |
+|---|---|---|
+| `imageRefMapping()` | 2087 | „Reference image 2 shows **Zwiebelfisch**: girl, age 6, blonde hair, helles shirt." |
+| Platzierungssatz in `scenePrompt()` | 2546 | „… never posed neutrally: **Zwiebelfisch** (girl, age 6, …), right now …" |
+| `allCharactersRule()` | 2128–2134 | „Each of the 2 named characters (**Zwiebelfisch** and Brummkreisel) appears in exactly ONE vignette …" und „If you have already drawn **Zwiebelfisch** somewhere, **Zwiebelfisch** does not appear again …" (dreimal in einem Absatz) |
+
+Zwei weitere Stellen betreffen den **Prüf**prompt, nicht das Bild: `buildVerifyPrompt()` Zeile 2783
+(Namensliste) und Zeile 2790 (Bild-zu-Name-Zuordnung). Der Figurenprompt (`charPrompt()`) enthält
+den Namen **nicht**.
+
+Nicht behoben, wie verabredet. Zwei Dinge, die bei einer Behebung zu bedenken sind: der Name ist
+derzeit das einzige, was die drei Stellen miteinander verklammert (Referenzbild ↔ Platzierung ↔
+Dopplungsverbot), ein Platzhalter müsste diese Klammer ersetzen. Und `ZERO_TEXT_RULE` verbietet
+Text im Bild bereits — das Leck ist also nicht die einzige Schutzlinie, sondern die zweite.
