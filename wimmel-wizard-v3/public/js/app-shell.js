@@ -235,8 +235,16 @@ async function handleResumeParam() {
 // im AppState. Nur fuer gezielte Testlaeufe gedacht, die normale Nutzung bleibt unberuehrt -- ohne
 // diese Parameter aendert sich nichts.
 // Gueltige Werte kommen aus Pipeline selbst (SCENE_PHASES/COMPOSITION_TYPES), ein unbekannter Wert
-// schaltet auf normales Verhalten zurueck statt etwas Ungueltiges zu setzen. Ein LEERER Wert
-// (/app?phase=) loescht die Einstellung -- so kommt man ohne Umweg wieder aus dem Testmodus heraus.
+// schaltet auf normales Verhalten zurueck statt etwas Ungueltiges zu setzen.
+// BUGFIX (19.09.2026, Nutzer-Befund am Berg-Testbild): ein leerer Wert loeschte bisher nur GENAU
+// den mitgegebenen Parameter. Wer den Testmodus mit /app?phase=phase1&komposition=cutaway betreten
+// und ihn mit dem dokumentierten /app?phase= wieder verlassen hat, war anschliessend weiter im
+// Querschnitt-Modus, ohne es zu merken -- der Hinweis nannte genau diesen unvollstaendigen Weg.
+// Das ist die gefaehrlichste Sorte Fehler in diesem Projekt: er kostet echtes Geld, weil das
+// naechste Bild mit den falschen Einstellungen erzeugt wird.
+// NEUE REGEL: ein LEERER Wert bei EINEM der beiden Parameter beendet den Testmodus GANZ, loescht
+// also beide. Das ist eindeutig, weil ein leerer Wert nie eine sinnvolle Einstellung ist -- er
+// kommt ausschliesslich beim Verlassen vor. Setzen funktioniert unveraendert, auch einzeln.
 // Die URL wird danach bereinigt, damit ein spaeterer Verlauf-Zurueck nicht ueberraschend wieder in
 // den Testmodus schaltet; der Hinweis auf dem Zaubern-Screen bleibt die sichtbare Anzeige.
 function handleTestParams() {
@@ -244,15 +252,17 @@ function handleTestParams() {
   const hatPhase = params.has("phase");
   const hatKomposition = params.has("komposition");
   if (!hatPhase && !hatKomposition) return;
+  const phaseWert = hatPhase ? (params.get("phase") || "").trim() : null;
+  const kompoWert = hatKomposition ? (params.get("komposition") || "").trim() : null;
+  // Leerer Wert bei einem der beiden = Testmodus komplett beenden, siehe Kommentar oben.
+  if ((hatPhase && !phaseWert) || (hatKomposition && !kompoWert)) {
+    AppState.update({ testPhase: null, testComposition: null });
+    window.history.replaceState(null, "", window.location.pathname + window.location.hash);
+    return;
+  }
   const patch = {};
-  if (hatPhase) {
-    const wert = (params.get("phase") || "").trim();
-    patch.testPhase = (wert && Pipeline.SCENE_PHASES[wert]) ? wert : null;
-  }
-  if (hatKomposition) {
-    const wert = (params.get("komposition") || "").trim();
-    patch.testComposition = (wert && Pipeline.COMPOSITION_TYPES[wert]) ? wert : null;
-  }
+  if (hatPhase) patch.testPhase = Pipeline.SCENE_PHASES[phaseWert] ? phaseWert : null;
+  if (hatKomposition) patch.testComposition = Pipeline.COMPOSITION_TYPES[kompoWert] ? kompoWert : null;
   AppState.update(patch);
   window.history.replaceState(null, "", window.location.pathname + window.location.hash);
 }

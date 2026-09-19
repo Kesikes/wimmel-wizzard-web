@@ -993,12 +993,23 @@ Screens.zaubern = {
     // NEU (17.09.2026, Testschalter): unuebersehbarer Hinweis, solange Phase oder Kompositionstyp
     // per URL festgelegt sind. Bewusst hier und nicht im Kleingedruckten -- ein versehentlich
     // aktiver Testmodus wuerde teure Bilder mit den falschen Einstellungen erzeugen.
+    // GEAENDERT (19.09.2026): statt einer URL zum Abtippen ein Knopf. Der alte Hinweis nannte
+    // /app?phase= -- das loeschte nur die Phase und liess die Komposition stehen (siehe
+    // handleTestParams() in app-shell.js). Ein Knopf, der beides in einem Zug loescht, kann diesen
+    // Fehler gar nicht erst machen; die URL bleibt als zweiter Weg daneben stehen.
     if (s.testPhase || s.testComposition) {
       const teile = [];
       if (s.testPhase) teile.push("Phase: " + s.testPhase);
       if (s.testComposition) teile.push("Komposition: " + s.testComposition);
-      const testNote = h("div", { style: { marginTop: "20px", border: "3px dashed var(--yellow)", color: "var(--yellow)", padding: "12px 14px", fontSize: "13px", lineHeight: "1.45" } },
-        "Testmodus aktiv — " + teile.join(", ") + ". Zum Beenden /app?phase= aufrufen.");
+      const testNote = h("div", { style: { marginTop: "20px", border: "3px dashed var(--yellow)", color: "var(--yellow)", padding: "12px 14px", fontSize: "13px", lineHeight: "1.45" } });
+      testNote.appendChild(h("p", { style: { margin: "0 0 9px" } }, "Testmodus aktiv — " + teile.join(", ") + "."));
+      const testExit = h("button", { type: "button", class: "h-black", style: { minHeight: "40px", padding: "0 14px", fontSize: "12px", border: "3px solid var(--yellow)", background: "transparent", color: "var(--yellow)", cursor: "pointer" } }, "Testmodus beenden");
+      testExit.addEventListener("click", () => {
+        AppState.update({ testPhase: null, testComposition: null });
+        Router.goScreen("zaubern");
+      });
+      testNote.appendChild(testExit);
+      testNote.appendChild(h("p", { style: { margin: "9px 0 0", opacity: ".8" } }, "Geht auch über die Adresszeile: /app?phase= beendet den Testmodus jetzt vollständig, samt Komposition."));
       wrap.appendChild(testNote);
     }
 

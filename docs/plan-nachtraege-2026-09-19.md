@@ -188,3 +188,65 @@ Anordnungen benutzt; verschieden bleibt nur, wie sie angeordnet werden. `buildPe
 heute schon vor und ist der Grund, warum der neue Ausgangs-Knopf nur einmal gebaut werden musste.
 
 Danach entstehen Bildersammlung (Punkt A) und Kandidaten-Umschalter je einmal statt zweimal.
+
+## G. Leinwand-Test Berg, und was er trennt (19.09.2026)
+
+Testbild: Berg, Phase 1, `overview_cutaway`, Prompt-Fassung `2026-09-19f · 4d0f6e17`,
+neutrale Leinwand als `image_urls[0]` aktiv.
+
+**Das Ergebnis trennt zwei Fehler, die wir bisher für einen gehalten haben.** Keine Heldin fehlte —
+vorher war genau das der Regelfall. Eine Heldin kam aber doppelt vor (dasselbe Mädchen einmal in der
+Hütte, einmal in der Küche). Die Leinwand hat also das Fehlen behoben und die Dopplung nicht. Damit
+ist die Hypothese „Held wird als Leinwand missverstanden" für das Fehlen bestätigt und für die
+Dopplung widerlegt.
+
+### G.1 Verdacht zur Dopplung — noch nicht geprüft, kostet keine Bilder
+
+Drei Kandidaten, in der Reihenfolge, in der ich sie für wahrscheinlich halte:
+
+1. **Die Regel steht zu weit hinten.** `allCharactersRule()` („appears in exactly ONE vignette")
+   ist Satz 79 von 82, also mitten im Schluss-Block nach rund 20.000 Zeichen. Die Platzierung der
+   Helden steht dagegen bei Satz 45. Wir haben in diesem Projekt mehrfach erlebt, dass Position im
+   Prompt stärker wirkt als Formulierung. Billigster Test: die Regel direkt hinter die
+   Platzierungssätze ziehen, nichts am Text ändern.
+2. **Der Querschnitt lädt zum Wiederholen ein.** Ein Haus mit acht Räumen ist acht Mal dieselbe
+   Aufgabe („fülle diesen Raum mit Menschen"), und eine markante Figur ist die naheliegendste
+   Vorlage. Das passt dazu, dass die Dopplung bisher in Querschnitten auffällt.
+3. **Es ist gar keine Dopplung, sondern eine Nachahmung.** Wir verlangen ausdrücklich, dass alle
+   Nebenfiguren im Stil der Referenzbilder gezeichnet werden. Möglich, dass das Modell daraus
+   „sehen aus wie die Referenzfiguren" macht — dann ist die zweite Erscheinung ein
+   Bibliotheks-Mensch mit geklautem Punkteshirt, kein zweiter Held. Unterscheidbar am Bild:
+   identische Kleidung *und* Frisur spricht für Dopplung, nur ein übernommenes Merkmal für
+   Nachahmung.
+
+Für Montag: erst Kandidat 3 am vorhandenen Bild entscheiden (reines Hinschauen), dann Kandidat 1
+umsetzen. `heroes_found` bleibt bis dahin „mittel".
+
+### G.2 Der Testmodus ließ sich nicht verlassen (behoben)
+
+Der Hinweis auf dem Zaubern-Screen nannte `/app?phase=` als Ausstieg. Das löschte nur die Phase;
+die Komposition blieb gesetzt, im Berg-Fall also `cutaway`. Wer dem dokumentierten Weg folgte, war
+anschließend weiter im Testmodus, ohne es zu sehen — die teuerste Sorte Fehler hier, weil das
+nächste Bild mit den falschen Einstellungen erzeugt wird.
+
+Zwei Änderungen:
+
+- Ein **leerer Wert bei einem der beiden Parameter beendet den Testmodus ganz**. Eindeutig, weil
+  ein leerer Wert nie eine sinnvolle Einstellung ist — er kommt nur beim Verlassen vor. Setzen
+  funktioniert unverändert, auch einzeln.
+- Der Hinweis hat jetzt einen **Knopf „Testmodus beenden"** statt einer URL zum Abtippen. Ein Knopf,
+  der beides in einem Zug löscht, kann den Fehler nicht wiederholen.
+
+Acht Fälle durchgerechnet (setzen einzeln, setzen doppelt, leeren über jeden der beiden Parameter,
+unbekannter Wert) — alle wie erwartet.
+
+### G.3 Was der Test bestätigt hat
+
+Der Stil ist in diesem Bild so deutlich abgedriftet wie in keinem vorher: schattierte Haare mit
+Strähnen, plastische Gesichter, Bärte, Brillen, dünnere Umrisslinien, ausgearbeitete Umgebung. Das
+ist der Beleg für den Umbau aus Abschnitt 13 der Kalibrierungs-Doku: mit `shaded_of_ten` und Grenze
+1 wäre dieses Bild sicher durchgefallen, mit dem alten `style_ok` nicht verlässlich.
+
+Unverändert gut und ausdrücklich nicht anzufassen: die Hintergrund-Bibliothek. Die Nebenfiguren
+haben eigene Frisuren, Kleidung und Farben — die Wandergruppe, die Seilbahn-Schlange, die Familie
+auf der Bank. Der Stil-Anker erfüllt seinen Zweck.
