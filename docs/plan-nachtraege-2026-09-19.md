@@ -27,8 +27,16 @@ derselben Reihenfolge, die Buchvorschau ihre Darstellung. Konkret heißt das: **
 gehört in den Zustand** (die Position im `images`-Array ist die Seitenreihenfolge), nicht in die
 Ansicht. Dann braucht die Buchvorschau später keine zweite Sortierlogik.
 
-Offen und vor dem Bau zu klären: Zählt ein verworfenes Bild gegen ein späteres Kontingent? Bleibt
-es erhalten oder verschwindet es? (Hängt an der Guthaben-Frage aus Phase 3.)
+**Entschieden (19.09.2026):** Ein verworfenes Bild zählt **nicht** gegen das Kontingent und
+landet in einem **Papierkorb**, aus dem es wiederherstellbar ist. Begründung des Nutzers: die
+Kosten sind ohnehin angefallen (0,15 $), und es wieder hervorzuholen kostet nichts. **Fürs Buch
+zählen nur die behaltenen Bilder.**
+
+Folgen für den Bau: `images` bekommt einen Zustand „verworfen" statt dass der Eintrag gelöscht
+wird — das erhält zugleich die Kandidaten und das Verify-Ergebnis, die wir für die Messreihe
+brauchen. Die Buchvorschau und jede Zählung „wie viele Bilder habe ich" berücksichtigen nur die
+behaltenen. Der Papierkorb braucht keinen eigenen Screen, ein aufklappbarer Bereich unter der
+Sammlung genügt.
 
 **Einordnung:** vor Phase 1.2, nach Phase 0.3. Ein neuer Screen, der mobil und Desktop zugleich
 bedienen muss — vor der Zusammenführung gebaut, entsteht er zweimal.
@@ -57,3 +65,49 @@ Beides sitzt an **einer** Stelle für mobil und Desktop (`finishSceneResult()` u
 
 **Weiterhin offen in 0.2:** „Detail antippen" und „Nochmal zaubern" auf dem Ergebnis-Screen sind
 Knöpfe ohne Funktion. Beide gehören in den systematischen Durchgang durch die Editiermodi.
+
+---
+
+## C. Fehlende Heldin: ein sehr konkreter Verdacht, ohne Bildkosten geprüft (19.09.2026)
+
+**Befund aus der Prüfung des Quelltexts, nicht aus einem neuen Bild.**
+
+So werden die Bilder heute an `nano-banana-pro/edit` übergeben:
+
+```
+image_urls[0]   = editImageUrl  = das Charakterblatt der ERSTEN Heldin
+image_urls[1..] = styleRefUrls  = die übrigen Heldenblätter, dann die Bibliotheksblätter
+```
+
+Das erste Bild eines `/edit`-Aufrufs ist bei diesem Modelltyp **das zu bearbeitende Bild**, nicht
+eine Referenz unter vielen. Die erste Heldin wird also nicht als Figur mitgegeben, die einzuzeichnen
+ist, sondern als **Leinwand, über die die Szene gemalt wird**. Alle übrigen Helden sind normale
+Referenzen.
+
+**Die Vorhersage daraus:** Heldin Nummer 1 sollte häufiger fehlen als die anderen.
+
+**Und genau das steht in den Daten des cutaway-Bildes vom 19.09.:**
+
+| Figur | Position | Ergebnis im Bild |
+|---|---|---|
+| A | `image_urls[0]` — das Basisbild | **fehlt ganz** |
+| B | normale Referenz | kommt **dreimal** vor |
+| C | normale Referenz | kommt **zweimal** vor |
+
+Die Figur, die als Leinwand diente, ist verschwunden; die beiden, die als Referenz mitkamen, sind
+sogar zu oft erschienen. Das ist exakt die vorhergesagte Asymmetrie.
+
+**Einschränkung, damit niemand es für bewiesen hält:** das ist EIN Bild. Ein Gegenbeispiel gibt es
+auch — im Bauernhof-Referenzbild war die einzige Heldin vorhanden, obwohl sie dort ebenfalls das
+Basisbild war. Der Effekt ist also nicht absolut, aber er passt zu „fehlt in den meisten
+Kandidaten".
+
+**Vorgeschlagene Behebung, zu entscheiden am Montag:** ein **neutrales Basisbild** als
+`image_urls[0]` — eine leere Fläche in Papierfarbe im Zielformat, einmalig als statisches Asset
+abgelegt — und **alle** Heldenblätter als normale Referenzen dahinter. Dann ist keine Figur mehr
+Leinwand, die Nummerierung im Prompt wird für alle Helden gleich, und `imageRefMapping()`
+verschiebt sich um eins.
+
+Zu bedenken: ob das Modell mit einer leeren Fläche als Ausgangsbild gleich gut arbeitet, ist offen.
+Dagegen spricht wenig — das Ergebnis ist 16:9 in 4K, während das Basisbild heute ein 3:4-Blatt ist,
+die Geometrie wird also ohnehin nicht übernommen. Prüfbar mit **einem** Bild.
