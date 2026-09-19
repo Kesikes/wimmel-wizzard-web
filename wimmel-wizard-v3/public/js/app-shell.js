@@ -251,18 +251,26 @@ function handleTestParams() {
   const params = new URLSearchParams(window.location.search);
   const hatPhase = params.has("phase");
   const hatKomposition = params.has("komposition");
-  if (!hatPhase && !hatKomposition) return;
+  // NEU (19.09.2026): dritter Schalter, /app?licht=an -- haengt den Lichtblock in den Bildprompt
+  // (siehe lichtBlock() in pipeline.js). Gleiche Regeln wie die anderen beiden.
+  const hatLicht = params.has("licht");
+  if (!hatPhase && !hatKomposition && !hatLicht) return;
   const phaseWert = hatPhase ? (params.get("phase") || "").trim() : null;
   const kompoWert = hatKomposition ? (params.get("komposition") || "").trim() : null;
-  // Leerer Wert bei einem der beiden = Testmodus komplett beenden, siehe Kommentar oben.
-  if ((hatPhase && !phaseWert) || (hatKomposition && !kompoWert)) {
-    AppState.update({ testPhase: null, testComposition: null });
+  const lichtWert = hatLicht ? (params.get("licht") || "").trim().toLowerCase() : null;
+  // Leerer Wert bei EINEM der drei = Testmodus komplett beenden, also auch das Licht. Siehe
+  // Kommentar oben: ein leerer Wert ist nie eine Einstellung, er kommt nur beim Verlassen vor.
+  if ((hatPhase && !phaseWert) || (hatKomposition && !kompoWert) || (hatLicht && !lichtWert)) {
+    AppState.update({ testPhase: null, testComposition: null, testLicht: null });
     window.history.replaceState(null, "", window.location.pathname + window.location.hash);
     return;
   }
   const patch = {};
   if (hatPhase) patch.testPhase = Pipeline.SCENE_PHASES[phaseWert] ? phaseWert : null;
   if (hatKomposition) patch.testComposition = Pipeline.COMPOSITION_TYPES[kompoWert] ? kompoWert : null;
+  // "an" schaltet ein, jeder andere Wert (z.B. "aus") schaltet aus -- wie bei den anderen beiden
+  // fuehrt ein unbekannter Wert zum normalen Verhalten, nicht zu etwas Ausgedachtem.
+  if (hatLicht) patch.testLicht = (lichtWert === "an") ? true : null;
   AppState.update(patch);
   window.history.replaceState(null, "", window.location.pathname + window.location.hash);
 }

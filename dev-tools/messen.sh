@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # dev-tools/messen.sh — misst den Stil aller Kandidaten einer Sitzung, auch der verworfenen.
 #
-#     bash dev-tools/messen.sh
+#     bash dev-tools/messen.sh [sessionId]
+#
+# Die sessionId kann als Argument mitgegeben werden, sonst fragt das Skript danach.
 #
 # Fragt nach sessionId und FAL_KEY (verdeckt), holt den Sitzungsstand vom Server, sammelt die
 # Bild-URLs ALLER Kandidaten (auch der nicht gewaehlten), prueft sie zusammen mit
@@ -38,8 +40,14 @@ if [ -n "${SITZUNGSDATEI:-}" ]; then
   echo "Sitzung aus Datei: $SITZUNGSDATEI"
   cp "$SITZUNGSDATEI" "$ARBEIT/sitzung.json" || exit 1
 else
-  printf 'sessionId: '
-  read -r SESSION
+  # Als Argument mitgegeben? Dann nicht fragen.
+  SESSION=${1:-}
+  if [ -n "$SESSION" ]; then
+    echo "sessionId aus dem Aufruf: $SESSION"
+  else
+    printf 'sessionId: '
+    read -r SESSION
+  fi
   [ -n "$SESSION" ] || { echo "Ohne sessionId geht es nicht."; exit 1; }
   echo "Hole die Sitzung von $APP ..."
   curl -sS -X POST "$APP/api/session" \

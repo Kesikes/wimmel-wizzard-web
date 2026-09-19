@@ -117,6 +117,9 @@ const DEFAULT_STATE = {
   // solange etwas gesetzt ist, damit niemand versehentlich im Testmodus generiert.
   testPhase: null,
   testComposition: null,
+  // NEU (19.09.2026, Lichttest): /app?licht=an haengt einen Lichtblock in den Bildprompt, sonst
+  // nichts. null = aus, also normales Verhalten.
+  testLicht: null,
 
   // Entscheidung / Widmung / Bestellung
   tier: 1, // 0 Poster, 1 Wimmelbuch (ab 2 Bildern), 2 Wimmelbuch (ab 5 Bildern, comingSoon -- siehe entscheidung.js TIERS)
@@ -417,7 +420,11 @@ const AppState = {
     const id = "img-" + (this.data.images.length + 1) + "-" + Date.now().toString(36);
     const P = window.Pipeline || {};
     const image = { id, title: title || "", src, status: "done", promptText, instruction, violations, verify, candidates,
-      bildFassung: P.BILD_FASSUNG || null, pruefFassung: P.PRUEF_FASSUNG || null };
+      // Der Lichtschalter gehoert sichtbar an die Bild-Fassung: sonst sind Testbilder mit und
+      // ohne Licht in der Messreihe nicht auseinanderzuhalten -- die Pruefsumme ist bei beiden
+      // dieselbe, weil der Block nur zur Laufzeit dazukommt.
+      bildFassung: (P.BILD_FASSUNG || null) && (P.BILD_FASSUNG + (this.data.testLicht ? " \u00b7 Licht an" : "")),
+      pruefFassung: P.PRUEF_FASSUNG || null };
     const images = this.data.images.concat([image]);
     this.update({ images, currentImageId: id });
     return image;

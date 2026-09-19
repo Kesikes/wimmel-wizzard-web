@@ -1368,7 +1368,7 @@ var ACTIVE_SCENE_PHASE = "phase1";
 // in den Kompositionstypen, aendert sich die Pruefsumme -- ohne dass jemand daran denken muss.
 // Das von Hand gepflegte Datum bleibt als lesbare Ergaenzung daneben stehen; verlassen tun wir uns
 // auf die Pruefsumme.
-var PROMPT_LABEL = "2026-09-19h";
+var PROMPT_LABEL = "2026-09-19i";
 
 // FNV-1a, 32 Bit. Bewusst kein crypto.subtle: das ist asynchron, und diese Kennung soll ohne
 // Umstand synchron beim Laden feststehen. Kollisionen sind hier belanglos -- es geht nicht um
@@ -1399,9 +1399,12 @@ function bildFingerprint() {
   // Alle Funktionen, die BILDprompt-Text erzeugen, und alle Tabellen, aus denen er sich speist.
   [scenePrompt, sceneComposeInstruction, sizeRule, sizeRuleReminder,
    heroSpotText, densityInstruction, backgroundLibraryInstruction, allCharactersRule,
-   sceneLayerText, layerSizeText, imageRefMapping].forEach(function (fn) {
+   sceneLayerText, layerSizeText, imageRefMapping, lichtBlock].forEach(function (fn) {
     teile.push(String(fn));
   });
+  // Der Lichtblock steht nur bei gesetztem Schalter im Prompt, seine Formulierung gehoert aber zur
+  // Bild-Fassung: aendert sie sich, sind die Testbilder nicht mehr vergleichbar.
+  teile.push([LICHT_AUSSEN, LICHT_INNEN, LICHT_KOMPOSITIONEN_INNEN.join(",")].join("|"));
   [SCENE_PHASES, COMPOSITION_TYPES, THEME_META].forEach(function (tabelle) {
     try { teile.push(JSON.stringify(tabelle)); } catch (e) { /* zyklisch waere hier unmoeglich */ }
   });
@@ -2475,6 +2478,29 @@ const THREE_LAYER_RULE = "The scene must show three clearly different character 
 // zum Stil. In einem der bewerteten Bilder hatte genau eine grosse Vordergrundfigur eine als Form
 // gezeichnete Nase samt Bartstoppeln und fiel damit aus dem Stil. Besser, das Bild entsteht gar
 // nicht so, als es hinterher zu pruefen.
+// LICHTBLOCK -- NUR ueber den Testschalter /app?licht=an, sonst kommt kein Zeichen davon in den
+// Prompt (Nutzer-Vorgabe: Live-Verhalten unveraendert). Wortlaut vom Nutzer, positiv formuliert,
+// ohne Verneinungen.
+//
+// ZWEI FASSUNGEN: draussen die tiefstehende Sonne, in aufgeschnittenen Haeusern (cutaway,
+// gridhouse, overview_cutaway) Fenster- und Lampenlicht -- eine Sonne, die in acht Zimmer
+// gleichzeitig scheint, waere der Innen-Aussen-Fehler, den INDOOR_OUTDOOR_RULE gerade verbietet.
+//
+// ACHTUNG, BEKANNTER WIDERSPRUCH (dem Nutzer gemeldet, bewusst NICHT aufgeloest): der Abspann in
+// sceneComposeInstruction() verlangt woertlich, dass keine Figur "shaded, gradient, or softly
+// airbrushed" gezeichnet wird, und steht ganz am Ende, also an der staerksten Wiederholungsstelle.
+// Er meint zwar die FIGUREN und nicht den Boden oder den Himmel, aber ein Bildmodell trennt das
+// kaum. Bleibt der Lichttest wirkungslos, ist das der erste Verdaechtige.
+const LICHT_AUSSEN = "Warm late-afternoon sunlight from one side. Every person, animal and object casts a soft shadow on the ground. Gentle colour gradients in sky and foliage, distant hills softer and hazier. Faces stay simple: dot eyes, small nose line inside the face outline, seen from the front.";
+const LICHT_INNEN = "Warm light from windows and lamps. Every person, animal and object casts a soft shadow on the ground. Gentle colour gradients in sky and foliage, distant hills softer and hazier. Faces stay simple: dot eyes, small nose line inside the face outline, seen from the front.";
+const LICHT_KOMPOSITIONEN_INNEN = ["cutaway", "gridhouse", "overview_cutaway"];
+
+// lichtBlock(composition): leer, solange der Schalter aus ist -- der Aufrufer prueft das.
+function lichtBlock(composition) {
+  const id = composition && composition.id;
+  return LICHT_KOMPOSITIONEN_INNEN.indexOf(id) >= 0 ? LICHT_INNEN : LICHT_AUSSEN;
+}
+
 const FLAT_FACE_RULE = "Every human face in this image stays completely flat, and this applies most strictly to the largest figures in the very front, where the temptation to add detail is greatest: two small dot eyes and one single thin vertical line for the nose, nothing more. Never a modelled nose with a bridge, a tip, nostrils or shading around it; never stubble, beard shadow or shading on cheeks, chin or neck; never a three-quarter or profile view with sculpted facial features while the other faces stay flat and frontal.";
 
 const INDOOR_OUTDOOR_RULE = "Keep inside and outside strictly separate. Weather and outdoor ground — snow, rain, sand, waves, grass, sky, street paving — belong outdoors only and must never appear on the floor of a room. In a building cut open for the viewer, every interior room keeps its own floor, walls and ceiling, and the outside world only ever begins beyond a wall, a window frame or the edge of the house.";
@@ -2538,7 +2564,7 @@ const HERO_FINDABILITY_RULE = "Finding the named characters is meant to be a sma
 // ohnehin. Wuerde hier "bis zu drei" stehen, waeren es entsprechend mehr. Dieselbe Asymmetrie wie
 // beim Stil (Pruefung tolerant, Anweisung streng), die der Nutzer am 17.09.2026 ausdruecklich
 // bestaetigt hat.
-function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount, phase, composition, heroActions }) {
+function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount, phase, composition, heroActions, licht }) {
   // NEU (19.09.2026): ein reiner Querschnitt (cutaway/gridhouse) braucht an mehreren Stellen eine
   // andere Formulierung als eine offene Szene. overview_cutaway zaehlt hier NICHT dazu: dort gibt
   // es draussen echte Landschaft, Himmel und Horizont.
@@ -2564,6 +2590,11 @@ function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount, phase, co
   // nicht der Wortlaut der Groessenregel war das Problem, sondern was VOR ihr steht.
   sentences.push(ZOOM_OUT_RULE);
   sentences.push(sizeRule(phase, composition));
+  // LICHTTEST, nur mit /app?licht=an. Bewusst HIER: direkt hinter ZOOM_OUT_RULE und sizeRule, also
+  // Satz 4 von rund 82, und vor allem anderen. Weiter nach vorne haette die zwei Regeln verdraengt,
+  // die uns am meisten Muehe gekostet haben (Kameraabstand und Figurengroesse) -- und ein Test, der
+  // dabei die Figurengroesse kaputt macht, beantwortet die Lichtfrage nicht.
+  if (licht) sentences.push(lichtBlock(composition));
   sentences.push(EDGE_AND_FACE_RULE);
   sentences.push(BASE_CANVAS_NOTE);
   sentences.push(imageRefMapping(heroSpecs, HERO_REF_START));
@@ -2987,7 +3018,7 @@ function buildVerifyPrompt(heroSpecs, phaseId, compositionId) {
 // damit spaeter nachvollziehbar ist, welcher Typ ein Bild erzeugt hat. opts.composition erlaubt,
 // den Typ fuer einen gezielten Testlauf festzulegen statt zu wuerfeln (D5: "verschiedene Themen und
 // Kompositionstypen").
-function buildSceneComposeInputs({ heroSpecs, theme, situations, phase, composition, usedTexts }) {
+function buildSceneComposeInputs({ heroSpecs, theme, situations, phase, composition, usedTexts, licht }) {
   const phaseId = (phase && SCENE_PHASES[phase]) ? phase : ACTIVE_SCENE_PHASE;
   const phaseObj = SCENE_PHASES[phaseId];
   const comp = pickComposition(theme, phaseObj, composition);
@@ -3003,7 +3034,7 @@ function buildSceneComposeInputs({ heroSpecs, theme, situations, phase, composit
   const styleRefUrls = heroRefUrls.concat(bgUrls);
   // D3: eigene Handlung je Held, buchweite Sperrliste beachtet.
   const heroActions = pickHeroActions(refHeroes, theme && theme.locId, usedTexts);
-  const promptText = scenePrompt({ heroSpecs: refHeroes, theme, situations, bgCharacterCount: bgUrls.length, phase: phaseObj, composition: comp, heroActions });
+  const promptText = scenePrompt({ heroSpecs: refHeroes, theme, situations, bgCharacterCount: bgUrls.length, phase: phaseObj, composition: comp, heroActions, licht: !!licht });
   const instruction = sceneComposeInstruction(promptText);
   const verifyPrompt = buildVerifyPrompt(refHeroes, phaseId, comp.id);
   // figuresBand reist mit zum Server: dort wird figures_est dagegen geprueft (siehe
@@ -3021,9 +3052,9 @@ function buildSceneComposeInputs({ heroSpecs, theme, situations, phase, composit
   return { refHeroes, editImageUrl, styleRefUrls, heroRefUrls, promptText, instruction, verifyPrompt, phaseId, figuresBand, compositionId: comp.id, heroActions, usedNow };
 }
 
-async function composeSceneImage({ heroSpecs, theme, situations, phase, composition }) {
+async function composeSceneImage({ heroSpecs, theme, situations, phase, composition, licht }) {
   const { editImageUrl, styleRefUrls, heroRefUrls, promptText, instruction, verifyPrompt } =
-    buildSceneComposeInputs({ heroSpecs, theme, situations, phase, composition });
+    buildSceneComposeInputs({ heroSpecs, theme, situations, phase, composition, licht });
 
   async function generateAndVerify(seed) {
     const cand = await generateImage(instruction, "scene", { seed, editImageUrl, styleRefUrls });
@@ -3522,7 +3553,7 @@ window.Pipeline = {
   kontextInstruction, photoStyleInstruction, traitBitFromPhotoDescription, describePhotoTraits,
   PEN_INSTRUCTION_REMOVE, PEN_INSTRUCTION_REDO,
   resizeImageToDataUri, generateImage, generateImageWithRetry, verifyImage, countViolations,
-  SCENE_PHASES, ACTIVE_SCENE_PHASE, DEPTH_MIN_RATIO, SCALE_MIN_FIT, PROMPT_VERSION, PROMPT_LABEL, promptFingerprint, BILD_FASSUNG, PRUEF_FASSUNG, bildFingerprint, pruefFingerprint, heroRef, HERO_REF_START, severityOf, compareSeverity, isGoodEnough,
+  SCENE_PHASES, ACTIVE_SCENE_PHASE, DEPTH_MIN_RATIO, SCALE_MIN_FIT, PROMPT_VERSION, PROMPT_LABEL, promptFingerprint, BILD_FASSUNG, PRUEF_FASSUNG, bildFingerprint, pruefFingerprint, heroRef, HERO_REF_START, lichtBlock, severityOf, compareSeverity, isGoodEnough,
   COMPOSITION_TYPES, pickComposition, layerSizeText,
   HERO_ACTION_LIBRARY, pickHeroActions, shuffledPool,
   // Szenen-Komposition (neu, siehe Modul-Abschnitt oben)
