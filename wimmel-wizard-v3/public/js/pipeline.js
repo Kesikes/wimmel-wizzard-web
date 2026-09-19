@@ -1686,7 +1686,7 @@ const THEME_META = {
 // bewerteten Bilder mit "mehr Figuren", "mehr los" oder "viel zu wenige Figuren" kommentiert, und
 // die Hintergrundebene ist die Schicht, in der zusaetzliche Figuren am wenigsten stoeren -- sie
 // fuellt die Flaeche, die durch die kleineren Figuren ueberhaupt erst frei wird.
-function densityInstruction(theme, phase) {
+function densityInstruction(theme, phase, composition) {
   const regions = (theme && theme.regions && theme.regions.length) ? theme.regions : ["across the scene"];
   const min = ((theme && theme.regionMin) || 6) * 2;
   // GEAENDERT (18.09.2026, Nutzer-Vorgabe "Zonen fuellen statt Zahlen nennen"): hier standen bis
@@ -1700,7 +1700,25 @@ function densityInstruction(theme, phase) {
   // wir doch wieder eine Zahl brauchen.
   const zonen = regions.length === 1 ? regions[0]
     : regions.slice(0, -1).join(", ") + " and " + regions[regions.length - 1];
-  return "In the background layer (" + layerSizeText("background", phase) + ") there are people absolutely everywhere, and this is not a counted number but a continuous presence across the whole depth of the picture: " + zonen + " — along every path, every edge, every doorway and every open stretch of ground, people working, walking, standing about and watching, some alone, many in twos and threes, and in places whole clusters of them, carrying on unbroken all the way back to the horizon. Nowhere in the back half of this image is there a stretch of ground, a path or a building without people on or around it. Each of them is doing their own tiny activity or little visual joke — true busy seek-and-find picture-book density.";
+  // NEU (19.09.2026, vor den Weihnachts-Testbildern gefunden, ohne ein Bild dafuer zu verbrennen):
+  // der Zonen-Satz war fuer eine Landschaft geschrieben und sprach von "every open stretch of
+  // ground" und "all the way back to the horizon". In einem aufgeschnittenen Haus (cutaway,
+  // gridhouse) ist das schlicht falsch -- ein Wohnzimmer hat keinen Horizont. Schlimmer noch: es
+  // ist genau die Formulierung, die Aussenwelt in einen Innenraum einlaedt, und damit ein
+  // Selbsttor gegen unser eigenes logic_ok ("Schnee in der Kueche" war dort der alte Klassiker).
+  // Deshalb drei Fassungen, nach Kompositionstyp:
+  //   - offene Szene (open, overview_open): wie bisher, Landschaft bis zum Horizont.
+  //   - reiner Querschnitt (cutaway, gridhouse): Raeume, Treppen, Tueren, Ecken. Kein Horizont,
+  //     kein Boden im Freien.
+  //   - Querschnitt PLUS Umgebung (overview_cutaway): beides, aber ausdruecklich getrennt
+  //     benannt -- drinnen die Raeume, draussen Strasse und Umgebung.
+  const drinnen = "In the background layer (" + layerSizeText("background", phase) + ") there are people absolutely everywhere inside this building, and this is not a counted number but a continuous presence through the whole depth of it: " + zonen + " — in every room, on the stairs, in every doorway, hallway and corner, people busy with something, some alone, many in twos and threes, and in places whole clusters of them, carrying on unbroken right through to the furthest room at the back. No room and no corner of this house is left without people in it. Each of them is doing their own tiny activity or little visual joke — true busy seek-and-find picture-book density.";
+  const draussen = "In the background layer (" + layerSizeText("background", phase) + ") there are people absolutely everywhere, and this is not a counted number but a continuous presence across the whole depth of the picture: " + zonen + " — along every path, every edge, every doorway and every open stretch of ground, people working, walking, standing about and watching, some alone, many in twos and threes, and in places whole clusters of them, carrying on unbroken all the way back to the horizon. Nowhere in the back half of this image is there a stretch of ground, a path or a building without people on or around it. Each of them is doing their own tiny activity or little visual joke — true busy seek-and-find picture-book density.";
+  const beides = "In the background layer (" + layerSizeText("background", phase) + ") there are people absolutely everywhere, and this is not a counted number but a continuous presence across the whole depth of the picture: " + zonen + ". Inside the cut-open building that means every room, the stairs, the doorways and the corners, right through to the furthest room at the back. Outside it means the street, the paths and the surrounding ground, carrying on unbroken to the horizon. Keep the two apart — indoor floors indoors, outdoor ground outdoors — but leave neither of them empty of people: some alone, many in twos and threes, and in places whole clusters of them, each doing their own tiny activity or little visual joke — true busy seek-and-find picture-book density.";
+  const id = (composition && composition.id) || "open";
+  if (id === "cutaway" || id === "gridhouse") return drinnen;
+  if (id === "overview_cutaway") return beides;
+  return draussen;
 }
 
 // NEU (Punkt 1: Figurenbibliothek fuer Hintergrundfiguren, Sammel-Runde 15.09.2026 Fortsetzung --
@@ -2228,7 +2246,7 @@ function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount, phase, co
   sentences.push("Populate the whole scene with " + phase.totalCharacters + " individual HUMAN figures — people, and only people count towards this number. Animals do not count towards it at all: a place full of animals with only a couple of dozen people in it is a failed image. Draw plenty of animals as well, but on top of the people, never instead of them.");
   if (phase.humanSplit) sentences.push(phase.humanSplit);
   sentences.push(THREE_LAYER_RULE);
-  sentences.push(densityInstruction(theme, phase));
+  sentences.push(densityInstruction(theme, phase, composition));
   const situationText = (situations || []).map((s) => sceneLayerText(s)).join(" ");
   if (situationText) sentences.push(stripEmotionWords(situationText));
   if (phase.id === "phase2") sentences.push(PHASE2_FOREGROUND_RULE);
