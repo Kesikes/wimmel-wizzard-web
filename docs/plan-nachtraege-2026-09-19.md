@@ -219,8 +219,21 @@ Drei Kandidaten, in der Reihenfolge, in der ich sie für wahrscheinlich halte:
    identische Kleidung *und* Frisur spricht für Dopplung, nur ein übernommenes Merkmal für
    Nachahmung.
 
-Für Montag: erst Kandidat 3 am vorhandenen Bild entscheiden (reines Hinschauen), dann Kandidat 1
-umsetzen. `heroes_found` bleibt bis dahin „mittel".
+**Entschieden am Bild (19.09.2026): es ist eine echte Dopplung.** Das blonde Mädchen mit
+Punkteshirt kommt zweimal vor — oben im Wohnraum, unten links am Tisch — beide Male mit identischer
+welliger Frisur *und* identischem hellem Punkteshirt. Nicht ein übernommenes Merkmal, sondern
+dieselbe Figur. **Kandidat 3 ist damit erledigt.**
+
+Bleibt Kandidat 1: die Regel direkt hinter die Platzierungssätze ziehen, am Text nichts ändern.
+Der Umbau ist **gebaut, aber bewusst nicht auf `main`** — er liegt allein auf dem Zweig
+`positions-test` (Commit 7901d2f, Prompt-Fassung `2026-09-22a`), weil er als Test laufen soll und
+nicht nebenbei live gehen. Auf `main` steht `allCharactersRule()` unverändert am Prompt-Ende.
+
+Zum Ausprobieren: `git checkout positions-test`, Bild erzeugen, vergleichen; zurück mit
+`git checkout main`. Bewährt sich die Position, wandert der Commit auf `main` — sonst wird der
+Zweig gelöscht und Kandidat 2 (der Querschnitt lädt zum Wiederholen ein) ist an der Reihe.
+
+`heroes_found` bleibt bis zur Klärung „mittel".
 
 ### G.2 Der Testmodus ließ sich nicht verlassen (behoben)
 
