@@ -5,6 +5,8 @@
    ========================================================================== */
 
 const STORAGE_KEY = "wimmelwizard.v3.state";
+// Sicherungskopie des lokalen Stands, angelegt von hydrate() unmittelbar vor dem Ersetzen.
+const STORAGE_KEY_VORHER = "wimmelwizard.v3.state.vorher";
 
 // Echter Nullzustand (Korrektur nach Nutzer-Rückfrage): Die sechs Namen
 // Mia/Papa/Oma Rosi/Bruno/Mama/Hund waren KEINE echten, festgelegten
@@ -173,6 +175,53 @@ function deepClone(obj) {
   return JSON.parse(JSON.stringify(obj));
 }
 
+// ===========================================================================
+// bereinigeStand(): NEU (19.09.2026). Anlass: eine Stunde Fehlersuche nach einem Datenverlust, den
+// es nie gab. In Redis liegen noch Sitzungen aus den ersten Septembertagen, als DEFAULT_STATE die
+// sechs Demo-Personen aus dem Referenz-Prototyp enthielt (Mia, Papa, Oma Rosi, Bruno, Mama, Hund --
+// siehe Kopfkommentar oben) und als Bilder die Beispielbilder der Landingpage, gespeichert als
+// RELATIVE Pfade ("assets/example_gardasee.png"). Solche Snapshots sind bis zu 90 Tage gueltig und
+// laden sich ueber einen alten Wiedereinstiegs-Link oder einen alten localStorage-Stand klaglos in
+// die heutige App. Dort sehen sie aus wie eine echte Sitzung, deren Bilder alle kaputt sind -- ein
+// relativer Pfad loest auf einer Unterseite ins Leere auf, man sieht nur ein Fragezeichen.
+//
+// Diese Funktion macht daraus einen ehrlichen Zustand: was gar nicht anzeigbar ist, fliegt raus,
+// und die Nutzerin bekommt einen Hinweis statt eines Raetsels. Bewusst NICHT an den Demo-Namen
+// festgemacht, sondern an der einzigen Eigenschaft, die wirklich zaehlt -- ein Bild, dessen Quelle
+// keine absolute http(s)-Adresse ist, kann in dieser App niemals erscheinen. Damit greift die
+// Regel auch bei kuenftigen Alt-Staenden, an die heute niemand denkt.
+function istAnzeigbareBildquelle(src) {
+  return typeof src === "string" && /^https?:\/\//i.test(src);
+}
+function bereinigeStand(daten) {
+  if (!daten || typeof daten !== "object") return { daten: daten, entfernt: 0 };
+  let entfernt = 0;
+  if (Array.isArray(daten.images)) {
+    const behalten = daten.images.filter((b) => b && istAnzeigbareBildquelle(b.src));
+    entfernt += daten.images.length - behalten.length;
+    daten.images = behalten;
+    if (daten.currentImageId && !behalten.some((b) => b.id === daten.currentImageId)) daten.currentImageId = null;
+  }
+  if (Array.isArray(daten.people)) {
+    daten.people.forEach((person) => {
+      if (person && person.imageUrl && !istAnzeigbareBildquelle(person.imageUrl)) {
+        // Die Person bleibt (der Name ist echte Eingabe), nur ihr totes Bild geht -- und damit
+        // faellt sie zurueck auf "offen", sonst zaehlte sie als fertig gezeichnet ohne Bild.
+        delete person.imageUrl;
+        if (person.status === "done") person.status = "open";
+        entfernt++;
+      }
+    });
+  }
+  if (entfernt > 0 && typeof window !== "undefined") {
+    window.resumeNotice = {
+      type: "error",
+      text: "Dieser Stand stammt aus einer alten Testsitzung — die Bilder darin gibt es nicht mehr und sie wurden entfernt. Eure echten Sitzungen sind davon nicht betroffen.",
+    };
+  }
+  return { daten: daten, entfernt: entfernt };
+}
+
 function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -182,7 +231,7 @@ function loadState() {
       return fresh;
     }
     const parsed = JSON.parse(raw);
-    const merged = Object.assign(deepClone(DEFAULT_STATE), parsed);
+    const merged = bereinigeStand(Object.assign(deepClone(DEFAULT_STATE), parsed)).daten;
     // Aeltere localStorage-Staende (vor dieser Aenderung) haben noch kein sessionId -- genau wie
     // ein komplett neuer Nullzustand direkt eine bekommen, sonst bliebe der Fernzugriff dauerhaft
     // ungueltig (kvSetJson bräuchte einen Schluessel, den es nie gibt).
@@ -245,9 +294,20 @@ const AppState = {
   // save()-Anfrage sogar zu einer Race Condition fuehren) -- localStorage wird aber unten dennoch
   // aktualisiert (rein lokal, kein Netzwerk-Aufruf), damit ein Reload auf demselben Geraet danach
   // sofort den geladenen Stand zeigt, ohne erneut den Resume-Link zu brauchen.
+  // GEAENDERT (19.09.2026): hydrate() ersetzte den lokalen Stand bisher ersatzlos -- ein
+  // Wiedereinstiegs-Link mit einem duennen Stand konnte damit einen volleren localStorage
+  // ueberschreiben, ohne Weg zurueck. Jetzt wandert der bisherige Stand vorher nach
+  // STORAGE_KEY_VORHER. Das ist die letzte Verteidigungslinie auf dem Geraet; server-seitig
+  // schuetzt api/session.js (Zeitstempel-Vergleich und Kopie vor dem Ueberschreiben).
   hydrate(data) {
     if (!data || typeof data !== "object" || Array.isArray(data)) return;
-    this.data = Object.assign(deepClone(DEFAULT_STATE), data);
+    try {
+      const bisher = localStorage.getItem(STORAGE_KEY);
+      if (bisher) localStorage.setItem(STORAGE_KEY_VORHER, bisher);
+    } catch (e) {
+      /* siehe save() -- eine fehlende Sicherung darf den Wiedereinstieg nicht verhindern */
+    }
+    this.data = bereinigeStand(Object.assign(deepClone(DEFAULT_STATE), data)).daten;
     this.data.savedAt = new Date().toISOString();
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(this.data));

@@ -101,7 +101,45 @@ module.exports = async (req, res) => {
       res.status(400).json({ error: "Speicherstand ist zu groß." });
       return;
     }
+    // NEU (19.09.2026): zwei Schutzschichten gegen "ein duenner Stand ueberschreibt einen vollen".
+    // Anlass war ein Fehlalarm, nicht ein echter Verlust -- aber die Luecke war real: der Client
+    // schickt hier alle zwei Sekunden nach jeder Aenderung den kompletten Stand, und bis eben hat
+    // der Server ihn ohne jeden Vergleich uebernommen. Wer zuletzt schreibt, gewinnt, auch wenn er
+    // weniger weiss. Ein alter Browser-Tab mit einem Stand von vorletzter Woche reicht dafuer.
     try {
+      const vorhanden = await kvGetJson(sessionKey(body.sessionId));
+
+      // SCHICHT 1: Zeitstempel-Vergleich, aber bewusst NUR in der einen gefaehrlichen Richtung.
+      // Abgelehnt wird ein Stand, der gleichzeitig AELTER und AERMER ist als der gespeicherte.
+      // Warum nicht einfach "aelter"? Weil savedAt aus dem Browser kommt und Uhren auseinander
+      // gehen -- eine reine Zeitregel koennte ein Geraet mit leicht nachgehender Uhr dauerhaft vom
+      // Speichern aussperren. Und warum nicht einfach "aermer"? Weil Loeschen erlaubt sein muss:
+      // wer eine Figur entfernt, schickt einen aermeren, aber NEUEREN Stand, und der geht durch.
+      const zahl = (wert) => (Array.isArray(wert) ? wert.length : 0);
+      const aelter = vorhanden && vorhanden.savedAt && body.data.savedAt
+        && String(body.data.savedAt) < String(vorhanden.savedAt);
+      const aermer = vorhanden
+        && (zahl(body.data.people) < zahl(vorhanden.people) || zahl(body.data.images) < zahl(vorhanden.images));
+      if (aelter && aermer) {
+        res.status(409).json({
+          error: "Nicht gespeichert: der bereits gespeicherte Stand ist neuer und umfangreicher.",
+          gespeichertAm: vorhanden.savedAt,
+          eingehendVon: body.data.savedAt,
+        });
+        return;
+      }
+
+      // SCHICHT 2: eine Kopie des bisherigen Stands, bevor er ersetzt wird. Genau das hat heute
+      // gefehlt, als unklar war, ob etwas verloren ist -- es gibt pro Sitzung nur einen Schluessel.
+      // Eine Generation zurueck reicht: sie ueberlebt den Unfall, der gerade passiert, und
+      // verdoppelt den Speicherbedarf nicht weiter. Schlaegt das Sichern fehl, wird trotzdem
+      // gespeichert -- eine fehlende Sicherung darf die Arbeit der Nutzerin nicht blockieren.
+      if (vorhanden) {
+        try {
+          await kvSetJson(sessionKey(body.sessionId) + ":vorher", vorhanden, SESSION_TTL_SECONDS);
+        } catch (e) { /* bewusst ignoriert, siehe Kommentar */ }
+      }
+
       await kvSetJson(sessionKey(body.sessionId), body.data, SESSION_TTL_SECONDS);
       res.status(200).json({ ok: true });
     } catch (e) {
