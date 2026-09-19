@@ -1,0 +1,14 @@
+# docs/ref/wahrheit.tsv — vom Nutzer selbst am Bild gezaehlt, Stand 20.09.2026.
+# Das ist die Wahrheit, gegen die die Pruefmodelle gemessen werden. Nur hier eintragen, was
+# jemand wirklich abgezaehlt hat -- kein geschaetzter Wert, keine Modellausgabe.
+#
+# Spalten: kennung <TAB> feld <TAB> wert
+# kennung muss zur Kennung in stabilitaet.sh passen ("<Nr> <Thema> K<n>", oder REF).
+#
+# ZUORDNUNG, bitte gegenlesen: der Nutzer hat "Nasen" gezaehlt, also Gesichter mit einer
+# ausmodellierten Nase statt eines Strichs. Im Pruefprompt heisst dieses Feld shaded_of_ten
+# (plastisch gezeichnete Gesichter). Wenn das nicht dasselbe meint, gehoert die Zeile geaendert.
+7 Berg K1	mouths_of_ten	10
+7 Berg K1	shaded_of_ten	10
+7 Berg K2	mouths_of_ten	1
+7 Berg K2	shaded_of_ten	0

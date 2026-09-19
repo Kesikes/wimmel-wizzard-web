@@ -5,10 +5,18 @@
 #     bash dev-tools/stabilitaet.sh [sessionId]
 #
 # Prueft jeden Kandidaten der Sitzung plus docs/ref/referenz.jpg in ZWEI Varianten, jede DREIMAL:
-#   A  die heutige Live-Pruefung, unveraendert (buildVerifyPrompt)
+#   A  die heutige Live-Pruefung, unveraendert (buildVerifyPrompt)      -- gemini ueber fal
 #   B  eine schlanke reine Stilpruefung: nur shaded_of_ten, mouths_of_ten, blank_of_ten,
-#      shadows_of_ten, light_direction
-# Am Live-Verhalten aendert das nichts -- beides laeuft nur hier im Werkzeug.
+#      shadows_of_ten, light_direction                                   -- gemini ueber fal
+#   C  dieselbe schlanke Pruefung wie B, aber mit Claude                 -- Anthropic-API
+#   D  Vergleich: beide Kandidaten UND das Referenzbild in EINEM Aufruf, Frage nach dem
+#      besseren Gesichtsstil; Reihenfolge je Lauf getauscht                -- Anthropic-API
+# Am Live-Verhalten aendert das nichts -- alles laeuft nur hier im Werkzeug.
+#
+# Mit VARIANTEN=... auswaehlen, z.B. VARIANTEN=CD. Vorgabe: AB (nur fal, kein Anthropic-Schluessel
+# noetig). Fuer C/D wird ANTHROPIC_API_KEY gebraucht -- derselbe Schluessel, den das Projekt schon
+# benutzt (siehe api/claude-proxy.js). D braucht genau zwei Kandidaten und das Referenzbild,
+# laeuft also sinnvoll nur mit NUR="..." auf eine Szene eingeschraenkt.
 #
 # Es laufen NUR Pruefaufrufe, keine Bildaufrufe. Die Zahl und die geschaetzten Kosten stehen VOR
 # der Abfrage des FAL_KEY; ein Abbruch davor kostet nichts.
@@ -18,6 +26,9 @@
 #   SITZUNGSDATEI=pfad.json  fertige Sitzungs-JSON benutzen statt sie zu holen
 #   LAEUFE=3                 Laeufe je Variante
 #   NUR="7 Berg"             nur Bilder, deren Kennung diesen Text enthaelt (billiger Vorlauf)
+#   VARIANTEN=AB             welche Varianten laufen (Buchstaben aus ABCD)
+#   MODELL=...               Claude-Modell erzwingen; ohne Angabe fragt das Werkzeug die API,
+#                            welche es gibt, und nimmt das staerkste (opus, sonst das erste)
 #   PREIS_PRUEFUNG=0.02      angenommener Preis je Pruefaufruf in $, NUR fuer die Schaetzung
 #   TROCKEN=1                alles bis zur Kostenansage, dann Schluss
 
@@ -29,6 +40,8 @@ REFERENZ=docs/ref/referenz.jpg
 ROH=docs/ref/stabilitaet-roh.tsv
 ERGEBNIS=docs/ref/stabilitaet.txt
 LAEUFE=${LAEUFE:-3}
+VARIANTEN=${VARIANTEN:-AB}
+WAHRHEIT=docs/ref/wahrheit.tsv
 PREIS_PRUEFUNG=${PREIS_PRUEFUNG:-0.02}
 
 command -v node >/dev/null 2>&1 || { echo "node wird gebraucht, ist aber nicht da."; exit 1; }
@@ -78,18 +91,32 @@ if [ -n "${NUR:-}" ]; then
 fi
 
 ANZAHL_BILDER=$(wc -l < "$ARBEIT/bilder.tsv" | tr -d ' ')
-AUFRUFE=$((ANZAHL_BILDER * 2 * LAEUFE))
-KOSTEN=$(node -e 'console.log((Number(process.argv[1])*Number(process.argv[2])).toFixed(2))' "$AUFRUFE" "$PREIS_PRUEFUNG")
+case "$VARIANTEN" in *A*) HAT_A=1;; *) HAT_A=0;; esac
+case "$VARIANTEN" in *B*) HAT_B=1;; *) HAT_B=0;; esac
+case "$VARIANTEN" in *C*) HAT_C=1;; *) HAT_C=0;; esac
+case "$VARIANTEN" in *D*) HAT_D=1;; *) HAT_D=0;; esac
+FAL_N=$(( (HAT_A + HAT_B) * ANZAHL_BILDER * LAEUFE ))
+CLAUDE_N=$(( HAT_C * ANZAHL_BILDER * LAEUFE + HAT_D * LAEUFE ))
+KOSTEN=$(node -e 'console.log((Number(process.argv[1])*Number(process.argv[2])).toFixed(2))' "$FAL_N" "$PREIS_PRUEFUNG")
 
 echo
-echo "Bilder (Kandidaten inkl. verworfener, plus Referenzbild): $ANZAHL_BILDER"
-echo "Varianten: 2 (A Live-Pruefung, B schlanke Stilpruefung), Laeufe je Variante: $LAEUFE"
+echo "Bilder: $ANZAHL_BILDER   Varianten: $VARIANTEN   Laeufe je Variante: $LAEUFE"
 echo
-echo "  PRUEFAUFRUFE:  $AUFRUFE"
-echo "  BILDAUFRUFE:   0"
-echo "  geschaetzte Kosten: rund $KOSTEN \$"
-echo "  (Annahme $PREIS_PRUEFUNG \$ je Pruefaufruf -- NICHT nachgemessen. Der echte Preis steht im"
-echo "   fal-Dashboard; mit PREIS_PRUEFUNG=... laesst sich die Schaetzung korrigieren.)"
+echo "  PRUEFAUFRUFE ueber fal (A/B):      $FAL_N"
+echo "  AUFRUFE ueber die Anthropic-API (C/D): $CLAUDE_N"
+echo "  BILDAUFRUFE:                       0"
+echo
+if [ "$FAL_N" -gt 0 ]; then
+  echo "  fal, geschaetzt: rund $KOSTEN \$"
+  echo "  (Annahme $PREIS_PRUEFUNG \$ je Pruefaufruf -- NICHT nachgemessen. Der echte Preis steht im"
+  echo "   fal-Dashboard; mit PREIS_PRUEFUNG=... laesst sich die Schaetzung korrigieren.)"
+fi
+if [ "$CLAUDE_N" -gt 0 ]; then
+  echo "  Anthropic: wird nach Token abgerechnet, nicht je Aufruf -- eine Vorab-Schaetzung waere"
+  echo "  geraten. Bilder sind der teure Teil. Das Werkzeug gibt am Ende den TATSAECHLICHEN"
+  echo "  Verbrauch aus (Eingabe- und Ausgabe-Token), damit die Zahl fuer das naechste Mal da ist."
+  echo "  Variante D schickt je Lauf DREI Bilder in einem Aufruf."
+fi
 echo
 
 if [ "${TROCKEN:-}" = "1" ]; then echo "TROCKEN=1 gesetzt — Schluss vor dem ersten Aufruf."; exit 0; fi
@@ -98,13 +125,32 @@ printf 'Weiter? [j/N] '
 read -r ANTWORT
 case "$ANTWORT" in j|J|ja|Ja|y|Y) ;; *) echo "Abgebrochen, nichts ausgegeben."; exit 0 ;; esac
 
-printf 'FAL_KEY (Eingabe bleibt unsichtbar): '
-stty -echo 2>/dev/null; read -r FAL_KEY; stty echo 2>/dev/null; echo
-[ -n "$FAL_KEY" ] || { echo "Ohne FAL_KEY geht es nicht."; exit 1; }
+: > "$ARBEIT/roh.tsv"
 
-echo "Laeuft. $AUFRUFE Aufrufe nacheinander, das dauert."
-FAL_KEY="$FAL_KEY" node dev-tools/_stabilitaet-lauf.js "$ARBEIT/bilder.tsv" "$LAEUFE" > "$ARBEIT/roh.tsv" || exit 1
+if [ "$FAL_N" -gt 0 ]; then
+  printf 'FAL_KEY (Eingabe bleibt unsichtbar): '
+  stty -echo 2>/dev/null; read -r FAL_KEY; stty echo 2>/dev/null; echo
+  [ -n "$FAL_KEY" ] || { echo "Ohne FAL_KEY geht es nicht."; exit 1; }
+fi
+if [ "$CLAUDE_N" -gt 0 ] && [ -z "${ANTHROPIC_API_KEY:-}" ]; then
+  printf 'ANTHROPIC_API_KEY (Eingabe bleibt unsichtbar): '
+  stty -echo 2>/dev/null; read -r ANTHROPIC_API_KEY; stty echo 2>/dev/null; echo
+  [ -n "$ANTHROPIC_API_KEY" ] || { echo "Ohne ANTHROPIC_API_KEY gehen C und D nicht."; exit 1; }
+fi
+
+if [ "$FAL_N" -gt 0 ]; then
+  echo "A/B: $FAL_N Aufrufe ueber fal."
+  FAL_KEY="$FAL_KEY" node dev-tools/_stabilitaet-lauf.js "$ARBEIT/bilder.tsv" "$LAEUFE" >> "$ARBEIT/roh.tsv" || exit 1
+fi
+if [ "$CLAUDE_N" -gt 0 ]; then
+  MODUS=""
+  [ "$HAT_C" = 1 ] && MODUS="${MODUS}C"
+  [ "$HAT_D" = 1 ] && MODUS="${MODUS}D"
+  echo "$MODUS: $CLAUDE_N Aufrufe ueber die Anthropic-API."
+  ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" node dev-tools/_stabilitaet-claude.js \
+    "$ARBEIT/bilder.tsv" "$LAEUFE" "$REFERENZ" "$MODUS" >> "$ARBEIT/roh.tsv" || exit 1
+fi
 cp "$ARBEIT/roh.tsv" "$ROH" 2>/dev/null
 
-node dev-tools/_stabilitaet-tabelle.js "$ARBEIT/roh.tsv" "$ERGEBNIS" || exit 1
+node dev-tools/_stabilitaet-tabelle.js "$ARBEIT/roh.tsv" "$ERGEBNIS" "$WAHRHEIT" || exit 1
 echo "Gespeichert in $ERGEBNIS, Rohdaten in $ROH"
