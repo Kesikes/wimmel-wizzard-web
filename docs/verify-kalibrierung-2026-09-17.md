@@ -363,3 +363,32 @@ Im Druck (Seitenhöhe 148 mm) ist eine Vordergrundfigur bei Faktor 8 rund 18,5 m
 Mittelgrundfigur 10,6 mm, eine Hintergrundfigur 5,9 mm. Bei den ersten beiden tragen Haarform,
 Haarfarbe und Kleidungsfarbe, bei der dritten nichts davon — das ist die Grenze, an der
 Wiedererkennen aufhört.
+
+### 9.4 Figurengröße: gemessen statt gefühlt (19.09.2026)
+
+`scale_ok` war eine Eindrucksfrage an das Modell und hat sich als unbrauchbar erwiesen: im selben
+Bild meldete es `scale_est: 2.5` zusammen mit `scale_ok: true`, beim Nachbarkandidaten 2,2 mit
+`false`. Es hat also nach Gefühl geurteilt und seine eigene Messung ignoriert.
+
+Das Feld ist ersatzlos aus dem Prüf-Prompt verschwunden. Bewertet wird jetzt die Zahl `scale_est`
+im Code gegen **`SCALE_MIN_FIT`**, genau wie `figures_est` gegen `figuresBand` und `depth_ratio`
+gegen `DEPTH_MIN_RATIO`. Das ist inzwischen das dritte Mal, dass ein Ja/Nein-Urteil des Modells
+durch eine Zahl plus Schwelle im Code ersetzt wurde — **als Regel: wo sich etwas messen lässt,
+lässt man das Modell messen und entscheidet selbst.**
+
+Schwelle **2,8**, auf dünner Grundlage:
+
+| Bild | scale_est | Urteil Nutzer |
+|---|---|---|
+| Bauernhof-Referenz | 3,0 (Lineal) | angenommen |
+| cutaway, gewählt | 2,5 | „Figuren viel zu groß" |
+| cutaway, Kandidat 1 | 2,2 | abgelehnt |
+
+Zwei Messpunkte trennen, mehr ist es nicht. Die Zahl gehört nachgezogen, sobald mehr `scale_est`
+aus echten Bildern vorliegen. Sie steht als eigene Konstante in `pipeline.js` (zweite Kopie in
+`api/_lib/fal-queue.js`).
+
+Wichtig bleibt die Trennung aus 9.2: der **Bild-Prompt** fordert weiterhin acht- bis zehnmal. Er
+ist die einzige Kraft nach unten, und das Modell unterschreitet ihn ohnehin um den Faktor
+zweieinhalb bis drei. Eine Prüfschwelle von 8 würde dagegen jedes Bild durchfallen lassen — auch
+die guten — und bei schwerer Gewichtung jedes Mal einen dritten, bezahlten Versuch auslösen.

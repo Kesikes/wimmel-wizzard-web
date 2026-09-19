@@ -191,7 +191,9 @@ const VIOLATION_SEVERITY = {
   // Figurengroesse UND die Kopfgroessen innerhalb einer Tiefenebene. Ein false kann also auch von
   // der zweiten Haelfte kommen. Seit dem Notizfeld steht im Verify-JSON, welche -- vor einem
   // Zurueckdrehen dort nachsehen, statt die Gewichtung blind zu aendern.
-  scale_ok: "heavy",
+  // scale_est traegt ab 19.09.2026 die Gewichtung, die bei scale_ok lag -- zweite Kopie, siehe
+  // pipeline.js.
+  scale_est: "heavy", scale_ok: "heavy",
   // heads_ok: NEU (18.09.2026), die aus scale_ok herausgeloeste zweite Haelfte -- Kopfgroessen
   // innerhalb einer Tiefenebene. Bewusst "mittel": es war nie der Grund, aus dem der Nutzer ein
   // Bild abgelehnt hat, und es soll kein Geld ausgeben.
@@ -209,6 +211,9 @@ const DEFAULT_SEVERITY = "medium";
 // Kopie -- Wert und ausfuehrliche Herleitung stehen in public/js/pipeline.js bei DEPTH_MIN_RATIO
 // ("HIER SCHRAUBST DU AN DER GEFORDERTEN TIEFE"). Bei Aenderungen BEIDE Stellen anpassen.
 const DEPTH_MIN_RATIO = 1.8;
+// SCALE_MIN_FIT: zweite Kopie -- Wert und ausfuehrliche Herleitung stehen in
+// public/js/pipeline.js bei SCALE_MIN_FIT. Beide anpassen.
+const SCALE_MIN_FIT = 2.8;
 
 // countViolations(): wertet die JSON-Antwort des Verify-Aufrufs aus.
 // Zwei Feldformen werden erkannt: "*_ok"-Felder (false = Verstoss) und das dreiwertige "density"
@@ -255,6 +260,13 @@ function countViolations(verifyOutputText, figuresBand) {
       if (!isFinite(verhaeltnis) || verhaeltnis <= 0) return;
       bad = verhaeltnis < DEPTH_MIN_RATIO;
     }
+    // NEU (19.09.2026), siehe severityOf() in pipeline.js: die Figurengroesse wird aus der
+    // gemessenen Zahl bewertet, nicht mehr aus einem Ja/Nein des Modells.
+    else if (k === "scale_est") {
+      const groesse = Number(parsed[k]);
+      if (!isFinite(groesse) || groesse <= 0) return;
+      bad = groesse < SCALE_MIN_FIT;
+    }
     else if (/_ok$/.test(k)) bad = parsed[k] === false;
     else return;
     if (!bad) return;
@@ -288,5 +300,5 @@ function isGoodEnough(severity) {
 module.exports = {
   VERIFY_MODEL, falHeaders, falBaseAppId,
   submitFalQueue, falQueueStatus, falQueueResult, callFalVerifySync,
-  countViolations, compareSeverity, isGoodEnough, VIOLATION_SEVERITY, DEPTH_MIN_RATIO, logFalError,
+  countViolations, compareSeverity, isGoodEnough, VIOLATION_SEVERITY, DEPTH_MIN_RATIO, SCALE_MIN_FIT, logFalError,
 };

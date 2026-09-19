@@ -1219,6 +1219,10 @@ var SCENE_PHASES = {
     // greifbarer -- dasselbe Prinzip, das bei densityInstruction() mit den regionalen
     // Mindestzahlen nachweislich funktioniert.
     humanSplit: "Roughly how the people are spread: a small handful at the very front, two to three dozen in the middle distance, and the clear majority as small figures further back, filling the scene all the way to the horizon.",
+    // NEU (19.09.2026): Innenraum-Fassung. Die Zeile darueber sprach auch im aufgeschnittenen Haus
+    // vom Horizont -- dieselbe Falle wie beim Zonen-Satz, nur an einer zweiten Stelle. Ein
+    // Querschnitt hat keine Tiefenebenen, die Verteilung laeuft dort ueber die Raeume.
+    humanSplitHaus: "Roughly how the people are spread: every room in the house holds its own small group, the busiest rooms a dozen or more, the quietest at least two or three, and nobody is left standing alone in an empty room.",
     // Kompositionstypen fuer diese Phase, in der Reihenfolge ihrer Haeufigkeit. Welcher davon zu
     // einem Thema passt, entscheidet pickComposition() unten -- ein Bauernhof laesst sich nicht als
     // Haus-Querschnitt zeichnen.
@@ -1271,6 +1275,7 @@ var SCENE_PHASES = {
     // braucht es ein eigenes Phase-2-Kontrollbild.
     totalCharacters: "roughly 90 to 120",
     humanSplit: "Roughly how the people are spread: a small handful at the very front, two to three dozen in the middle distance, and the clear majority as small figures further back and in the surrounding streets and rooms.",
+    humanSplitHaus: "Roughly how the people are spread: every room in the house holds its own small group, the busiest rooms a dozen or more, the quietest at least two or three, and nobody is left standing alone in an empty room.",
     compositions: ["overview_cutaway", "overview_open"],
     // SCHARF GEZOGEN (17.09.2026), OBERGRENZE ANGEHOBEN nach dem dritten Lauf: die Vorbilder des
     // Nutzers, Bild 23 und 24, sind ausdruecklich auch die Obergrenze ("das ist das MAXIMUM"). Die
@@ -1349,6 +1354,26 @@ var ACTIVE_SCENE_PHASE = "phase1";
 // ZWEITE KOPIE in api/_lib/fal-queue.js (gleiche Begruendung wie bei VIOLATION_SEVERITY dort).
 var DEPTH_MIN_RATIO = 1.8;
 
+// SCALE_MIN_FIT: wie oft die groesste Figur mindestens in die Bildhoehe passen muss, damit ein
+// Bild NICHT als "Figuren zu gross" gilt. ZWEITE KOPIE in api/_lib/fal-queue.js -- beide anpassen.
+//
+// >>> HIER SCHRAUBST DU AN DER ERLAUBTEN FIGURENGROESSE. <<<
+//
+// WARUM DIESE ZAHL NICHT 8 IST, obwohl der Bild-Prompt acht bis zehn verlangt: Anweisung und
+// Pruefung sind hier mit Absicht verschieden (Abschnitt 9.2 der Kalibrierungs-Doku). Das Modell
+// unterschreitet die Forderung verlaesslich um den Faktor zweieinhalb bis drei; die Zahl im Prompt
+// ist die einzige Kraft nach unten und bleibt deshalb hoch. Eine Pruefschwelle von 8 wuerde
+// dagegen JEDES Bild durchfallen lassen, auch die, die der Nutzer gut findet -- und weil die
+// Figurengroesse SCHWER gewichtet ist, jedes Mal einen dritten, bezahlten Versuch ausloesen.
+//
+// WARUM 2,8: bisher gibt es drei belastbare Messungen, und sie liegen eng beieinander.
+//   Bauernhof-Referenzbild  3,0 (Lineal des Nutzers)  ANGENOMMEN, "das ist die Referenz"
+//   cutaway, gewaehlt       2,5 (scale_est)           ABGELEHNT, "Figuren viel zu gross"
+//   cutaway, Kandidat 1     2,2 (scale_est)           ABGELEHNT
+// 2,8 liegt zwischen dem angenommenen und dem besten abgelehnten Bild. Das ist eine duenne
+// Grundlage -- mit mehr scale_est-Werten aus echten Bildern gehoert die Zahl nachgezogen.
+var SCALE_MIN_FIT = 2.8;
+
 // NEU (17.09.2026, Bildbewertung, Abschnitt D1 "Gewichtung einfuehren"): nicht jeder Verify-Verstoss
 // ist gleich schwer. Nutzer-Vorgabe woertlich: "Ein Kandidat mit falschem Stil darf nicht gewinnen,
 // nur weil er weniger Kleinigkeiten hat."
@@ -1396,7 +1421,11 @@ var VIOLATION_SEVERITY = {
   // Figurengroesse UND die Kopfgroessen innerhalb einer Tiefenebene. Ein false kann also auch von
   // der zweiten Haelfte kommen. Seit dem Notizfeld steht im Verify-JSON, welche -- vor einem
   // Zurueckdrehen dort nachsehen, statt die Gewichtung blind zu aendern.
-  scale_ok: "heavy",
+  // scale_est traegt ab 19.09.2026 die Gewichtung, die seit 113effc bei scale_ok lag -- das Feld
+  // scale_ok ist aus dem Verify-Prompt verschwunden (Begruendung bei SCALE_MIN_FIT oben). Der alte
+  // Schluessel bleibt stehen: Bilder, die vorher im AppState gelandet sind, tragen ihn noch, und
+  // der Warnkasten auf dem Ergebnis-Screen rechnet die Schwere nachtraeglich aus.
+  scale_est: "heavy", scale_ok: "heavy",
   // heads_ok: NEU (18.09.2026), die aus scale_ok herausgeloeste zweite Haelfte -- Kopfgroessen
   // innerhalb einer Tiefenebene. Bewusst "mittel": es war nie der Grund, aus dem der Nutzer ein
   // Bild abgelehnt hat, und es soll kein Geld ausgeben.
@@ -1432,6 +1461,16 @@ function severityOf(parsed, figuresBand) {
       var v = Number(parsed[k]);
       if (!isFinite(v) || v <= 0) return;
       bad = v < DEPTH_MIN_RATIO;
+    }
+    // NEU (19.09.2026): die Figurengroesse wird aus der gemessenen Zahl bewertet, nicht mehr aus
+    // einem Ja/Nein des Modells. Anlass: in einem Bild meldete es scale_est 2,5 UND scale_ok true,
+    // beim Nachbarkandidaten 2,2 und false -- es hat nach Gefuehl geurteilt statt nach seiner
+    // eigenen Messung. Dasselbe Muster wie frueher bei Dichte und Tiefe: die Zahl kommt vom
+    // Modell, die Bewertung gehoert in den Code.
+    else if (k === "scale_est") {
+      var g = Number(parsed[k]);
+      if (!isFinite(g) || g <= 0) return;
+      bad = g < SCALE_MIN_FIT;
     }
     else if (/_ok$/.test(k)) bad = parsed[k] === false;
     else return;
@@ -1653,6 +1692,10 @@ const THEME_META = {
   },
   "Weihnachten": {
     locId: "christmas", type: "cutaway", en: "cozy living room decorated for Christmas Eve, a lit Christmas tree in the corner",
+    // enHaus: Fassung fuer die Querschnitts-Kompositionen (siehe ortText in scenePrompt). "en"
+    // bleibt unveraendert -- es beschreibt weiterhin richtig, was man sieht, wenn EIN Raum gezeigt
+    // wird, und wird von den uebrigen Kompositionstypen weiter benutzt.
+    enHaus: "a family home on Christmas Eve, the whole house cut open: a living room with a lit Christmas tree, a kitchen, a hallway, the stairs and the bedrooms above",
     regions: ["by the Christmas tree", "in the kitchen", "on the stairs", "by the fireplace"], regionMin: 5
   },
   "Urlaub": {
@@ -1787,6 +1830,11 @@ const SCENE_STYLE_BLOCK = "Every human or human-like character in the scene, nam
 // übernommen (dort bereits als fertiger, englischer Prompt-Baustein in Anführungszeichen gegeben) —
 // keine eigene Übersetzung/Umformulierung nötig.
 const FILL_EMPTY_SPACE_RULE = "Fill all empty space – sky, ground, water – with additional small background characters, animals, and objects. No large empty or negative space anywhere in the scene.";
+// NEU (19.09.2026): dritte und letzte Stelle, an der ein Satz fuer die offene Landschaft auch im
+// aufgeschnittenen Haus stand ("sky, ground, water" in einem Wohnzimmer). Gefunden vom Nutzer am
+// fertigen Prompt, nachdem der Zonen-Satz bereits angepasst war -- ein guter Hinweis darauf, wie
+// viele Formulierungen stillschweigend "draussen" annehmen.
+const FILL_EMPTY_SPACE_RULE_HAUS = "Fill all empty space inside the house – bare floors, walls, stairs, shelves, window sills, the corners of every room – with additional small characters, pets, furniture and objects. No room stands half empty, and no wall is a blank surface.";
 const COHERENCE_RULE = "The whole scene is ONE continuous space seen from a slightly elevated angle, unbroken – no gaps, no floating patches, no collage look.";
 
 // NEU (Nutzer-Ergaenzung zu Punkt 2, direkt bei der Umsetzung mit eingebaut statt nachtraeglich):
@@ -1844,7 +1892,7 @@ const EMOTION_WORDS_RULE = "Do not use any emotion or facial-expression words fo
 // fuer Druck klaeren") nichts Wichtiges kappt. Ergaenzt, nicht ersetzt FILL_EMPTY_SPACE_RULE oben --
 // der Rand darf weiterhin mit Hintergrund-Fuellung (Himmel/Boden/Wasser) belegt werden, nur eben
 // nichts, das wichtig ist.
-const SAFE_MARGIN_RULE = "Keep the outer 6% of the image at the very top and the outer 6% at the very bottom as a low-priority safety margin: fine for sky, ground, water, or incidental background filler, but never place a named hero's vignette or an important, eye-catching gag there — it may be cropped for print. Everything important belongs in the vertical band between those two margins.";
+const SAFE_MARGIN_RULE = "Keep the outer 6% of the image at the very top and the outer 6% at the very bottom as a low-priority safety margin: fine for sky, ground, water, a ceiling, a bare floor or incidental background filler, but never place a named hero's vignette or an important, eye-catching gag there — it may be cropped for print. Everything important belongs in the vertical band between those two margins.";
 
 // NEU: explizite Bild-zu-Name-Zuordnung (Spezifikation Abschnitt 2: "Reference image 1 shows
 // [Name]: [Merkmale]... für jedes Bild einzeln, nicht nur eine allgemeine Liste"). heroSpecs[i]
@@ -2229,7 +2277,17 @@ const HERO_FINDABILITY_RULE = "Finding the named characters is meant to be a sma
 // beim Stil (Pruefung tolerant, Anweisung streng), die der Nutzer am 17.09.2026 ausdruecklich
 // bestaetigt hat.
 function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount, phase, composition, heroActions }) {
-  const kw = "wmlstil, " + theme.en + ", " + composition.kw;
+  // NEU (19.09.2026): ein reiner Querschnitt (cutaway/gridhouse) braucht an mehreren Stellen eine
+  // andere Formulierung als eine offene Szene. overview_cutaway zaehlt hier NICHT dazu: dort gibt
+  // es draussen echte Landschaft, Himmel und Horizont.
+  const imHaus = composition.id === "cutaway" || composition.id === "gridhouse";
+  // GEAENDERT (19.09.2026, Nutzer-Befund): die Ortsbeschreibung fuer Weihnachten lautete "cozy
+  // living room ... a lit Christmas tree in the corner" -- ein einzelnes Zimmer, waehrend die
+  // Komposition acht bis neun Raeume verlangt. Das beisst sich, und das Modell muss sich fuer
+  // eines entscheiden. THEME_META traegt fuer Themen, die als Haus gezeichnet werden koennen,
+  // jetzt eine zweite Fassung (enHaus), die das ganze Haus benennt statt eines Zimmers.
+  const ortText = (imHaus || composition.id === "overview_cutaway") && theme.enHaus ? theme.enHaus : theme.en;
+  const kw = "wmlstil, " + ortText + ", " + composition.kw;
   const sentences = [];
   // Ganz vorne, noch vor der Helden-Zuordnung -- Primacy-Haelfte des Mund-Sandwiches (siehe
   // Kommentar bei NO_MOUTH_EMPHASIS oben).
@@ -2293,7 +2351,8 @@ function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount, phase, co
   // Jetzt ausdruecklich MENSCHEN, mit einem eigenen Satz dazu, dass Tiere obendrauf kommen und die
   // Menschen nicht ersetzen.
   sentences.push("Populate the whole scene with " + phase.totalCharacters + " individual HUMAN figures — people, and only people count towards this number. Animals do not count towards it at all: a place full of animals with only a couple of dozen people in it is a failed image. Draw plenty of animals as well, but on top of the people, never instead of them.");
-  if (phase.humanSplit) sentences.push(phase.humanSplit);
+  const verteilung = imHaus && phase.humanSplitHaus ? phase.humanSplitHaus : phase.humanSplit;
+  if (verteilung) sentences.push(verteilung);
   // GEAENDERT (19.09.2026): THREE_LAYER_RULE verlangt drei klar verschiedene Figurengroessen. In
   // einer offenen Landschaft ist das richtig und war der wichtigste Befund der Bildbewertung. In
   // einem reinen Querschnitt ist es genau falsch -- dort sollen alle Figuren gleich gross sein
@@ -2306,7 +2365,7 @@ function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount, phase, co
   if (phase.id === "phase2") sentences.push(PHASE2_FOREGROUND_RULE);
   sentences.push(SCENE_STYLE_BLOCK);
   sentences.push(FLAT_FACE_RULE);
-  sentences.push(FILL_EMPTY_SPACE_RULE);
+  sentences.push(imHaus ? FILL_EMPTY_SPACE_RULE_HAUS : FILL_EMPTY_SPACE_RULE);
   sentences.push(COHERENCE_RULE);
   // GEAENDERT (19.09.2026): gleiche Begruendung wie bei THREE_LAYER_RULE oben -- "characters shrink
   // smoothly from the front towards the back" ist im reinen Querschnitt das Gegenteil dessen, was
@@ -2514,7 +2573,7 @@ function buildVerifyPrompt(heroSpecs, phaseId, compositionId) {
     : "";
   const parts = [
     "Du prüfst ein Wimmelbild für ein Kinderbuch gegen eine feste Stilvorgabe. Das ERSTE Bild ist die zu bewertende Szene." + refMapping,
-    "Beantworte genau diese zehn Punkte:",
+    "Beantworte genau diese neun Punkte:",
 
     "1. HELDEN: Kommen alle " + n + " benannten Figuren (" + names + ") vor, jede GENAU EINMAL (nicht doppelt) und grob passend zu ihrem Referenzbild? Verglichen werden nur GROBE Merkmale: Frisur/Haarform, Haarfarbe, wichtigstes Kleidungsstück samt Farbe, Altersstufe (Kind / Erwachsener / älterer Mensch). Kleinstdetails wie Sommersprossen, Streifenmuster oder Knöpfe sind ausdrücklich KEIN Grund für ein Nein.",
     "Wo die Figuren im Bild stehen, ist dabei ausdrücklich FREI: eine benannte Figur darf vorne groß, im Mittelgrund oder weiter hinten und klein im Bild stehen, auch abseits vom Zentrum. Das ist so gewollt -- Suchen gehört zum Spiel. Sie zu suchen ist Teil deiner Aufgabe, und dass du sie erst suchen musstest, ist KEIN Verstoß.",
@@ -2542,22 +2601,25 @@ function buildVerifyPrompt(heroSpecs, phaseId, compositionId) {
     // bekommen mit heads_ok ein eigenes, mittleres Feld, und die Zahl wandert als scale_est in die
     // reinen Messwerte -- unbewertet, wie es depth_ratio und figures_est vorgemacht haben, bis
     // genug Bilder da sind, um eine Spanne zu ziehen.
-    "4. GRÖSSENWIRKUNG: Schau auf das Bild als Ganzes. Wirken die vordersten Figuren wie Teilnehmer einer großen, weiten Szene -- oder drängen sie sich als große Einzelfiguren in den Vordergrund und beherrschen das Bild? Ein Nein ist fällig, wenn mindestens eines davon zutrifft: eine einzelne Figur ist so groß, dass man sie als das Motiv des Bildes lesen würde; eine Figur reicht über mehr als ein Drittel der Bildhöhe; eine Figur ist so groß, dass ihr Gesicht auf den ersten Blick Einzelheiten zeigt; oder eine übergroße Figur steht angeschnitten am Bildrand und rahmt die Szene. Trifft nichts davon zu, ist scale_ok true -- auch dann, wenn die vorderen Figuren für deinen Geschmack recht groß wirken. Entscheidend ist, ob eine Figur das Bild an sich zieht, nicht ihre genaue Höhe.",
-    "5. GRÖSSE ALS ZAHL: Wie oft würde eine der GRÖSSTEN Figuren im Vordergrund ihrer Höhe nach übereinander in die Bildhöhe passen? Antworte hier nicht mit true/false, sondern mit einer einzelnen Zahl, gern mit einer Dezimalstelle. Diese Zahl wird NICHT bewertet, sie wird nur gesammelt.",
-    "6. KOPFGRÖSSEN: Sind die Köpfe innerhalb derselben Tiefenebene ungefähr gleich groß, unabhängig davon, ob es Kinder, Erwachsene oder ältere Menschen sind? Größenunterschiede zwischen Kind und Erwachsenem gehören in die Körperproportionen, nicht in den Kopf. Ein Nein nur, wenn es deutlich auffällt.",
+    // GEAENDERT (19.09.2026): die Eindrucksfrage scale_ok ist ersatzlos weg -- sie beantwortete
+    // 2,5 mit "true" und 2,2 mit "false" und ignorierte damit ihre eigene Messung. Bewertet wird
+    // jetzt die Zahl, im Code, gegen SCALE_MIN_FIT. Uebrig bleibt die Messung, so eindeutig
+    // gestellt wie moeglich, mit zwei Ankerbeispielen gegen Fehlinterpretation.
+    "4. GRÖSSE ALS ZAHL: Nimm die GRÖSSTE menschliche Figur im Bild. Wie oft würde sie ihrer Höhe nach übereinander in die Bildhöhe passen? Stell dir vor, du legst sie wieder und wieder übereinander, vom unteren bis zum oberen Bildrand. Reicht sie über die halbe Bildhöhe, ist die Antwort etwa 2; ist sie ein Achtel so hoch wie das Bild, ist sie 8. Antworte mit einer einzelnen Zahl, gern mit einer Dezimalstelle, nicht mit true/false. Miss so genau du kannst — von dieser Zahl hängt ab, ob das Bild angenommen wird.",
+    "5. KOPFGRÖSSEN: Sind die Köpfe innerhalb derselben Tiefenebene ungefähr gleich groß, unabhängig davon, ob es Kinder, Erwachsene oder ältere Menschen sind? Größenunterschiede zwischen Kind und Erwachsenem gehören in die Körperproportionen, nicht in den Kopf. Ein Nein nur, wenn es deutlich auffällt.",
 
-    "7. FIGURENZAHL: Schätze, wie viele MENSCHEN insgesamt im Bild zu sehen sind -- alle zusammengezählt, auch die ganz kleinen im Hintergrund. TIERE NICHT MITZÄHLEN. Antworte hier nicht mit true/false, sondern mit einer einzelnen ganzen Zahl, deiner besten Schätzung, gern gerundet.",
+    "6. FIGURENZAHL: Schätze, wie viele MENSCHEN insgesamt im Bild zu sehen sind -- alle zusammengezählt, auch die ganz kleinen im Hintergrund. TIERE NICHT MITZÄHLEN. Antworte hier nicht mit true/false, sondern mit einer einzelnen ganzen Zahl, deiner besten Schätzung, gern gerundet.",
 
-    "8. MÜNDER: Wirkt das Bild so, als hätten auffällig viele MENSCHLICHE Figuren einen sichtbaren Mund? Gemeint ist der Gesamteindruck, keine genaue Zählung: bei den meisten menschlichen Gesichtern soll unter den Punktaugen und dem Nasenstrich nichts weiter zu sehen sein. Einzelne Figuren mit Mund sind gewollt und kein Verstoß. Ein Nein ist erst fällig, wenn ein Mund bei den menschlichen Figuren eher die Regel als die Ausnahme ist.",
+    "7. MÜNDER: Wirkt das Bild so, als hätten auffällig viele MENSCHLICHE Figuren einen sichtbaren Mund? Gemeint ist der Gesamteindruck, keine genaue Zählung: bei den meisten menschlichen Gesichtern soll unter den Punktaugen und dem Nasenstrich nichts weiter zu sehen sein. Einzelne Figuren mit Mund sind gewollt und kein Verstoß. Ein Nein ist erst fällig, wenn ein Mund bei den menschlichen Figuren eher die Regel als die Ausnahme ist.",
     "TIERE ZÄHLEN HIER UNTER KEINEN UMSTÄNDEN MIT: ein Hund mit offenem Maul oder heraushängender Zunge, ein offener Vogelschnabel, eine Kuh, ein Hahn, eine Gans, ein fressendes oder brüllendes Tier -- all das ist vollkommen in Ordnung und darf dein Urteil zu diesem Punkt nicht beeinflussen. Zähle ausschließlich Menschen.",
 
-    "9. LOGIK: Werden Innenraum und Außenwelt vermischt? Ein Nein ist fällig, wenn Wetter oder Untergrund am falschen Ort auftauchen: Schnee, Regen, Sand, Wellen, Rasen oder Himmel innerhalb eines Zimmers, Straßenpflaster in einer Küche, Wohnzimmermöbel mitten im Freien ohne erkennbaren Grund.",
+    "8. LOGIK: Werden Innenraum und Außenwelt vermischt? Ein Nein ist fällig, wenn Wetter oder Untergrund am falschen Ort auftauchen: Schnee, Regen, Sand, Wellen, Rasen oder Himmel innerhalb eines Zimmers, Straßenpflaster in einer Küche, Wohnzimmermöbel mitten im Freien ohne erkennbaren Grund.",
     "Zur Abgrenzung beim Gebäude-Querschnitt, denn das ist der knifflige Fall: dass Innenräume und Außenwelt NEBENEINANDER zu sehen sind, ist völlig in Ordnung und genau so gewollt. Ein Verstoß ist es aber, wenn eine Außenfläche unmittelbar in einen Innenraum-Boden übergeht, ohne Wand, Tür, Fensterrahmen oder Hauskante dazwischen -- also etwa eine Schneefläche, die direkt an den Küchenboden anschließt, oder Rasen, der ohne Grenze im Wohnzimmer weiterläuft. Prüfe dafür jede Stelle, an der ein Innenraum an eine Außenfläche grenzt, und schau, ob dort eine bauliche Grenze zu sehen ist.",
     "AUSDRÜCKLICH KEIN VERSTOSS gegen die Logik: unterschiedliche Kleidung der Figuren (Winterjacke neben Sommerkleidung), nicht zur Jahreszeit passende Details, oder dass eine Situation unwahrscheinlich oder albern wirkt. Beurteile allein die Vermischung von Innen und Außen.",
 
-    "10. TEXT: Ist das Bild vollständig frei von Text -- keine Buchstaben, Wörter, Zahlen, Schilder, Poster, Beschriftungen oder Aufschriften auf Kleidung und Gegenständen, auch nicht klein oder im Hintergrund?",
+    "9. TEXT: Ist das Bild vollständig frei von Text -- keine Buchstaben, Wörter, Zahlen, Schilder, Poster, Beschriftungen oder Aufschriften auf Kleidung und Gegenständen, auch nicht klein oder im Hintergrund?",
 
-    "Antworte NUR als JSON-Objekt mit genau diesen elf Feldern, notiz immer als LETZTES: {\"heroes_ok\": true/false, \"style_ok\": true/false, \"depth_ratio\": Zahl, \"scale_ok\": true/false, \"scale_est\": Zahl, \"heads_ok\": true/false, \"figures_est\": Zahl, \"mouths_ok\": true/false, \"logic_ok\": true/false, \"no_text_ok\": true/false, \"notiz\": \"kurzer Text\"}.",
+    "Antworte NUR als JSON-Objekt mit genau diesen zehn Feldern, notiz immer als LETZTES: {\"heroes_ok\": true/false, \"style_ok\": true/false, \"depth_ratio\": Zahl, \"scale_est\": Zahl, \"heads_ok\": true/false, \"figures_est\": Zahl, \"mouths_ok\": true/false, \"logic_ok\": true/false, \"no_text_ok\": true/false, \"notiz\": \"kurzer Text\"}.",
     // NEU (18.09.2026): notiz. Grund: der Prompt verlangte an zwei Stellen eine Begruendung ("nenne,
     // welche Figur du meinst"), das Antwortformat liess aber nur die acht Wertungsfelder zu -- die
     // Begruendung ging also jedes Mal verloren. Sichtbar wurde das, als bei einem Bild zwei von drei
@@ -2568,7 +2630,7 @@ function buildVerifyPrompt(heroSpecs, phaseId, compositionId) {
     // Angezeigt wird es ohne Zusatzarbeit, weil buildDebugDetails() (szene.js) das rohe Verify-JSON
     // je Kandidat ausgibt.
     "notiz ist ein kurzer deutscher Freitext, höchstens zwei Sätze, und wird NICHT bewertet -- er dient nur dazu, dass ein Mensch nachvollziehen kann, warum ein Feld false ist. Steht irgendwo false, schreib dort in Stichworten hin, was du gesehen hast; ist alles in Ordnung, schreib eine leere Zeichenkette. Verwende darin KEINE Anführungszeichen und KEINE Zeilenumbrüche, damit das JSON gültig bleibt.",
-    "Bei allen *_ok-Feldern bedeutet true: kein Verstoß. Also style_ok=true, wenn weder eine plastische Nase noch ein naturalistisches Tier zu finden ist; mouths_ok=true, wenn ein Mund bei den Menschen die Ausnahme bleibt; logic_ok=true, wenn Innen und Außen NICHT vermischt sind. depth_ratio, scale_est und figures_est sind keine Bewertungen, sondern nur deine geschätzten Zahlen.",
+    "Bei allen *_ok-Feldern bedeutet true: kein Verstoß. Also style_ok=true, wenn weder eine plastische Nase noch ein naturalistisches Tier zu finden ist; mouths_ok=true, wenn ein Mund bei den Menschen die Ausnahme bleibt; logic_ok=true, wenn Innen und Außen NICHT vermischt sind. depth_ratio, scale_est und figures_est sind keine true/false-Urteile, sondern deine gemessenen Zahlen — bewertet werden sie hinterher im Code.",
     "Wichtig zur Strenge: bewerte nur, was du tatsächlich siehst. Wenn du dir bei einem der Ja/Nein-Punkte nicht sicher bist, antworte dort true -- ein vermuteter Verstoß ist kein Verstoß. Das gilt aber NICHT für die gezielte Suche unter Punkt 2: dort sollst du wirklich nachsehen und einen gefundenen Ausreißer auch benennen, statt vorsichtshalber true zu antworten.",
 
   ];
