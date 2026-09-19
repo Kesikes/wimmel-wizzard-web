@@ -1368,7 +1368,7 @@ var ACTIVE_SCENE_PHASE = "phase1";
 // in den Kompositionstypen, aendert sich die Pruefsumme -- ohne dass jemand daran denken muss.
 // Das von Hand gepflegte Datum bleibt als lesbare Ergaenzung daneben stehen; verlassen tun wir uns
 // auf die Pruefsumme.
-var PROMPT_LABEL = "2026-09-19g";
+var PROMPT_LABEL = "2026-09-22a";
 
 // FNV-1a, 32 Bit. Bewusst kein crypto.subtle: das ist asynchron, und diese Kennung soll ohne
 // Umstand synchron beim Laden feststehen. Kollisionen sind hier belanglos -- es geht nicht um
@@ -2550,6 +2550,19 @@ function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount, phase, co
     sentences.push(HERO_FINDABILITY_RULE);
   }
   if (heroBits) sentences.push("The named characters above do exactly the activity given for each of them and nothing else. The little scenes and running gags listed further below belong to the unnamed background characters — never hand one of them to a named character instead of their own activity.");
+  // VERSCHOBEN HIERHER (19.09.2026, Berg-Testbild). Die Regel stand bisher ganz am Ende des
+  // Prompts, als Satz 79 von 82 und damit nach rund 20.000 Zeichen -- die Platzierung der Helden
+  // steht bei Satz 45. Im Berg-Bild kam dieselbe Heldin zweimal vor, einmal im Wohnraum und einmal
+  // am Tisch, beide Male mit identischer Frisur UND identischem Punkteshirt: eine echte Dopplung,
+  // keine Nachahmung durch eine Bibliotheksfigur (vom Nutzer am Bild geprueft).
+  // Der Text ist ABSICHTLICH unveraendert. Wir haben in diesem Projekt mehrfach erlebt, dass die
+  // Position im Prompt staerker wirkt als die Formulierung (zuletzt bei der Groessenregel), und
+  // ein Test mit zwei gleichzeitigen Aenderungen sagt nichts darueber, welche gewirkt hat.
+  // ZURUECKDREHEN, WENN: die Dopplungen bleiben und stattdessen etwas aus dem Schlussblock
+  // schlechter wird -- dann war die Position nicht die Ursache.
+  // NEBENEFFEKT, erwuenscht: die Regel haengt jetzt an heroBits. Ohne benannte Helden wurde sie
+  // vorher trotzdem gebaut und lieferte "Each of the 0 named characters (undefined) ...".
+  if (heroBits) sentences.push(allCharactersRule(heroSpecs));
   // NEU (D2): Zielzahl aus der Phase.
   // GEAENDERT (18.09.2026): hier stand "individual characters in total". Das Modell hat Tiere
   // mitgezaehlt und das Bild mit Huehnern, Kuehen und Hunden gefuellt, bei rund 25 bis 30 Menschen.
@@ -2580,7 +2593,8 @@ function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount, phase, co
   sentences.push(INDOOR_OUTDOOR_RULE);
   sentences.push(SAFE_MARGIN_RULE);
   sentences.push(EMOTION_WORDS_RULE);
-  sentences.push(allCharactersRule(heroSpecs));
+  // VERSCHOBEN (19.09.2026): allCharactersRule() stand hier, als Satz 79 von 82. Sie steht jetzt
+  // direkt hinter den Platzierungssaetzen weiter oben -- siehe die Begruendung dort.
   sentences.push(sizeRuleReminder(phase, composition));
   sentences.push(EDGE_AND_FACE_REMINDER);
   sentences.push(ZERO_TEXT_RULE);

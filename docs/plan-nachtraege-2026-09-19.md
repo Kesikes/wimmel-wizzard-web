@@ -219,8 +219,30 @@ Drei Kandidaten, in der Reihenfolge, in der ich sie für wahrscheinlich halte:
    identische Kleidung *und* Frisur spricht für Dopplung, nur ein übernommenes Merkmal für
    Nachahmung.
 
-Für Montag: erst Kandidat 3 am vorhandenen Bild entscheiden (reines Hinschauen), dann Kandidat 1
-umsetzen. `heroes_found` bleibt bis dahin „mittel".
+**Entschieden am Bild (19.09.2026): es ist eine echte Dopplung.** Das blonde Mädchen mit
+Punkteshirt kommt zweimal vor — oben im Wohnraum, unten links am Tisch — beide Male mit identischer
+welliger Frisur *und* identischem hellem Punkteshirt. Nicht ein übernommenes Merkmal, sondern
+dieselbe Figur. Damit ist Kandidat 3 (Nachahmung durch eine Bibliotheksfigur) erledigt.
+
+**Umgesetzt: Kandidat 1.** `allCharactersRule()` steht jetzt direkt hinter den Platzierungssätzen
+statt am Prompt-Ende. Gemessen an einem Beispiel-Prompt mit drei Helden, Weihnachten, Phase 1,
+`overview_cutaway`:
+
+| | vorher | nachher |
+|---|---|---|
+| Position der Regel | Satz 104 von 114 | Satz 53 von 114 |
+| Zeichen davor | 16.665 | 8.679 |
+| Sätze insgesamt | 114 | 114 |
+
+Der **Text ist unverändert**. Das ist Absicht: wir haben mehrfach erlebt, dass die Position stärker
+wirkt als die Formulierung, und ein Test mit zwei gleichzeitigen Änderungen sagt nicht, welche
+gewirkt hat. Prompt-Fassung `2026-09-22a`.
+
+Nebeneffekt, erwünscht: die Regel hängt jetzt an `heroBits`. Ohne benannte Helden wurde sie vorher
+trotzdem gebaut und lieferte „Each of the 0 named characters (undefined) …".
+
+Zurückdrehen, wenn: die Dopplungen bleiben und stattdessen etwas aus dem Schlussblock schlechter
+wird — dann war die Position nicht die Ursache. `heroes_found` bleibt bis zur Klärung „mittel".
 
 ### G.2 Der Testmodus ließ sich nicht verlassen (behoben)
 
