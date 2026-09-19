@@ -111,3 +111,80 @@ verschiebt sich um eins.
 Zu bedenken: ob das Modell mit einer leeren Fläche als Ausgangsbild gleich gut arbeitet, ist offen.
 Dagegen spricht wenig — das Ergebnis ist 16:9 in 4K, während das Basisbild heute ein 3:4-Blatt ist,
 die Geometrie wird also ohnehin nicht übernommen. Prüfbar mit **einem** Bild.
+
+---
+
+## D. Phase 0.1 abgeschlossen (19.09.2026)
+
+Alle fünf Kompositionstypen sind getestet. **Vier von fünf liefern brauchbare Bilder:** `open`,
+`gridhouse`, `overview_open`, `overview_cutaway`.
+
+Bemerkenswert: der schwierigste Typ ist der beste. `overview_cutaway` — Haus im Querschnitt **plus**
+Straße und Umgebung, also innen und außen in einem Bild — kam mit **null Verstößen** heraus,
+`figures_est` 55, `scale_est` 2,8, `depth_ratio` 6.
+
+`cutaway` war der einzige mit dem Maßstabsbruch zwischen den Räumen. Ursache gefunden und behoben
+(zwei Sätze, die einander aufhoben: „alle gleich groß" gegen „die vorderste ist die größte"),
+Gegenprobe steht noch aus.
+
+---
+
+## E. Phase 0.2 — Bestandsaufnahme der Editiermodi (19.09.2026)
+
+Statische Durchsicht aller Knöpfe auf `screens/`, gesucht wurde nach Knöpfen ohne jede
+Klick-Behandlung. Zwei Fehlalarme aussortiert (der Themen-Knopf hat seinen Handler weiter unten im
+selben Aufruf, „Schicken" im Dashboard ist ein `submit` in einem Formular mit Handler).
+
+**Übrig bleiben vier Knöpfe ohne Funktion — und es sind zweimal dieselben zwei:**
+
+| Screen | Beschriftung | Ort |
+|---|---|---|
+| Ergebnis, mobil | „Detail antippen" | `szene.js:1343` |
+| Ergebnis, mobil | „Nochmal zaubern" | `szene.js:1344` |
+| Ergebnis, Desktop | „Einzelnes Detail antippen" | `szene.js:1446` |
+| Ergebnis, Desktop | „Ganze Szene nochmal zaubern" | `szene.js:1447` |
+
+Das erklärt den Eindruck „die Editiermodi funktionieren nicht": von drei Werkzeugen auf dem
+Ergebnis-Screen tut genau eines etwas. Und es ist zugleich das beste Beispiel für Phase 0.3 —
+**derselbe Fehler steht zweimal da, und beide Male müsste er zweimal behoben werden.**
+
+Was funktioniert: der Stift mit beiden Modi (entfernen / neu zeichnen), der Freitext-Änderungswunsch,
+Anwenden, Markierung löschen und der neue Ausgang.
+
+**Zu klären, bevor gebaut wird** (das sind Produktfragen, keine technischen):
+
+- **„Detail antippen"** — was soll es tun, das der Stift nicht tut? Naheliegend: statt eines
+  Kringels ein einzelner Tipp auf eine Stelle plus Freitext. Technisch ist das derselbe Weg mit
+  einer anderen Markierung. Falls es keinen eigenen Zweck hat, wäre Weglassen die ehrlichere
+  Antwort — ein Werkzeug weniger, das erklärt werden muss.
+- **„Nochmal zaubern"** — die ganze Szene neu, mit demselben Prompt und neuen Seeds? Das ist ein
+  voller Satz Kandidaten, also **0,30 $**. Damit hängt es direkt an der offenen Frage „wie viele
+  Versuche sind frei" aus Phase 3 und sollte nicht davor gebaut werden. Bis dahin ist es entweder
+  auszublenden oder klar als kostenpflichtig zu kennzeichnen.
+
+---
+
+## F. Phase 0.3 — Ausgangslage der Zusammenführung (19.09.2026)
+
+**Es gibt eine App, nicht zwei.** Ein Router, ein Zustand, eine Shell. Doppelt gebaut ist nur das
+Markup zweier Screens, umgeschaltet rein über CSS bei 1024 px:
+
+| Screen | mobil | Desktop | Umfang der Desktop-Fassung |
+|---|---|---|---|
+| Dashboard | `Screens.dashboard.render()` | `buildDesktopDashboard()` | rund 75 Zeilen |
+| Ergebnis | `Screens.ergebnis.render()` | `buildDesktopErgebnis()` | rund 77 Zeilen |
+| Figur, Entscheidung, Checkout | nur mobil | — | keine Desktop-Fassung |
+
+Beide Zweige lesen denselben `AppState` — der Desktop kann also keine anderen Daten zeigen.
+
+**Was die Doppelpflege bisher gekostet hat**, alles an einem Tag gefunden: das Bild mit 0 Pixel
+Breite (nur Desktop), der Warnkasten mit der alten Bedingung (nur mobil nachgezogen), und jetzt die
+zwei funktionslosen Knöpfe (in beiden Fassungen, also zweimal zu beheben).
+
+**Vorgehen, vorgeschlagen:** nicht „ein Layout für alles", sondern gemeinsame Bausteine mit
+unterschiedlicher Anordnung. Die Teile, die Verhalten tragen — Bild mit Beschnitt-Vorschau,
+Werkzeugleiste, Stift-Panel, Warnkasten, Test-Details — werden je einmal gebaut und von beiden
+Anordnungen benutzt; verschieden bleibt nur, wie sie angeordnet werden. `buildPenPanel()` macht das
+heute schon vor und ist der Grund, warum der neue Ausgangs-Knopf nur einmal gebaut werden musste.
+
+Danach entstehen Bildersammlung (Punkt A) und Kandidaten-Umschalter je einmal statt zweimal.

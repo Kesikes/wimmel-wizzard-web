@@ -103,10 +103,28 @@ Daten, die der Umbau später automatisch sammelt.
 
 | # | Datum | Thema / Komposition | App wählte | Nutzer wählte | Treffer | Verstöße beim Nutzer-Favoriten |
 |---|---|---|---|---|---|---|
-| 1 | 19.09. | Weihnachten / gridhouse | Kandidat X | derselbe | **ja** | keine (alle Felder sauber, `scale_est` 4,5, `figures_est` 45) |
+| 1 | 19.09. | Weihnachten / gridhouse | Kandidat X | derselbe | **ja** | keine; `scale_est` 4,5, `figures_est` 45 |
+| 2 | 19.09. | Urlaub / overview_open (Ph. 2) | Kandidat X | derselbe | **ja** | Werte nicht gesichert |
+| 3 | 19.09. | Weihnachten / overview_cutaway (Ph. 2) | Kandidat X | derselbe | **ja** | **null Verstöße**; `depth_ratio` 6, `scale_est` 2,8, `figures_est` 55 |
 
-**Stand: 1 von 1 getroffen.** Viel zu wenig für eine Aussage — ab etwa zwölf Entscheidungen wird
-ausgewertet.
+**Stand: 3 von 3 getroffen.**
+
+### Zwischenstand und eine wichtige Einordnung (19.09.2026)
+
+Die ursprüngliche Sorge — die Auswahl greife systematisch daneben — **bestätigt sich vorerst
+nicht.** Der Fall, der den Umbau ausgelöst hat (die App zeigte das schlechteste von mehreren guten
+Bildern), stammt aus der Zeit, als die Abbruchbedingung defekt war und **acht Kandidaten** erzeugt
+wurden. Unter acht Bildern liegen die guten und die schlechten weit auseinander, und eine Rangfolge
+nach Verstößen trifft dort viel leichter daneben. Seit der Kostenbremse sind es zwei, höchstens
+drei — und unter zwei Kandidaten ist die Auswahl bisher dreimal richtig gewesen.
+
+**Das ändert die Begründung des Umbaus, nicht den Umbau selbst.** Die Auswahl ist offenbar
+brauchbarer als befürchtet; die Kandidatenwahl bleibt trotzdem richtig, weil kein Kriterium misst,
+ob ein Bild schön ist, und weil die Wahl der Nutzerin die Daten liefert, mit denen wir Kriterien
+wieder abschaffen können. Sie rückt damit aber von „dringend" auf „geplant" — die Reihenfolge
+(erst 0.2 und 0.3) bleibt richtig.
+
+Drei Entscheidungen sind weiterhin viel zu wenig. Ausgewertet wird ab etwa zwölf.
 
 ### Was ausgewertet wird, sobald rund ein Dutzend Entscheidungen vorliegen
 
