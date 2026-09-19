@@ -185,7 +185,7 @@ also **nichts beschnitten** werden, und 233 dpi sind für ein Poster gut.
 
 **Damit reicht 4K für alle Produkte — Hochskalieren ist an keiner Stelle nötig.** Zur Einordnung:
 die Generierung liefert 5504 × 3072 Pixel (16:9), das ist die Stufe „4K" bei
-`nano-banana-pro/edit` und kostet dort den doppelten Bildpreis (0,30 $ statt 0,15 $). Die nächste
+`nano-banana-pro/edit`. **KORRIGIERT am 19.09.2026:** hier stand „der doppelte Bildpreis (0,30 $ statt 0,15 $)“ — das stimmt nicht. Die fal-Abrechnung weist **0,15 $ pro Bild** aus (499 Bilder = 74,85 $), die angenommene 4K-Verdopplung greift nicht. Alle Kostenrechnungen vor diesem Datum waren doppelt zu hoch. Die nächste
 Stufe darunter (2K, rund 2752 Pixel) käme auf dem Buchformat nur auf 236 dpi und wäre für Druck zu
 wenig; eine brauchbare Mittelstufe gibt es nicht.
 
@@ -407,3 +407,81 @@ weitere hinzuzufügen.
 
 Entscheidung, Begründung und Messreihe stehen in
 `docs/kandidatenwahl-und-kriterien-2026-09-19.md`.
+
+---
+
+## 11. Kostenwahrheit, Stand 19.09.2026
+
+Zahlen aus dem fal-Dashboard, nicht geschätzt:
+
+| Posten | Wert |
+|---|---|
+| `nano-banana-pro/edit` | **0,15 $ pro Bild** (nicht 0,30 $) |
+| Bildaufrufe im Zeitraum | 499 = 74,85 $ |
+| Gesamt im Zeitraum | 103,86 $, Tagesschnitt 5,53 $ |
+| Bildaufrufe je Szene, tatsächlich | rund **zehn** statt der geplanten zwei bis drei |
+
+**Die 4K-Verdopplung greift nicht.** Alle Kostenrechnungen vor diesem Datum — auch die Tabelle im
+Konzeptpapier vom 19.09. — waren beim Bildpreis doppelt zu hoch. Korrigiert ergibt sich je Szene
+bei zwei Kandidaten 0,30 $ statt 0,60 $, plus Verify.
+
+**Der eigentliche Kostentreiber war nicht der Preis, sondern die Zahl der Aufrufe.** Ursache und
+Behebung stehen in Abschnitt 12.
+
+### Was sonst noch `nano-banana-pro/edit` aufruft
+
+Die 499 Aufrufe sind nicht alle Szenen-Kandidaten. Denselben Endpunkt benutzt auch die
+**Stift-Korrektur** auf dem Ergebnis-Screen (`applyPenEdit()` in `szene.js`, `kind: "scene"` mit
+`editImageUrl`, ebenfalls 4K). Jede angewendete Korrektur ist also ein weiteres bezahltes Bild.
+Die Figuren-Generierung und das Nachschärfen einer Figur laufen dagegen über `nano-banana-2` bzw.
+`flux-lora` und stecken nicht in dieser Zahl.
+
+`composeSceneImage()` in `pipeline.js` — der alte synchrone Pfad mit bis zu drei Kandidaten —
+wird vom Produktpfad **nicht mehr aufgerufen**, er steht nur noch als Rückfallebene in der Datei.
+Er ist also nicht an den Aufrufen beteiligt.
+
+---
+
+## 12. Warum die Obergrenze von drei Kandidaten nie gegriffen hat (19.09.2026)
+
+Der Deckel existierte seit dem Umbau auf die Warteschlange: `if (!hasGoodEnough &&
+next.candidates.length < 3)`. Trotzdem hat der Nutzer in der fal-History **acht Bildaufrufe für ein
+einziges Wimmelbild** gezählt, im Schnitt über alle Szenen rund zehn.
+
+**Der Deckel zählt die falsche Größe.** Die Job-Endpunkte lesen den Datensatz aus Redis, rechnen
+ihn weiter und schreiben ihn zurück — ohne jede Absicherung gegen Gleichzeitigkeit. Der Client
+fragt alle 7 Sekunden nach, ein Fortschritts-Durchlauf enthält aber einen **synchronen**
+Verify-Aufruf und dauert oft länger. Zwei Durchläufe überlappen sich also regelmäßig, und dann:
+
+1. Durchlauf A liest den Stand: zwei fertige Kandidaten, keiner gut genug.
+2. Durchlauf B liest **denselben** Stand, bevor A geschrieben hat.
+3. Beide schicken einen dritten Auftrag los — zwei bezahlte Bilder.
+4. B schreibt zuletzt und **überschreibt A**. Im Datensatz stehen drei Kandidaten, bezahlt sind
+   vier.
+5. Beim nächsten Poll steht die Liste wieder bei drei und der verlorene Kandidat gilt als nie
+   erzeugt. Das Spiel beginnt von vorn.
+
+Der verlorene Schreibvorgang setzt außerdem Kandidaten auf `verifyStatus: "pending"` zurück — daher
+die ebenso hohe Zahl an Vision-Prüfungen.
+
+### Behebung, zwei voneinander unabhängige Sicherungen
+
+**Eine Sperre je Job** (`kvTryLock` in `api/_lib/kv.js`, Redis `SET NX EX`). Ein
+Fortschritts-Durchlauf läuft nur, wenn er die Sperre bekommt; sonst liefert der Endpunkt den
+gespeicherten Stand zurück und der nächste Poll rechnet weiter. Gültigkeit 90 Sekunden, damit ein
+abgestürzter Durchlauf den Job nicht dauerhaft blockiert. Gilt für den Szenen- **und** den
+Figuren-Pfad, der denselben Fehler hatte.
+
+**Ein Zähler, der nie kleiner wird** (`genCount`, Deckel `MAX_GENERATIONS = 3`). Gezählt werden die
+**abgeschickten Aufträge**, nicht die Einträge in der Liste. Selbst wenn die Sperre einmal versagt,
+kann die Zahl höchstens gleich bleiben, nie zurückfallen.
+
+Gemessen an einer Attrappe ohne fal-Zugriff:
+
+| Fall | Bildaufrufe |
+|---|---|
+| Verify meldet nur mittlere Verstöße | 2 |
+| Verify meldet bei jedem Kandidaten einen schweren Verstoß | 3 |
+| Wettlauf: zwei Durchläufe auf demselben Stand, Sperre absichtlich umgangen | 4, dann Schluss |
+
+Der dritte Fall ist der wichtige: ohne `genCount` lief er unbegrenzt weiter.

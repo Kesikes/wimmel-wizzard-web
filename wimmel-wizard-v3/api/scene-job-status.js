@@ -5,7 +5,7 @@
 // Aufruf GENAU EINEN Fortschritts-Durchlauf (advanceSceneJob()), dann wird der (ggf. aktualisierte)
 // Job-Stand zurueckgegeben. Eigenes, kleines maxDuration (siehe vercel.json) statt der 300s der
 // langen synchronen Pfade.
-const { kvGetJson, kvSetJson } = require("./_lib/kv");
+const { kvGetJson, kvSetJson, kvTryLock, kvUnlock } = require("./_lib/kv");
 const { advanceSceneJob } = require("./_lib/scene-job-engine");
 
 const JOB_TTL_SECONDS = 60 * 60;
@@ -41,8 +41,25 @@ module.exports = async (req, res) => {
 
   if (job.status === "in_progress") {
     try {
-      job = await advanceSceneJob(job, { FAL_KEY });
-      await kvSetJson("scenejob:" + jobId, job, JOB_TTL_SECONDS);
+      // NEU (19.09.2026): nur EIN Fortschritts-Durchlauf gleichzeitig je Job. Ohne diese Sperre
+      // ueberlappen sich zwei Durchlaeufe (der Client fragt alle 7 Sekunden, ein Durchlauf mit
+      // synchronem Verify dauert oft laenger), beide schieben einen weiteren Kandidaten nach und
+      // der zweite Schreibvorgang ueberschreibt den ersten -- deshalb hat der Deckel von drei
+      // Kandidaten nie gegriffen. Ausfuehrliche Herleitung bei kvTryLock() in _lib/kv.js.
+      // Bekommt dieser Aufruf die Sperre nicht, liefert er einfach den zuletzt gespeicherten Stand
+      // zurueck; der naechste Poll in wenigen Sekunden rechnet weiter. 90 Sekunden Gueltigkeit:
+      // laenger als ein normaler Durchlauf, kurz genug, dass ein abgestuerzter Durchlauf den Job
+      // nicht dauerhaft blockiert.
+      const sperre = "scenejob:" + jobId + ":lock";
+      if (await kvTryLock(sperre, 90)) {
+        try {
+          const frisch = await kvGetJson("scenejob:" + jobId);
+          job = await advanceSceneJob(frisch || job, { FAL_KEY });
+          await kvSetJson("scenejob:" + jobId, job, JOB_TTL_SECONDS);
+        } finally {
+          await kvUnlock(sperre);
+        }
+      }
     } catch (e) {
       // Ein einzelner fehlgeschlagener Fortschritts-Durchlauf soll den Job NICHT sofort als
       // gescheitert markieren -- siehe identischer Kommentar in char-job-status.js.

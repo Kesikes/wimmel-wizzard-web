@@ -82,4 +82,25 @@ async function kvIncrWithExpiry(key, ttlSeconds) {
   return n;
 }
 
-module.exports = { kvConfig, kvGetJson, kvSetJson, kvIncrWithExpiry };
+// kvTryLock(key, ttlSeconds) -> true, wenn die Sperre GENOMMEN wurde, sonst false.
+// NEU (19.09.2026), und der Anlass war teuer. Die Job-Endpunkte lesen den Job-Datensatz, rechnen
+// ihn weiter und schreiben ihn zurueck -- ohne jede Absicherung gegen Gleichzeitigkeit. Der Client
+// fragt alle 7 Sekunden nach, ein Fortschritts-Durchlauf enthaelt aber einen SYNCHRONEN
+// Verify-Aufruf und dauert oft laenger. Damit ueberlappen sich zwei Durchlaeufe regelmaessig, und
+// dann passiert Folgendes: beide lesen denselben Stand mit zwei fertigen Kandidaten, beide finden
+// "kein Kandidat gut genug", beide schicken einen dritten Auftrag los, und der zweite Schreibvorgang
+// ueberschreibt den ersten. Ergebnis: vier bezahlte Bilder, und im Datensatz stehen drei -- weshalb
+// der Deckel "hoechstens 3 Kandidaten" nie gegriffen hat. Der Nutzer hat acht Bildaufrufe fuer EINE
+// Szene gezaehlt, im Schnitt ueber alle Szenen rund zehn.
+// SET mit NX und EX ist die Standardform einer Sperre in Redis: sie wird nur gesetzt, wenn der
+// Schluessel noch nicht existiert, und laeuft von selbst ab, falls ein Durchlauf abstuerzt.
+async function kvTryLock(key, ttlSeconds) {
+  const res = await kvCommand(["set", key, String(Date.now()), "NX", "EX", String(ttlSeconds || 60)]);
+  return res === "OK" || (res && res.result === "OK");
+}
+
+async function kvUnlock(key) {
+  try { await kvCommand(["del", key]); } catch (e) { /* laeuft sonst per TTL ab */ }
+}
+
+module.exports = { kvConfig, kvGetJson, kvSetJson, kvIncrWithExpiry, kvTryLock, kvUnlock };

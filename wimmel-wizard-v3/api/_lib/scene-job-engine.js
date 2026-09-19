@@ -43,6 +43,19 @@ const {
 // Standardfall ab.
 const SCENE_MODEL = "fal-ai/nano-banana-pro/edit";
 
+// MAX_GENERATIONS: harte Obergrenze an BEZAHLTEN Bildaufrufen je Szene. NEU (19.09.2026),
+// Nutzer-Vorgabe nach einem Befund aus der fal-History: fuer EIN Wimmelbild waren mindestens acht
+// Bildaufrufe gelaufen, im Schnitt ueber alle Szenen rund zehn statt der geplanten zwei bis drei.
+//
+// Es gab bereits einen Deckel -- "next.candidates.length < 3" weiter unten -- und er hat nicht
+// gegriffen, weil er die falsche Groesse zaehlt. Bei ueberlappenden Fortschritts-Durchlaeufen geht
+// ein Schreibvorgang verloren, und mit ihm verschwindet ein Kandidat aus der Liste, waehrend das
+// Bild laengst bezahlt ist (siehe kvTryLock() in kv.js). Die Liste ist also keine verlaessliche
+// Auskunft darueber, wie oft wir schon generiert haben.
+// genCount zaehlt stattdessen die ABGESCHICKTEN Auftraege und wird nie kleiner. Selbst wenn die
+// Sperre einmal versagt, kann die Zahl hoechstens dieselbe bleiben, nie zurueckfallen.
+const MAX_GENERATIONS = 3;
+
 function newCandidate(seed) {
   return {
     seed, genRequestId: null, genStatus: "pending", url: null, genError: null,
@@ -114,6 +127,8 @@ async function createSceneJob({ jobId, instruction, verifyPrompt, editImageUrl, 
     figuresBand: Array.isArray(figuresBand) ? figuresBand : null,
     status: "in_progress", error: null,
     candidates: [candA, candB],
+    // Zwei Auftraege sind hier bereits abgeschickt und bezahlt.
+    genCount: 2,
     resultUrl: null, resultSeed: null, resultViolations: null, resultSeverity: null, resultVerify: null,
     createdAt: now, updatedAt: now,
   };
@@ -198,12 +213,17 @@ async function advanceSceneJob(job, { FAL_KEY }) {
     // bei einem SCHWEREN Verstoss (Stil, Helden, Tiefe), nicht wegen Figurengroesse oder eines
     // Mundes zu viel.
     const hasGoodEnough = usable.some((c) => isGoodEnough(c.severity));
-    if (!hasGoodEnough && next.candidates.length < 3) {
+    // GEAENDERT (19.09.2026): Deckel auf genCount statt auf candidates.length -- siehe
+    // MAX_GENERATIONS oben. Alte Job-Datensaetze ohne genCount fallen auf die Listenlaenge
+    // zurueck, damit ein zum Zeitpunkt des Deploys laufender Job nicht ploetzlich weiterzaehlt.
+    const bisher = typeof next.genCount === "number" ? next.genCount : next.candidates.length;
+    if (!hasGoodEnough && bisher < MAX_GENERATIONS) {
       const seedC = Math.floor(Math.random() * 1e9);
       try {
         const reqC = await submitFalQueue(SCENE_MODEL, sceneGenerateBody(next.instruction, next.editImageUrl, next.styleRefUrls, seedC), FAL_KEY);
         const candC = newCandidate(seedC); candC.genRequestId = reqC; candC.genStatus = "polling";
         next.candidates.push(candC);
+        next.genCount = bisher + 1;
       } catch (e) {
         await logFalError("scene-job dritter Kandidat (submit)", e && e.message ? e.message : String(e));
         finalizeJob(next, usable);
