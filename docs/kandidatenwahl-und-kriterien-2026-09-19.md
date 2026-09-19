@@ -103,9 +103,10 @@ Daten, die der Umbau später automatisch sammelt.
 
 | # | Datum | Thema / Komposition | App wählte | Nutzer wählte | Treffer | Verstöße beim Nutzer-Favoriten |
 |---|---|---|---|---|---|---|
-| | | | | | | |
+| 1 | 19.09. | Weihnachten / gridhouse | Kandidat X | derselbe | **ja** | keine (alle Felder sauber, `scale_est` 4,5, `figures_est` 45) |
 
-*(noch keine Einträge)*
+**Stand: 1 von 1 getroffen.** Viel zu wenig für eine Aussage — ab etwa zwölf Entscheidungen wird
+ausgewertet.
 
 ### Was ausgewertet wird, sobald rund ein Dutzend Entscheidungen vorliegen
 

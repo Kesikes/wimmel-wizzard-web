@@ -1368,7 +1368,7 @@ var ACTIVE_SCENE_PHASE = "phase1";
 // in den Kompositionstypen, aendert sich die Pruefsumme -- ohne dass jemand daran denken muss.
 // Das von Hand gepflegte Datum bleibt als lesbare Ergaenzung daneben stehen; verlassen tun wir uns
 // auf die Pruefsumme.
-var PROMPT_LABEL = "2026-09-19d";
+var PROMPT_LABEL = "2026-09-19e";
 
 // FNV-1a, 32 Bit. Bewusst kein crypto.subtle: das ist asynchron, und diese Kennung soll ohne
 // Umstand synchron beim Laden feststehen. Kollisionen sind hier belanglos -- es geht nicht um
@@ -1877,6 +1877,23 @@ function backgroundCharAssetUrl(name) {
   return window.location.origin + assetPath(name);
 }
 
+// NEU (19.09.2026): das Basisbild des Szenen-Aufrufs. Bis eben war das image_urls[0] -- bei einem
+// /edit-Aufruf das zu BEARBEITENDE Bild -- das Charakterblatt der ERSTEN Heldin. Sie wurde damit
+// nicht als einzuzeichnende Figur mitgegeben, sondern als Leinwand, ueber die die Szene gemalt
+// wird. Die Vorhersage daraus (Heldin 1 fehlt haeufiger als die anderen) stand genau so in den
+// Daten: im cutaway-Bild vom 19.09. fehlte A -- das Basisbild -- ganz, waehrend B dreimal und C
+// zweimal vorkamen. Eine Ursache, die Fehlen UND Dopplung zugleich erklaert.
+// Jetzt ist das Basisbild eine leere Flaeche in Papierfarbe im Zielformat, und ALLE Heldenblaetter
+// sind gleichberechtigte Referenzen dahinter. Das Bild traegt bewusst keine Information: 1920x1080
+// reicht, das Modell erzeugt ohnehin 4K, die Leinwand liefert nur Format und Farbe.
+function sceneBaseCanvasUrl() {
+  return window.location.origin + assetPath("leere-leinwand-16x9.jpg");
+}
+
+// Der begleitende Satz im Prompt. Ohne ihn zaehlt das Modell die leere Flaeche als "Referenzbild 1"
+// mit und sucht darin nach etwas -- die Nummerierung der Helden waere dann um eins verschoben.
+const BASE_CANVAS_NOTE = "Reference image 1 is an empty sheet in the paper colour of this book. It shows nothing and means nothing — it is only the blank surface to draw the scene on. Do not look for anything in it, do not copy anything from it, and do not leave any part of the finished picture empty because of it. Everything that matters is in the reference images after it.";
+
 // pickBackgroundCharacterSheets(n): zufaellige, doppelfreie Auswahl von n Blaettern aus der
 // Bibliothek. Math.random() bewusst wie an anderer Stelle in dieser Datei (seedA/seedB/seedC in
 // composeSceneImage()) -- keine Reproduzierbarkeit noetig, jede generierte Szene darf/soll
@@ -1988,8 +2005,11 @@ const SAFE_MARGIN_RULE = "Keep the outer 6% of the image at the very top and the
 // die eigene EMOTION_WORDS_RULE (und die Kern-Stilregel "niemals ein Mund", da Emotionswoerter genau
 // das implizieren) fuer den betroffenen Charakter unterlaufen. Jetzt konsequent gefiltert, genau wie
 // beim Situationstext.
-function imageRefMapping(heroSpecs) {
-  return heroSpecs.map((spec, i) => "Reference image " + (i + 1) + " shows " + spec.name + ": " + stripEmotionWords(describeHero(spec)) + ".").join(" ");
+// GEAENDERT (19.09.2026): startIndex, weil Referenzbild 1 jetzt die leere Leinwand ist (siehe
+// sceneBaseCanvasUrl() oben) und die Helden deshalb bei 2 beginnen.
+function imageRefMapping(heroSpecs, startIndex) {
+  const ab = typeof startIndex === "number" ? startIndex : 1;
+  return heroSpecs.map((spec, i) => "Reference image " + (ab + i) + " shows " + spec.name + ": " + stripEmotionWords(describeHero(spec)) + ".").join(" ");
 }
 
 // NEU (Punkt 1, Fortsetzung): erklaert dem Modell, was die Referenzbilder NACH den benannten Helden
@@ -2140,7 +2160,11 @@ const COMPOSITION_TYPES = {
   gridhouse: {
     id: "gridhouse",
     kw: "building cut open into many small rooms like a printer's type case, each room its own little scene",
-    text: "Composition: a building cut open into MANY small rooms, arranged like a printer's type case — at least eight or nine separate rooms across several floors, each one a complete little scene of its own with its own furniture and its own activity. Rather than a few large rooms, use many small ones; the pleasure of this composition is the number of separate places to discover.",
+    // VERSCHAERFT (19.09.2026): von zwei Kandidaten mit identischem Prompt wurde einer ein echter
+    // Setzkasten, der andere ein gewoehnlicher Querschnitt mit wenigen grossen Raeumen. "At least
+    // eight or nine" war offenbar als Untergrenze zu weich formuliert. Jetzt: eine feste Zahl, ein
+    // Raster mit Zeilen und Spalten, und das Gegenbild ausdruecklich als Fehler benannt.
+    text: "Composition: a building cut open into a GRID of many small rooms, like a printer's type case. Count them: there are at least TEN separate rooms, laid out in at least three rows one above the other and at least three columns side by side, each room walled off from its neighbours and each one a complete little scene with its own furniture and its own activity. The rooms are small and roughly equal in size — a picture with three or four generous rooms is the wrong composition for this image, however nicely drawn it is. The whole pleasure here is the number of separate places to discover, so err on the side of more rooms and smaller ones.",
   },
   // Phase 2 hat zwei Spielarten desselben Ueberblicks -- GEFUNDEN beim Dokumentieren der
   // Themen-Zuordnung (17.09.2026): eine einzige overview-Variante setzte ein aufgeschnittenes Haus
@@ -2230,7 +2254,17 @@ const ZOOM_OUT_RULE = "Camera distance is critical for this image: pull back muc
 // passte gemessen 3- bis 4-mal in die Bildhoehe statt der geforderten 8- bis 10-mal.
 // Dazu die Negativ-Probe am Ende: ein Bildmodell kann "passt achtmal hinein" schlecht ausrechnen,
 // aber sehr wohl erkennen, ob eine Figur wie ein Portraet wirkt.
-function sizeRule(phase) {
+// GEAENDERT (19.09.2026): im Querschnitt gibt es kein "ganz vorne" -- alle Raeume sind gleich weit
+// weg. Der Satz hat dort trotzdem von der vordersten Figur gesprochen und damit eine Vordergrund-
+// Figur nahegelegt, die es gar nicht geben soll. Im gridhouse-Testbild stand genau das in der
+// Verify-Notiz: "Die Figur im Vordergrund unten rechts ist deutlich groesser als die Figuren in
+// den oberen Raeumen."
+function sizeRule(phase, composition) {
+  const imHaus = composition && (composition.id === "cutaway" || composition.id === "gridhouse");
+  if (imHaus) {
+    return "Character size, and this is the single most important compositional constraint in this image: the tallest person ANYWHERE in this picture — in any room, on any floor — must fit into the image height " + phase.figureFitCount + " times over. Picture the image height divided into " + phase.figureFitCount + " equal horizontal bands: no person is taller than one of those bands, wherever they stand. There is no foreground figure in a cut-open building and nobody stands in front of the house. "
+      + "Use this as a check while composing: if any single character is large enough that a viewer would read them as the subject of a portrait, or if their face carries recognisable detail at a glance, every figure in the house must be redrawn smaller.";
+  }
   return "Character size, and this is the single most important compositional constraint in this image: the tallest person standing at the very front of the scene must fit into the image height " + phase.figureFitCount + " times over. Picture the image height divided into " + phase.figureFitCount + " equal horizontal bands — a front figure is no taller than one of those bands. People in the middle distance are about half that height again, and the many people further back are smaller still, barely more than a thumbnail each. "
     + "Use this as a check while composing: if any single character is large enough that a viewer would read them as the subject of a portrait, or if their face carries recognisable detail at a glance, the camera is far too close and the whole composition must be pulled back.";
 }
@@ -2246,7 +2280,11 @@ function sizeRule(phase) {
 // Haelfte des Sandwiches -- dasselbe Muster, das beim Mund-Verbot und bei der Groessenregel wirkt.
 const EDGE_AND_FACE_REMINDER = "And two last things to check before drawing: nobody is cut off by the edge of the picture, least of all along the bottom edge — no half figures, no oversized head pushed into the frame from below. And every face in the image, down to the smallest, actually has its two dot eyes and its nose line drawn on it; no blank faces anywhere.";
 
-function sizeRuleReminder(phase) {
+function sizeRuleReminder(phase, composition) {
+  const imHaus = composition && (composition.id === "cutaway" || composition.id === "gridhouse");
+  if (imHaus) {
+    return "Last check on scale before drawing: divide the image height into " + phase.figureFitCount + " equal horizontal bands. No person anywhere in this house, on any floor and in any room, may be taller than one of those bands, and none is bigger than any other. If one figure is larger than the rest, the image is wrong — redraw every figure at the same small size.";
+  }
   return "Last check on scale before drawing: divide the image height into " + phase.figureFitCount + " equal horizontal bands. No person in this image, not even the one standing closest to the viewer, may be taller than one of those bands. If the front figures are bigger than that, the image is wrong — move the camera back and redraw the whole scene smaller and busier.";
 }
 
@@ -2384,13 +2422,15 @@ function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount, phase, co
   // Rueckschritt gegenueber dem Bild davor. Dasselbe Muster wie bei den 20 Vignetten-Klammern:
   // nicht der Wortlaut der Groessenregel war das Problem, sondern was VOR ihr steht.
   sentences.push(ZOOM_OUT_RULE);
-  sentences.push(sizeRule(phase));
+  sentences.push(sizeRule(phase, composition));
   sentences.push(EDGE_AND_FACE_RULE);
-  sentences.push(imageRefMapping(heroSpecs));
+  sentences.push(BASE_CANVAS_NOTE);
+  sentences.push(imageRefMapping(heroSpecs, 2));
   // Direkt nach der Helden-Zuordnung, bevor irgendetwas anderes ueber Referenzbilder gesagt wird --
   // sonst koennte das Modell die nachfolgenden Bibliotheks-Blaetter (image_urls-Reihenfolge, siehe
   // buildSceneComposeInputs()) faelschlich als weitere Helden lesen.
-  sentences.push(backgroundLibraryInstruction(heroSpecs.length + 1, bgCharacterCount || 0));
+  // +2 statt +1: die leere Leinwand belegt Referenzbild 1.
+  sentences.push(backgroundLibraryInstruction(heroSpecs.length + 2, bgCharacterCount || 0));
   // NEU (D2): Komposition und Kameraabstand direkt nach den Referenzbildern -- beides betrifft das
   // ganze Bild und gehoert daher vor die Einzelanweisungen.
   sentences.push(composition.text);
@@ -2459,7 +2499,7 @@ function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount, phase, co
   sentences.push(SAFE_MARGIN_RULE);
   sentences.push(EMOTION_WORDS_RULE);
   sentences.push(allCharactersRule(heroSpecs));
-  sentences.push(sizeRuleReminder(phase));
+  sentences.push(sizeRuleReminder(phase, composition));
   sentences.push(EDGE_AND_FACE_REMINDER);
   sentences.push(ZERO_TEXT_RULE);
   return kw + ". " + sentences.filter(Boolean).join(" ");
@@ -2793,12 +2833,14 @@ function buildSceneComposeInputs({ heroSpecs, theme, situations, phase, composit
   const comp = pickComposition(theme, phaseObj, composition);
   const refHeroes = heroSpecs.slice(0, 5);
   const heroRefUrls = refHeroes.map((s) => s.imageUrl).filter(Boolean);
-  const editImageUrl = heroRefUrls[0];
-  const heroStyleRefUrls = heroRefUrls.slice(1);
-  const bgBudget = Math.max(0, 13 - heroStyleRefUrls.length);
+  // GEAENDERT (19.09.2026, siehe sceneBaseCanvasUrl()): das Basisbild ist eine leere Leinwand,
+  // KEIN Heldenblatt mehr. Dadurch sind alle Helden gleichberechtigte Referenzen -- vorher war
+  // die erste Heldin die Leinwand und verschwand regelmaessig aus dem Bild.
+  const editImageUrl = sceneBaseCanvasUrl();
+  const bgBudget = Math.max(0, 13 - heroRefUrls.length);
   const bgCount = Math.min(bgBudget, 3 + Math.round(Math.random())); // 3 oder 4 Blaetter
   const bgUrls = bgCount > 0 ? pickBackgroundCharacterSheets(bgCount) : [];
-  const styleRefUrls = heroStyleRefUrls.concat(bgUrls);
+  const styleRefUrls = heroRefUrls.concat(bgUrls);
   // D3: eigene Handlung je Held, buchweite Sperrliste beachtet.
   const heroActions = pickHeroActions(refHeroes, theme && theme.locId, usedTexts);
   const promptText = scenePrompt({ heroSpecs: refHeroes, theme, situations, bgCharacterCount: bgUrls.length, phase: phaseObj, composition: comp, heroActions });
