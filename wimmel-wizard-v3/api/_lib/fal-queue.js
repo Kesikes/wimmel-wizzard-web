@@ -229,7 +229,7 @@ const VIOLATION_SEVERITY = {
   // heads_ok: NEU (18.09.2026), die aus scale_ok herausgeloeste zweite Haelfte -- Kopfgroessen
   // innerhalb einer Tiefenebene. Bewusst "mittel": es war nie der Grund, aus dem der Nutzer ein
   // Bild abgelehnt hat, und es soll kein Geld ausgeben.
-  figures_est: "medium", mouths_ok: "medium", heads_ok: "medium",
+  figures_est: "medium", mouths_of_ten: "medium", mouths_ok: "medium", heads_ok: "medium",
   // leicht (Szenen-Verify)
   no_text_ok: "light", logic_ok: "light",
   // Charakter-Verify (buildCharacterVerifyPrompt() in char-job-engine.js)
@@ -246,6 +246,8 @@ const DEPTH_MIN_RATIO = 1.8;
 // SCALE_MIN_FIT: zweite Kopie -- Wert und ausfuehrliche Herleitung stehen in
 // public/js/pipeline.js bei SCALE_MIN_FIT. Beide anpassen.
 const SCALE_MIN_FIT = 2.8;
+// MOUTHS_MAX_OF_TEN: zweite Kopie -- Herleitung in public/js/pipeline.js.
+const MOUTHS_MAX_OF_TEN = 3;
 
 // countViolations(): wertet die JSON-Antwort des Verify-Aufrufs aus.
 // Zwei Feldformen werden erkannt: "*_ok"-Felder (false = Verstoss) und das dreiwertige "density"
@@ -305,6 +307,12 @@ function countViolations(verifyOutputText, figuresBand) {
       if (!Array.isArray(parsed[k]) || !parsed[k].length) return;
       bad = parsed[k].some((z) => { const m = Number(z); return !isFinite(m) || m !== 1; });
     }
+    // NEU (19.09.2026), siehe pipeline.js: Muender werden gezaehlt statt geschaetzt.
+    else if (k === "mouths_of_ten") {
+      const mz = Number(parsed[k]);
+      if (!isFinite(mz) || mz < 0) return;
+      bad = mz > MOUTHS_MAX_OF_TEN;
+    }
     else if (/_ok$/.test(k)) bad = parsed[k] === false;
     else return;
     if (!bad) return;
@@ -338,5 +346,5 @@ function isGoodEnough(severity) {
 module.exports = {
   VERIFY_MODEL, falHeaders, falBaseAppId, mediaLifecycleHeaders, MEDIA_TTL_SECONDS,
   submitFalQueue, falQueueStatus, falQueueResult, callFalVerifySync,
-  countViolations, compareSeverity, isGoodEnough, VIOLATION_SEVERITY, DEPTH_MIN_RATIO, SCALE_MIN_FIT, logFalError,
+  countViolations, compareSeverity, isGoodEnough, VIOLATION_SEVERITY, DEPTH_MIN_RATIO, SCALE_MIN_FIT, MOUTHS_MAX_OF_TEN, logFalError,
 };

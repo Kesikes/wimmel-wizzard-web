@@ -1340,8 +1340,17 @@ Screens.ergebnis = {
       Router.goScreen("ergebnis");
     });
     tools.appendChild(penBtn);
-    tools.appendChild(h("button", { type: "button", class: "h-black", style: { flex: "1", minHeight: "48px", background: "var(--paper)", border: "3px solid var(--ink)", fontSize: "12px", color: "inherit" } }, "Detail antippen"));
-    tools.appendChild(h("button", { type: "button", class: "h-black", style: { flex: "1", minHeight: "48px", background: "var(--paper)", border: "3px solid var(--ink)", fontSize: "12px", color: "inherit" } }, "Nochmal zaubern"));
+    // ENTFERNT (19.09.2026, Phase 0.2, Nutzer-Entscheidungen). Beide Knoepfe hatten seit jeher
+    // KEINEN Klick-Handler -- von drei Werkzeugen auf diesem Screen tat genau eines etwas, was den
+    // Eindruck erklaert, die Editiermodi funktionierten nicht.
+    //   "Detail antippen": ersatzlos gestrichen. Es hatte keinen eigenen Zweck neben dem Stift
+    //   (ein Tipp statt eines Kringels ist derselbe Weg mit anderer Markierung), und ein Werkzeug
+    //   weniger ist ein Werkzeug weniger zum Erklaeren.
+    //   "Nochmal zaubern": nur ausgeblendet, nicht geloescht. Es waere ein voller Satz Kandidaten
+    //   und damit 0,30 $ je Druck -- das haengt an der offenen Frage "wie viele Versuche sind
+    //   frei", die mit dem Bezahlmodell in Phase 3 entschieden wird. Danach kommt es zurueck,
+    //   dann gleich mit der richtigen Begrenzung. Bis dahin ist ein unsichtbarer Knopf ehrlicher
+    //   als ein sichtbarer, der nichts tut oder unbemerkt Geld ausgibt.
     wrap.appendChild(tools);
 
     if (s.penOn) wrap.appendChild(buildPenPanel({ image, canvas, img, mark, errorId: "pen-error-mobile" }));
@@ -1443,8 +1452,9 @@ function buildDesktopErgebnis(s, image) {
     Router.goScreen("ergebnis");
   });
   toolCol.appendChild(dPenBtn);
-  toolCol.appendChild(h("button", { type: "button", class: "h-black", style: { width: "100%", minHeight: "52px", background: "var(--paper)", border: "3px solid var(--ink)", fontSize: "13px", color: "inherit" } }, "Einzelnes Detail antippen"));
-  toolCol.appendChild(h("button", { type: "button", class: "h-black", style: { width: "100%", minHeight: "52px", background: "var(--paper)", border: "3px solid var(--ink)", fontSize: "13px", color: "inherit" } }, "Ganze Szene nochmal zaubern"));
+  // ENTFERNT (19.09.2026, Phase 0.2) -- gleiche Begruendung wie in der mobilen Fassung oben.
+  // Dass dieselben zwei toten Knoepfe an ZWEI Stellen standen und zweimal entfernt werden mussten,
+  // ist das beste Beispiel fuer die Doppelpflege, die Phase 0.3 beseitigen soll.
   if (s.penOn) toolCol.appendChild(buildPenPanel({ image, canvas: dCanvas, img: dImg, mark: dMark, errorId: "pen-error-desktop" }));
   aside.appendChild(toolCol);
 

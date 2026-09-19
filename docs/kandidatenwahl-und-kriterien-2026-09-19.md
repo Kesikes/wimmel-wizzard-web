@@ -106,8 +106,14 @@ Daten, die der Umbau später automatisch sammelt.
 | 1 | 19.09. | Weihnachten / gridhouse | Kandidat X | derselbe | **ja** | keine; `scale_est` 4,5, `figures_est` 45 |
 | 2 | 19.09. | Urlaub / overview_open (Ph. 2) | Kandidat X | derselbe | **ja** | Werte nicht gesichert |
 | 3 | 19.09. | Weihnachten / overview_cutaway (Ph. 2) | Kandidat X | derselbe | **ja** | **null Verstöße**; `depth_ratio` 6, `scale_est` 2,8, `figures_est` 55 |
+| 4 | 19.09. | Stadt / open | B (flach, gestapelte Läden) | **A** (Tiefe, große Figuren vorn) | **nein** | Werte nachzureichen |
+| 5 | 19.09. | Stadt / open | derselbe | derselbe | ja* | beide Kandidaten durchgehend mit Mund, Stil verfehlt |
 
-**Stand: 3 von 3 getroffen.**
+\* Zeile 5 ist ein Treffer bei der Auswahl und trotzdem kein brauchbares Bild. **„Treffer" heißt
+nicht „gutes Bild"** — die Spalte misst nur, ob App und Mensch denselben Kandidaten wählen, nicht
+ob überhaupt einer taugt. Das gehört bei der Auswertung getrennt gezählt.
+
+**Stand: 4 Treffer, 1 Fehlschlag.**
 
 ### Zwischenstand und eine wichtige Einordnung (19.09.2026)
 

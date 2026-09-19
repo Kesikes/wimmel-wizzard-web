@@ -1368,7 +1368,7 @@ var ACTIVE_SCENE_PHASE = "phase1";
 // in den Kompositionstypen, aendert sich die Pruefsumme -- ohne dass jemand daran denken muss.
 // Das von Hand gepflegte Datum bleibt als lesbare Ergaenzung daneben stehen; verlassen tun wir uns
 // auf die Pruefsumme.
-var PROMPT_LABEL = "2026-09-19e";
+var PROMPT_LABEL = "2026-09-19f";
 
 // FNV-1a, 32 Bit. Bewusst kein crypto.subtle: das ist asynchron, und diese Kennung soll ohne
 // Umstand synchron beim Laden feststehen. Kollisionen sind hier belanglos -- es geht nicht um
@@ -1431,6 +1431,12 @@ var DEPTH_MIN_RATIO = 1.8;
 // 2,8 liegt zwischen dem angenommenen und dem besten abgelehnten Bild. Das ist eine duenne
 // Grundlage -- mit mehr scale_est-Werten aus echten Bildern gehoert die Zahl nachgezogen.
 var SCALE_MIN_FIT = 2.8;
+
+// MOUTHS_MAX_OF_TEN: wie viele der zehn groessten menschlichen Gesichter einen Mund haben duerfen.
+// ZWEITE KOPIE in api/_lib/fal-queue.js -- beide anpassen. Drei entspricht der Produktregel des
+// Nutzers ("hoechstens drei Muender"), uebersetzt auf die Stichprobe: darueber ist der Mund die
+// Regel und nicht die Ausnahme. Siehe Punkt 8 in buildVerifyPrompt().
+var MOUTHS_MAX_OF_TEN = 3;
 
 // NEU (17.09.2026, Bildbewertung, Abschnitt D1 "Gewichtung einfuehren"): nicht jeder Verify-Verstoss
 // ist gleich schwer. Nutzer-Vorgabe woertlich: "Ein Kandidat mit falschem Stil darf nicht gewinnen,
@@ -1495,7 +1501,9 @@ var VIOLATION_SEVERITY = {
   // heads_ok: NEU (18.09.2026), die aus scale_ok herausgeloeste zweite Haelfte -- Kopfgroessen
   // innerhalb einer Tiefenebene. Bewusst "mittel": es war nie der Grund, aus dem der Nutzer ein
   // Bild abgelehnt hat, und es soll kein Geld ausgeben.
-  figures_est: "medium", mouths_ok: "medium", heads_ok: "medium",
+  // mouths_of_ten traegt die Gewichtung von mouths_ok; der alte Schluessel bleibt fuer Bilder
+  // stehen, die vor der Umstellung im AppState gelandet sind.
+  figures_est: "medium", mouths_of_ten: "medium", mouths_ok: "medium", heads_ok: "medium",
   // leicht
   no_text_ok: "light", logic_ok: "light",
   // Charakter-Verify (eigener Prompt, buildCharacterVerifyPrompt() unten)
@@ -1543,6 +1551,12 @@ function severityOf(parsed, figuresBand) {
     else if (k === "heroes_found") {
       if (!Array.isArray(parsed[k]) || !parsed[k].length) return;
       bad = parsed[k].some(function (z) { var m = Number(z); return !isFinite(m) || m !== 1; });
+    }
+    // NEU (19.09.2026): Muender werden gezaehlt statt geschaetzt, siehe MOUTHS_MAX_OF_TEN oben.
+    else if (k === "mouths_of_ten") {
+      var mz = Number(parsed[k]);
+      if (!isFinite(mz) || mz < 0) return;
+      bad = mz > MOUTHS_MAX_OF_TEN;
     }
     else if (/_ok$/.test(k)) bad = parsed[k] === false;
     else return;
@@ -2143,7 +2157,14 @@ const COMPOSITION_TYPES = {
   open: {
     id: "open",
     kw: "open landscape scene seen from a slightly elevated angle",
-    text: "Composition: one open, continuous place seen from a slightly elevated angle, with a clear near-to-far depth: a foreground edge, a broad middle distance, and a far distance that recedes towards the horizon. Spread the action across all three so the eye travels into the picture.",
+    // ERGAENZT (19.09.2026, Stadt-Testbilder): in beiden Durchlaeufen war mindestens ein Kandidat
+    // ein aufgeschnittenes Gebaeude mit gestapelten Raeumen, obwohl der Typ "open" ist -- einmal
+    // sogar mit einer gestrichelten Linie quer durchs Bild. Es liegt NICHT an der Konfiguration:
+    // "Stadt" ist als landscape eingetragen und zieht in 300 Ziehungen 300-mal "open"
+    // (nachgeprueft). Das Modell hat schlicht einen starken Hang zur Schnittzeichnung, sobald
+    // Gebaeude im Spiel sind -- derselbe Hang, der im Querschnitt die Raumbeschriftung mit
+    // Buchstaben erzeugt hat. Also auch hier: die Versuchung dort benennen, wo sie entsteht.
+    text: "Composition: one open, continuous place seen from a slightly elevated angle, with a clear near-to-far depth: a foreground edge, a broad middle distance, and a far distance that recedes towards the horizon. Spread the action across all three so the eye travels into the picture. This is emphatically NOT a cross-section and NOT a cut-open building: every building here is seen from the outside, with its front wall intact, and the viewer stands out in the open. No stacked rows of rooms, no interiors laid open side by side, no dividing lines or borders drawn across the picture — one single continuous place, seen from one single viewpoint.",
   },
   cutaway: {
     id: "cutaway",
@@ -2740,8 +2761,20 @@ function buildVerifyPrompt(heroSpecs, phaseId, compositionId) {
 
     "7. FIGURENZAHL: Schätze, wie viele MENSCHEN insgesamt im Bild zu sehen sind -- alle zusammengezählt, auch die ganz kleinen im Hintergrund. TIERE NICHT MITZÄHLEN. Antworte hier nicht mit true/false, sondern mit einer einzelnen ganzen Zahl, deiner besten Schätzung, gern gerundet.",
 
-    "8. MÜNDER: Wirkt das Bild so, als hätten auffällig viele MENSCHLICHE Figuren einen sichtbaren Mund? Gemeint ist der Gesamteindruck, keine genaue Zählung: bei den meisten menschlichen Gesichtern soll unter den Punktaugen und dem Nasenstrich nichts weiter zu sehen sein. Einzelne Figuren mit Mund sind gewollt und kein Verstoß. Ein Nein ist erst fällig, wenn ein Mund bei den menschlichen Figuren eher die Regel als die Ausnahme ist.",
-    "TIERE ZÄHLEN HIER UNTER KEINEN UMSTÄNDEN MIT: ein Hund mit offenem Maul oder heraushängender Zunge, ein offener Vogelschnabel, eine Kuh, ein Hahn, eine Gans, ein fressendes oder brüllendes Tier -- all das ist vollkommen in Ordnung und darf dein Urteil zu diesem Punkt nicht beeinflussen. Zähle ausschließlich Menschen.",
+    // UMGEBAUT (19.09.2026). mouths_ok war eine reine Eindrucksfrage ("Gemeint ist der
+    // Gesamteindruck, keine genaue Zaehlung") und hat bei einem Bild, in dem nach Aussage des
+    // Nutzers DURCHGEHEND Figuren einen Mund hatten, true gemeldet. Das ist der vierte Fall
+    // derselben Art -- nach der Dichte, der Tiefe, der Figurengroesse und den doppelten Helden.
+    // Also dieselbe Behandlung: das Modell zaehlt, der Code bewertet.
+    // Warum nur die zehn groessten Gesichter und nicht alle: bei 70 bis 130 Figuren ist eine
+    // Gesamtzaehlung nicht zuverlaessig zu bekommen, und die grossen Gesichter sind ohnehin die,
+    // bei denen ein Mund auffaellt. Zehn ist eine Stichprobe, die das Modell wirklich abzaehlen
+    // kann. Die Produktregel des Nutzers ("hoechstens drei Muender im ganzen Bild") wird damit
+    // nicht woertlich geprueft, sondern uebersetzt: mehr als drei von zehn grossen Gesichtern
+    // heisst, der Mund ist die Regel und nicht die Ausnahme.
+    "8. MÜNDER, ZÄHLUNG: Nimm die ZEHN GRÖSSTEN menschlichen Gesichter im Bild -- die am besten erkennbaren, meist vorne oder in den vordersten Räumen. Geh sie einzeln durch und zähle, bei wie vielen davon ein MUND zu sehen ist: ein Strich, ein Bogen, ein offener Mund, Zähne, Lippen, irgendetwas unterhalb des Nasenstrichs. Antworte im Feld mouths_of_ten mit einer einzelnen ganzen Zahl von 0 bis 10. Der gewünschte Stil hat unter den Punktaugen und dem Nasenstrich NICHTS -- eine 0 oder 1 ist der Normalfall, eine hohe Zahl heißt, der Stil ist verfehlt. Zähle wirklich ab und schätze nicht.",
+    "Sind weniger als zehn menschliche Gesichter groß genug, um das zu beurteilen, zähle unter denen, die es gibt, und rechne auf zehn hoch (bei fünf Gesichtern, von denen zwei einen Mund haben, antworte 4).",
+    "TIERE ZÄHLEN HIER UNTER KEINEN UMSTÄNDEN MIT: ein Hund mit offenem Maul oder heraushängender Zunge, ein offener Vogelschnabel, eine Kuh, ein Hahn, eine Gans, ein fressendes oder brüllendes Tier -- all das ist vollkommen in Ordnung und darf in diese Zählung nicht eingehen. Zähle ausschließlich menschliche Gesichter.",
 
     "9. LOGIK: Werden Innenraum und Außenwelt vermischt? Ein Nein ist fällig, wenn Wetter oder Untergrund am falschen Ort auftauchen: Schnee, Regen, Sand, Wellen, Rasen oder Himmel innerhalb eines Zimmers, Straßenpflaster in einer Küche, Wohnzimmermöbel mitten im Freien ohne erkennbaren Grund.",
     "Zur Abgrenzung beim Gebäude-Querschnitt, denn das ist der knifflige Fall: dass Innenräume und Außenwelt NEBENEINANDER zu sehen sind, ist völlig in Ordnung und genau so gewollt. Ein Verstoß ist es aber, wenn eine Außenfläche unmittelbar in einen Innenraum-Boden übergeht, ohne Wand, Tür, Fensterrahmen oder Hauskante dazwischen -- also etwa eine Schneefläche, die direkt an den Küchenboden anschließt, oder Rasen, der ohne Grenze im Wohnzimmer weiterläuft. Prüfe dafür jede Stelle, an der ein Innenraum an eine Außenfläche grenzt, und schau, ob dort eine bauliche Grenze zu sehen ist.",
@@ -2749,7 +2782,7 @@ function buildVerifyPrompt(heroSpecs, phaseId, compositionId) {
 
     "10. TEXT: Ist das Bild vollständig frei von Text -- keine Buchstaben, Wörter, Zahlen, Schilder, Poster, Beschriftungen oder Aufschriften auf Kleidung und Gegenständen, auch nicht klein oder im Hintergrund?",
 
-    "Antworte NUR als JSON-Objekt mit genau diesen elf Feldern, notiz immer als LETZTES: {\"heroes_found\": [Zahlen], \"heroes_ok\": true/false, \"style_ok\": true/false, \"depth_ratio\": Zahl, \"scale_est\": Zahl, \"heads_ok\": true/false, \"figures_est\": Zahl, \"mouths_ok\": true/false, \"logic_ok\": true/false, \"no_text_ok\": true/false, \"notiz\": \"kurzer Text\"}.",
+    "Antworte NUR als JSON-Objekt mit genau diesen elf Feldern, notiz immer als LETZTES: {\"heroes_found\": [Zahlen], \"heroes_ok\": true/false, \"style_ok\": true/false, \"depth_ratio\": Zahl, \"scale_est\": Zahl, \"heads_ok\": true/false, \"figures_est\": Zahl, \"mouths_of_ten\": Zahl, \"logic_ok\": true/false, \"no_text_ok\": true/false, \"notiz\": \"kurzer Text\"}.",
     // NEU (18.09.2026): notiz. Grund: der Prompt verlangte an zwei Stellen eine Begruendung ("nenne,
     // welche Figur du meinst"), das Antwortformat liess aber nur die acht Wertungsfelder zu -- die
     // Begruendung ging also jedes Mal verloren. Sichtbar wurde das, als bei einem Bild zwei von drei
@@ -2760,7 +2793,7 @@ function buildVerifyPrompt(heroSpecs, phaseId, compositionId) {
     // Angezeigt wird es ohne Zusatzarbeit, weil buildDebugDetails() (szene.js) das rohe Verify-JSON
     // je Kandidat ausgibt.
     "notiz ist ein kurzer deutscher Freitext, höchstens zwei Sätze, und wird NICHT bewertet -- er dient nur dazu, dass ein Mensch nachvollziehen kann, warum ein Feld false ist. Steht irgendwo false, schreib dort in Stichworten hin, was du gesehen hast; ist alles in Ordnung, schreib eine leere Zeichenkette. Verwende darin KEINE Anführungszeichen und KEINE Zeilenumbrüche, damit das JSON gültig bleibt.",
-    "Bei allen *_ok-Feldern bedeutet true: kein Verstoß. Also style_ok=true, wenn weder eine plastische Nase noch ein naturalistisches Tier zu finden ist; mouths_ok=true, wenn ein Mund bei den Menschen die Ausnahme bleibt; logic_ok=true, wenn Innen und Außen NICHT vermischt sind. heroes_found, depth_ratio, scale_est und figures_est sind keine true/false-Urteile, sondern deine gemessenen Zahlen — bewertet werden sie hinterher im Code.",
+    "Bei allen *_ok-Feldern bedeutet true: kein Verstoß. Also style_ok=true, wenn weder eine plastische Nase noch ein naturalistisches Tier zu finden ist; logic_ok=true, wenn Innen und Außen NICHT vermischt sind. heroes_found, depth_ratio, scale_est, figures_est und mouths_of_ten sind keine true/false-Urteile, sondern deine gemessenen Zahlen — bewertet werden sie hinterher im Code.",
     "Wichtig zur Strenge: bewerte nur, was du tatsächlich siehst. Wenn du dir bei einem der Ja/Nein-Punkte nicht sicher bist, antworte dort true -- ein vermuteter Verstoß ist kein Verstoß. Das gilt aber NICHT für die gezielte Suche unter Punkt 2: dort sollst du wirklich nachsehen und einen gefundenen Ausreißer auch benennen, statt vorsichtshalber true zu antworten.",
 
   ];
