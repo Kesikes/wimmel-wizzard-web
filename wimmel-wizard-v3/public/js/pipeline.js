@@ -1368,7 +1368,7 @@ var ACTIVE_SCENE_PHASE = "phase1";
 // in den Kompositionstypen, aendert sich die Pruefsumme -- ohne dass jemand daran denken muss.
 // Das von Hand gepflegte Datum bleibt als lesbare Ergaenzung daneben stehen; verlassen tun wir uns
 // auf die Pruefsumme.
-var PROMPT_LABEL = "2026-09-19g";
+var PROMPT_LABEL = "2026-09-19h";
 
 // FNV-1a, 32 Bit. Bewusst kein crypto.subtle: das ist asynchron, und diese Kennung soll ohne
 // Umstand synchron beim Laden feststehen. Kollisionen sind hier belanglos -- es geht nicht um
@@ -2112,9 +2112,35 @@ const SAFE_MARGIN_RULE = "Keep the outer 6% of the image at the very top and the
 // beim Situationstext.
 // GEAENDERT (19.09.2026): startIndex, weil Referenzbild 1 jetzt die leere Leinwand ist (siehe
 // sceneBaseCanvasUrl() oben) und die Helden deshalb bei 2 beginnen.
+// HERO_REF_START: ab welchem Referenzbild die benannten Helden stehen. Referenzbild 1 ist die
+// neutrale Leinwand (siehe BASE_CANVAS_NOTE). Die Zahl steht hier EINMAL, damit die Nummerierung in
+// imageRefMapping(), heroRef() und allCharactersRule() nicht auseinanderlaufen kann.
+const HERO_REF_START = 2;
+
+// heroRef(): wie ein Held im BILDprompt genannt wird -- "the girl from reference image 2".
+//
+// WARUM NICHT DER NAME (19.09.2026, Nutzer-Vorgabe): der vom Nutzer vergebene Vorname stand
+// fuenfmal im Bildprompt. Ein Bildmodell, das ein Wort nicht als Bezeichner erkennt, schreibt es
+// gern ins Bild -- und Kindernamen sind genau die Sorte Wort, die als Beschriftung auf einem
+// T-Shirt, einem Tuerschild oder einer Geburtstagstorte landet. ZERO_TEXT_RULE verbietet Text zwar
+// schon, aber eine Regel am Prompt-Ende ist eine schwaechere Sicherung als ein Wort, das gar nicht
+// erst im Prompt steht. Der Bezeichner sagt dem Modell ausserdem direkt, WO es nachsehen soll --
+// die Klammer zwischen Referenzbild, Platzierung und Dopplungsverbot bleibt damit erhalten und
+// wird sogar deutlicher als beim Namen.
+// Der PRUEFprompt behaelt die Namen (buildVerifyPrompt): dort wird kein Bild erzeugt, und der
+// Name ist die Sprache, in der Befunde beim Nutzer ankommen.
+function heroRef(spec, i) {
+  const rolle = (spec && spec.role) ? String(spec.role) : "character";
+  return "the " + rolle + " from reference image " + (HERO_REF_START + i);
+}
+
 function imageRefMapping(heroSpecs, startIndex) {
   const ab = typeof startIndex === "number" ? startIndex : 1;
-  return heroSpecs.map((spec, i) => "Reference image " + (ab + i) + " shows " + spec.name + ": " + stripEmotionWords(describeHero(spec)) + ".").join(" ");
+  return heroSpecs.map((spec, i) => {
+    const text = stripEmotionWords(describeHero(spec));
+    const artikel = /^[aeiou]/i.test(text) ? "an " : "a ";
+    return "Reference image " + (ab + i) + " shows " + artikel + text + ".";
+  }).join(" ");
 }
 
 // NEU (Punkt 1, Fortsetzung): erklaert dem Modell, was die Referenzbilder NACH den benannten Helden
@@ -2155,13 +2181,16 @@ function backgroundLibraryInstruction(startIndex, count) {
 // (dort am Beispiel von 4 Charakteren) auf eine beliebige Anzahl N.
 function allCharactersRule(heroSpecs) {
   const n = heroSpecs.length;
-  const names = heroSpecs.map((s) => s.name);
+  // GEAENDERT (19.09.2026): Bezeichner statt Namen, siehe heroRef().
+  const names = heroSpecs.map((s, i) => heroRef(s, i));
   const namesList = names.length <= 2 ? names.join(" and ") : names.slice(0, -1).join(", ") + " and " + names[names.length - 1];
+  // Der Bezeichner faengt klein an ("the girl ..."). An einem Satzanfang muss er gross werden.
+  const gross = (t) => t.charAt(0).toUpperCase() + t.slice(1);
   // VERSCHAERFT (19.09.2026): "never duplicated" allein hat nicht gereicht -- in einem
   // Haus-Querschnitt kam eine Heldin dreimal vor, in Bad, Kueche und Schlafzimmer. Der Zusatz
   // argumentiert physisch statt formal: dieselbe Person kann nicht in zwei Raeumen gleichzeitig
   // sein. Das ist fuer ein Bildmodell greifbarer als eine Zaehlvorgabe.
-  return "Each of the " + n + " named characters (" + namesList + ") appears in exactly ONE vignette across the whole scene, never duplicated. This is not a stylistic preference but a fact about the scene: all of it happens at the same moment, so the same person cannot be in two places at once — not in two rooms of the same house, not on two floors, not once indoors and once outdoors. If you have already drawn " + names[0] + " somewhere, " + names[0] + " does not appear again anywhere else in this picture. All " + n + " named characters must each appear at least once, clearly recognizable according to their reference image and the mapping above. None of them may be omitted.";
+  return "Each of the " + n + " characters from the reference images (" + namesList + ") appears in exactly ONE vignette across the whole scene, never duplicated. This is not a stylistic preference but a fact about the scene: all of it happens at the same moment, so the same person cannot be in two places at once — not in two rooms of the same house, not on two floors, not once indoors and once outdoors. " + gross(names[0]) + " appears only once: if you have already drawn " + names[0] + " somewhere, " + names[0] + " does not appear again anywhere else in this picture. All " + n + " of these characters must each appear at least once, clearly recognizable according to their reference image and the mapping above. None of them may be omitted.";
 }
 
 // NEU: baut die Vignetten fuer eine Szene: vorhandene (z.B. nutzereigene) Situationen plus
@@ -2537,7 +2566,7 @@ function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount, phase, co
   sentences.push(sizeRule(phase, composition));
   sentences.push(EDGE_AND_FACE_RULE);
   sentences.push(BASE_CANVAS_NOTE);
-  sentences.push(imageRefMapping(heroSpecs, 2));
+  sentences.push(imageRefMapping(heroSpecs, HERO_REF_START));
   // Direkt nach der Helden-Zuordnung, bevor irgendetwas anderes ueber Referenzbilder gesagt wird --
   // sonst koennte das Modell die nachfolgenden Bibliotheks-Blaetter (image_urls-Reihenfolge, siehe
   // buildSceneComposeInputs()) faelschlich als weitere Helden lesen.
@@ -2573,13 +2602,13 @@ function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount, phase, co
   const heroBits = heroSpecs.map((s, i) => {
     const pl = placements[i] || { spot: "middle", side: "centre" };
     const seite = pl.side === "centre" ? "in the centre of the image" : "on the " + pl.side + " of the image";
-    return s.name + " (" + stripEmotionWords(describeHero(s)) + ")" + aktion(i) + ", " + heroSpotText(pl.spot, phase, composition) + ", " + seite;
+    return heroRef(s, i) + " (" + stripEmotionWords(describeHero(s)) + ")" + aktion(i) + ", " + heroSpotText(pl.spot, phase, composition) + ", " + seite;
   }).join("; ");
   if (heroBits) {
-    sentences.push("Where the named characters are in this particular scene — they are NOT all lined up at the front, each one stands exactly where it says here, each doing their own thing, never standing still and never posed neutrally: " + heroBits + ".");
+    sentences.push("Where the characters from the reference images are in this particular scene — they are NOT all lined up at the front, each one stands exactly where it says here, each doing their own thing, never standing still and never posed neutrally: " + heroBits + ".");
     sentences.push(HERO_FINDABILITY_RULE);
   }
-  if (heroBits) sentences.push("The named characters above do exactly the activity given for each of them and nothing else. The little scenes and running gags listed further below belong to the unnamed background characters — never hand one of them to a named character instead of their own activity.");
+  if (heroBits) sentences.push("The characters from the reference images above do exactly the activity given for each of them and nothing else. The little scenes and running gags listed further below belong to the unnamed background characters — never hand one of them to a character from the reference images instead of their own activity.");
   // NEU (D2): Zielzahl aus der Phase.
   // GEAENDERT (18.09.2026): hier stand "individual characters in total". Das Modell hat Tiere
   // mitgezaehlt und das Bild mit Huehnern, Kuehen und Hunden gefuellt, bei rund 25 bis 30 Menschen.
@@ -3493,7 +3522,7 @@ window.Pipeline = {
   kontextInstruction, photoStyleInstruction, traitBitFromPhotoDescription, describePhotoTraits,
   PEN_INSTRUCTION_REMOVE, PEN_INSTRUCTION_REDO,
   resizeImageToDataUri, generateImage, generateImageWithRetry, verifyImage, countViolations,
-  SCENE_PHASES, ACTIVE_SCENE_PHASE, DEPTH_MIN_RATIO, SCALE_MIN_FIT, PROMPT_VERSION, PROMPT_LABEL, promptFingerprint, BILD_FASSUNG, PRUEF_FASSUNG, bildFingerprint, pruefFingerprint, severityOf, compareSeverity, isGoodEnough,
+  SCENE_PHASES, ACTIVE_SCENE_PHASE, DEPTH_MIN_RATIO, SCALE_MIN_FIT, PROMPT_VERSION, PROMPT_LABEL, promptFingerprint, BILD_FASSUNG, PRUEF_FASSUNG, bildFingerprint, pruefFingerprint, heroRef, HERO_REF_START, severityOf, compareSeverity, isGoodEnough,
   COMPOSITION_TYPES, pickComposition, layerSizeText,
   HERO_ACTION_LIBRARY, pickHeroActions, shuffledPool,
   // Szenen-Komposition (neu, siehe Modul-Abschnitt oben)
