@@ -11,8 +11,9 @@
 //      laesst sich nicht unterscheiden, ob das Modell vergleicht oder einfach das erste Bild nimmt.
 //
 // Ausgabe (TSV):
-//   C: kennung, quelle, "C", lauf, shaded, mouths, blank, shadows, light, fehler
-//   D: "VERGLEICH", "-", "D", lauf, gewaehlt(K1|K2), erstesImAufruf(K1|K2), "", "", begruendung, fehler
+//   C: kennung, quelle, "C", lauf, shaded, mouths, blank, shadows, light, fehler, nose_shape
+//   D: "VERGLEICH <Szene>", "-", "D", lauf, gewaehlt, erstesImAufruf, "", "", begruendung, fehler
+// D laeuft je Szene: die Kennungen heissen "<Nr> <Thema> K<n>", alles vor " K" ist die Szene.
 const fs = require("fs");
 const path = require("path");
 
@@ -65,6 +66,12 @@ async function frag(modell, inhalt, maxTokens) {
   if (!resp.ok) throw new Error("Anthropic " + resp.status + ": " + (await resp.text()).slice(0, 200));
   const d = await resp.json();
   if (d.usage) { tokenEin += d.usage.input_tokens || 0; tokenAus += d.usage.output_tokens || 0; }
+  // NEU (20.09.2026): abgeschnittene Antworten als solche melden. Drei von sechs C-Laeufen brachen
+  // mitten im JSON ab, und ohne diese Wache sieht das aus wie eine kaputte Antwort des Modells --
+  // dabei war nur das Limit zu klein. stop_reason sagt es uns direkt.
+  if (d.stop_reason === "max_tokens") {
+    throw new Error("Antwort war bei max_tokens=" + (maxTokens || 1000) + " abgeschnitten. Limit erhoehen.");
+  }
   return (d.content || []).map((t) => t.text || "").join("");
 }
 
@@ -75,11 +82,12 @@ const FRAGEN_C = [
   "Beantworte genau diese fünf Punkte, jeder für sich, durch Zählen — nicht nach Gefühl.",
   "1. Nimm die ZEHN GRÖSSTEN menschlichen Gesichter im Bild und geh sie einzeln durch. Bei wie vielen davon ist das Gesicht PLASTISCHER gezeichnet als der beschriebene flache Stil? Anzeichen: eine Nase, die als Form gezeichnet ist statt als Strich (mit Nasenrücken, Nasenspitze, Nasenflügeln oder Schatten daran); sichtbare Bartstoppeln oder Schattierung auf Wangen, Kinn oder Hals; ein im Halbprofil gezeichnetes Gesicht mit modellierten Zügen, während die übrigen frontal und flach sind. AUSNAHME: der Weihnachtsmann und andere Figuren, deren Bart zur Rolle gehört, zählst du NICHT mit. Antworte im Feld shaded_of_ten mit einer ganzen Zahl von 0 bis 10.",
   "2. Bei wie vielen derselben zehn Gesichter ist ein MUND gezeichnet, also ein Strich, ein Bogen oder eine Öffnung im Gesicht? Antworte im Feld mouths_of_ten mit einer ganzen Zahl von 0 bis 10.",
+  "2b. FORM DER NASE, und zwar nur die Form, nicht die Schattierung: Die Nase soll EIN einzelner, gerader, senkrechter Strich INNERHALB der Gesichtsfläche sein, wie das Zeichen \"|\". Bei wie vielen derselben zehn Gesichter ist die Nase ANDERS geformt? Als anders zählt: ein Haken oder eine Kurve statt eines geraden Strichs; ein Bogen, ein Häkchen, ein \"J\" oder ein umgedrehtes \"L\"; eine Nase, die als Form mit Rücken und Spitze gezeichnet ist; eine Nase, die über die Kontur des Gesichts hinausragt statt innerhalb zu bleiben. Ein sauberer senkrechter Strich zählt NICHT. Ein Gesicht ganz ohne Nase zählt hier auch nicht. Antworte im Feld nose_shape_of_ten mit einer ganzen Zahl von 0 bis 10. Der gewünschte Stil ergibt 0.",
   "3. Bei wie vielen derselben zehn Gesichter ist gar nichts gezeichnet, also eine leere Fläche ohne Punktaugen und ohne Nasenstrich? Der fehlende Mund ist dabei ausdrücklich richtig und zählt hier nicht. Antworte im Feld blank_of_ten mit einer ganzen Zahl von 0 bis 10.",
   "4. Nimm die ZEHN GRÖSSTEN Figuren im Bild. Bei wie vielen liegt ein sichtbarer Schatten auf dem Boden? Ein bloßer dunkler Bodenbelag zählt nicht. Antworte im Feld shadows_of_ten mit einer ganzen Zahl von 0 bis 10.",
   "5. Ist im Bild eine EINHEITLICHE Lichtrichtung erkennbar? Antworte im Feld light_direction mit \"ja\" oder \"nein\".",
   "Wenn weniger als zehn Gesichter groß genug sind, nimm so viele wie erkennbar sind und zähle darunter.",
-  "Das sind Messungen, keine Urteile. Antworte NUR als JSON-Objekt mit genau diesen fünf Feldern: {\"shaded_of_ten\": Zahl, \"mouths_of_ten\": Zahl, \"blank_of_ten\": Zahl, \"shadows_of_ten\": Zahl, \"light_direction\": \"ja\"/\"nein\"}.",
+  "Das sind Messungen, keine Urteile. Antworte NUR als JSON-Objekt mit genau diesen sechs Feldern: {\"shaded_of_ten\": Zahl, \"nose_shape_of_ten\": Zahl, \"mouths_of_ten\": Zahl, \"blank_of_ten\": Zahl, \"shadows_of_ten\": Zahl, \"light_direction\": \"ja\"/\"nein\"}.",
 ].join(" ");
 
 function zeile(f) { process.stdout.write(f.join("\t") + "\n"); }
@@ -89,7 +97,8 @@ function zeile(f) { process.stdout.write(f.join("\t") + "\n"); }
   let modell;
   try { modell = await modellWaehlen(); }
   catch (e) { zeile(["MODELLWAHL", "-", "-", "-", "", "", "", "", "", e.message]); process.exit(1); }
-  const gesamt = (modus.indexOf("C") >= 0 ? bilder.length * LAEUFE : 0) + (modus.indexOf("D") >= 0 ? LAEUFE : 0);
+  const szenenZahl = new Set(bilder.map((b) => (String(b[0]).match(/^(.*) K\d+$/) || [])[1]).filter(Boolean)).size;
+  const gesamt = (modus.indexOf("C") >= 0 ? bilder.length * LAEUFE : 0) + (modus.indexOf("D") >= 0 ? szenenZahl * LAEUFE : 0);
   let fertig = 0;
 
   if (modus.indexOf("C") >= 0) {
@@ -97,7 +106,9 @@ function zeile(f) { process.stdout.write(f.join("\t") + "\n"); }
       for (let lauf = 1; lauf <= LAEUFE; lauf++) {
         let p = {}, fehler = "";
         try {
-          const text = await frag(modell, [bildBlock(quelle), { type: "text", text: FRAGEN_C }], 600);
+          // max_tokens grosszuegig: drei von sechs Laeufen brachen bei 600 mitten im JSON ab.
+          // Die Antwort ist kurz, das Limit kostet nur, was tatsaechlich erzeugt wird.
+          const text = await frag(modell, [bildBlock(quelle), { type: "text", text: FRAGEN_C }], 4000);
           const m = String(text).match(/\{[\s\S]*\}/);
           if (!m) throw new Error("Antwort ohne JSON: " + String(text).slice(0, 120));
           p = JSON.parse(m[0]);
@@ -105,7 +116,8 @@ function zeile(f) { process.stdout.write(f.join("\t") + "\n"); }
         zeile([kennung, quelle, "C", lauf,
           p.shaded_of_ten != null ? p.shaded_of_ten : "", p.mouths_of_ten != null ? p.mouths_of_ten : "",
           p.blank_of_ten != null ? p.blank_of_ten : "", p.shadows_of_ten != null ? p.shadows_of_ten : "",
-          p.light_direction != null ? p.light_direction : "", fehler]);
+          p.light_direction != null ? p.light_direction : "", fehler,
+          p.nose_shape_of_ten != null ? p.nose_shape_of_ten : ""]);
         fertig++;
         process.stderr.write("  " + fertig + "/" + gesamt + "  " + kennung + " C" + lauf + (fehler ? "  FEHLER" : "") + "\n");
       }
@@ -113,16 +125,28 @@ function zeile(f) { process.stdout.write(f.join("\t") + "\n"); }
   }
 
   if (modus.indexOf("D") >= 0) {
-    if (bilder.length !== 2) {
-      zeile(["VERGLEICH", "-", "D", "-", "", "", "", "", "", "Variante D braucht genau zwei Kandidaten, bekommen: " + bilder.length]);
-    } else if (!referenz || !fs.existsSync(referenz)) {
+    // NACH SZENE GRUPPIEREN (20.09.2026): D laeuft jetzt ueber beliebig viele Szenen, nicht mehr
+    // nur ueber genau zwei Bilder. Die Kennung ist "<Nr> <Thema> K<n>" -- alles vor " K" ist die
+    // Szene. Eine Szene mit nur einem Kandidaten wird uebersprungen, es gibt nichts zu vergleichen.
+    const szenen = new Map();
+    bilder.forEach((b) => {
+      const m = String(b[0]).match(/^(.*) K\d+$/);
+      if (!m) return;
+      if (!szenen.has(m[1])) szenen.set(m[1], []);
+      szenen.get(m[1]).push(b);
+    });
+    if (!referenz || !fs.existsSync(referenz)) {
       zeile(["VERGLEICH", "-", "D", "-", "", "", "", "", "", "Referenzbild fehlt: " + referenz]);
-    } else {
+    } else for (const [szene, kand] of szenen) {
+      if (kand.length !== 2) {
+        zeile(["VERGLEICH " + szene, "-", "D", "-", "", "", "", "", "", "Variante D braucht genau zwei Kandidaten, diese Szene hat " + kand.length]);
+        continue;
+      }
       for (let lauf = 1; lauf <= LAEUFE; lauf++) {
         // Reihenfolge je Lauf tauschen.
         const erstesIstK1 = (lauf % 2 === 1);
-        const a = erstesIstK1 ? bilder[0] : bilder[1];
-        const b = erstesIstK1 ? bilder[1] : bilder[0];
+        const a = erstesIstK1 ? kand[0] : kand[1];
+        const b = erstesIstK1 ? kand[1] : kand[0];
         let gewaehlt = "", begruendung = "", fehler = "";
         try {
           const inhalt = [
@@ -134,7 +158,7 @@ function zeile(f) { process.stdout.write(f.join("\t") + "\n"); }
             bildBlock(b[1]),
             { type: "text", text: "Welcher der beiden Kandidaten trifft den GESICHTSSTIL der Referenz besser? Achte nur auf die Gesichter: Punktaugen, Nasenstrich statt ausmodellierter Nase, kein Mund. Alles andere ist egal. Antworte NUR als JSON: {\"besser\": \"ERSTER\" oder \"ZWEITER\", \"begruendung\": \"ein bis zwei Sätze\"}." },
           ];
-          const text = await frag(modell, inhalt, 400);
+          const text = await frag(modell, inhalt, 2000);
           const m = String(text).match(/\{[\s\S]*\}/);
           if (!m) throw new Error("Antwort ohne JSON: " + String(text).slice(0, 120));
           const p = JSON.parse(m[0]);
@@ -142,9 +166,9 @@ function zeile(f) { process.stdout.write(f.join("\t") + "\n"); }
           gewaehlt = gewinnerZeile[0];
           begruendung = String(p.begruendung || "").replace(/\s+/g, " ").slice(0, 200);
         } catch (e) { fehler = e.message; }
-        zeile(["VERGLEICH", "-", "D", lauf, gewaehlt, (erstesIstK1 ? bilder[0][0] : bilder[1][0]), "", "", begruendung, fehler]);
+        zeile(["VERGLEICH " + szene, "-", "D", lauf, gewaehlt, (erstesIstK1 ? kand[0][0] : kand[1][0]), "", "", begruendung, fehler]);
         fertig++;
-        process.stderr.write("  " + fertig + "/" + gesamt + "  Vergleich D" + lauf + (fehler ? "  FEHLER" : "") + "\n");
+        process.stderr.write("  " + fertig + "/" + gesamt + "  " + szene + " D" + lauf + (fehler ? "  FEHLER" : "") + "\n");
       }
     }
   }

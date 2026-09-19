@@ -15,8 +15,8 @@
 #
 # Mit VARIANTEN=... auswaehlen, z.B. VARIANTEN=CD. Vorgabe: AB (nur fal, kein Anthropic-Schluessel
 # noetig). Fuer C/D wird ANTHROPIC_API_KEY gebraucht -- derselbe Schluessel, den das Projekt schon
-# benutzt (siehe api/claude-proxy.js). D braucht genau zwei Kandidaten und das Referenzbild,
-# laeuft also sinnvoll nur mit NUR="..." auf eine Szene eingeschraenkt.
+# benutzt (siehe api/claude-proxy.js). D laeuft je SZENE und damit auch ueber die ganze Sitzung;
+# Szenen mit nur einem Kandidaten werden uebersprungen. Das Referenzbild wird gebraucht.
 #
 # Es laufen NUR Pruefaufrufe, keine Bildaufrufe. Die Zahl und die geschaetzten Kosten stehen VOR
 # der Abfrage des FAL_KEY; ein Abbruch davor kostet nichts.
@@ -96,11 +96,13 @@ case "$VARIANTEN" in *B*) HAT_B=1;; *) HAT_B=0;; esac
 case "$VARIANTEN" in *C*) HAT_C=1;; *) HAT_C=0;; esac
 case "$VARIANTEN" in *D*) HAT_D=1;; *) HAT_D=0;; esac
 FAL_N=$(( (HAT_A + HAT_B) * ANZAHL_BILDER * LAEUFE ))
-CLAUDE_N=$(( HAT_C * ANZAHL_BILDER * LAEUFE + HAT_D * LAEUFE ))
+# D laeuft je Szene: Kennungen sind "<Nr> <Thema> K<n>", alles vor " K" ist die Szene.
+SZENEN=$(cut -f1 "$ARBEIT/bilder.tsv" | sed -n 's/ K[0-9]*$//p' | sort -u | wc -l | tr -d ' ')
+CLAUDE_N=$(( HAT_C * ANZAHL_BILDER * LAEUFE + HAT_D * SZENEN * LAEUFE ))
 KOSTEN=$(node -e 'console.log((Number(process.argv[1])*Number(process.argv[2])).toFixed(2))' "$FAL_N" "$PREIS_PRUEFUNG")
 
 echo
-echo "Bilder: $ANZAHL_BILDER   Varianten: $VARIANTEN   Laeufe je Variante: $LAEUFE"
+echo "Bilder: $ANZAHL_BILDER   Szenen (fuer D): $SZENEN   Varianten: $VARIANTEN   Laeufe: $LAEUFE"
 echo
 echo "  PRUEFAUFRUFE ueber fal (A/B):      $FAL_N"
 echo "  AUFRUFE ueber die Anthropic-API (C/D): $CLAUDE_N"

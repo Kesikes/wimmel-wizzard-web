@@ -5,10 +5,18 @@
 # Spalten: kennung <TAB> feld <TAB> wert
 # kennung muss zur Kennung in stabilitaet.sh passen ("<Nr> <Thema> K<n>", oder REF).
 #
-# ZUORDNUNG, bitte gegenlesen: der Nutzer hat "Nasen" gezaehlt, also Gesichter mit einer
-# ausmodellierten Nase statt eines Strichs. Im Pruefprompt heisst dieses Feld shaded_of_ten
-# (plastisch gezeichnete Gesichter). Wenn das nicht dasselbe meint, gehoert die Zeile geaendert.
+# KORRIGIERT am 20.09.2026: die "Nasen"-Zaehlung lag zuerst auf shaded_of_ten (plastisch
+# schattierte Gesichter). Der Nutzer hat klargestellt, dass ihn die FORM der Nase stoert -- Haken,
+# Kurve oder aus dem Gesicht ragend statt eines einzelnen senkrechten Strichs. Dafuer gibt es seit
+# heute das eigene Feld nose_shape_of_ten. Die Zeilen stehen jetzt dort.
+# Was shaded_of_ten (Schattierung) in diesen beiden Bildern wirklich ist, hat niemand gezaehlt --
+# deshalb steht dazu hier NICHTS. Eine Zahl, die niemand abgezaehlt hat, gehoert nicht in diese Datei.
 7 Berg K1	mouths_of_ten	10
-7 Berg K1	shaded_of_ten	10
+7 Berg K1	nose_shape_of_ten	10
 7 Berg K2	mouths_of_ten	1
-7 Berg K2	shaded_of_ten	0
+7 Berg K2	nose_shape_of_ten	0
+
+# BLINDWAHL je Szene (Variante D). Eintragen, was auf docs/ref/paare.html steht: "links" oder
+# "rechts". Welche Seite welcher Kandidat war, loest das Werkzeug ueber paare-zuordnung.tsv auf --
+# so muss niemand nachschlagen und sich dabei selbst beeinflussen. "K1"/"K2" geht auch.
+# Beispiel:  7 Berg<TAB>besser<TAB>links

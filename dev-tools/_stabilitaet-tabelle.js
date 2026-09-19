@@ -14,13 +14,36 @@ const wahrheitDatei = process.argv[4] || "docs/ref/wahrheit.tsv";
 // WAHRHEIT: vom Nutzer selbst am Bild gezaehlt (docs/ref/wahrheit.tsv). Ohne sie misst dieses
 // Werkzeug nur Einigkeit; mit ihr auch Richtigkeit. Kennung+Feld -> Wert.
 const wahrheit = new Map();
+const wahrheitRoh = new Map();
 try {
   fs.readFileSync(wahrheitDatei, "utf8").split("\n").forEach((z) => {
     if (!z.trim() || z.trim().startsWith("#")) return;
     const f = z.split("\t");
-    if (f.length >= 3) wahrheit.set(f[0].trim() + "|" + f[1].trim(), Number(f[2]));
+    if (f.length >= 3) {
+      wahrheit.set(f[0].trim() + "|" + f[1].trim(), Number(f[2]));
+      wahrheitRoh.set(f[0].trim() + "|" + f[1].trim(), f[2].trim());
+    }
   });
 } catch (e) { /* ohne Wahrheitsdatei laeuft alles wie vorher, nur ohne Abstandsspalte */ }
+
+// Die Blindwahl steht in wahrheit.tsv als "<Szene>  besser  links|rechts" (so, wie sie auf
+// docs/ref/paare.html steht -- der Nutzer soll nicht selbst nachschlagen muessen, welche Seite
+// welcher Kandidat war). Aufgeloest wird sie hier ueber docs/ref/paare-zuordnung.tsv.
+// "K1"/"K2" direkt einzutragen geht auch.
+const seiten = new Map();
+try {
+  fs.readFileSync(path.join(path.dirname(wahrheitDatei), "paare-zuordnung.tsv"), "utf8").split("\n").forEach((z) => {
+    if (!z.trim() || z.trim().startsWith("#")) return;
+    const f = z.split("\t");            // szene, seite, kandidat
+    if (f.length >= 3) seiten.set(f[0].trim() + "|" + f[1].trim(), f[2].trim());
+  });
+} catch (e) { /* ohne Zuordnung nur K1/K2 direkt */ }
+function wahlDesNutzers(szene) {
+  const text = wahrheitRoh.get(szene + "|besser");
+  if (!text) return null;
+  if (/^K\d$/i.test(text)) return szene + " " + text.toUpperCase();
+  return seiten.get(szene + "|" + text.toLowerCase()) || null;
+}
 const zeilen = fs.readFileSync(rohDatei, "utf8").split("\n").filter(Boolean).map((z) => z.split("\t"));
 
 // Grenzen wie in der Live-Wertung (fal-queue.js). shadows/light haben keine Grenze.
@@ -30,6 +53,9 @@ const FELDER = [
   { name: "mouths", spalte: 5, grenze: Q.MOUTHS_MAX_OF_TEN, test: (v, g) => v <= g, feld: "mouths_of_ten" },
   { name: "blank", spalte: 6, grenze: Q.BLANK_MAX_OF_TEN, test: (v, g) => v <= g, feld: "blank_of_ten" },
   { name: "shadows", spalte: 7, grenze: null, feld: "shadows_of_ten" },
+  // NEU (20.09.2026): die FORM der Nase, nicht ihre Schattierung. Nur Variante C misst das --
+  // A und B fragen gar nicht danach, dort bleibt die Spalte leer. Noch ohne Grenze: erst messen.
+  { name: "nose", spalte: 10, grenze: null, feld: "nose_shape_of_ten" },
 ];
 
 // kennung -> variante -> [zeilen]
@@ -124,7 +150,7 @@ function mittel(a) { return a && a.length ? a.reduce((x, y) => x + y, 0) / a.len
 function block(titel, quelle) {
   const kopf = ["Feld"].concat(VARIANTEN.map((v) => v + ": " + titel)).concat(["bester"]);
   const reihen = [];
-  ["shaded", "mouths", "blank", "shadows"].forEach((f) => {
+  ["shaded", "nose", "mouths", "blank", "shadows"].forEach((f) => {
     const werte = VARIANTEN.map((v) => mittel(quelle[v][f]));
     if (werte.every((x) => x == null)) return;
     const da = VARIANTEN.filter((v, i) => werte[i] != null);
@@ -170,16 +196,44 @@ if (dZeilen.length) {
     s("  Lauf " + f[3] + ": gewaehlt " + f[4] + "   (zuerst im Aufruf stand " + f[5] + ")");
     if (f[8]) s("           " + f[8]);
   });
-  const gueltig = dZeilen.filter((f) => !f[9] && f[4]);
-  const gewaehlt = gueltig.map((f) => f[4]);
-  const einig = gewaehlt.length && gewaehlt.every((g) => g === gewaehlt[0]);
-  const immerErstes = gueltig.length > 1 && gueltig.every((f) => f[4] === f[5]);
   s("");
-  if (!gueltig.length) s("  Kein gueltiger Lauf.");
-  else if (immerErstes) s("  WARNUNG: in jedem Lauf gewann das Bild, das ZUERST im Aufruf stand. Das sieht nach");
-  else if (einig) s("  Einig ueber alle Laeufe: " + gewaehlt[0] + " — und zwar unabhaengig von der Reihenfolge.");
-  else s("  Uneinig: " + gewaehlt.join(", ") + ".");
-  if (immerErstes) s("  Reihenfolge-Effekt aus, nicht nach Vergleich.");
+  // Je Szene auswerten, nicht ueber alle Szenen gemischt.
+  const szenen = new Map();
+  dZeilen.forEach((f) => {
+    const name = String(f[0]).replace(/^VERGLEICH ?/, "") || "(eine Szene)";
+    if (!szenen.has(name)) szenen.set(name, []);
+    szenen.get(name).push(f);
+  });
+  let uebereinstimmung = 0, mitWahrheit = 0, erstesEffekt = 0;
+  szenen.forEach((zs, szene) => {
+    const gueltig = zs.filter((f) => !f[9] && f[4]);
+    const gewaehlt = gueltig.map((f) => f[4]);
+    const einig = gewaehlt.length && gewaehlt.every((g) => g === gewaehlt[0]);
+    const immerErstes = gueltig.length > 1 && gueltig.every((f) => f[4] === f[5]);
+    let zeileText = "  " + szene + ": ";
+    if (!gueltig.length) zeileText += "kein gueltiger Lauf";
+    else if (immerErstes) { zeileText += "IMMER das zuerst genannte Bild — Reihenfolge-Effekt, kein Vergleich"; erstesEffekt++; }
+    else if (einig) zeileText += "einig auf " + gewaehlt[0] + ", reihenfolgeunabhaengig";
+    else zeileText += "uneinig (" + gewaehlt.join(", ") + ")";
+    // Gegen die Blindwahl des Nutzers, falls vorhanden.
+    const w = wahlDesNutzers(szene);
+    if (w && einig && !immerErstes) {
+      mitWahrheit++;
+      const treffer = gewaehlt[0] === w;
+      if (treffer) uebereinstimmung++;
+      zeileText += "   |   Blindwahl: " + w + (treffer ? "  UEBEREIN" : "  ABWEICHUNG");
+    } else if (w) {
+      zeileText += "   |   Blindwahl: " + w + "  (nicht vergleichbar)";
+    }
+    s(zeileText);
+  });
+  s("");
+  if (mitWahrheit) {
+    s("  Uebereinstimmung mit der Blindwahl: " + uebereinstimmung + " von " + mitWahrheit + " vergleichbaren Szenen.");
+  } else {
+    s("  Keine Blindwahl in docs/ref/wahrheit.tsv gefunden — ohne sie sagt D nur, ob es sich einig ist.");
+  }
+  if (erstesEffekt) s("  WARNUNG: in " + erstesEffekt + " Szene(n) gewann immer das zuerst genannte Bild.");
 }
 
 s("");
