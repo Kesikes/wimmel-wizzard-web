@@ -11,6 +11,22 @@ nicht mehr gilt. Wenn ein Abschnitt in einem anderen Dokument einer Zeile hier w
 
 Anlegt am 20.09.2026. Neue Entscheidungen kommen oben in ihr Thema, nicht ans Ende der Datei.
 
+## Zuständigkeit je Thema — damit nichts doppelt gepflegt wird
+
+Die Widersprüche, die wir am 20.09. gefunden haben, sind fast alle dadurch entstanden, dass
+dieselbe Zahl an zwei Stellen stand und nur eine nachgezogen wurde. Deshalb gilt:
+
+| Thema | Quelle |
+|---|---|
+| Bildprompt, Prüfkriterien, Schwellen, Gewichtung, Kandidatenwahl, Prompt-Fassungen | **diese Datei** |
+| Produktstufen, Seitenzahlen, Falz, Konto und Guthaben, Wasserzeichen, Easter Egg | `konzept-konto-layout-druck.md` |
+| Reihenfolge und Phasen bis zum Launch | `plan-bis-launch-2026-09-19.md` |
+| Überblick, Kostenlage, offene Punkte | `projektstand-2026-09-19.md` |
+| Freitext-Weg: Testgeschichte und Prüfpunkte | `testgeschichte-freitext.md` |
+
+Das Register führt Produktentscheidungen **nicht** doppelt. Eine Ausnahme steht unten in
+Abschnitt 11: eine Produktentscheidung, die unmittelbar auf den Bildprompt durchschlägt.
+
 ---
 
 ## 1. Hintergrund-Bibliothek
@@ -296,3 +312,55 @@ zuverlässig. Die *vergleichende* Variante D tut es. Ob das über sieben Szenen 
 Blindtest (`docs/ref/paare.html`, Wahl in `wahrheit.tsv`, dann `VARIANTEN=D`).
 
 Eine kleine Spanne heißt nur, dass ein Modell sich einig ist — nicht, dass es recht hat.
+
+
+---
+
+## 11. Flache Figuren, nicht flaches Bild
+
+### GÜLTIG (Produktentscheidung des Nutzers, festgehalten am 20.09.2026)
+
+**Die Figuren sollen flach sein. Das Bild als Ganzes nicht.**
+
+Flach heißt: Punktaugen, ein einzelner senkrechter Nasenstrich, kein Mund, dicke schwarze
+Kontur, flache Farbflächen, keine Schattierung im Gesicht.
+
+Nicht flach heißt: das Bild darf Licht, Schatten und Atmosphäre haben — Schlagschatten auf dem
+Boden, sanfte Verläufe in Himmel und Laub, Dunst in der Ferne.
+
+Referenz ist das Bauernhofbild vom 18.09.2026.
+
+Diese Unterscheidung stand in `projektstand-2026-09-19.md`, Abschnitt 8, und war in den
+technischen Dokumenten **nirgends** festgehalten. Sie gehört hierher, weil sie unmittelbar auf
+den Bildprompt durchschlägt.
+
+**Offener Widerspruch im Code, gemeldet am 19.09., bewusst nicht aufgelöst:** Der Abspann in
+`sceneComposeInstruction()` verlangt wörtlich, dass keine Figur „shaded, gradient, or softly
+airbrushed" gezeichnet wird — und er steht ganz am Ende, an der stärksten Wiederholungsstelle.
+Gemeint sind die **Figuren**, das ist richtig; formuliert ist es aber so breit, dass ein
+Bildmodell es kaum auf Figuren begrenzt. Solange der Satz so dasteht, arbeitet der Prompt gegen
+die zweite Hälfte dieser Entscheidung.
+
+Der Lichttest (`/app?licht=an`, siehe Abschnitt 9) ist der Versuch, die zweite Hälfte einzulösen.
+Bleibt er wirkungslos, ist dieser Abspann der erste Verdächtige — dann wäre der nächste Schritt,
+ihn ebenfalls hinter den Schalter zu legen: mit Licht ohne „shaded, gradient", ohne Licht
+unverändert.
+
+---
+
+## 12. Freitext-Weg
+
+### Stand 20.09.2026: nie getestet
+
+Alle bisherigen Testbilder entstanden über die fertigen Themen. Der Weg „erzählen statt wählen"
+ist ungeprüft. Testgeschichte und Prüfpunkte stehen in `testgeschichte-freitext.md`.
+
+**Aus dem Code vorab bekannt, und der wahrscheinlichste Befund:** Chat-Weg und Aufnahme-Weg
+verhalten sich unterschiedlich. Der Chat (`sceneChat()` mit dem Werkzeug `add_scene`) liefert
+`situations_en` als **Liste** und kann nachfragen. Die Aufnahme legt das ganze Transkript über
+`translateFreeText()` als **einen einzigen Eintrag** in `sceneUserSituations`; `autoSituations()`
+füllt danach mit 19 Vignetten aus der allgemeinen Bibliothek auf. Auf dem Aufnahme-Weg
+konkurriert die ganze erzählte Geschichte also mit 19 erfundenen Situationen um denselben Platz.
+
+Bestätigt sich das, ist es kein Prompt-Problem, sondern ein Strukturproblem: das Transkript
+müsste wie im Chat in eine Liste zerlegt werden.
