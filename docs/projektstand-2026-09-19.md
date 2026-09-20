@@ -1,6 +1,6 @@
 # WizzelWim: Projektstand
 
-**Stand:** 19.09.2026, abends
+**Stand:** 19.09.2026, abends · **technisch nachgezogen am 20.09.2026** (siehe `entscheidungen.md`)
 **Zweck:** Nachschlagewerk und Einstieg für neue Sitzungen. Ergänzt `plan-bis-launch-2026-09-19.md` und `konzept-konto-layout-druck.md`.
 
 ---
@@ -21,11 +21,11 @@ git log origin/main..HEAD --oneline
 git push
 ```
 
-Cowork kann in seiner Umgebung weder pushen noch Dateien löschen. Scheitert ein Befehl an `.git/index.lock` oder `.git/HEAD.lock`, entfernt Matthias sie mit `rm`.
+Cowork kann in seiner Umgebung nicht pushen. Löschen im verbundenen Ordner ist seit dem 19.09. freigegeben — Lock-Dateien (`.git/index.lock`, `.git/HEAD.lock`) räumt Cowork selbst weg.
 
-**Dokumente im Repo unter `docs/`:** `plan-bis-launch`, `konzept-konto-layout-druck`, `verify-kalibrierung-2026-09-17`, `kandidatenwahl-und-kriterien-2026-09-19`, `plan-nachtraege-2026-09-19`, `stilbruch-tests-2026-09-16`.
+**Dokumente im Repo unter `docs/`:** `entscheidungen` (**das Register — was GILT; bei Widerspruch geht es vor**), `projektstand`, `plan-bis-launch`, `konzept-konto-layout-druck`, `verify-kalibrierung-2026-09-17`, `kandidatenwahl-und-kriterien-2026-09-19`, `plan-nachtraege-2026-09-19`, `stilbruch-tests-2026-09-16`, `testgeschichte-freitext`.
 
-**Werkzeuge unter `dev-tools/`:** `session-retten.py` (gespeicherte Sitzungen finden und sichern), `gag-mix.js` (Gag-Mischung testen), `prompt-laenge.js`, `wertung-vergleich.js`.
+**Werkzeuge unter `dev-tools/`:** `session-retten.py` (gespeicherte Sitzungen finden und sichern), `gag-mix.js`, `prompt-laenge.js`, `wertung-vergleich.js` (beide Kopien der Wertungslogik gegeneinander), `stil-nachmessen.js` (Stilwerte an fertigen Bildern, nur Prüfaufrufe), `messen.sh` + `_messen-tabelle.js` (alle Kandidaten einer Sitzung messen), `auswertung.js` (heute gemessen gegen damals gespeichert, plus Begründung der Auswahl), `stabilitaet.sh` + `_stabilitaet-lauf.js`/`_stabilitaet-tabelle.js`/`_stabilitaet-claude.js` (vier Prüfvarianten gegeneinander), `paare-bauen.js` (Blindtest-Seite), `kosten.js` (Token in Dollar).
 
 ---
 
@@ -50,6 +50,7 @@ Ein Vision-Modell ist gut darin, einen benannten Defekt zu finden, sobald er als
 | `scale_est` | wie oft passt die größte Figur in die Bildhöhe | `SCALE_MIN_FIT` 2,8 | schwer, wenn Tiefe fehlt; sonst mittel |
 | `depth_ratio` | größte zu kleinste Figur | `DEPTH_MIN_RATIO` 1,8 | schwer; im Querschnitt `null` |
 | `figures_est` | geschätzte Zahl MENSCHLICHER Figuren | Phase 1: 55–130, Phase 2: 40–95 | mittel |
+| `heads_ok` | Kopfgrößen innerhalb einer Tiefenebene | — | mittel |
 | `mouths_of_ten` | Münder unter den 10 größten Gesichtern | max. 3 | mittel |
 | `shaded_of_ten` | plastisch schattierte unter den 10 größten | max. 1 | mittel |
 | `blank_of_ten` | leere Gesichter unter den 10 größten | 0 | mittel |
@@ -57,7 +58,11 @@ Ein Vision-Modell ist gut darin, einen benannten Defekt zu finden, sobald er als
 | `no_text_ok` | kein Text im Bild | — | leicht |
 | `notiz` | Freitext des Prüfmodells, nicht gewertet | — | — |
 
-**Auswahl:** erst schwere Verstöße vergleichen, bei Gleichstand mittlere, dann leichte. **Dritter Versuch nur, wenn der beste Kandidat einen schweren Verstoß hat.** Harte Obergrenze: 3 Bildaufrufe je Szene.
+**Auswahl (seit 20.09. dreistufig):** zuerst geprüfte Kandidaten ohne schweren Verstoß, dann **ungeprüfte**, zuletzt geprüfte mit schwerem Verstoß. Innerhalb der ersten und dritten Gruppe stufenweise: erst schwere Verstöße, bei Gleichstand mittlere, dann leichte.
+
+**Ungeprüft** ist ein Kandidat, dessen Prüfaufruf zweimal gescheitert ist (Ausnahme *oder* unlesbare Antwort). Wiederholt wird einmal — ein Prüfaufruf, kein Bildaufruf. Ungeprüft verliert nicht automatisch und gewinnt nicht automatisch.
+
+**Dritter Versuch nur, wenn der beste Kandidat einen schweren Verstoß hat** — und seit 20.09. nur dann, wenn überhaupt ein Kandidat geprüft werden konnte. Harte Obergrenze: 3 Bildaufrufe je Szene.
 
 **Bewusst nicht kalibriert:** Die Skala des Modells schwankt bei hoher Dichte um 20–30 %. Unter etwa 40 geschätzten Figuren ist der Wert stabil. Untergrenzen dürfen knapp sitzen, Obergrenzen brauchen Luft.
 
@@ -75,7 +80,7 @@ Ein Vision-Modell ist gut darin, einen benannten Defekt zu finden, sobald er als
 
 **Auffälliger Zusammenhang:** Je stärker ein Typ strukturiert ist, desto besser das Ergebnis. Konsequenz für später: offene Szenen nicht freier, sondern enger führen, etwa mit benannten Zonen.
 
-**Testschalter:** `/app?phase=phase1&komposition=cutaway`. Gültige Werte: `open`, `cutaway`, `gridhouse`, `overview_cutaway`, `overview_open`. Beenden über den Knopf im Hinweis.
+**Testschalter:** `/app?phase=phase1&komposition=cutaway&licht=an`. Gültige Werte: Komposition `open`, `cutaway`, `gridhouse`, `overview_cutaway`, `overview_open`; Licht `an`. **Ein leerer Wert bei EINEM der drei beendet den Testmodus ganz** (`/app?phase=` löscht auch Komposition und Licht), ebenso der Knopf „Testmodus beenden" im Hinweis.
 
 ---
 
@@ -85,7 +90,7 @@ Ein Vision-Modell ist gut darin, einen benannten Defekt zu finden, sobald er als
 |---|---|
 | `nano-banana-pro/edit` | **0,15 $** je Bild (nicht 0,30 $ — frühere Rechnungen waren doppelt zu hoch) |
 | Szene mit 2 Kandidaten | 0,30 $ |
-| Verify | Centbeträge |
+| Verify | **nicht gemessen** — steckt zusammen mit der Figurengenerierung in den 29 $ Differenz zwischen 103,86 $ gesamt und 74,85 $ Bildkosten. Wer damit rechnet, rechnet mit einer Annahme. |
 | Stift-Korrektur | jede angewendete Korrektur ist ein volles Bild |
 
 Verbrauch bis 19.09.: 103,86 $ gesamt, davon ein erheblicher Teil durch den Wettlauf-Fehler (bis zu zehn Aufrufe je Szene statt zwei).
@@ -128,9 +133,11 @@ Verbrauch bis 19.09.: 103,86 $ gesamt, davon ein erheblicher Teil durch den Wett
 
 ### Dringend
 
-- **Stil-Rückschritt nach `8ef4d85`:** Figuren sind jetzt zu flach, haben komische Nasen, treffen den Stil nicht. Verdacht: Der Umbau hat auch die Anweisung ans Bildmodell verschärft, nicht nur die Prüfung.
-- **Der inhaltliche Kern dahinter, nie sauber getrennt:** Die **Figuren** sollen flach sein (Punktaugen, Nasenstrich, dicke Kontur). Das **Bild** als Ganzes nicht — es braucht Licht, Schatten und Atmosphäre. Referenzbild ist das Bauernhofbild vom 18.09.
-- **Doppelte Helden:** Die Leinwand-Korrektur hat das Fehlen behoben, nicht die Dopplungen. `7901d2f` liegt bereit (Heldenregel weiter nach vorn), noch nicht gepusht.
+- **Stil-Rückschritt: die Ursache ist gefunden, und sie ist NICHT `8ef4d85`.** Der frühere Verdacht („der Umbau hat auch die Anweisung ans Bildmodell verschärft") ist am 19.09. deterministisch widerlegt: die Prüfsumme über die Bildprompt-Erzeuger ist vor und nach `8ef4d85` identisch (`2b5d392c`), einzige Abweichung liegt in `buildVerifyPrompt`. An dem Text, der zur Bilderzeugung geht, hat sich kein Zeichen geändert.
+  **Die tatsächliche Ursache** ist der Abspann in `sceneComposeInstruction()`: er verlangte, dass nichts „shaded, gradient, or softly airbrushed" gezeichnet wird, mit dem Zusatz „across the entire image" — gemeint waren die Figuren, dastehen tat es fürs ganze Bild, und zwar an der stärksten Stelle überhaupt, ganz am Prompt-Ende. Am 20.09. auf die Figuren begrenzt.
+- **Der inhaltliche Kern dahinter:** Die **Figuren** sollen flach sein (Punktaugen, Nasenstrich, dicke Kontur). Das **Bild** als Ganzes nicht — es braucht Licht, Schatten und Atmosphäre. Referenzbild ist das Bauernhofbild vom 18.09. Steht seit 20.09. als Abschnitt 11 im Register. Die positive Hälfte (Licht ausdrücklich verlangen) sitzt weiter hinter `/app?licht=an` und ist erst jetzt überhaupt testbar — vorher hob der Abspann sie auf.
+- **Doppelte Helden:** Die Leinwand-Korrektur hat das Fehlen behoben, nicht die Dopplungen. Der Positions-Test liegt auf dem Zweig **`positions-test`** (`7901d2f`) und bewusst **nicht** auf `main`; auf `main` steht `allCharactersRule()` weiter am Prompt-Ende.
+- **Freitext-Weg, Aufnahme:** Das Transkript landet als EIN Eintrag in `sceneUserSituations`, danach füllt `autoSituations()` mit 19 Bibliotheks-Vignetten auf. Die erzählte Geschichte ist damit eine Vignette unter zwanzig. Muss wie im Chat in eine Liste zerlegt werden. Siehe `testgeschichte-freitext.md`.
 
 ### Bildqualität
 
@@ -140,8 +147,10 @@ Verbrauch bis 19.09.: 103,86 $ gesamt, davon ein erheblicher Teil durch den Wett
 
 ### Produkt (nach Phasenplan)
 
+- Phase 0.1: **abgeschlossen** (alle Kompositionstypen durch)
 - Phase 0.2: Editiermodi systematisch (erledigt: Stift-Ausgang, „Detail antippen" entfernt, „Nochmal zaubern" ausgeblendet)
-- Phase 0.3: Oberflächen zusammenführen — **Voraussetzung** für Bildersammlung und Kandidaten-Umschalter
+- Phase 0.3: Oberflächen zusammenführen — **Voraussetzung** für Bildersammlung und Kandidaten-Umschalter. Die offene Frage aus dem Plan ist beantwortet: es sind **zwei getrennte Darstellungen** (`Screens.ergebnis.render()` mobil, `buildDesktopErgebnis()` Desktop). Genau daher kamen das 0-Pixel-Bild und der nur mobil nachgezogene Warnkasten.
+- Phase 0.5: Freitext-Weg testen — Geschichte und Prüfpunkte liegen in `testgeschichte-freitext.md`
 - Phase 1: Produktlogik, Buchvorschau, Textbox im Bild
 - Phase 2: Druckdatei-Paket (2:1-Beschnitt, 300 dpi, Falzregel), Wasserzeichen und eigene Bildauslieferung
 - Phase 3: Konto und Guthaben
@@ -158,11 +167,13 @@ Verbrauch bis 19.09.: 103,86 $ gesamt, davon ein erheblicher Teil durch den Wett
 
 ## 9. Commit-Stand
 
-**Live:** `93d1a9f` (Testmodus-Ausstieg), davor `8ef4d85` (Stil wird gezählt). Prompt-Fassung `2026-09-19g · f6a75742`.
+**Stand 20.09.2026.** Seit `93d1a9f` sind unter anderem dazugekommen: Namens-Leck behoben, Bild- und Prüf-Fassung getrennt, Lichtschalter, „ungeprüft" statt schlechtester Kandidat, Geltungsbereich des Stil-Abspanns korrigiert. Der jeweils aktuelle Stand steht in `git log`, nicht hier — diese Zeile veraltet sonst wieder.
 
-**Liegt bereit, nicht gepusht:** `7901d2f` (Heldenregel weiter nach vorn), Fassung `2026-09-22a`.
+**Zwei Fassungen statt einer, seit 19.09.:** `BILD_FASSUNG` (Bildprompt) und `PRUEF_FASSUNG` (Prüfprompt und Schwellen). Eine geänderte Prüf-Fassung heißt **nicht**, dass sich der Bildprompt geändert hat — genau dieser Fehlschluss hat am 19.09. eine halbe Stunde gekostet.
 
-**Prompt-Fassung prüfen:** In der App auf einem Bild „🔧 Test-Details anzeigen" öffnen, erste Zeile. Die Prüfsumme berechnet sich aus dem Quelltext und ändert sich bei jeder Prompt-Änderung von selbst.
+**Nicht auf `main`:** Zweig `positions-test` (`7901d2f`, Fassung `2026-09-22a`), der Positions-Test für die Dopplungsregel.
+
+**Prompt-Fassung prüfen:** In der App auf einem Bild „🔧 Test-Details anzeigen" öffnen. Dort stehen Bild- und Prüf-Fassung getrennt, und zwar die **am Bild gespeicherten** — nicht die des gerade geladenen Codes.
 
 ---
 

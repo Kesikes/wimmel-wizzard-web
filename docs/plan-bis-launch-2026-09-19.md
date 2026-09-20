@@ -1,6 +1,6 @@
 # WizzelWim: Priorisierter Plan bis zum Launch
 
-**Stand:** 19.09.2026
+**Stand:** 19.09.2026 · **technisch nachgezogen am 20.09.2026**
 **Launch-Ziel:** November 2026
 **Ergänzt:** das Konzeptpapier vom 19.09. (Konto, Wasserzeichen, Layout, Druckdatei, Easter Egg)
 
@@ -20,7 +20,7 @@ Was jetzt folgt, ist kein Bildproblem mehr, sondern Produkt: Wie wird aus einem 
 
 Ziel: Der bestehende Ablauf funktioniert auf allen Geräten fehlerfrei. Nichts Neues.
 
-### 0.1 Restliche Testbilder (Cowork begleitet, Matthias startet)
+### 0.1 Restliche Testbilder (Cowork begleitet, Matthias startet) — ABGESCHLOSSEN 19.09.2026
 
 Die vier offenen Kompositionstypen prüfen, je ein Bild:
 
@@ -31,7 +31,7 @@ Die vier offenen Kompositionstypen prüfen, je ein Bild:
 | `/app?phase=phase2&komposition=overview_open` | Urlaub | Phase-2-Perspektive und -Dichte |
 | `/app?phase=phase2&komposition=overview_cutaway` | Weihnachten | Phase 2 innen plus außen |
 
-Kosten: ca. 2,50 bis 3,50 $. Danach ist die Bildqualität abgeschlossen.
+Kosten: ca. 1,25 bis 1,75 $ (halbiert, seit der Bildpreis mit 0,15 $ statt 0,30 $ belegt ist). **Erledigt:** alle Typen durch, inzwischen sieben Szenen in der Messreihe.
 
 **Offen aus dem letzten Bild:** Am unteren Rand des Strandbildes waren einzelne Figuren angeschnitten und Gesichter leer. Bitte prüfen, ob die Regel bei allen Themen gleich weit vorn im Prompt steht.
 
@@ -43,7 +43,7 @@ Das Stiftwerkzeug und die Editiermodi funktionieren nicht richtig. Bitte systema
 
 Am Desktop fehlen Funktionen, und man kann nicht frei zwischen den Schritten springen — die Navigation fehlt praktisch ganz. Am Desktop ist strikte Schritt-für-Schritt-Führung auch falsch, dort ist Platz und man erwartet freies Springen.
 
-**Zuerst zu klären (Cowork):** Gibt es zwei getrennte Darstellungen für mobil und Desktop oder eine gemeinsame mit Weichen? Zwei getrennte bedeuten dauerhaft doppelte Pflege — genau daher kamen zuletzt zwei Fehler (das 0-Pixel-Bild und der Warnkasten, der nur mobil nachgezogen war). Falls getrennt: zusammenführen, bevor neue Funktionen gebaut werden.
+**Geklärt (Cowork, 19.09.): es sind ZWEI getrennte Darstellungen** — `Screens.ergebnis.render()` für mobil, `buildDesktopErgebnis()` für Desktop, beide in `szene.js`. Genau daher kamen die zwei Fehler (das 0-Pixel-Bild und der Warnkasten, der nur mobil nachgezogen war) und zuletzt die zwei toten Knöpfe, die zweimal entfernt werden mussten. **Zusammenführen, bevor neue Funktionen gebaut werden.**
 
 ### 0.4 Kleine Textkorrekturen
 
@@ -63,6 +63,10 @@ Bisher wurde nur mit den fertigen Themen getestet. Der Weg "erzählen statt wäh
 - Wird der Held erkannt und platziert?
 - Was passiert mit Unbildbarem (Erinnerungen, Gefühle, Zeitsprünge)?
 - Fragt die App nach, wenn etwas fehlt?
+
+**Geschichte, Prüfpunkte und ein Befund aus dem Code:** `testgeschichte-freitext.md`. Kurz: Chat und Aufnahme verhalten sich **unterschiedlich**. Der Chat liefert `situations_en` als Liste und kann nachfragen; die Aufnahme legt das ganze Transkript als **einen einzigen** Eintrag ab, danach füllt `autoSituations()` mit 19 Bibliotheks-Vignetten auf. Beim Testen festhalten, welcher Weg benutzt wurde.
+
+**Daraus folgt ein eigener Bauauftrag:** Das Transkript muss wie im Chat in eine Liste zerlegt werden. Sonst ist die erzählte Geschichte eine Vignette unter zwanzig — also ein beliebiges Bild mit einem Gruß von der Geschichte statt der Geschichte als Bild.
 
 ---
 
@@ -86,7 +90,7 @@ Warum nur ungerade Zahlen: Jedes Buch hat 6 feste Seiten (Figurenvorstellung als
 
 Daraus folgt die Upselling-Logik: Bei 2 Bildern "noch eins, dann wird ein Buch daraus", bei 4 Bildern "noch eins, dann passen fünf hinein". Wer bei 2 oder 4 stehen bleibt, bekommt entweder ein Bild mehr vorgeschlagen oder eines weniger ins Buch gelegt. Wichtig ist der freundliche Ton — ein Hinweis auf Möglichkeiten, keine Verkaufsschranke.
 
-KI-Kosten: ca. 0,75 $ (Poster), 2,25 $ (kleines Buch), 3,75 $ (großes Buch), jeweils zuzüglich Figuren.
+KI-Kosten: ca. **0,45 $** (Poster), **1,35 $** (kleines Buch), **2,10 $** (großes Buch), jeweils zuzüglich Figuren. (Korrigiert am 20.09.: der Bildpreis liegt bei 0,15 $, nicht 0,30 $ — die früheren Zahlen waren doppelt zu hoch.)
 
 ### 1.2 Buchvorschau als eigener Schritt
 

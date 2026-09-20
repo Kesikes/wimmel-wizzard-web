@@ -1,6 +1,6 @@
 # Konzeptpapier: Konto, Bezahlmodell, Wasserzeichen, Buchlayout, Druckdatei, Easter Egg
 
-**Stand:** 19.09.2026
+**Stand:** 19.09.2026 · **Kostenzahlen korrigiert am 20.09.2026**
 **Zweck:** Übergabe an Cowork. Sechs Themen, die konzeptionell zusammengehören und nach der Bildqualität an der Reihe sind.
 **Wichtig:** Nichts davon jetzt umsetzen. Erst müssen die Szenen-Testbilder für alle Kompositionstypen durch sein. Dieses Papier legt fest, was danach gebaut wird, und in welcher Reihenfolge.
 
@@ -10,15 +10,17 @@
 
 Die Bildgenerierung funktioniert seit dem 18.09. verlässlich: Figurengröße, Dichte, Tiefenstaffelung und abwechslungsreiche Situationen sitzen. Damit verschiebt sich die Arbeit vom "Kann die App gute Bilder?" zum "Wie wird daraus ein verkauftes Produkt?".
 
-Belegte Kostenlage (fal.ai, Stand 18.09.):
+Kostenlage (fal.ai), **korrigiert am 20.09.2026** — die Zahlen vom 18.09. waren beim Bildpreis doppelt zu hoch:
 
 | Posten | Kosten |
 |---|---|
-| Szene, 2 Kandidaten à 0,30 $ (4K) | 0,60 $ |
-| Dritter Kandidat, bei ca. 40 % der Szenen | 0,12 $ im Schnitt |
-| Verify (Vision), 2–3 Aufrufe | ca. 0,05 $ |
-| **Szene gesamt** | **ca. 0,75 $** |
+| Szene, 2 Kandidaten à **0,15 $** (4K) | **0,30 $** |
+| Dritter Kandidat, bei ca. 40 % der Szenen | 0,06 $ im Schnitt |
+| Verify (Vision), 2–3 Aufrufe | **nicht gemessen** — kein belegter Preis je Aufruf |
+| **Szene gesamt** | **ca. 0,36 $ plus Verify** |
 | Figur (Flux + Zusatzansichten), Schätzung | 0,15–0,30 $ |
+
+Die Annahme, 4K verdopple den Preis, trifft nicht zu. Beleg: fal-Dashboard, 499 Bildaufrufe = 74,85 $.
 
 Daraus ergibt sich die Vorleistung, die das Bezahlmodell begrenzen muss.
 
@@ -32,7 +34,7 @@ Daraus ergibt sich die Vorleistung, die das Bezahlmodell begrenzen muss.
 - **Danach Konto anlegen und 5 € aufladen.** Erst dann sind weitere Szenen möglich.
 - **Die 5 € werden vollständig auf den Produktpreis angerechnet.** Niemand zahlt doppelt.
 
-Vorleistung pro Nutzerin ohne Kauf: rund 1,50 bis 2 $. Damit ist der Fall "spielt stundenlang, kauft nie" wirtschaftlich gedeckelt.
+Vorleistung pro Nutzerin ohne Kauf: rund 0,75 bis 1 $ (halbiert, siehe korrigierte Kostenlage oben). Damit ist der Fall "spielt stundenlang, kauft nie" wirtschaftlich gedeckelt.
 
 ### Warum jetzt doch ein Konto nötig ist
 

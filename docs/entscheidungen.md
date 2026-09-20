@@ -334,17 +334,36 @@ Diese Unterscheidung stand in `projektstand-2026-09-19.md`, Abschnitt 8, und war
 technischen Dokumenten **nirgends** festgehalten. Sie gehört hierher, weil sie unmittelbar auf
 den Bildprompt durchschlägt.
 
-**Offener Widerspruch im Code, gemeldet am 19.09., bewusst nicht aufgelöst:** Der Abspann in
-`sceneComposeInstruction()` verlangt wörtlich, dass keine Figur „shaded, gradient, or softly
-airbrushed" gezeichnet wird — und er steht ganz am Ende, an der stärksten Wiederholungsstelle.
-Gemeint sind die **Figuren**, das ist richtig; formuliert ist es aber so breit, dass ein
-Bildmodell es kaum auf Figuren begrenzt. Solange der Satz so dasteht, arbeitet der Prompt gegen
-die zweite Hälfte dieser Entscheidung.
+### Die Ursache des Stil-Rückschritts — gefunden, und sie war NICHT `8ef4d85`
 
-Der Lichttest (`/app?licht=an`, siehe Abschnitt 9) ist der Versuch, die zweite Hälfte einzulösen.
-Bleibt er wirkungslos, ist dieser Abspann der erste Verdächtige — dann wäre der nächste Schritt,
-ihn ebenfalls hinter den Schalter zu legen: mit Licht ohne „shaded, gradient", ohne Licht
-unverändert.
+**Der Abspann in `sceneComposeInstruction()`.** Er verlangte, dass nichts „shaded, gradient, or
+softly airbrushed" gezeichnet wird, und das Wort davor hieß **„across the entire image"**.
+Gemeint waren die Figuren; dastehen tat es fürs ganze Bild — an der stärksten Stelle des ganzen
+Prompts, ganz am Ende. Der Prompt hat damit gegen die zweite Hälfte dieser Entscheidung
+gearbeitet.
+
+**Behoben am 20.09.2026.** Geändert wurde **nur der Geltungsbereich**, an zwei Stellen:
+
+| | vorher | nachher |
+|---|---|---|
+| `SCENE_STYLE_BLOCK` | „applied consistently **across the entire image**." | „applied consistently **to every character in the picture**." |
+| Abspann | „…across the entire image — no character anywhere in the picture may be drawn … shaded, gradient, or softly airbrushed style." | „…to every character in the picture — no character anywhere may be drawn … shaded, gradient, or softly airbrushed style. **This rule is about how the PEOPLE and the ANIMALS are drawn and about nothing else: it does not apply to the scene around them. The place itself — sky, water, foliage, ground, walls, distance — is not bound by it.**" |
+
+**Es wurde NICHTS verlangt, was es vorher nicht gab** — kein Schatten, kein Verlauf, kein Licht.
+Die positive Hälfte steht weiterhin allein im Lichtblock hinter `/app?licht=an`. Grund: mit zwei
+gleichzeitigen Änderungen wäre hinterher nicht zu sagen, welche gewirkt hat. **Erst jetzt ist der
+Lichttest überhaupt aussagekräftig** — vorher hob der Abspann auf, was der Lichtblock verlangte.
+
+Geprüft: Bild-Fassung `8e89ebe3` → `193fedab`, Prüf-Fassung `d3de710a` unverändert. Andere Stellen,
+die „flach" aufs ganze Bild beziehen, gibt es nicht — alle fünf Fundstellen im fertigen Prompt
+sprechen von Figuren, Gesichtern oder Tieren.
+
+**Was das für den früheren Verdacht heißt:** `projektstand` §8 führte „Stil-Rückschritt nach
+`8ef4d85`" als dringend, mit dem Verdacht, der Umbau habe die Anweisung ans Bildmodell verschärft.
+Das ist widerlegt und war es schon am 19.09.: Prüfsumme über die Bildprompt-Erzeuger vor und nach
+`8ef4d85` identisch (`2b5d392c`), einzige Abweichung in `buildVerifyPrompt`. **`8ef4d85` hat den
+Bildprompt nicht um ein Zeichen verändert.** Der Abspann stand da schon lange — er ist erst
+aufgefallen, als die Lichtfrage gestellt wurde.
 
 ---
 
@@ -362,5 +381,17 @@ verhalten sich unterschiedlich. Der Chat (`sceneChat()` mit dem Werkzeug `add_sc
 füllt danach mit 19 Vignetten aus der allgemeinen Bibliothek auf. Auf dem Aufnahme-Weg
 konkurriert die ganze erzählte Geschichte also mit 19 erfundenen Situationen um denselben Platz.
 
-Bestätigt sich das, ist es kein Prompt-Problem, sondern ein Strukturproblem: das Transkript
-müsste wie im Chat in eine Liste zerlegt werden.
+### BAUAUFTRAG: das Transkript muss in eine Liste zerlegt werden
+
+Kein Prompt-Problem, sondern ein Strukturproblem. Nutzer wörtlich: „Wenn auf dem Aufnahme-Weg
+meine ganze Geschichte eine Vignette unter zwanzig wird, ist das kein Detail, sondern der
+Unterschied zwischen ‚meine Geschichte wird ein Bild' und ‚ein beliebiges Bild mit einem Gruß von
+meiner Geschichte'."
+
+Der Chat kann es bereits: `sceneChat()` gibt über das Werkzeug `add_scene` eine Liste
+`situations_en` zurück. Der Aufnahme-Weg muss denselben Schritt bekommen, statt das Transkript
+über `translateFreeText()` als Block durchzureichen.
+
+Offen ist nur noch die Bestätigung am echten Fall — der Test läuft, siehe
+`testgeschichte-freitext.md`. Der Bauauftrag hängt nicht davon ab: dass die Aufnahme genau einen
+Eintrag erzeugt, steht im Code.
