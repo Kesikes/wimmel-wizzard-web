@@ -258,14 +258,20 @@ function handleTestParams() {
   // /app?licht=an bleibt gueltig und bedeutet schlicht "Vorgabe", damit alte Links nicht ins Leere
   // laufen. Gleiche Regeln wie bei den anderen beiden Schaltern.
   const hatLicht = params.has("licht");
-  if (!hatPhase && !hatKomposition && !hatLicht) return;
+  // NEU (20.09.2026): vierter Schalter, /app?richter=an -- laesst bei Gleichstand der schweren
+  // Verstoesse den D-Richter entscheiden statt der mittleren und leichten Stufe (siehe
+  // api/_lib/richter.js). Vorerst aus, bis er sich im Live-Betrieb bewaehrt hat.
+  const hatRichter = params.has("richter");
+  if (!hatPhase && !hatKomposition && !hatLicht && !hatRichter) return;
   const phaseWert = hatPhase ? (params.get("phase") || "").trim() : null;
   const kompoWert = hatKomposition ? (params.get("komposition") || "").trim() : null;
   const lichtWert = hatLicht ? (params.get("licht") || "").trim().toLowerCase() : null;
+  const richterWert = hatRichter ? (params.get("richter") || "").trim().toLowerCase() : null;
   // Leerer Wert bei EINEM der drei = Testmodus komplett beenden, also auch das Licht. Siehe
   // Kommentar oben: ein leerer Wert ist nie eine Einstellung, er kommt nur beim Verlassen vor.
-  if ((hatPhase && !phaseWert) || (hatKomposition && !kompoWert) || (hatLicht && !lichtWert)) {
-    AppState.update({ testPhase: null, testComposition: null, testLicht: null });
+  if ((hatPhase && !phaseWert) || (hatKomposition && !kompoWert) || (hatLicht && !lichtWert) ||
+      (hatRichter && !richterWert)) {
+    AppState.update({ testPhase: null, testComposition: null, testLicht: null, testRichter: null });
     window.history.replaceState(null, "", window.location.pathname + window.location.hash);
     return;
   }
@@ -275,6 +281,8 @@ function handleTestParams() {
   // "aus" schaltet das Licht ab; "an" und jeder andere Wert bedeuten die Vorgabe (Licht an) --
   // wie bei den anderen beiden fuehrt ein unbekannter Wert zum normalen Verhalten.
   if (hatLicht) patch.testLicht = (lichtWert === "aus") ? "aus" : null;
+  // "an" schaltet den Richter ein, jeder andere Wert zurueck auf das bisherige Verhalten.
+  if (hatRichter) patch.testRichter = (richterWert === "an") ? true : null;
   AppState.update(patch);
   window.history.replaceState(null, "", window.location.pathname + window.location.hash);
 }

@@ -1368,7 +1368,7 @@ var ACTIVE_SCENE_PHASE = "phase1";
 // in den Kompositionstypen, aendert sich die Pruefsumme -- ohne dass jemand daran denken muss.
 // Das von Hand gepflegte Datum bleibt als lesbare Ergaenzung daneben stehen; verlassen tun wir uns
 // auf die Pruefsumme.
-var PROMPT_LABEL = "2026-09-20b";
+var PROMPT_LABEL = "2026-09-20c";
 
 // FNV-1a, 32 Bit. Bewusst kein crypto.subtle: das ist asynchron, und diese Kennung soll ohne
 // Umstand synchron beim Laden feststehen. Kollisionen sind hier belanglos -- es geht nicht um
@@ -1481,7 +1481,7 @@ var VERIFY_MAX_VERSUCHE = 2;
 // Kandidat --, bleibt die Pruefsumme sonst gleich, obwohl die Pruefung sich anders verhaelt.
 // Diese Zeichenkette ist der Platz, an dem so eine Aenderung sichtbar wird. Sie gehoert bei jeder
 // Aenderung an der Pruef-LOGIK hochgezaehlt, auch wenn der Prompt gleich bleibt.
-var PRUEF_VERHALTEN = "2026-09-20a: ein Wiederholungsversuch bei unlesbarer Antwort, danach ungeprueft statt schlechtester Kandidat";
+var PRUEF_VERHALTEN = "2026-09-20b: ein Wiederholungsversuch bei unlesbarer Antwort, danach ungeprueft statt schlechtester Kandidat; D-Richter (claude-sonnet-5, zwei Aufrufe mit getauschter Reihenfolge) entscheidet bei Gleichstand der schweren Verstoesse, hinter /app?richter=an";
 
 // SHADED_MAX_OF_TEN: wie viele der zehn groessten Gesichter plastisch gezeichnet sein duerfen.
 // EINS, nicht zwei oder drei -- Nutzer-Entscheidung nach folgender Ueberlegung: der gewuenschte
@@ -1675,7 +1675,20 @@ function severityOf(parsed, figuresBand) {
 
 // compareSeverity(a, b): < 0 wenn a besser ist. Stufenweise, siehe Kommentar bei
 // VIOLATION_SEVERITY.
+// AUDIT-BEFUND (20.09.2026, gezielte Suche nach "nicht gemessen wird wie ein Messwert
+// behandelt"): die Vorgabe 99/99/99 fuer eine FEHLENDE Schwere ist genau dieses Muster. Sie
+// bedeutet "schlechtestmoeglich", richtig waere "unbekannt". Erreichbar ist sie derzeit NICHT --
+// finalizeJob() gruppiert vorher, und ein ungeprueffter Kandidat kommt nie bis hierher (Gruppe 2
+// wird ohne Vergleich entschieden). Statt die Vorgabe zu aendern und damit die Vergleichslogik
+// anzufassen, macht sie sich jetzt BEMERKBAR: wer hier ohne Schwere ankommt, steht im Log.
+// Schweigen war zweimal der eigentliche Schaden -- einmal bei violations 99, einmal bei Number("").
+function ohneSchwere(wer) {
+  try { console.error("[AUDIT] compareSeverity ohne severity aufgerufen (" + wer + ") — 99/99/99 ist eine Notbremse, kein Messwert."); }
+  catch (e) { /* egal */ }
+}
 function compareSeverity(a, b) {
+  if (!a) ohneSchwere("erstes Argument");
+  if (!b) ohneSchwere("zweites Argument");
   a = a || { heavy: 99, medium: 99, light: 99 };
   b = b || { heavy: 99, medium: 99, light: 99 };
   if (a.heavy !== b.heavy) return a.heavy - b.heavy;
@@ -2008,6 +2021,14 @@ function backgroundCharAssetUrl(name) {
 // reicht, das Modell erzeugt ohnehin 4K, die Leinwand liefert nur Format und Farbe.
 function sceneBaseCanvasUrl() {
   return window.location.origin + assetPath("leere-leinwand-16x9.jpg");
+}
+
+// STIL-REFERENZ fuer den D-Richter (siehe api/_lib/richter.js). Das Bauernhofbild vom 18.09.2026
+// liegt seit 20.09. fest im Repo und wird mit ausgeliefert -- deshalb reicht eine URL, das Bild
+// muss nicht als data-URI durch die Anfrage. Gleiche Konstruktion wie bei der leeren Leinwand:
+// der Client kennt seinen Host, der Server muss ihn nicht raten.
+function richterReferenzUrl() {
+  return window.location.origin + assetPath("referenz-bauernhof-2026-09-18.jpg");
 }
 
 // Der begleitende Satz im Prompt. Ohne ihn zaehlt das Modell die leere Flaeche als "Referenzbild 1"
@@ -3387,7 +3408,7 @@ async function runCharacterJobPolling(prompt, opts) {
    nutzt diesen Mechanismus jetzt als REGULÄREN Weg, composeSceneImage() bleibt nur noch als
    eigenstaendig getestete Referenz/Fallback-Funktion erhalten (siehe dortiger Kommentar), wird aber
    im Produktpfad nicht mehr aufgerufen. */
-async function startSceneJob({ instruction, verifyPrompt, editImageUrl, styleRefUrls, heroRefUrls, figuresBand }) {
+async function startSceneJob({ instruction, verifyPrompt, editImageUrl, styleRefUrls, heroRefUrls, figuresBand, richter }) {
   const resp = await fetch("/api/scene-job-start", {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ instruction, verifyPrompt, editImageUrl, styleRefUrls, heroRefUrls, figuresBand }),
@@ -3436,6 +3457,8 @@ async function runSceneJobPolling(sceneInputs, opts) {
     jobId = await startSceneJob({
       instruction: built.instruction, verifyPrompt: built.verifyPrompt, editImageUrl: built.editImageUrl,
       styleRefUrls: built.styleRefUrls, heroRefUrls: built.heroRefUrls, figuresBand: built.figuresBand,
+      richter: !!(sceneInputs && sceneInputs.richter),
+      richterRefUrl: richterReferenzUrl(),
     });
   }
   if (opts.onJobId) opts.onJobId(jobId);
@@ -3463,6 +3486,11 @@ async function runSceneJobPolling(sceneInputs, opts) {
         // kann dadurch im naechsten Bild des Buches ein zweites Mal vorkommen, was hinnehmbar ist.
         usedNow: built ? built.usedNow : [],
         candidates: job.candidates,
+        // NEU (20.09.2026): das Richter-Ergebnis reist mit ans Bild, damit es im Panel auch
+        // spaeter noch nachlesbar ist. quelle sagt, WER entschieden hat -- "richter" oder
+        // "pruefung".
+        richter: job.richterErgebnis || null,
+        quelle: job.resultQuelle || null,
       };
     }
     if (job.status === "error") throw new Error(job.error || "Generierung fehlgeschlagen.");
@@ -3608,7 +3636,7 @@ window.Pipeline = {
   kontextInstruction, photoStyleInstruction, traitBitFromPhotoDescription, describePhotoTraits,
   PEN_INSTRUCTION_REMOVE, PEN_INSTRUCTION_REDO,
   resizeImageToDataUri, generateImage, generateImageWithRetry, verifyImage, countViolations,
-  SCENE_PHASES, ACTIVE_SCENE_PHASE, DEPTH_MIN_RATIO, SCALE_MIN_FIT, PROMPT_VERSION, PROMPT_LABEL, promptFingerprint, BILD_FASSUNG, PRUEF_FASSUNG, bildFingerprint, pruefFingerprint, heroRef, HERO_REF_START, lichtBlock, lichtKeywords, VERIFY_MAX_VERSUCHE, PRUEF_VERHALTEN, severityOf, compareSeverity, isGoodEnough,
+  richterReferenzUrl, SCENE_PHASES, ACTIVE_SCENE_PHASE, DEPTH_MIN_RATIO, SCALE_MIN_FIT, PROMPT_VERSION, PROMPT_LABEL, promptFingerprint, BILD_FASSUNG, PRUEF_FASSUNG, bildFingerprint, pruefFingerprint, heroRef, HERO_REF_START, lichtBlock, lichtKeywords, VERIFY_MAX_VERSUCHE, PRUEF_VERHALTEN, severityOf, compareSeverity, isGoodEnough,
   COMPOSITION_TYPES, pickComposition, layerSizeText,
   HERO_ACTION_LIBRARY, pickHeroActions, shuffledPool,
   // Szenen-Komposition (neu, siehe Modul-Abschnitt oben)

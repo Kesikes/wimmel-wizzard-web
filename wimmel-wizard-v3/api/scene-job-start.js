@@ -55,6 +55,10 @@ module.exports = async (req, res) => {
   // buildVerifyPrompt()/SCENE_PHASES in pipeline.js). Streng validiert: zwei endliche, positive,
   // aufsteigende Zahlen, sonst null -- eine kaputte Spanne soll das Feld stillschweigend
   // ueberspringen (countViolations() ignoriert es dann), nicht Verstoesse erfinden.
+  // NEU (20.09.2026): D-Richter, vorerst hinter /app?richter=an. Das Referenzbild kommt als URL
+  // vom Client (wie die leere Leinwand), damit der Server keinen Host raten muss.
+  const richter = body.richter === true;
+  const richterRefUrl = isImageRef(body.richterRefUrl) ? body.richterRefUrl : null;
   const rohBand = Array.isArray(body.figuresBand) ? body.figuresBand.map(Number) : null;
   const figuresBand = (rohBand && rohBand.length === 2 && rohBand.every((v) => Number.isFinite(v) && v >= 0)
     && rohBand[0] < rohBand[1]) ? rohBand : null;
@@ -90,7 +94,7 @@ module.exports = async (req, res) => {
 
   const jobId = "sj_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 10);
   try {
-    const job = await createSceneJob({ jobId, instruction, verifyPrompt, editImageUrl, styleRefUrls, heroRefUrls, figuresBand, FAL_KEY });
+    const job = await createSceneJob({ jobId, instruction, verifyPrompt, editImageUrl, styleRefUrls, heroRefUrls, figuresBand, richter, richterRefUrl, FAL_KEY });
     await kvSetJson("scenejob:" + jobId, job, JOB_TTL_SECONDS);
     res.status(200).json({ jobId });
   } catch (e) {

@@ -997,16 +997,17 @@ Screens.zaubern = {
     // /app?phase= -- das loeschte nur die Phase und liess die Komposition stehen (siehe
     // handleTestParams() in app-shell.js). Ein Knopf, der beides in einem Zug loescht, kann diesen
     // Fehler gar nicht erst machen; die URL bleibt als zweiter Weg daneben stehen.
-    if (s.testPhase || s.testComposition || s.testLicht) {
+    if (s.testPhase || s.testComposition || s.testLicht || s.testRichter) {
       const teile = [];
       if (s.testPhase) teile.push("Phase: " + s.testPhase);
       if (s.testComposition) teile.push("Komposition: " + s.testComposition);
       if (s.testLicht === "aus") teile.push("Licht: AUS (Vorgabe waere an)");
+      if (s.testRichter) teile.push("Richter: an");
       const testNote = h("div", { style: { marginTop: "20px", border: "3px dashed var(--yellow)", color: "var(--yellow)", padding: "12px 14px", fontSize: "13px", lineHeight: "1.45" } });
       testNote.appendChild(h("p", { style: { margin: "0 0 9px" } }, "Testmodus aktiv — " + teile.join(", ") + "."));
       const testExit = h("button", { type: "button", class: "h-black", style: { minHeight: "40px", padding: "0 14px", fontSize: "12px", border: "3px solid var(--yellow)", background: "transparent", color: "var(--yellow)", cursor: "pointer" } }, "Testmodus beenden");
       testExit.addEventListener("click", () => {
-        AppState.update({ testPhase: null, testComposition: null, testLicht: null });
+        AppState.update({ testPhase: null, testComposition: null, testLicht: null, testRichter: null });
         Router.goScreen("zaubern");
       });
       testNote.appendChild(testExit);
@@ -1042,7 +1043,8 @@ Screens.zaubern = {
       AppState.addImage({
         title: title, src: result.best.url,
         promptText: result.promptText, instruction: result.instruction,
-        violations: result.best.violations, verify: result.best.verify, candidates: result.candidates
+        violations: result.best.violations, verify: result.best.verify, candidates: result.candidates,
+        richter: result.richter || null, quelle: result.quelle || null
       });
       zauberBusy = false;
       Router.goScreen("ergebnis");
@@ -1164,7 +1166,7 @@ Screens.zaubern = {
         // jetzt moeglich (siehe onUpdate unten) statt des vorherigen Fake-setTimeout(...,20000).
         // composeSceneImage() bleibt unveraendert in pipeline.js als eigenstaendig getestete
         // Referenz-/Fallback-Funktion erhalten, wird aber im Produktpfad nicht mehr aufgerufen.
-        const result = await Pipeline.runSceneJobPolling({ heroSpecs, theme, situations, usedTexts, phase: testPhase, composition: testComposition, licht: testLicht }, {
+        const result = await Pipeline.runSceneJobPolling({ heroSpecs, theme, situations, usedTexts, phase: testPhase, composition: testComposition, licht: testLicht, richter: !!sNow.testRichter }, {
           // NEU (17.09.2026, Punkt 0): jobId sofort persistieren, sobald sie feststeht -- AppState
           // schreibt ohnehin nach jeder Aenderung in localStorage UND (anonyme Session) auf den
           // Server, der Merker uebersteht damit einen kompletten Tab-Reload.
@@ -1428,6 +1430,33 @@ function buildDebugDetails(image) {
     if (!s.gruende || !s.gruende.length) return kopf + " — keine Verstöße";
     return kopf + "\n    · " + s.gruende.join("\n    · ");
   }
+  // NEU (20.09.2026): der D-Richter. Beide Urteile einzeln, weil erst der Vergleich der beiden
+  // etwas wert ist -- stimmen sie ueberein, ist es kein Reihenfolge-Effekt. Ein gescheiterter
+  // Lauf steht als FEHLER da und zaehlt nirgends mit.
+  function richterText(bild) {
+    const r = bild.richter;
+    if (!r) return null;
+    const zeilen = [];
+    const kurz = (u) => u ? ("…" + String(u).slice(-16)) : "—";
+    const label = { einig: "EINIG", knapp: "KNAPP — Rückfall auf die Prüfung",
+      kein_urteil: "KEIN URTEIL — Rückfall auf die Prüfung",
+      nicht_gefragt: "nicht gefragt" }[r.ergebnis] || r.ergebnis;
+    zeilen.push("D-Richter (" + (r.modell || "?") + "): " + label);
+    (r.urteile || []).forEach((u, i) => {
+      if (u.fehler) { zeilen.push("  Lauf " + (i + 1) + ": FEHLER — " + u.fehler); return; }
+      zeilen.push("  Lauf " + (i + 1) + ": für " + kurz(u.gewaehlteUrl) +
+        "   (zuerst im Aufruf: " + kurz(u.erstesImAufruf) + ")");
+      if (u.begruendung) zeilen.push("           " + u.begruendung);
+    });
+    if (r.fehler && !(r.urteile || []).some((u) => u.fehler)) zeilen.push("  " + r.fehler);
+    if (r.tokenEin || r.tokenAus) {
+      zeilen.push("  Verbrauch: " + r.tokenEin + " Eingabe-, " + r.tokenAus + " Ausgabe-Token");
+    }
+    zeilen.push("Entschieden hat: " + (bild.quelle === "richter" ? "der RICHTER" : "die Prüfung"));
+    return zeilen.join("\n");
+  }
+  const richterBlock = richterText(image);
+
   box.textContent =
     // NEU (19.09.2026): Prompt-Fassung ganz oben. Siehe PROMPT_VERSION in pipeline.js -- damit ist
     // sofort klar, welcher Stand das Bild erzeugt hat, statt es aus den Symptomen zu erraten.
@@ -1439,7 +1468,8 @@ function buildDebugDetails(image) {
     "Prüf-Fassung:   " + fassung(image.pruefFassung, "PRUEF_FASSUNG") + "\n" +
     "Verstöße im gewählten Kandidaten: " + (image.violations != null ? image.violations : "?") + "\n" +
     "Wertung: " + (ungeprueftText(gewaehlterKandidat(image)) || gruendeText(image.verify)) + "\n" +
-    "Verify-JSON: " + verifyText + "\n\n" +
+    "Verify-JSON: " + verifyText + "\n" +
+    (richterBlock ? "\n" + richterBlock + "\n" : "") + "\n" +
     "--- Kandidaten ---\n" +
     (image.candidates || []).map((c, i) => "Kandidat " + (i + 1) + " (" + c.url + "): " +
       (ungeprueftText(c) || ((c.violations != null ? c.violations + " Verstöße" : "?") +

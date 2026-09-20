@@ -377,7 +377,20 @@ function countViolations(verifyOutputText, figuresBand) {
 
 // compareSeverity(a, b): < 0 wenn a der bessere Kandidat ist. Stufenweise, siehe
 // VIOLATION_SEVERITY oben.
+// AUDIT-BEFUND (20.09.2026, gezielte Suche nach "nicht gemessen wird wie ein Messwert
+// behandelt"): die Vorgabe 99/99/99 fuer eine FEHLENDE Schwere ist genau dieses Muster. Sie
+// bedeutet "schlechtestmoeglich", richtig waere "unbekannt". Erreichbar ist sie derzeit NICHT --
+// finalizeJob() gruppiert vorher, und ein ungeprueffter Kandidat kommt nie bis hierher (Gruppe 2
+// wird ohne Vergleich entschieden). Statt die Vorgabe zu aendern und damit die Vergleichslogik
+// anzufassen, macht sie sich jetzt BEMERKBAR: wer hier ohne Schwere ankommt, steht im Log.
+// Schweigen war zweimal der eigentliche Schaden -- einmal bei violations 99, einmal bei Number("").
+function ohneSchwere(wer) {
+  try { console.error("[AUDIT] compareSeverity ohne severity aufgerufen (" + wer + ") — 99/99/99 ist eine Notbremse, kein Messwert."); }
+  catch (e) { /* egal */ }
+}
 function compareSeverity(a, b) {
+  if (!a) ohneSchwere("erstes Argument");
+  if (!b) ohneSchwere("zweites Argument");
   const x = a || { heavy: 99, medium: 99, light: 99 };
   const y = b || { heavy: 99, medium: 99, light: 99 };
   if (x.heavy !== y.heavy) return x.heavy - y.heavy;

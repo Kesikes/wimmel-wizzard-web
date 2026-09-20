@@ -35,6 +35,7 @@ const {
   submitFalQueue, falQueueStatus, falQueueResult, callFalVerifySync, countViolations,
   compareSeverity, isGoodEnough, logFalError, VERIFY_MAX_VERSUCHE,
 } = require("./fal-queue");
+const { richterUrteil, richterGreift, RICHTER_MODELL } = require("./richter");
 
 // SCENE_MODEL: identisch zum Default-Endpoint in api/fal-proxy.js fuer kind==="scene" mit gesetztem
 // imageUrl (useProModel default true fuer Szenen, siehe dortiger Kommentar "nano-banana-pro/edit ...
@@ -106,7 +107,7 @@ function sceneGenerateBody(instruction, editImageUrl, styleRefUrls, seed) {
 // die ersten 2 Kandidaten (analog zu composeSceneImage()s "immer 2 parallele Kandidaten" in
 // pipeline.js). SPEICHERT NICHTS selbst in KV (macht der Aufrufer, api/scene-job-start.js) -- gleiches
 // Prinzip wie createCharacterJob().
-async function createSceneJob({ jobId, instruction, verifyPrompt, editImageUrl, styleRefUrls, heroRefUrls, figuresBand, FAL_KEY }) {
+async function createSceneJob({ jobId, instruction, verifyPrompt, editImageUrl, styleRefUrls, heroRefUrls, figuresBand, richter, richterRefUrl, FAL_KEY }) {
   const seedA = Math.floor(Math.random() * 1e9);
   const seedB = Math.floor(Math.random() * 1e9);
   const [reqA, reqB] = await Promise.all([
@@ -125,6 +126,13 @@ async function createSceneJob({ jobId, instruction, verifyPrompt, editImageUrl, 
     // mitgeschickt (SCENE_PHASES in pipeline.js). Reist im Job mit, damit jeder Poll-Durchlauf
     // dieselbe Spanne benutzt wie der Start.
     figuresBand: Array.isArray(figuresBand) ? figuresBand : null,
+    // NEU (20.09.2026): D-Richter, vorerst hinter /app?richter=an. Beides reist im Job mit, damit
+    // jeder Poll-Durchlauf dieselbe Einstellung sieht wie der Start. richterRefUrl kommt vom
+    // Client (window.location.origin + Asset-Pfad) -- genau wie die leere Leinwand, damit der
+    // Server keinen eigenen Host raten muss.
+    richter: !!richter,
+    richterRefUrl: richterRefUrl || null,
+    richterErgebnis: null,
     status: "in_progress", error: null,
     candidates: [candA, candB],
     // Zwei Auftraege sind hier bereits abgeschickt und bezahlt.
@@ -137,7 +145,7 @@ async function createSceneJob({ jobId, instruction, verifyPrompt, editImageUrl, 
 // advanceSceneJob(job, {FAL_KEY}): EIN Fortschritts-Durchlauf -- strukturell identisch zu
 // advanceCharacterJob() (siehe dortiger Kommentar fuer die Begruendung jedes Schritts), nur mit
 // SCENE_MODEL statt FLUX_MODEL und dem am Job haengenden (statt fest kodierten) verifyPrompt.
-async function advanceSceneJob(job, { FAL_KEY }) {
+async function advanceSceneJob(job, { FAL_KEY, ANTHROPIC_KEY }) {
   if (job.status !== "in_progress") return job;
   const next = JSON.parse(JSON.stringify(job));
 
@@ -266,6 +274,18 @@ async function advanceSceneJob(job, { FAL_KEY }) {
         finalizeJob(next, usable);
       }
     } else {
+      // NEU (20.09.2026): der D-Richter, bevor entschieden wird. Er greift NUR bei Gleichstand der
+      // schweren Verstoesse (siehe richterGreift()) und nur, wenn der Schalter gesetzt ist.
+      if (next.richter && !next.richterErgebnis) {
+        const paar = richterGreift(usable);
+        if (paar) {
+          next.richterErgebnis = await richterUrteil(next.richterRefUrl, paar[0], paar[1], ANTHROPIC_KEY);
+        } else {
+          next.richterErgebnis = { modell: RICHTER_MODELL, urteile: [], ergebnis: "nicht_gefragt",
+            gewaehlteUrl: null, tokenEin: 0, tokenAus: 0,
+            fehler: "Die Kandidaten unterscheiden sich bei den schweren Verstoessen — es entscheidet wie bisher die Pruefung." };
+        }
+      }
       finalizeJob(next, usable);
     }
   }
@@ -306,6 +326,25 @@ function finalizeJob(job, usableCandidates) {
     if (c.verifyStatus === "ungeprueft") return 2;
     return isGoodEnough(c.severity) ? 1 : 3;
   }
+  // NEU (20.09.2026): hat der Richter ein EINIGES Urteil gefaellt, gilt es -- aber nur, wenn der
+  // gewaehlte Kandidat auch wirklich in der Auswahl steht. "knapp", "kein_urteil" und
+  // "nicht_gefragt" aendern nichts; dann laeuft alles wie bisher weiter.
+  const rr = job.richterErgebnis;
+  if (rr && rr.ergebnis === "einig" && rr.gewaehlteUrl) {
+    const vomRichter = usableCandidates.find((c) => c.url === rr.gewaehlteUrl);
+    if (vomRichter) {
+      job.status = "done";
+      job.resultUrl = vomRichter.url;
+      job.resultSeed = vomRichter.seed;
+      job.resultViolations = vomRichter.violations;
+      job.resultSeverity = vomRichter.severity || null;
+      job.resultVerify = vomRichter.verify;
+      job.resultVerifyStatus = vomRichter.verifyStatus || null;
+      job.resultQuelle = "richter";
+      return;
+    }
+  }
+  job.resultQuelle = "pruefung";
   const best = usableCandidates.reduce((a, b) => {
     const ga = gruppe(a), gb = gruppe(b);
     if (ga !== gb) return gb < ga ? b : a;

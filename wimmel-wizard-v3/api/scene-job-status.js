@@ -16,6 +16,10 @@ module.exports = async (req, res) => {
     return;
   }
   const FAL_KEY = process.env.FAL_KEY;
+  // NEU (20.09.2026): fuer den D-Richter. BEWUSST OHNE Abbruch, wenn er fehlt -- der Richter ist
+  // eine Zusatzentscheidung, keine Voraussetzung. Fehlt der Schluessel, meldet richterUrteil()
+  // "kein Urteil" und die Auswahl laeuft wie bisher.
+  const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
   if (!FAL_KEY) {
     res.status(500).json({ error: "Server-Fehler: FAL_KEY ist im Vercel-Projekt nicht gesetzt." });
     return;
@@ -54,7 +58,7 @@ module.exports = async (req, res) => {
       if (await kvTryLock(sperre, 90)) {
         try {
           const frisch = await kvGetJson("scenejob:" + jobId);
-          job = await advanceSceneJob(frisch || job, { FAL_KEY });
+          job = await advanceSceneJob(frisch || job, { FAL_KEY, ANTHROPIC_KEY });
           await kvSetJson("scenejob:" + jobId, job, JOB_TTL_SECONDS);
         } finally {
           await kvUnlock(sperre);

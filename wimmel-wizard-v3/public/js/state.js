@@ -120,6 +120,9 @@ const DEFAULT_STATE = {
   // GEAENDERT (20.09.2026): Licht ist fest im Prompt. Dieser Schalter ist seitdem ein
   // AUS-Schalter fuer Kontrollbilder: null = Vorgabe (Licht an), "aus" = ohne Licht.
   testLicht: null,
+  // NEU (20.09.2026): /app?richter=an -- der D-Richter entscheidet bei Gleichstand der schweren
+  // Verstoesse. null = aus, also bisheriges Verhalten.
+  testRichter: null,
 
   // Entscheidung / Widmung / Bestellung
   tier: 1, // 0 Poster, 1 Wimmelbuch (ab 2 Bildern), 2 Wimmelbuch (ab 5 Bildern, comingSoon -- siehe entscheidung.js TIERS)
@@ -416,10 +419,13 @@ const AppState = {
   // GEAENDERT (19.09.2026): bildFassung/pruefFassung werden AM BILD gespeichert. Vorher las das
   // Test-Details-Panel die Fassung des gerade geladenen Codes -- ein drei Tage altes Bild zeigte
   // also den heutigen Stand und damit eine Unwahrheit. Genau darauf stuetzt sich die Messreihe.
-  addImage({ title, src, promptText, instruction, violations, verify, candidates }) {
+  addImage({ title, src, promptText, instruction, violations, verify, candidates, richter, quelle }) {
     const id = "img-" + (this.data.images.length + 1) + "-" + Date.now().toString(36);
     const P = window.Pipeline || {};
     const image = { id, title: title || "", src, status: "done", promptText, instruction, violations, verify, candidates,
+      // NEU (20.09.2026): das vollstaendige Richter-Ergebnis am Bild, damit das Test-Details-Panel
+      // beide Urteile, "einig"/"knapp" und den Token-Verbrauch zeigen kann -- auch spaeter noch.
+      richter: richter || null, quelle: quelle || null,
       // Der Lichtschalter gehoert sichtbar an die Bild-Fassung: sonst sind Testbilder mit und
       // ohne Licht in der Messreihe nicht auseinanderzuhalten -- die Pruefsumme ist bei beiden
       // dieselbe, weil der Block nur zur Laufzeit dazukommt.
