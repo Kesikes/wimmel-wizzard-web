@@ -1,3 +1,6 @@
+> **Chronologisch, nicht nachschlagbar.** Was heute gilt, steht in `entscheidungen.md`.
+> Wo dieser Text dem Register widerspricht, gilt das Register.
+
 # Nachträge zum Launch-Plan — 19.09.2026
 
 Ergänzungen und Präzisierungen zum Plan vom 19.09., aus den laufenden Testläufen entstanden.

@@ -11,6 +11,10 @@ Dichte, Tiefe, Münder, Logik, Text) und der Befund, dass die damalige Prüfung 
 
 ---
 
+> **Diese Datei ist chronologisch.** Sie erzählt, wie wir zu etwas gekommen sind — nicht, was
+> gilt. Wer nachschlagen will, was heute gilt, liest `entscheidungen.md`. Wo ein Abschnitt hier
+> dem Register widerspricht, gilt das Register.
+
 ## 1. Wie kalibriert wurde
 
 Die neue Prüfung wurde nach jeder Änderung auf dieselben Bilder angewendet und Feld für Feld gegen
@@ -257,8 +261,23 @@ nachweislich funktioniert.
 
 ### 8.3 Zweck der Figurenbibliothek: Stil-Anker
 
-**Festgelegt: die 13 Blätter in `public/assets/bgchars/` sind ein Stil-Anker, keine
-wiedererkennbare Nebenrollen-Besetzung.**
+> ## ⚠ ÜBERHOLT — am 18.09.2026 vom Nutzer widerrufen
+>
+> Was unten steht, galt **einen Tag lang**. Noch am selben Tag hat der Nutzer korrigiert: „Ich
+> hätte doch gerne beides." **Gültig ist seitdem: vier bis sechs Figuren werden erkennbar
+> übernommen, alle im Mittelgrund, und alle übrigen Nebenfiguren werden im selben Geist frei
+> erfunden.** Der vollständige gültige Stand steht in `entscheidungen.md`, Abschnitt 1, die
+> Herleitung als Kommentar bei `backgroundLibraryInstruction()` in `pipeline.js`.
+>
+> Warum der Widerruf: die Einschränkung unten war richtig, aber zu weit gefasst. Sie gilt für
+> *feine Details* (Brille, Knöpfe, Muster) und für *kleine* Figuren — nicht für Silhouette, Haare
+> und Farbe im Mittelgrund. Dort ist der Anspruch einlösbar.
+>
+> Der Absatz bleibt stehen, weil die Größenrechnung darin weiter stimmt und erklärt, warum
+> „erkennbar" eng gefasst ist.
+
+**Überholte Fassung vom 17.09.2026: die 13 Blätter in `public/assets/bgchars/` sind ein
+Stil-Anker, keine wiedererkennbare Nebenrollen-Besetzung.**
 
 Vorgeschichte: Der Nutzer erkannte im Bild keine Figur aus der Bibliothek wieder. Die Blätter
 kommen beim Modell an — sie stehen in `styleRefUrls` und damit in `image_urls` des Edit-Aufrufs,
@@ -277,7 +296,13 @@ Eigenleben und Vielfalt, nicht für Identität.
 **Offen:** ob die Blätter inhaltlich stören. Sie zeigen überwiegend Winter und Stadt — Mäntel,
 Schals, Mützen, Regenjacken. In einem Herbst- oder Sommerbild kann das schief wirken. Zeigt ein
 Kontrollbild das, folgen thematische Sets (Bauernhof, Strand, Weihnachten); dann braucht es vorher
-eine Kostenschätzung fürs Neu-Erzeugen.
+eine Kostenschätzung fürs Neu-Erzeugen. (Seit 18.09. gibt es dagegen eine Umkleide-Anweisung im
+Prompt; ob sie reicht, ist weiter offen.)
+
+**Zweiter offener Punkt, nachgetragen am 20.09.2026:** für die „vier bis sechs erkennbar" der
+gültigen Fassung gibt es **kein Prüfkriterium**. Kein Verify-Feld misst es. Wir wissen also nicht,
+ob dieser Teil der Anweisung wirkt — beobachtet ist nur, dass die Nebenfiguren eigene Frisuren und
+Farben haben, also die zweite Hälfte.
 
 ### 8.4 Heldenposition ist nicht mehr fest
 

@@ -1,3 +1,6 @@
+> **Chronologisch, nicht nachschlagbar.** Was heute gilt, steht in `entscheidungen.md`.
+> Wo dieser Text dem Register widerspricht, gilt das Register.
+
 # Kandidatenwahl statt Auto-Auswahl — Entscheidung und Messreihe
 
 **Stand:** 19.09.2026
