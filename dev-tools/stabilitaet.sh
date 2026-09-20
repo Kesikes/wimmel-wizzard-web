@@ -36,7 +36,9 @@ set -o pipefail
 cd "$(dirname "$0")/.." || exit 1
 
 APP=${APP:-https://wimmel-wizard-v3.vercel.app}
-REFERENZ=docs/ref/referenz.jpg
+# Das Referenzbild liegt seit 20.09.2026 fest im Repo (Bauernhof, 18.09.) -- es ist der
+# Bezugspunkt fuer den Stilvergleich und wird auch vom D-Richter gebraucht.
+REFERENZ=wimmel-wizard-v3/public/assets/referenz-bauernhof-2026-09-18.jpg
 ROH=docs/ref/stabilitaet-roh.tsv
 ERGEBNIS=docs/ref/stabilitaet.txt
 LAEUFE=${LAEUFE:-3}

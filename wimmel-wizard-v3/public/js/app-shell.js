@@ -251,8 +251,12 @@ function handleTestParams() {
   const params = new URLSearchParams(window.location.search);
   const hatPhase = params.has("phase");
   const hatKomposition = params.has("komposition");
-  // NEU (19.09.2026): dritter Schalter, /app?licht=an -- haengt den Lichtblock in den Bildprompt
-  // (siehe lichtBlock() in pipeline.js). Gleiche Regeln wie die anderen beiden.
+  // UMGEDREHT (20.09.2026): Licht ist seit heute die Vorgabe, der Schalter ist ein AUS-Schalter.
+  // /app?licht=aus erzeugt eine Szene ohne Licht -- als Kontrollbild, wenn wieder einmal zu klaeren
+  // ist, ob das Licht an einem Befund schuld ist. Genau dieser Vergleich hat den Lichttest
+  // entschieden, deshalb bleibt er verfuegbar statt ersatzlos zu verschwinden.
+  // /app?licht=an bleibt gueltig und bedeutet schlicht "Vorgabe", damit alte Links nicht ins Leere
+  // laufen. Gleiche Regeln wie bei den anderen beiden Schaltern.
   const hatLicht = params.has("licht");
   if (!hatPhase && !hatKomposition && !hatLicht) return;
   const phaseWert = hatPhase ? (params.get("phase") || "").trim() : null;
@@ -268,9 +272,9 @@ function handleTestParams() {
   const patch = {};
   if (hatPhase) patch.testPhase = Pipeline.SCENE_PHASES[phaseWert] ? phaseWert : null;
   if (hatKomposition) patch.testComposition = Pipeline.COMPOSITION_TYPES[kompoWert] ? kompoWert : null;
-  // "an" schaltet ein, jeder andere Wert (z.B. "aus") schaltet aus -- wie bei den anderen beiden
-  // fuehrt ein unbekannter Wert zum normalen Verhalten, nicht zu etwas Ausgedachtem.
-  if (hatLicht) patch.testLicht = (lichtWert === "an") ? true : null;
+  // "aus" schaltet das Licht ab; "an" und jeder andere Wert bedeuten die Vorgabe (Licht an) --
+  // wie bei den anderen beiden fuehrt ein unbekannter Wert zum normalen Verhalten.
+  if (hatLicht) patch.testLicht = (lichtWert === "aus") ? "aus" : null;
   AppState.update(patch);
   window.history.replaceState(null, "", window.location.pathname + window.location.hash);
 }

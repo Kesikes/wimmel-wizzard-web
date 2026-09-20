@@ -267,7 +267,25 @@ fast immer anschlägt, kein Geld ausgibt. Zurück auf schwer, sobald die Ursache
 
 ## 9. Testschalter
 
-### GÜLTIG seit 19.09.2026: drei Schalter, ein gemeinsamer Ausstieg
+### GÜLTIG seit 20.09.2026: Licht ist die Vorgabe, `licht=aus` ist der Kontrollschalter
+
+Der Lichttest ist entschieden. Dieselbe Szene zweimal: **mit Licht** warmes Licht, Schlagschatten
+bei 10 von 10 Figuren, Dunst — und dabei **flache Figuren** (shaded 1, mouths 1). **Ohne** Licht:
+null Schatten, kein Licht. Die Bedingung des Nutzers ist eingelöst — flache Figuren in einer Szene
+mit Licht, Schatten und Atmosphäre.
+
+Licht steht seitdem **fest im Prompt, für alle Themen und alle Kompositionstypen**, an zwei
+Stellen: als Stichworte in der Eröffnungszeile (`lichtKeywords()`) und als ausführlicher Block
+weit vorne (`lichtBlock()`). Draußen Nachmittagssonne, in aufgeschnittenen Häusern Fenster- und
+Lampenlicht.
+
+`/app?licht=aus` erzeugt ein Kontrollbild ohne Licht — beide Stellen fallen dann weg. Der
+Schalter wurde **umgedreht statt entfernt**, weil genau dieser Vergleich den Test entschieden hat:
+wenn später ein Befund auftaucht und die Frage „liegt es am Licht?" im Raum steht, ist das
+Kontrollbild einen Aufruf entfernt statt einen Commit. `/app?licht=an` bleibt gültig und bedeutet
+schlicht „Vorgabe".
+
+### Die drei Schalter
 
 ```
 /app?phase=phase1&komposition=cutaway&licht=an

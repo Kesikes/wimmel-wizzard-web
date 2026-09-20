@@ -117,8 +117,8 @@ const DEFAULT_STATE = {
   // solange etwas gesetzt ist, damit niemand versehentlich im Testmodus generiert.
   testPhase: null,
   testComposition: null,
-  // NEU (19.09.2026, Lichttest): /app?licht=an haengt einen Lichtblock in den Bildprompt, sonst
-  // nichts. null = aus, also normales Verhalten.
+  // GEAENDERT (20.09.2026): Licht ist fest im Prompt. Dieser Schalter ist seitdem ein
+  // AUS-Schalter fuer Kontrollbilder: null = Vorgabe (Licht an), "aus" = ohne Licht.
   testLicht: null,
 
   // Entscheidung / Widmung / Bestellung
@@ -423,7 +423,7 @@ const AppState = {
       // Der Lichtschalter gehoert sichtbar an die Bild-Fassung: sonst sind Testbilder mit und
       // ohne Licht in der Messreihe nicht auseinanderzuhalten -- die Pruefsumme ist bei beiden
       // dieselbe, weil der Block nur zur Laufzeit dazukommt.
-      bildFassung: (P.BILD_FASSUNG || null) && (P.BILD_FASSUNG + (this.data.testLicht ? " \u00b7 Licht an" : "")),
+      bildFassung: (P.BILD_FASSUNG || null) && (P.BILD_FASSUNG + (this.data.testLicht === "aus" ? " \u00b7 Licht AUS" : "")),
       pruefFassung: P.PRUEF_FASSUNG || null };
     const images = this.data.images.concat([image]);
     this.update({ images, currentImageId: id });

@@ -16,13 +16,16 @@
 #   APP=https://...          andere Adresse als wimmel-wizard-v3.vercel.app
 #   SITZUNGSDATEI=pfad.json  fertige Sitzungs-JSON benutzen statt sie zu holen (zum Ausprobieren
 #                            ohne Netz; dann wird auch nicht nach der sessionId gefragt)
+#   NUR="7 Berg"             nur Bilder, deren Kennung diesen Text enthaelt (billiger Vorlauf)
 #   TROCKEN=1                alles bis zur Tabelle, aber ohne einen einzigen Pruefaufruf
 
 set -o pipefail
 cd "$(dirname "$0")/.." || exit 1
 
 APP=${APP:-https://wimmel-wizard-v3.vercel.app}
-REFERENZ=docs/ref/referenz.jpg
+# Das Referenzbild liegt seit 20.09.2026 fest im Repo (Bauernhof, 18.09.) -- es ist der
+# Bezugspunkt fuer den Stilvergleich und wird auch vom D-Richter gebraucht.
+REFERENZ=wimmel-wizard-v3/public/assets/referenz-bauernhof-2026-09-18.jpg
 ERGEBNIS=docs/ref/ergebnis.txt
 # Rohdaten aufheben: ohne sie laesst sich hinterher nicht mehr nachrechnen, warum ein Kandidat
 # gewonnen hat -- die gespeicherten Verify-Werte stehen NUR in der Sitzung. Beide Dateien sind in
@@ -83,6 +86,22 @@ if [ $STATUS -ne 0 ]; then
   echo "Abgebrochen. Erste Zeilen der Serverantwort, zur Kontrolle:"
   head -c 400 "$ARBEIT/sitzung.json"; echo
   exit 1
+fi
+
+# NEU (20.09.2026): NUR=... wie in stabilitaet.sh. Vorher kannte nur das Stabilitaets-Werkzeug
+# diesen Filter -- in messen.sh wurde er STILL IGNORIERT. Wer ihn hier benutzte, bezahlte
+# klaglos den vollen Lauf. Ein Schalter, der nichts tut, ist schlimmer als keiner.
+if [ -n "${NUR:-}" ]; then
+  # Die Kennung steht hier in ZWEI Spalten (Bildnummer und Titel, durch Tabulator getrennt) --
+  # ein blosses grep auf "7 Berg" findet deshalb nichts. Verglichen wird die zusammengesetzte
+  # Kennung, genau so, wie sie in der Tabelle erscheint.
+  awk -F'\t' -v muster="$NUR" 'index($1" "$2, muster) > 0' "$ARBEIT/kandidaten.tsv" > "$ARBEIT/gefiltert.tsv"
+  if [ ! -s "$ARBEIT/gefiltert.tsv" ]; then
+    echo "NUR=\"$NUR\" passt auf kein Bild. Vorhandene Kennungen:"
+    awk -F'\t' '{print "  " $1" "$2}' "$ARBEIT/kandidaten.tsv" | sort -u; exit 1
+  fi
+  mv "$ARBEIT/gefiltert.tsv" "$ARBEIT/kandidaten.tsv"
+  echo "Eingeschraenkt auf Kennungen mit \"$NUR\"."
 fi
 
 ANZAHL_K=$(wc -l < "$ARBEIT/kandidaten.tsv" | tr -d ' ')

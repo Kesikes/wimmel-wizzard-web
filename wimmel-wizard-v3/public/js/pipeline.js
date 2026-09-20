@@ -1368,7 +1368,7 @@ var ACTIVE_SCENE_PHASE = "phase1";
 // in den Kompositionstypen, aendert sich die Pruefsumme -- ohne dass jemand daran denken muss.
 // Das von Hand gepflegte Datum bleibt als lesbare Ergaenzung daneben stehen; verlassen tun wir uns
 // auf die Pruefsumme.
-var PROMPT_LABEL = "2026-09-20a";
+var PROMPT_LABEL = "2026-09-20b";
 
 // FNV-1a, 32 Bit. Bewusst kein crypto.subtle: das ist asynchron, und diese Kennung soll ohne
 // Umstand synchron beim Laden feststehen. Kollisionen sind hier belanglos -- es geht nicht um
@@ -1399,7 +1399,7 @@ function bildFingerprint() {
   // Alle Funktionen, die BILDprompt-Text erzeugen, und alle Tabellen, aus denen er sich speist.
   [scenePrompt, sceneComposeInstruction, sizeRule, sizeRuleReminder,
    heroSpotText, densityInstruction, backgroundLibraryInstruction, allCharactersRule,
-   sceneLayerText, layerSizeText, imageRefMapping, lichtBlock].forEach(function (fn) {
+   sceneLayerText, layerSizeText, imageRefMapping, lichtBlock, lichtKeywords].forEach(function (fn) {
     teile.push(String(fn));
   });
   // Der Lichtblock steht nur bei gesetztem Schalter im Prompt, seine Formulierung gehoert aber zur
@@ -2490,9 +2490,18 @@ const THREE_LAYER_RULE = "The scene must show three clearly different character 
 // zum Stil. In einem der bewerteten Bilder hatte genau eine grosse Vordergrundfigur eine als Form
 // gezeichnete Nase samt Bartstoppeln und fiel damit aus dem Stil. Besser, das Bild entsteht gar
 // nicht so, als es hinterher zu pruefen.
-// LICHTBLOCK -- NUR ueber den Testschalter /app?licht=an, sonst kommt kein Zeichen davon in den
-// Prompt (Nutzer-Vorgabe: Live-Verhalten unveraendert). Wortlaut vom Nutzer, positiv formuliert,
-// ohne Verneinungen.
+// LICHTBLOCK -- seit 20.09.2026 FEST im Prompt, fuer alle Themen und alle Kompositionstypen.
+// Wortlaut vom Nutzer, positiv formuliert, ohne Verneinungen.
+//
+// BELEG FUER DIE UMSTELLUNG (Lichttest 20.09.2026, dieselbe Szene zweimal): mit Licht warmes
+// Licht, Schlagschatten bei 10 von 10 Figuren und Dunst -- und dabei FLACHE Figuren (shaded 1,
+// mouths 1). Ohne Schalter: null Schatten, kein Licht. Die Bedingung des Nutzers ist damit
+// eingeloest: flache Figuren in einer Szene mit Licht, Schatten und Atmosphaere.
+//
+// Vorgeschichte: bis c766066 (20.09.) war der Block wirkungslos, weil der Abspann in
+// sceneComposeInstruction() "shaded, gradient, softly airbrushed" fuers GANZE Bild verbot statt
+// nur fuer die Figuren. Erst nachdem der Geltungsbereich auf die Figuren begrenzt war, konnte der
+// Lichtblock ueberhaupt wirken.
 //
 // ZWEI FASSUNGEN: draussen die tiefstehende Sonne, in aufgeschnittenen Haeusern (cutaway,
 // gridhouse, overview_cutaway) Fenster- und Lampenlicht -- eine Sonne, die in acht Zimmer
@@ -2507,10 +2516,23 @@ const LICHT_AUSSEN = "Warm late-afternoon sunlight from one side. Every person, 
 const LICHT_INNEN = "Warm light from windows and lamps. Every person, animal and object casts a soft shadow on the ground. Gentle colour gradients in sky and foliage, distant hills softer and hazier. Faces stay simple: dot eyes, small nose line inside the face outline, seen from the front.";
 const LICHT_KOMPOSITIONEN_INNEN = ["cutaway", "gridhouse", "overview_cutaway"];
 
-// lichtBlock(composition): leer, solange der Schalter aus ist -- der Aufrufer prueft das.
+// lichtBlock(composition): der ausfuehrliche Block, der als eigener Satz ganz vorne steht.
 function lichtBlock(composition) {
   const id = composition && composition.id;
   return LICHT_KOMPOSITIONEN_INNEN.indexOf(id) >= 0 ? LICHT_INNEN : LICHT_AUSSEN;
+}
+
+// lichtKeywords(composition): die Kurzfassung fuer die Eroeffnungszeile (Nutzer-Vorgabe
+// 20.09.2026: "Lichtangabe fest in den Eroeffnungssatz"). Die Eroeffnung ist eine
+// Stichwortliste ("wmlstil, farm scene, wide establishing shot"), deshalb hier Stichworte und
+// nicht der ganze Satz -- der steht unveraendert als eigener Block weiter unten. Beides zusammen
+// ist Absicht: in diesem Projekt hat sich wiederholt gezeigt, dass die Stelle GANZ vorne anders
+// wirkt als eine Regel im Fliesstext, und der Lichteindruck soll von der ersten Zeile an feststehen.
+function lichtKeywords(composition) {
+  const id = composition && composition.id;
+  return LICHT_KOMPOSITIONEN_INNEN.indexOf(id) >= 0
+    ? "warm lamp and window light, soft shadows on the floor"
+    : "warm late-afternoon sunlight, soft shadows on the ground";
 }
 
 const FLAT_FACE_RULE = "Every human face in this image stays completely flat, and this applies most strictly to the largest figures in the very front, where the temptation to add detail is greatest: two small dot eyes and one single thin vertical line for the nose, nothing more. Never a modelled nose with a bridge, a tip, nostrils or shading around it; never stubble, beard shadow or shading on cheeks, chin or neck; never a three-quarter or profile view with sculpted facial features while the other faces stay flat and frontal.";
@@ -2587,7 +2609,11 @@ function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount, phase, co
   // eines entscheiden. THEME_META traegt fuer Themen, die als Haus gezeichnet werden koennen,
   // jetzt eine zweite Fassung (enHaus), die das ganze Haus benennt statt eines Zimmers.
   const ortText = (imHaus || composition.id === "overview_cutaway") && theme.enHaus ? theme.enHaus : theme.en;
-  const kw = "wmlstil, " + ortText + ", " + composition.kw;
+  // Die Lichtstichworte gehoeren zur Eroeffnung -- aber sie muessen mit dem Kontrollschalter
+  // /app?licht=aus GENAUSO verschwinden wie der Block weiter unten. Sonst ist das Kontrollbild
+  // keins: es haette immer noch Licht in der ersten Zeile stehen.
+  const kw = "wmlstil, " + ortText + ", " + composition.kw +
+    (licht !== false ? ", " + lichtKeywords(composition) : "");
   const sentences = [];
   // Ganz vorne, noch vor der Helden-Zuordnung -- Primacy-Haelfte des Mund-Sandwiches (siehe
   // Kommentar bei NO_MOUTH_EMPHASIS oben).
@@ -2602,11 +2628,12 @@ function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount, phase, co
   // nicht der Wortlaut der Groessenregel war das Problem, sondern was VOR ihr steht.
   sentences.push(ZOOM_OUT_RULE);
   sentences.push(sizeRule(phase, composition));
-  // LICHTTEST, nur mit /app?licht=an. Bewusst HIER: direkt hinter ZOOM_OUT_RULE und sizeRule, also
-  // Satz 4 von rund 82, und vor allem anderen. Weiter nach vorne haette die zwei Regeln verdraengt,
-  // die uns am meisten Muehe gekostet haben (Kameraabstand und Figurengroesse) -- und ein Test, der
-  // dabei die Figurengroesse kaputt macht, beantwortet die Lichtfrage nicht.
-  if (licht) sentences.push(lichtBlock(composition));
+  // LICHT, seit 20.09.2026 fest. Bewusst HIER: direkt hinter ZOOM_OUT_RULE und sizeRule, also
+  // weit vorne, aber ohne die zwei Regeln zu verdraengen, die am meisten Muehe gekostet haben
+  // (Kameraabstand und Figurengroesse). Die Kurzfassung steht zusaetzlich in der Eroeffnungszeile,
+  // siehe lichtKeywords().
+  // licht === false kommt nur ueber den Kontrollschalter /app?licht=aus -- Vorgabe ist AN.
+  if (licht !== false) sentences.push(lichtBlock(composition));
   sentences.push(EDGE_AND_FACE_RULE);
   sentences.push(BASE_CANVAS_NOTE);
   sentences.push(imageRefMapping(heroSpecs, HERO_REF_START));
@@ -3062,7 +3089,7 @@ function buildSceneComposeInputs({ heroSpecs, theme, situations, phase, composit
   const styleRefUrls = heroRefUrls.concat(bgUrls);
   // D3: eigene Handlung je Held, buchweite Sperrliste beachtet.
   const heroActions = pickHeroActions(refHeroes, theme && theme.locId, usedTexts);
-  const promptText = scenePrompt({ heroSpecs: refHeroes, theme, situations, bgCharacterCount: bgUrls.length, phase: phaseObj, composition: comp, heroActions, licht: !!licht });
+  const promptText = scenePrompt({ heroSpecs: refHeroes, theme, situations, bgCharacterCount: bgUrls.length, phase: phaseObj, composition: comp, heroActions, licht: licht !== false });
   const instruction = sceneComposeInstruction(promptText);
   const verifyPrompt = buildVerifyPrompt(refHeroes, phaseId, comp.id);
   // figuresBand reist mit zum Server: dort wird figures_est dagegen geprueft (siehe
@@ -3581,7 +3608,7 @@ window.Pipeline = {
   kontextInstruction, photoStyleInstruction, traitBitFromPhotoDescription, describePhotoTraits,
   PEN_INSTRUCTION_REMOVE, PEN_INSTRUCTION_REDO,
   resizeImageToDataUri, generateImage, generateImageWithRetry, verifyImage, countViolations,
-  SCENE_PHASES, ACTIVE_SCENE_PHASE, DEPTH_MIN_RATIO, SCALE_MIN_FIT, PROMPT_VERSION, PROMPT_LABEL, promptFingerprint, BILD_FASSUNG, PRUEF_FASSUNG, bildFingerprint, pruefFingerprint, heroRef, HERO_REF_START, lichtBlock, VERIFY_MAX_VERSUCHE, PRUEF_VERHALTEN, severityOf, compareSeverity, isGoodEnough,
+  SCENE_PHASES, ACTIVE_SCENE_PHASE, DEPTH_MIN_RATIO, SCALE_MIN_FIT, PROMPT_VERSION, PROMPT_LABEL, promptFingerprint, BILD_FASSUNG, PRUEF_FASSUNG, bildFingerprint, pruefFingerprint, heroRef, HERO_REF_START, lichtBlock, lichtKeywords, VERIFY_MAX_VERSUCHE, PRUEF_VERHALTEN, severityOf, compareSeverity, isGoodEnough,
   COMPOSITION_TYPES, pickComposition, layerSizeText,
   HERO_ACTION_LIBRARY, pickHeroActions, shuffledPool,
   // Szenen-Komposition (neu, siehe Modul-Abschnitt oben)

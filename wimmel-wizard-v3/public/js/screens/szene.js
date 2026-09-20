@@ -1001,7 +1001,7 @@ Screens.zaubern = {
       const teile = [];
       if (s.testPhase) teile.push("Phase: " + s.testPhase);
       if (s.testComposition) teile.push("Komposition: " + s.testComposition);
-      if (s.testLicht) teile.push("Licht: an");
+      if (s.testLicht === "aus") teile.push("Licht: AUS (Vorgabe waere an)");
       const testNote = h("div", { style: { marginTop: "20px", border: "3px dashed var(--yellow)", color: "var(--yellow)", padding: "12px 14px", fontSize: "13px", lineHeight: "1.45" } });
       testNote.appendChild(h("p", { style: { margin: "0 0 9px" } }, "Testmodus aktiv — " + teile.join(", ") + "."));
       const testExit = h("button", { type: "button", class: "h-black", style: { minHeight: "40px", padding: "0 14px", fontSize: "12px", border: "3px solid var(--yellow)", background: "transparent", color: "var(--yellow)", cursor: "pointer" } }, "Testmodus beenden");
@@ -1150,7 +1150,8 @@ Screens.zaubern = {
         // und die gewuerfelte Komposition zurueck.
         const testPhase = sNow.testPhase || undefined;
         const testComposition = sNow.testComposition || undefined;
-        const testLicht = sNow.testLicht ? true : undefined;
+        // Vorgabe ist Licht AN; nur der Kontrollschalter /app?licht=aus setzt false.
+        const testLicht = (sNow.testLicht === "aus") ? false : undefined;
         setPhase("gen");
         // GEAENDERT (Sammel-Runde 15.09.2026, Punkt 3: "Warteschlangen-Architektur auf den
         // Szenen-Pfad uebertragen"): statt der bisherigen composeSceneImage() (eine einzige, 2-5
