@@ -1368,7 +1368,7 @@ var ACTIVE_SCENE_PHASE = "phase1";
 // in den Kompositionstypen, aendert sich die Pruefsumme -- ohne dass jemand daran denken muss.
 // Das von Hand gepflegte Datum bleibt als lesbare Ergaenzung daneben stehen; verlassen tun wir uns
 // auf die Pruefsumme.
-var PROMPT_LABEL = "2026-09-19i";
+var PROMPT_LABEL = "2026-09-20a";
 
 // FNV-1a, 32 Bit. Bewusst kein crypto.subtle: das ist asynchron, und diese Kennung soll ohne
 // Umstand synchron beim Laden feststehen. Kollisionen sind hier belanglos -- es geht nicht um
@@ -2040,7 +2040,7 @@ function pickBackgroundCharacterSheets(n) {
 // Ohren, kein sichtbarer Hals -- sind ohnehin stilisierte MENSCHEN-Designentscheidungen, kein Tier hat
 // von Natur aus "keine Ohren"), plus ein eigener, kurzer Satz fuer Tiere: gleicher flacher Zeichenstil
 // (dicke Outline, flaechige Farben), aber natuerliche Anatomie statt der Menschen-Gesichtsformel.
-const SCENE_STYLE_BLOCK = "Every human or human-like character in the scene, named heroes and background characters alike, is drawn in exactly the same flat, minimal illustration style: round heads, dot eyes, a single vertical nose line, never a mouth, no ears, no visible neck (the head sits directly on the shoulders), thin limbs with no joints, thick black marker outline, graphic recording sketchnote style, applied consistently across the entire image. Animals are drawn in the same flat-color, thick-black-marker-outline illustration style, but keep their own natural features (mouths, ears, snouts, tails, fur/feather texture drawn simply) rather than the stylized human face design described above.";
+const SCENE_STYLE_BLOCK = "Every human or human-like character in the scene, named heroes and background characters alike, is drawn in exactly the same flat, minimal illustration style: round heads, dot eyes, a single vertical nose line, never a mouth, no ears, no visible neck (the head sits directly on the shoulders), thin limbs with no joints, thick black marker outline, graphic recording sketchnote style, applied consistently to every character in the picture. Animals are drawn in the same flat-color, thick-black-marker-outline illustration style, but keep their own natural features (mouths, ears, snouts, tails, fur/feather texture drawn simply) rather than the stylized human face design described above.";
 
 // NEU: die folgenden drei Konstanten sind, wo möglich, WÖRTLICH aus der Spezifikation Abschnitt 2
 // übernommen (dort bereits als fertiger, englischer Prompt-Baustein in Anführungszeichen gegeben) —
@@ -2693,8 +2693,24 @@ function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount, phase, co
 // Abschnitt 1, "Charakterbilder allein sind stiltreu genug" -> kein Stil-Referenzbild). Ergaenzt
 // scenePrompt() um die Anweisung, wie die mitgeschickten Referenzbilder zu benutzen sind (Identitaet
 // fix, Pose frei) -- analog zum bestaetigten Muster aus kontextInstruction() fuer Charakter-Edits.
+// GEAENDERT (20.09.2026, Nutzer-Befund). Der Abspann verlangte, dass nichts "shaded, gradient,
+// or softly airbrushed" gezeichnet wird, und das Wort davor hiess "across the entire image" --
+// gemeint waren die FIGUREN, dastehen tat es fuers ganze Bild, und zwar an der staerksten Stelle
+// ueberhaupt, ganz am Ende des Prompts.
+//
+// Die Produktentscheidung des Nutzers lautet: die FIGUREN sind flach (Punktaugen, Nasenstrich,
+// kein Mund, dicke Kontur), das BILD als Ganzes nicht -- es soll Licht, Schatten und Atmosphaere
+// haben. Referenz ist das Bauernhofbild vom 18.09.2026. Der Abspann hat gegen die zweite Haelfte
+// dieser Entscheidung gearbeitet.
+//
+// GEAENDERT WURDE NUR DER GELTUNGSBEREICH: das Verbot gilt jetzt ausdruecklich den Figuren und
+// ausdruecklich NICHT der Umgebung. Es wird hier NICHTS verlangt, was es vorher nicht gab -- kein
+// Schatten, kein Verlauf, kein Licht. Das steht weiterhin allein im Lichtblock hinter
+// /app?licht=an (siehe lichtBlock()). Grund: mit zwei gleichzeitigen Aenderungen waere hinterher
+// nicht zu sagen, welche gewirkt hat. Erst jetzt ist der Lichttest ueberhaupt aussagekraeftig --
+// vorher hob der Abspann auf, was der Lichtblock verlangte.
 function sceneComposeInstruction(promptText) {
-  return promptText + " The attached reference images show the exact established design of each named character listed above by reference-image number — their face, proportions, hair color, clothing and identifying details. Draw each one into this new scene keeping their identity and design EXACTLY the same as their reference (same face, same proportions, same hair, same clothing colors); only their pose changes to match the action described above — dynamic, natural poses that actively show them taking part in the scene, never simply copied standing still from the reference. Take their identity from those reference images, but NOT their size: the references are close-up character sheets in which one person fills the frame, and that is a property of the reference sheet, not of this scene. In the scene each of them is one small figure among many, at the size given by the size rule above. Every other character in the scene, including all small background characters, must be drawn in the exact same flat-color, thick black marker outline, graphic-recording sketchnote illustration style as the reference images, applied consistently across the entire image — no character anywhere in the picture may be drawn in a more detailed, more realistic, differently line-weighted, shaded, gradient, or softly airbrushed style."
+  return promptText + " The attached reference images show the exact established design of each named character listed above by reference-image number — their face, proportions, hair color, clothing and identifying details. Draw each one into this new scene keeping their identity and design EXACTLY the same as their reference (same face, same proportions, same hair, same clothing colors); only their pose changes to match the action described above — dynamic, natural poses that actively show them taking part in the scene, never simply copied standing still from the reference. Take their identity from those reference images, but NOT their size: the references are close-up character sheets in which one person fills the frame, and that is a property of the reference sheet, not of this scene. In the scene each of them is one small figure among many, at the size given by the size rule above. Every other character in the scene, including all small background characters, must be drawn in the exact same flat-color, thick black marker outline, graphic-recording sketchnote illustration style as the reference images, applied consistently to every character in the picture — no character anywhere may be drawn in a more detailed, more realistic, differently line-weighted, shaded, gradient, or softly airbrushed style. This rule is about how the PEOPLE and the ANIMALS are drawn and about nothing else: it does not apply to the scene around them. The place itself — sky, water, foliage, ground, walls, distance — is not bound by it."
     // NEU: ganz am Ende, das Letzte, was das Modell vor der Generierung liest -- Recency-Haelfte des
     // Mund-Sandwiches (siehe Kommentar bei NO_MOUTH_EMPHASIS oben). Bewusst knapper/direkter als die
     // Version vorne im Prompt, damit es als abschliessende Erinnerung wirkt statt als Wiederholung.
