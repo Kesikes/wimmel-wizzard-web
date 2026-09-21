@@ -428,6 +428,21 @@ Die Bild-Fassung trägt dann den Zusatz „· Helden NEU".
   der Code bildet das Verhältnis Kandidat/Referenz. Durchgefallen = A nein ODER B unter
   `STIL_TOR_KOPF_GRENZE`. Die Grenze ist **null, bis sie am Urteil des Nutzers kalibriert ist** —
   bis dahin wird B nur gemessen und im Panel gezeigt.
+- **Stil-Tor seit `2026-09-21h` (Nutzer-Entscheidung):** Messung der Zweiteilung (21g): Teil B trennt
+  nicht (gute Bilder ab 0,83, Brüche 0,89–1,00, 24 K2 sogar 1,00); Teil A mit ausgeklammerter
+  Kopfgröße erkannte 0 von 4 Brüchen. Deshalb ist **Teil A wieder wörtlich die erste Stilfrage
+  (`2026-09-21e`)** — 0 Fehlalarme, erkannte 23 K2 und 26 K2 — und läuft als **eigener Aufruf**,
+  genau wie damals gemessen. Er entscheidet allein. **Teil B** (Kopfanteil gegen die Referenz)
+  läuft als zweiter Aufruf, steht im Panel und **entscheidet nichts** (`STIL_TOR_KOPF_GRENZE = null`;
+  abschaltbar mit `STIL_TOR_KOPF_MESSEN`). Kosten je Kandidat höchstens etwa 2 Cent je Teil.
+- **Grundsatz:** Das Stil-Tor fängt **grobe** Stilbrüche (fotoartig, plastisch, anderer
+  Zeichenstil). **Feine Proportionsabweichungen** (kleine Köpfe, normale Comic-Proportionen) sollen
+  über den Bildprompt verhindert werden (`/app?koepfe=gross`) und von der Kundin in der
+  Kandidatenwahl aussortiert werden.
+- **Idee, nicht gebaut:** Teil B an **Ausschnitten der größten Figuren in voller Auflösung** messen
+  statt am verkleinerten Gesamtbild (die Anthropic-API verkleinert 4K-Bilder auf höchstens
+  2.576 px lange Kante; eine Figur im Mittelgrund hat dann nur noch wenige Dutzend Pixel Kopf).
+  Voraussetzung wäre ein Schritt, der die Figuren findet und ausschneidet.
 - Ein leerer Wert bei einem der Schalter beendet den Testmodus wie bisher ganz.
 
 ### Die drei Schalter

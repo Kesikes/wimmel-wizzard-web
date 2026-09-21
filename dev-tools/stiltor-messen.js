@@ -1,6 +1,7 @@
 // dev-tools/stiltor-messen.js — misst das Stil-Tor (api/_lib/richter.js) an gespeicherten Kandidaten
-// gegen DEIN Urteil und KALIBRIERT die Grenze fuer Teil B (Kopfanteil). Seit 2026-09-21g hat das
-// Tor zwei Teile: A Stil ja/nein (ohne Kopfgroesse), B Kopfanteil als Zahl gegen die Referenz.
+// gegen DEIN Urteil. Seit 2026-09-21h: Teil A ist wieder die erste Stilfrage (21e) als eigener
+// Aufruf und entscheidet allein; Teil B (Kopfanteil gegen die Referenz) ist ein zweiter Aufruf und
+// nur Messwert. Die Kalibrierung unten zeigt weiter, ob B irgendwann trennen wuerde (21g: nein).
 //
 //     ANTHROPIC_API_KEY=... LAEUFE=2 node dev-tools/stiltor-messen.js
 //     TROCKEN=1 node dev-tools/stiltor-messen.js     nur Anzahl und Kosten

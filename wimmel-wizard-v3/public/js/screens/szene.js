@@ -1635,7 +1635,8 @@ function buildDebugDetails(image) {
     const zahl = (v) => (v === null || v === undefined) ? "—" : Number(v).toFixed(2);
     const teilB = kw ? "\n    Teil B Kopfanteil: Erwachsene " + zahl(kw.bildErw) + " (Referenz " + zahl(kw.refErw) + ", ×" + zahl(kw.verhErw) + "), Kinder " +
       zahl(kw.bildKind) + " (Referenz " + zahl(kw.refKind) + ", ×" + zahl(kw.verhKind) + ") → Wert " + zahl(kw.wert) +
-      (t.kopfGrenze === null || t.kopfGrenze === undefined ? " (Grenze noch nicht kalibriert)" : " (Grenze " + t.kopfGrenze + ")") : "";
+      (t.kopfGrenze === null || t.kopfGrenze === undefined ? " (nur Messwert, entscheidet nichts)" : " (Grenze " + t.kopfGrenze + ")")
+      : (t.fehlerB ? "\n    Teil B Kopfanteil: nicht gemessen — " + t.fehlerB : "");
     return "Stil-Tor (" + (t.modell || "?") + "): " + (t.urteil === "nein" ? "NEIN — SCHWER" : "ja") +
       (t.grund ? " — " + t.grund : "") + (t.stil ? "\n    Teil A Stil: " + t.stil : "") + " — " + (t.begruendung || "") + teilB +
       (t.tokenEin ? "\n    [" + t.tokenEin + "/" + t.tokenAus + " Token]" : "");
