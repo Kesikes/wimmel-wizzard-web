@@ -98,8 +98,44 @@ textarea.field { min-height: 108px; resize: none; padding: 11px; line-height: 1.
   .scr-pad { max-width: 430px; }
 
   .dash-desktop-grid { display: grid !important; grid-template-columns: 360px 1fr; gap: 44px; align-items: start; max-width: var(--desktop-max); margin: 0 auto; padding: 40px 32px 70px; }
-  .edit-desktop-grid { display: grid !important; grid-template-columns: 1fr 400px; min-height: calc(100vh - 66px); }
 }
 @media (max-width: 1023.98px) {
-  .dash-desktop-grid, .edit-desktop-grid { display: none !important; }
+  .dash-desktop-grid { display: none !important; }
+}
+
+/* ==========================================================================
+   Ergebnis-Screen (21.09.2026, Schritt 2): EIN DOM fuer Handy und Desktop, siehe
+   buildErgebnisAnsicht() in screens/szene.js. Handy: eine Spalte, .erg-seite loest sich auf
+   (display: contents), damit der Kopf per order ueber dem Bild steht. Desktop: Raster 1fr/400px.
+   ========================================================================== */
+.erg { display: flex; flex-direction: column; padding: 18px 0 0; }
+.erg-seite { display: contents; }
+.erg-kopf { order: 0; padding: 0 14px; margin-bottom: 14px; }
+.erg-bild { order: 1; }
+.erg-werkzeuge, .erg-hinweis, .erg-unten { order: 2; }
+.erg-titel { margin-bottom: 14px; }
+.erg-warnung { margin-top: 2px; }
+.erg-werkzeuge { padding: 12px 14px 0; }
+.erg-werkzeuge > div { margin-left: 0 !important; margin-right: 0 !important; }
+.erg-hinweis { margin: 16px 14px 0; }
+.erg-stift-etikett {
+  position: absolute; left: 22%; top: 34%; margin: -30px 0 0 74px; background: var(--red); color: var(--paper);
+  font-size: 10px; letter-spacing: .06em; padding: 5px 7px; transform: rotate(-3deg); pointer-events: none;
+}
+@media (min-width: 1024px) {
+  .erg { display: grid; grid-template-columns: 1fr 400px; min-height: calc(100vh - 66px); padding: 0; }
+  .erg-bild { order: 0; background: var(--ink); padding: 26px 0 26px 32px; display: flex; align-items: center; }
+  .erg-seite { order: 1; }
+  .erg-crop { border: 4px solid var(--paper) !important; }
+  .erg-seite {
+    display: flex; flex-direction: column; gap: 18px; background: var(--paper); border-left: 4px solid var(--ink);
+    padding: 26px 28px 26px 26px;
+  }
+  .erg-kopf { padding: 0; margin-bottom: 0; }
+  .erg-titel { font-size: 44px; letter-spacing: -.045em; margin-bottom: 0; }
+  .erg-warnung { margin-top: 12px; }
+  .erg-werkzeuge { padding: 0; display: flex; flex-direction: column; gap: 10px; }
+  .erg-hinweis { margin: 0; }
+  .erg-unten { margin-top: auto; border-top: 4px solid var(--ink); padding-top: 18px; }
+  .erg-stift-etikett { left: 20%; top: 30%; margin: -34px 0 0 160px; font-size: 12px; padding: 7px 10px; }
 }

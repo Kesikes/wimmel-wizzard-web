@@ -85,7 +85,7 @@ const PRINT_ASPECT_RATIO = "2 / 1";
 // dieser Box ist "inner", und das ist position:absolute -- die Box hat damit von sich aus null
 // Inhaltsbreite. Mobil faellt das nicht auf: dort ist sie ein normales Block-Element und nimmt
 // automatisch die volle Breite des Abschnitts ein. Im Desktop-Layout haengt sie dagegen in einer
-// Flex-Spalte (buildDesktopErgebnis(), left), und ein Flex-Kind ohne Breitenangabe wird auf seine
+// Flex-Spalte (buildErgebnisAnsicht(), .erg-bild auf dem Desktop), und ein Flex-Kind ohne Breitenangabe wird auf seine
 // Inhaltsbreite geschrumpft -- gemessen im Nachbau: 8 x 8 Pixel (nur der Rahmen), Bild 0 x 0. Das
 // Bild war also die ganze Zeit korrekt im DOM und trotzdem unsichtbar. Mit width:100% misst
 // derselbe Nachbau 1008 x 508 Pixel. Hat nichts mit dem Wechsel auf JPEG zu tun.
@@ -1399,114 +1399,8 @@ Screens.ergebnis = {
       root.appendChild(wait);
       return;
     }
-    const wrap = h("section", { class: "mobile-only", style: { padding: "18px 0 0" } });
-
-    const head = h("div", { style: { padding: "0 14px" } });
-    head.appendChild(h("p", { class: "kicker kicker-yellow", style: { transform: "rotate(-2deg)" } }, "Bild " + s.images.length + " · " + (image.title || "Wimmelbild")));
-    head.appendChild(h("h1", { class: "h1-scr", style: { fontSize: "31px", marginBottom: "14px" } }, [document.createTextNode("Da ist"), h("br"), document.createTextNode("es.")]));
-    wrap.appendChild(head);
-
-    // NEU (Sammel-Runde 10.09.2026, Punkt C3+C4: "Wenn der gewaehlte beste Kandidat noch Verstoesse
-    // hat (oder der Verify-Call selbst fehlschlaegt), das der Nutzerin sichtbar machen statt es als
-    // normales Ergebnis zu zeigen"). Vorher tauchten violations/verify NUR versteckt hinter dem
-    // "Test-Details anzeigen"-Debug-Toggle auf (buildDebugDetails() unten, ausdruecklich als Test-/
-    // Debug-Panel gekennzeichnet -- eine normale Nutzerin wuerde den nie anklicken). Ein Bild mit
-    // echten Stil-/Vollstaendigkeits-Verstoessen ODER einem strukturell fehlgeschlagenen Verify-Call
-    // wurde damit optisch GENAUSO praesentiert wie ein perfektes -- derselbe "stiller Fallback auf
-    // ein falsches Ergebnis"-Fehler, den diese Codebasis an anderer Stelle (Bug 1, B12-Moderation)
-    // bewusst vermeidet. Jetzt: sichtbarer Hinweis direkt ueber dem Bild, sobald irgendetwas nicht
-    // "sauber" ist -- zwei Faelle unterschieden:
-    // - image.verify == null: der Verify-Call konnte fuer den gewaehlten Kandidaten nicht ausgewertet
-    //   werden (Netzwerk-/Parse-Fehler des Vision-Checks, siehe countViolations() in pipeline.js --
-    //   liefert dann violations:99 UND parsed:null als Sentinel). Wir wissen in diesem Fall schlicht
-    //   nicht, ob das Bild stimmt.
-    // - image.verify vorhanden, aber image.violations > 0: die Pruefung LIEF, hat aber tatsaechlich
-    //   Abweichungen gefunden (z.B. ein sichtbarer Mund oder eine fehlende Person) -- und genau dieser
-    //   Kandidat wurde trotzdem als bester von mehreren gewaehlt, weil kein anderer besser war.
-    // GEAENDERT (17.09.2026, D1 "Gewichtung"): der Hinweis erscheint jetzt nur noch bei einem
-    // SCHWEREN Verstoss (Stil, Heldin, raeumliche Tiefe -- siehe VIOLATION_SEVERITY in pipeline.js),
-    // nicht mehr bei jedem einzelnen. Grund: mit den neun neuen Verify-Kriterien hat praktisch jedes
-    // Bild irgendeine Kleinigkeit (ein Mund zu viel, Figuren etwas zu gross) -- die Bedingung
-    // "violations > 0" haette den Warnkasten damit ueber JEDEM Bild gezeigt und genau dadurch
-    // wertlos gemacht. Die vollstaendige Feldliste steht weiterhin im Test-Details-Panel unten.
-    // severity wird hier aus image.verify abgeleitet statt am Bild gespeichert: so funktioniert es
-    // auch fuer Bilder, die vor dieser Aenderung schon im AppState lagen.
-    // Spanne fuer figures_est mitgeben (siehe SCENE_PHASES in pipeline.js) -- sonst wuerde das Feld
-    // hier uebersprungen. Fuer den Warnkasten selbst ist es zwar unerheblich (figures_est zaehlt als
-    // mittlerer Verstoss, gewarnt wird nur bei schweren), aber so rechnet die Anzeige dieselbe
-    // Schwere aus wie der Server.
-    const sevBand = (Pipeline.SCENE_PHASES[Pipeline.ACTIVE_SCENE_PHASE] || {}).figuresBand;
-    const sev = image.verify ? Pipeline.severityOf(image.verify, sevBand) : null;
-    // NEU (21.09.2026): "abgelehnt" = kein Kandidat hat das Stil-Tor bestanden (Produktentscheidung:
-    // so ein Bild wird nicht gewaehlt). Es liegt nur fuer die Auswertung im Speicher.
-    if (image.abgelehnt || !image.verify || (sev && sev.heavy > 0)) {
-      const noticeBox = h("div", { style: { margin: "0 14px 16px", background: "var(--yellow)", border: "4px solid var(--ink)", padding: "13px 14px", boxShadow: "5px 6px 0 var(--ink)" } });
-      noticeBox.appendChild(h("p", { class: "h-black", style: { margin: "0 0 5px", fontSize: "12px", letterSpacing: ".04em" } }, image.abgelehnt ? "✕ Nicht bestanden" : "⚠ Bitte einmal gegenchecken"));
-      noticeBox.appendChild(h("p", { style: { margin: "0", fontSize: "12.5px", lineHeight: "1.45" } },
-        image.abgelehnt ? "Keiner der Versuche hat unseren Zeichenstil getroffen (automatische Stilprüfung). Dieses Bild ist deshalb nicht als Ergebnis gedacht und wird dir nur zur Kontrolle gezeigt — bitte zaubere die Szene neu." : !image.verify
-          ? "Unsere automatische Qualitätsprüfung konnte dieses Bild nicht auswerten (technischer Fehler beim Prüf-Schritt) — wir wissen nicht sicher, ob alles passt. Bitte einmal selbst durchschauen, bevor du weitermachst."
-          : "Unsere automatische Qualitätsprüfung hat bei diesem Bild etwas Grundlegendes gefunden — beim Zeichenstil, bei einer eurer Figuren oder bei der räumlichen Tiefe. Der beste von mehreren Versuchen wurde trotzdem gewählt. Bitte einmal selbst durchschauen, bevor du weitermachst."));
-      wrap.appendChild(noticeBox);
-    }
-
-    const imgWrap = h("div", { style: { position: "relative" } });
-    // GEAENDERT (Punkt 12, Sammel-Runde 11.09.2026: "Stift-Editing funktioniert nicht"): crossOrigin
-    // hier NICHT mehr noetig -- captureAnnotatedImage() zeichnet fuer die Pixel-Auslesung jetzt ein
-    // separates, ueber api/image-proxy.js nachgeladenes Same-Origin-Bild (siehe dortiger Kommentar),
-    // nicht mehr dieses hier sichtbare <img>. Das sichtbare <img> zeigt weiterhin direkt die
-    // fal.media-URL (fuer reine Anzeige unproblematisch, kein CORS-Thema).
-    const img = h("img", { src: image.src, alt: "Fertiges Wimmelbild", style: { display: "block", width: "100%" } });
-    imgWrap.appendChild(img);
-
-    const canvas = h("canvas", { style: { position: "absolute", inset: "0", width: "100%", height: "100%", touchAction: "none" } });
-    imgWrap.appendChild(canvas);
-    canvas.classList.toggle("hidden", !s.penOn);
-
-    // Text jetzt abhaengig vom Modus (Punkt D: zwei echte Modi statt nur "weg") statt fest "das da weg".
-    const penTag = h("span", { class: "h-black", style: { position: "absolute", left: "22%", top: "34%", margin: "-30px 0 0 74px", background: "var(--red)", color: "var(--paper)", fontSize: "10px", letterSpacing: ".06em", padding: "5px 7px", transform: "rotate(-3deg)", pointerEvents: "none" } }, (s.penMode === "redo") ? "das hier neu" : "das da weg");
-    penTag.classList.toggle("hidden", !s.penOn);
-    imgWrap.appendChild(penTag);
-
-    // NEU: 16:9→2:1-Druckbeschnitt-Vorschau, siehe buildCropViewport()-Kommentar oben.
-    wrap.appendChild(buildCropViewport(imgWrap));
-    const mark = setupFreehand(canvas, img);
-
-    const tools = h("div", { style: { display: "flex", gap: "8px", padding: "12px 14px 0" } });
-    const penBtn = h("button", { type: "button", class: "h-black", style: { flex: "1", minHeight: "48px", fontSize: "12px", border: "3px solid var(--ink)", background: s.penOn ? "var(--red)" : "var(--paper)", color: s.penOn ? "var(--paper)" : "var(--ink)" } }, "Stift");
-    // GEAENDERT (Punkt D): voller Rerender statt manuellem Class-/Text-Toggle -- so erscheint/
-    // verschwindet das neue buildPenPanel() (Modus-Wahl/Anwenden-Button) automatisch mit, statt es
-    // hier zusaetzlich manuell ein-/auszublenden.
-    penBtn.addEventListener("click", () => {
-      const nowOn = !AppState.data.penOn;
-      AppState.update({ penOn: nowOn, penMode: nowOn ? (AppState.data.penMode || "remove") : null });
-      Router.goScreen("ergebnis");
-    });
-    tools.appendChild(penBtn);
-    // ENTFERNT (19.09.2026, Phase 0.2, Nutzer-Entscheidungen). Beide Knoepfe hatten seit jeher
-    // KEINEN Klick-Handler -- von drei Werkzeugen auf diesem Screen tat genau eines etwas, was den
-    // Eindruck erklaert, die Editiermodi funktionierten nicht.
-    //   "Detail antippen": ersatzlos gestrichen. Es hatte keinen eigenen Zweck neben dem Stift
-    //   (ein Tipp statt eines Kringels ist derselbe Weg mit anderer Markierung), und ein Werkzeug
-    //   weniger ist ein Werkzeug weniger zum Erklaeren.
-    //   "Nochmal zaubern": nur ausgeblendet, nicht geloescht. Es waere ein voller Satz Kandidaten
-    //   und damit 0,30 $ je Druck -- das haengt an der offenen Frage "wie viele Versuche sind
-    //   frei", die mit dem Bezahlmodell in Phase 3 entschieden wird. Danach kommt es zurueck,
-    //   dann gleich mit der richtigen Begrenzung. Bis dahin ist ein unsichtbarer Knopf ehrlicher
-    //   als ein sichtbarer, der nichts tut oder unbemerkt Geld ausgibt.
-    wrap.appendChild(tools);
-
-    if (s.penOn) wrap.appendChild(buildPenPanel({ image, canvas, img, mark, errorId: "pen-error-mobile" }));
-
-    const hintBox = h("div", { style: { margin: "16px 14px 0", position: "relative", background: "var(--blue)", border: "4px solid var(--ink)", padding: "15px 15px 15px 54px", boxShadow: "5px 6px 0 var(--ink)", transform: "rotate(-.8deg)" } });
-    hintBox.appendChild(h("img", { src: assetPath("wizard-magnifier.webp"), alt: "", style: { position: "absolute", left: "-18px", top: "-14px", width: "46px", transform: "rotate(-10deg)" } }));
-    const hint = h("p", { class: "caveat", style: { fontSize: "20px", lineHeight: "1.12" } },
-      s.penOn ? "kringel einfach drüber. ich muss nicht genau wissen, wo das Ding anfängt – ich verstehe, was du meinst."
-              : "irgendwas störend? nimm den Stift und mal es durch. der Rest der Szene bleibt genau so.");
-    hintBox.appendChild(hint);
-    wrap.appendChild(hintBox);
-
-    root.appendChild(wrap);
-    root.appendChild(buildDesktopErgebnis(s, image));
+    // Ein Screen fuer Handy und Desktop, siehe buildErgebnisAnsicht().
+    root.appendChild(buildErgebnisAnsicht(s, image));
     root.appendChild(buildDebugDetails(image));
   }
 };
@@ -1678,83 +1572,101 @@ function buildDebugDetails(image) {
   return wrap;
 }
 
-function buildDesktopErgebnis(s, image) {
-  const grid = h("section", { class: "edit-desktop-grid desktop-only" });
+// GEAENDERT (21.09.2026, Plan Kandidatenwahl Schritt 2 = Phase 0.3): EIN Ergebnis-Screen fuer Handy
+// und Desktop. Vorher gab es zwei vollstaendige Kopien -- Screens.ergebnis.render() (mobil) und
+// buildDesktopErgebnis() --, beide gleichzeitig im DOM, per .mobile-only/.desktop-only umgeschaltet.
+// Jede Aenderung musste zweimal gemacht werden, und mindestens zweimal wurde eine Kopie vergessen
+// (Warnkasten nur bei SCHWEREN Verstoessen, 18.09.; die toten Knoepfe, 19.09.). Jetzt steht jedes
+// Element genau einmal im DOM; nur das Layout unterscheidet sich, und das regelt app.css (.erg-*):
+//   Handy:   eine Spalte -- Kopf, Bild, Werkzeuge, Hinweis. .erg-seite ist dort display:contents,
+//            damit der Kopf per "order" ueber dem Bild stehen kann, obwohl er im DOM rechts steht.
+//   Desktop: Raster 1fr/400px -- links das Bild auf dunklem Grund, rechts die Seitenleiste.
+// Folge fuer den Stift: es gibt nur noch EIN Canvas und EIN setupFreehand(). Der Stift am Handy
+// (Schritt 4) muss damit nur an einer Stelle gebaut werden.
+//
+// Inhalt unveraendert uebernommen, mit diesen bewussten Angleichungen:
+//   - Stift-Knopf heisst ueberall "Stift · markieren, was weg soll" (mobil vorher nur "Stift").
+//   - Ueberschrift ueberall "Da ist es." (mobil vorher mit Zeilenumbruch nach "ist").
+//   - "schau erst mal in Ruhe." und der Knopf "Wimmelbild ist fertig!" bleiben Desktop-only: am
+//     Handy uebernimmt die feste Leiste unten diese Aufgabe (siehe app-shell.js).
+//
+// Warnkasten: Anlass und Geschichte siehe Register. Er erscheint bei "abgelehnt" (kein Kandidat hat
+// das Stil-Tor bestanden), bei gescheiterter Pruefung und bei SCHWEREN Verstoessen (nicht bei jeder
+// Kleinigkeit -- sonst stuende er ueber jedem Bild). severity wird aus image.verify abgeleitet,
+// damit es auch fuer aeltere Bilder im AppState funktioniert. Wird in Schritt 3 durch den festen
+// Hinweistext ueber dem Stift ersetzt.
+function buildErgebnisAnsicht(s, image) {
+  const erg = h("section", { class: "erg" });
 
-  const left = h("div", { style: { position: "relative", background: "var(--ink)", padding: "26px 0 26px 32px", display: "flex", alignItems: "center" } });
+  // --- Bild (mit Stift-Canvas und Markierungs-Etikett) ---
+  const bildSpalte = h("div", { class: "erg-bild" });
+  // crossOrigin ist am sichtbaren <img> nicht noetig: captureAnnotatedImage() laedt fuer die
+  // Pixel ein eigenes Same-Origin-Bild ueber api/image-proxy.js (siehe dort).
   const imgBox = h("div", { style: { position: "relative" } });
-  // GEAENDERT (Punkt 12): crossOrigin nicht mehr noetig, siehe Kommentar beim mobilen <img> in
-  // Screens.ergebnis.render() und bei captureAnnotatedImage() weiter unten.
-  const dImg = h("img", { src: image.src, alt: "Fertiges Wimmelbild", style: { display: "block", width: "100%" } });
-  imgBox.appendChild(dImg);
-  const dCanvas = h("canvas", { style: { position: "absolute", inset: "0", width: "100%", height: "100%", touchAction: "none" } });
-  dCanvas.classList.toggle("hidden", !s.penOn);
-  imgBox.appendChild(dCanvas);
-  const dPenTag = h("span", { class: "h-black", style: { position: "absolute", left: "20%", top: "30%", margin: "-34px 0 0 160px", background: "var(--red)", color: "var(--paper)", fontSize: "12px", letterSpacing: ".06em", padding: "7px 10px", transform: "rotate(-3deg)", pointerEvents: "none" } }, (s.penMode === "redo") ? "das hier neu" : "das da weg");
-  dPenTag.classList.toggle("hidden", !s.penOn);
-  imgBox.appendChild(dPenTag);
-  // NEU: 16:9→2:1-Druckbeschnitt-Vorschau, siehe buildCropViewport()-Kommentar oben (Screens.ergebnis.render()).
-  // Desktop hatte bisher einen umlaufenden Papier-Rahmen statt des mobilen Ink-Balkens oben/unten -- Farbe hier beibehalten.
-  left.appendChild(buildCropViewport(imgBox, { border: "4px solid var(--paper)" }));
-  grid.appendChild(left);
-  const dMark = setupFreehand(dCanvas, dImg);
+  const img = h("img", { src: image.src, alt: "Fertiges Wimmelbild", style: { display: "block", width: "100%" } });
+  imgBox.appendChild(img);
+  const canvas = h("canvas", { style: { position: "absolute", inset: "0", width: "100%", height: "100%", touchAction: "none" } });
+  canvas.classList.toggle("hidden", !s.penOn);
+  imgBox.appendChild(canvas);
+  const penTag = h("span", { class: "h-black erg-stift-etikett" }, (s.penMode === "redo") ? "das hier neu" : "das da weg");
+  penTag.classList.toggle("hidden", !s.penOn);
+  imgBox.appendChild(penTag);
+  // 16:9 -> 2:1-Druckbeschnitt-Vorschau, siehe buildCropViewport().
+  const crop = buildCropViewport(imgBox);
+  crop.classList.add("erg-crop");
+  bildSpalte.appendChild(crop);
+  erg.appendChild(bildSpalte);
+  const mark = setupFreehand(canvas, img);
 
-  const aside = h("aside", { style: { background: "var(--paper)", borderLeft: "4px solid var(--ink)", padding: "26px 28px 26px 26px", display: "flex", flexDirection: "column", gap: "18px" } });
+  // --- Seitenleiste (am Handy aufgeloest, siehe oben) ---
+  const seite = h("aside", { class: "erg-seite" });
 
-  const top = h("div", {});
-  top.appendChild(h("p", { class: "kicker kicker-yellow", style: { transform: "rotate(-2deg)" } }, "Bild " + s.images.length + " · " + (image.title || "Wimmelbild")));
-  top.appendChild(h("h1", { class: "h-black", style: { fontSize: "44px", lineHeight: ".88", letterSpacing: "-.045em" } }, "Da ist es."));
-  top.appendChild(h("p", { class: "caveat", style: { margin: "8px 0 0", fontSize: "23px", lineHeight: "1.1" } }, "schau erst mal in Ruhe."));
-  // Siehe Kommentar bei Screens.ergebnis.render() (Punkt C3+C4) -- gleicher sichtbarer Hinweis auch
-  // in der Desktop-Ansicht, nicht nur mobil.
-  // BUGFIX (18.09.2026): hier stand noch die alte Bedingung "irgendein Verstoss" -- die Umstellung
-  // auf "nur bei SCHWEREN Verstoessen" (D1, siehe ausfuehrlicher Kommentar in
-  // Screens.ergebnis.render() oben) war nur in der mobilen Ansicht nachgezogen worden. Auf dem
-  // Desktop erschien der Warnkasten dadurch ueber praktisch jedem Bild und war damit wertlos.
-  const dSevBand = (Pipeline.SCENE_PHASES[Pipeline.ACTIVE_SCENE_PHASE] || {}).figuresBand;
-  const dSev = image.verify ? Pipeline.severityOf(image.verify, dSevBand) : null;
-  if (image.abgelehnt || !image.verify || (dSev && dSev.heavy > 0)) {
-    const dNoticeBox = h("div", { style: { marginTop: "12px", background: "var(--yellow)", border: "4px solid var(--ink)", padding: "13px 14px", boxShadow: "5px 6px 0 var(--ink)" } });
-    dNoticeBox.appendChild(h("p", { class: "h-black", style: { margin: "0 0 5px", fontSize: "12px", letterSpacing: ".04em" } }, image.abgelehnt ? "✕ Nicht bestanden" : "⚠ Bitte einmal gegenchecken"));
-    dNoticeBox.appendChild(h("p", { style: { margin: "0", fontSize: "13px", lineHeight: "1.45" } },
+  const kopf = h("div", { class: "erg-kopf" });
+  kopf.appendChild(h("p", { class: "kicker kicker-yellow", style: { transform: "rotate(-2deg)" } }, "Bild " + s.images.length + " · " + (image.title || "Wimmelbild")));
+  kopf.appendChild(h("h1", { class: "h1-scr erg-titel" }, "Da ist es."));
+  kopf.appendChild(h("p", { class: "caveat desktop-only", style: { margin: "8px 0 0", fontSize: "23px", lineHeight: "1.1" } }, "schau erst mal in Ruhe."));
+  const sevBand = (Pipeline.SCENE_PHASES[Pipeline.ACTIVE_SCENE_PHASE] || {}).figuresBand;
+  const sev = image.verify ? Pipeline.severityOf(image.verify, sevBand) : null;
+  if (image.abgelehnt || !image.verify || (sev && sev.heavy > 0)) {
+    const box = h("div", { class: "erg-warnung", style: { background: "var(--yellow)", border: "4px solid var(--ink)", padding: "13px 14px", boxShadow: "5px 6px 0 var(--ink)" } });
+    box.appendChild(h("p", { class: "h-black", style: { margin: "0 0 5px", fontSize: "12px", letterSpacing: ".04em" } }, image.abgelehnt ? "✕ Nicht bestanden" : "⚠ Bitte einmal gegenchecken"));
+    box.appendChild(h("p", { style: { margin: "0", fontSize: "13px", lineHeight: "1.45" } },
       image.abgelehnt ? "Keiner der Versuche hat unseren Zeichenstil getroffen (automatische Stilprüfung). Dieses Bild ist deshalb nicht als Ergebnis gedacht und wird dir nur zur Kontrolle gezeigt — bitte zaubere die Szene neu." : !image.verify
         ? "Unsere automatische Qualitätsprüfung konnte dieses Bild nicht auswerten (technischer Fehler beim Prüf-Schritt) — wir wissen nicht sicher, ob alles passt. Bitte einmal selbst durchschauen, bevor du weitermachst."
         : "Unsere automatische Qualitätsprüfung hat bei diesem Bild etwas Grundlegendes gefunden — beim Zeichenstil, bei einer eurer Figuren oder bei der räumlichen Tiefe. Der beste von mehreren Versuchen wurde trotzdem gewählt. Bitte einmal selbst durchschauen, bevor du weitermachst."));
-    top.appendChild(dNoticeBox);
+    kopf.appendChild(box);
   }
-  aside.appendChild(top);
+  seite.appendChild(kopf);
 
-  const toolCol = h("div", { style: { display: "flex", flexDirection: "column", gap: "10px" } });
-  const dPenBtn = h("button", { type: "button", class: "h-black", style: { width: "100%", minHeight: "52px", fontSize: "13px", border: "3px solid var(--ink)", cursor: "pointer", background: s.penOn ? "var(--red)" : "var(--paper)", color: s.penOn ? "var(--paper)" : "var(--ink)" } }, "Stift · markieren, was weg soll");
-  // GEAENDERT (Punkt D): voller Rerender statt manuellem Class-/Text-Toggle, gleicher Grund wie beim
-  // mobilen penBtn oben in Screens.ergebnis.render().
-  dPenBtn.addEventListener("click", () => {
+  // Werkzeuge. "Detail antippen" und "Nochmal zaubern" sind seit 19.09.2026 (Phase 0.2) entfernt
+  // bzw. ausgeblendet -- sie hatten keinen Klick-Handler. "Nochmal zaubern" kommt mit der
+  // Kandidatenwahl (Schritt 3) zurueck, dann mit der richtigen Begrenzung.
+  const werkzeuge = h("div", { class: "erg-werkzeuge" });
+  const penBtn = h("button", { type: "button", class: "h-black", style: { width: "100%", minHeight: "50px", fontSize: "12.5px", border: "3px solid var(--ink)", cursor: "pointer", background: s.penOn ? "var(--red)" : "var(--paper)", color: s.penOn ? "var(--paper)" : "var(--ink)" } }, "Stift · markieren, was weg soll");
+  // Voller Rerender statt Class-Toggle: so erscheint/verschwindet buildPenPanel() automatisch mit.
+  penBtn.addEventListener("click", () => {
     const nowOn = !AppState.data.penOn;
     AppState.update({ penOn: nowOn, penMode: nowOn ? (AppState.data.penMode || "remove") : null });
     Router.goScreen("ergebnis");
   });
-  toolCol.appendChild(dPenBtn);
-  // ENTFERNT (19.09.2026, Phase 0.2) -- gleiche Begruendung wie in der mobilen Fassung oben.
-  // Dass dieselben zwei toten Knoepfe an ZWEI Stellen standen und zweimal entfernt werden mussten,
-  // ist das beste Beispiel fuer die Doppelpflege, die Phase 0.3 beseitigen soll.
-  if (s.penOn) toolCol.appendChild(buildPenPanel({ image, canvas: dCanvas, img: dImg, mark: dMark, errorId: "pen-error-desktop" }));
-  aside.appendChild(toolCol);
+  werkzeuge.appendChild(penBtn);
+  if (s.penOn) werkzeuge.appendChild(buildPenPanel({ image, canvas, img, mark, errorId: "pen-error" }));
+  seite.appendChild(werkzeuge);
 
-  const dHintBox = h("div", { style: { position: "relative", background: "var(--blue)", border: "4px solid var(--ink)", boxShadow: "6px 7px 0 var(--ink)", padding: "18px 18px 18px 62px", transform: "rotate(-.8deg)" } });
-  dHintBox.appendChild(h("img", { src: assetPath("wizard-magnifier.webp"), alt: "", style: { position: "absolute", left: "-20px", top: "-16px", width: "52px", transform: "rotate(-10deg)" } }));
-  const dHint = h("p", { class: "caveat", style: { fontSize: "22px", lineHeight: "1.12" } },
+  const hinweis = h("div", { class: "erg-hinweis", style: { position: "relative", background: "var(--blue)", border: "4px solid var(--ink)", boxShadow: "5px 6px 0 var(--ink)", padding: "15px 15px 15px 56px", transform: "rotate(-.8deg)" } });
+  hinweis.appendChild(h("img", { src: assetPath("wizard-magnifier.webp"), alt: "", style: { position: "absolute", left: "-18px", top: "-14px", width: "48px", transform: "rotate(-10deg)" } }));
+  hinweis.appendChild(h("p", { class: "caveat", style: { fontSize: "21px", lineHeight: "1.12" } },
     s.penOn ? "kringel einfach drüber. ich muss nicht genau wissen, wo das Ding anfängt – ich verstehe, was du meinst."
-            : "irgendwas störend? nimm den Stift und mal es durch. der Rest der Szene bleibt genau so.");
-  dHintBox.appendChild(dHint);
-  aside.appendChild(dHintBox);
+            : "irgendwas störend? nimm den Stift und mal es durch. der Rest der Szene bleibt genau so."));
+  seite.appendChild(hinweis);
 
-  const bottom = h("div", { style: { marginTop: "auto", borderTop: "4px solid var(--ink)", paddingTop: "18px" } });
-  bottom.appendChild(h("button", { type: "button", class: "h-black", style: { width: "100%", minHeight: "60px", background: "var(--red)", color: "var(--paper)", border: "3px solid var(--ink)", boxShadow: "5px 5px 0 var(--ink)", fontSize: "17px", cursor: "pointer" }, onClick: () => Router.goScreen("entscheidung") }, "Wimmelbild ist fertig!"));
-  bottom.appendChild(h("p", { class: "caveat", style: { margin: "10px 0 0", textAlign: "center", fontSize: "20px" } }, "nachbessern geht auch später noch."));
-  aside.appendChild(bottom);
+  const unten = h("div", { class: "erg-unten desktop-only" });
+  unten.appendChild(h("button", { type: "button", class: "h-black", style: { width: "100%", minHeight: "60px", background: "var(--red)", color: "var(--paper)", border: "3px solid var(--ink)", boxShadow: "5px 5px 0 var(--ink)", fontSize: "17px", cursor: "pointer" }, onClick: () => Router.goScreen("entscheidung") }, "Wimmelbild ist fertig!"));
+  unten.appendChild(h("p", { class: "caveat", style: { margin: "10px 0 0", textAlign: "center", fontSize: "20px" } }, "nachbessern geht auch später noch."));
+  seite.appendChild(unten);
 
-  grid.appendChild(aside);
-  return grid;
+  erg.appendChild(seite);
+  return erg;
 }
 
 // Echtes Freihand-Kritzeln im Stift-Modus: Kreis, Durchstreichen, Gekritzel
@@ -1981,10 +1893,7 @@ async function applyPenEdit({ image, canvas, img, mark, mode, errorId, applyBtn,
 // NEU (Punkt D): das eigentliche Stift-Bedienfeld -- Modus-Umschalter (Weg damit / Neu zeichnen,
 // deckt beide PEN_INSTRUCTION_*-Varianten aus der Spezifikation ab, vorher gab es nur die feste
 // "das da weg"-Beschriftung ohne echte Modus-Wahl), Loeschen- und Anwenden-Button, eigene
-// Fehleranzeige. Wird sowohl von Screens.ergebnis.render() (mobil) als auch buildDesktopErgebnis()
-// aufgerufen -- jeweils mit ihrem eigenen canvas/img-Element und einer eigenen errorId, damit beide
-// unabhaengig funktionieren, falls (theoretisch) beide gleichzeitig im DOM stehen (Breakpoint-
-// Uebergang).
+// Fehleranzeige. Seit Schritt 2 (21.09.2026) nur noch EIN Aufrufer: buildErgebnisAnsicht().
 function buildPenPanel({ image, canvas, img, mark, errorId }) {
   const s = AppState.data;
   const mode = s.penMode || "remove";
