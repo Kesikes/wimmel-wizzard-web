@@ -152,6 +152,22 @@ sondern welches Feld zuerst geprüft wurde — `scale_est` und `depth_ratio` zie
 
 ## 4. Auswahl unter den Kandidaten
 
+### GÜLTIG seit 21.09.2026 (Fassung `2026-09-21a`): Heldenfehler vor den übrigen mittleren
+
+`compareSeverity()` vergleicht jetzt **schwer → Heldenfehler → mittel → leicht**. Ein Kandidat mit
+fehlendem oder doppeltem Helden verliert also gegen einen mit richtigen Helden, sobald beide gleich
+viele schwere Verstöße haben — egal, wie viele Münder oder Figuren sonst danebenliegen. Auch der
+D-Richter greift nur noch zwischen Kandidaten mit gleichem Heldenbefund; er urteilt über den Stil
+und darf nie einen Kandidaten mit falschen Helden nach vorne holen.
+
+Was sich **nicht** ändert: `heroes_found` bleibt mittel und löst **keinen** dritten, bezahlten
+Kandidaten aus. Die Änderung kostet nichts.
+
+Fehlt die Heldenzählung bei einem der beiden Kandidaten, wird die Stufe übersprungen — „nicht
+gezählt" wird nicht als „richtig" gelesen.
+
+Anlass: Bild 6 (Berg, 20.09.) — K2 hatte `[1,1,1]`, K1 `[0,0,1]`, gewählt wurde K1.
+
 ### GÜLTIG seit 20.09.2026: drei Gruppen, ungeprüft verliert nicht automatisch
 
 1. geprüft und ohne schweren Verstoß — nachweislich brauchbar
@@ -159,7 +175,8 @@ sondern welches Feld zuerst geprüft wurde — `scale_est` und `depth_ratio` zie
 3. geprüft mit schwerem Verstoß — nachweislich mangelhaft
 
 Innerhalb 1 und 3 entscheidet `compareSeverity()` stufenweise: erst die schweren Verstöße, nur bei
-Gleichstand die mittleren, dann die leichten. Kein Punktesystem.
+Gleichstand die mittleren, dann die leichten. Kein Punktesystem. (Seit 21.09. mit der Heldenstufe
+zwischen schwer und mittel, siehe oben.)
 
 Ein Kandidat gilt als **ungeprüft**, wenn der Prüfaufruf zweimal gescheitert ist — sowohl bei
 geworfener Ausnahme als auch bei unlesbarer Antwort. Wiederholt wird einmal; das kostet einen
@@ -246,6 +263,18 @@ Regel am Prompt-Ende ist eine schwächere Sicherung als ein Wort, das gar nicht 
 ---
 
 ## 8. Doppelte Helden
+
+### GÜLTIG (Produktentscheidung des Nutzers, 21.09.2026): jeder Held genau einmal
+
+> „Jeder Held kommt in jedem Bild GENAU EINMAL vor, in derselben Form, Frisur und Kleidung wie auf
+> seinem Figurenblatt. Fehlen, Doppelung oder abweichende Kleidung ist ein Fehler. Hier sind wir
+> sehr streng."
+
+Im Code heißt das heute: `heroes_found` (Anzahl je Held) und `heroes_ok` (Aussehen und Kleidung).
+`heroes_ok` ist schwer. `heroes_found` ist vorerst mittel, entscheidet aber seit 21.09. bei der
+Auswahl vor allen anderen mittleren Fehlern (siehe Abschnitt 4). Zurück auf schwer erst, wenn
+gemessen ist, dass die Zählung stimmt, und wenn die Fehlerrate beim Erzeugen gesunken ist —
+Begründung und Zahlen in `helden-diagnose-2026-09-21.md`.
 
 ### GÜLTIG auf `main`: `allCharactersRule()` steht am Prompt-Ende
 
