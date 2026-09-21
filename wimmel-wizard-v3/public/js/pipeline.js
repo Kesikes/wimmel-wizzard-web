@@ -1372,7 +1372,7 @@ var ACTIVE_SCENE_PHASE = "phase1";
 // in den Kompositionstypen, aendert sich die Pruefsumme -- ohne dass jemand daran denken muss.
 // Das von Hand gepflegte Datum bleibt als lesbare Ergaenzung daneben stehen; verlassen tun wir uns
 // auf die Pruefsumme.
-var PROMPT_LABEL = "2026-09-21a";
+var PROMPT_LABEL = "2026-09-21b";
 
 // FNV-1a, 32 Bit. Bewusst kein crypto.subtle: das ist asynchron, und diese Kennung soll ohne
 // Umstand synchron beim Laden feststehen. Kollisionen sind hier belanglos -- es geht nicht um
@@ -1403,7 +1403,10 @@ function bildFingerprint() {
   // Alle Funktionen, die BILDprompt-Text erzeugen, und alle Tabellen, aus denen er sich speist.
   [scenePrompt, sceneComposeInstruction, sizeRule, sizeRuleReminder,
    heroSpotText, densityInstruction, backgroundLibraryInstruction, allCharactersRule,
-   sceneLayerText, layerSizeText, imageRefMapping, lichtBlock, lichtKeywords].forEach(function (fn) {
+   sceneLayerText, layerSizeText, imageRefMapping, lichtBlock, lichtKeywords,
+   // NEU (21.09.2026): Helden-Test (helden=neu) -- Filter, Beschreibung, Unterscheidungssatz.
+   heldMerkmale, bgFigurAehnlich, filterBgSheets, heldBeschreibungAusBlatt, haarPhrase, mitArtikel, heldKurzform, kinderUnterscheidung,
+   pickBackgroundCharacterSheets].forEach(function (fn) {
     teile.push(String(fn));
   });
   // Der Lichtblock steht nur bei gesetztem Schalter im Prompt, seine Formulierung gehoert aber zur
@@ -1419,6 +1422,7 @@ function bildFingerprint() {
     DEPTH_COHERENCE_RULE, HEAD_SCALE_CONSISTENCY_RULE, SAFE_MARGIN_RULE, EMOTION_WORDS_RULE,
     ZERO_TEXT_RULE, PHASE2_FOREGROUND_RULE, HERO_FINDABILITY_RULE].join("|"));
   teile.push(String(GROUP_SLOTS));
+  try { teile.push(JSON.stringify([BGCHAR_MERKMALE, ALTER_NACHBARN, HAAR_NACHBARN, HAARFARBE_AUS_BLATT, FIGURENBLATT_PROMPT])); } catch (e) { /* flach */ }
   return fnv1a(teile.join("\u0000"));
 }
 
@@ -2058,14 +2062,184 @@ const BASE_CANVAS_NOTE = "Reference image 1 is an empty sheet in the paper colou
 // Bibliothek. Math.random() bewusst wie an anderer Stelle in dieser Datei (seedA/seedB/seedC in
 // composeSceneImage()) -- keine Reproduzierbarkeit noetig, jede generierte Szene darf/soll
 // unterschiedliche Hintergrundfiguren-Blaetter bekommen.
-function pickBackgroundCharacterSheets(n) {
-  const pool = BACKGROUND_CHARACTER_LIBRARY.slice();
+// GEAENDERT (21.09.2026): optional "erlaubt" -- Blattnummern, aus denen gewaehlt werden darf
+// (Testschalter helden=neu, siehe filterBgSheets()). Ohne Angabe wie bisher alle 13.
+function pickBackgroundCharacterSheets(n, erlaubt) {
+  const pool = Array.isArray(erlaubt)
+    ? BACKGROUND_CHARACTER_LIBRARY.filter((p) => erlaubt.indexOf(Number((String(p).match(/bgchars-(\d+)\./) || [])[1])) >= 0)
+    : BACKGROUND_CHARACTER_LIBRARY.slice();
   const picked = [];
   while (picked.length < n && pool.length) {
     const idx = Math.floor(Math.random() * pool.length);
     picked.push(pool.splice(idx, 1)[0]);
   }
   return picked.map(backgroundCharAssetUrl);
+}
+
+/* ==========================================================================
+   NEU (21.09.2026, Testschalter /app?helden=neu): Doppelgaenger der Helden verhindern.
+   Befund (Heldenmessung 21.09.): Dopplungen sind das Hauptproblem, und ein Pruefmodell kann eine
+   Doppelgaengerin im Bild nicht von einer echten Kopie unterscheiden (gemini 69 %, Claude 70 %,
+   beide zaehlen Dopplungen meist als "einmal"). Also muss die ERZEUGUNG sie verhindern. Zwei
+   Stellen, beide nur hinter dem Schalter, live aendert sich nichts:
+     e2  bgchars-Blaetter, auf denen eine Figur einem Helden gleicht, gehen gar nicht erst mit.
+     e3  die Heldenbeschreibung kommt aus dem FIGURENBLATT (mit Kleidung fuer alle), nicht aus
+         dem Foto -- und gleich aussehende Kinder bekommen einen Unterscheidungssatz.
+   ========================================================================== */
+
+// Merkmalliste je Bibliotheksfigur, einmalig am 21.09.2026 von Hand angelegt (jedes Blatt einzeln
+// angesehen, Figuren von links nach rechts). Je Figur: [Alter, Geschlecht, Haar, Bart].
+//   Alter:      kleinkind (etwa bis 5) · kind · erwachsen · alt
+//   Geschlecht: m · w · ? (nicht eindeutig)
+//   Haar:       blond · hellbraun · braun · schwarz · rot · grau · glatze · verdeckt
+//   Bart:       1 = ja, 0 = nein
+// Kleidung steht bewusst NICHT drin: der Bildprompt verlangt ohnehin, die Bibliotheksfiguren fuer
+// die Szene komplett neu anzuziehen (siehe backgroundLibraryInstruction()). Was bleibt, sind Alter,
+// Geschlecht, Haar und Bart -- genau das, woran eine Doppelgaengerin entsteht.
+// Wer ein neues Blatt ergaenzt, MUSS hier eine Zeile anlegen; ein Blatt ohne Zeile wird im
+// Test-Weg nie ausgewaehlt (siehe filterBgSheets()), statt ungeprueft mitzulaufen.
+const BGCHAR_MERKMALE = {
+  1: [["erwachsen", "m", "schwarz", 0], ["alt", "w", "grau", 0], ["kind", "m", "schwarz", 0], ["kind", "w", "blond", 0], ["erwachsen", "w", "braun", 0]],
+  2: [["erwachsen", "m", "schwarz", 0], ["kind", "w", "braun", 0], ["kind", "m", "schwarz", 0], ["alt", "m", "glatze", 0], ["alt", "m", "grau", 1]],
+  3: [["kind", "?", "braun", 0], ["kind", "w", "schwarz", 0], ["kind", "w", "rot", 0], ["erwachsen", "m", "schwarz", 0]],
+  4: [["erwachsen", "w", "braun", 0], ["kind", "m", "schwarz", 0], ["kleinkind", "m", "blond", 0], ["alt", "m", "glatze", 0], ["alt", "w", "grau", 0]],
+  5: [["kind", "w", "rot", 0], ["kind", "w", "braun", 0], ["kind", "w", "blond", 0], ["kind", "w", "braun", 0], ["alt", "m", "grau", 0], ["kind", "m", "blond", 0]],
+  6: [["erwachsen", "w", "braun", 0], ["kind", "m", "braun", 0], ["kind", "?", "blond", 0], ["kind", "m", "schwarz", 0], ["kind", "w", "blond", 0], ["kind", "m", "schwarz", 0], ["alt", "m", "grau", 0]],
+  7: [["kind", "w", "blond", 0], ["kind", "w", "blond", 0], ["kind", "?", "schwarz", 0], ["kind", "m", "rot", 0], ["kind", "w", "schwarz", 0], ["kind", "m", "schwarz", 0]],
+  8: [["erwachsen", "w", "braun", 0], ["kind", "m", "blond", 0], ["kleinkind", "w", "hellbraun", 0], ["kleinkind", "m", "blond", 0], ["erwachsen", "m", "schwarz", 0], ["erwachsen", "w", "schwarz", 0]],
+  9: [["kind", "m", "schwarz", 0], ["erwachsen", "w", "rot", 0], ["kleinkind", "m", "braun", 0], ["kind", "m", "schwarz", 0], ["kind", "m", "schwarz", 0], ["alt", "m", "grau", 1], ["kind", "m", "blond", 0]],
+  10: [["erwachsen", "w", "braun", 0], ["kind", "m", "blond", 0], ["erwachsen", "w", "schwarz", 0], ["kind", "m", "braun", 0], ["kleinkind", "m", "blond", 0], ["erwachsen", "?", "blond", 0]],
+  11: [["alt", "w", "grau", 0], ["alt", "m", "grau", 1], ["erwachsen", "w", "blond", 0], ["erwachsen", "m", "glatze", 0], ["erwachsen", "m", "glatze", 0]],
+  12: [["alt", "m", "grau", 0], ["erwachsen", "m", "glatze", 0], ["erwachsen", "w", "braun", 0], ["kleinkind", "?", "verdeckt", 0], ["kleinkind", "?", "schwarz", 0]],
+  13: [["kind", "w", "braun", 0], ["erwachsen", "m", "glatze", 0], ["alt", "m", "glatze", 0], ["erwachsen", "m", "verdeckt", 0], ["alt", "w", "grau", 0]],
+};
+
+// Nachbarn: was im Bild leicht fuereinander gehalten wird. Bewusst eng gehalten -- jede weitere
+// Nachbarschaft filtert mehr Blaetter weg, und bei 13 Blaettern ist irgendwann keins mehr uebrig.
+const ALTER_NACHBARN = { kleinkind: ["kind"], kind: ["kleinkind"], erwachsen: ["alt"], alt: ["erwachsen"] };
+const HAAR_NACHBARN = { blond: ["hellbraun"], hellbraun: ["blond", "braun"], braun: ["hellbraun"] };
+const HAARFARBE_AUS_BLATT = { "blond": "blond", "light brown": "hellbraun", "brown": "braun", "black": "schwarz",
+  "red": "rot", "grey": "grau", "white": "grau", "bald": "glatze" };
+
+// heldMerkmale(spec): dieselben vier Merkmale fuer einen benannten Helden. Alter und Geschlecht
+// kommen aus Rolle und Alter der Person, Haar und Bart aus der Figurenblatt-Beschreibung
+// (spec.blatt, siehe beschreibeFigurenblatt()). Fehlt die Beschreibung, bleiben Haar und Bart
+// UNBEKANNT (null) -- und unbekannt heisst beim Filtern "koennte passen", nie "passt nicht".
+function heldMerkmale(spec) {
+  const rolle = String((spec && spec.role) || "");
+  const alterJahre = Number(spec && spec.identityCore && spec.identityCore.age);
+  let alter = null;
+  if (rolle === "girl" || rolle === "boy") alter = (isFinite(alterJahre) && alterJahre > 0 && alterJahre <= 5) ? "kleinkind" : "kind";
+  else if (rolle === "grandmother" || rolle === "grandfather") alter = "alt";
+  else if (rolle === "woman" || rolle === "man") alter = (isFinite(alterJahre) && alterJahre >= 65) ? "alt" : "erwachsen";
+  const geschlecht = ({ girl: "w", woman: "w", grandmother: "w", boy: "m", man: "m", grandfather: "m" })[rolle] || "?";
+  const b = spec && spec.blatt;
+  return {
+    alter, geschlecht,
+    haar: b ? (HAARFARBE_AUS_BLATT[b.hair_color] || null) : null,
+    bart: b ? !!b.beard : null,
+  };
+}
+
+// Gleicht eine Bibliotheksfigur einem Helden? Liefert den Grund als Klartext oder null.
+function bgFigurAehnlich(held, figur) {
+  const [alter, geschlecht, haar, bart] = figur;
+  if (!held.alter) return null; // Tier oder unbekannte Rolle: kein Mensch zum Verwechseln
+  const alterPasst = alter === held.alter || (ALTER_NACHBARN[held.alter] || []).indexOf(alter) >= 0;
+  if (!alterPasst) return null;
+  if (geschlecht !== "?" && held.geschlecht !== "?" && geschlecht !== held.geschlecht) return null;
+  if (held.haar) {
+    const haarPasst = haar === "verdeckt" || haar === held.haar || (HAAR_NACHBARN[held.haar] || []).indexOf(haar) >= 0;
+    if (!haarPasst) return null;
+  }
+  // Bart zaehlt nur bei erwachsenen Maennern, und nur wenn er beim Helden bekannt ist.
+  if (held.geschlecht === "m" && (held.alter === "erwachsen" || held.alter === "alt") && held.bart !== null) {
+    if (!!bart !== held.bart) return null;
+  }
+  return alter + "/" + geschlecht + "/" + haar + (bart ? "/Bart" : "") +
+    (held.haar ? "" : " (Haarfarbe des Helden unbekannt, deshalb nur nach Alter und Geschlecht)");
+}
+
+// filterBgSheets(heroSpecs) -> { erlaubt: [Blattnummern], entfernt: [{ blatt, grund }] }
+function filterBgSheets(heroSpecs) {
+  const helden = (heroSpecs || []).map((s, i) => ({ ref: heroRef(s, i), m: heldMerkmale(s) }));
+  const erlaubt = [], entfernt = [];
+  BACKGROUND_CHARACTER_LIBRARY.forEach((pfad) => {
+    const nr = Number((String(pfad).match(/bgchars-(\d+)\./) || [])[1]);
+    const figuren = BGCHAR_MERKMALE[nr];
+    if (!figuren) { entfernt.push({ blatt: nr, grund: "keine Merkmalliste fuer dieses Blatt" }); return; }
+    const gruende = [];
+    helden.forEach((h) => figuren.forEach((f, fi) => {
+      const g = bgFigurAehnlich(h.m, f);
+      if (g) gruende.push("Figur " + (fi + 1) + " (" + g + ") gleicht " + h.ref);
+    }));
+    if (gruende.length) entfernt.push({ blatt: nr, grund: gruende.join("; ") });
+    else erlaubt.push(nr);
+  });
+  return { erlaubt, entfernt };
+}
+
+// Figurenblatt-Beschreibung (e3). EIN Pruefaufruf je Figur und Figurenblatt, danach an der Person
+// gespeichert (szene.js). Englisch, weil der Text direkt in den Bildprompt geht. Nur Sichtbares,
+// feste Haarfarben-Liste, damit der Filter oben damit rechnen kann.
+const FIGURENBLATT_PROMPT = "This image is a character reference sheet showing ONE illustrated character. Describe ONLY what is visibly drawn, so that this exact character can be told apart from similar-looking people in a crowded picture. Answer ONLY as a JSON object with exactly these fields: {\"hair_color\": one of \"blond\", \"light brown\", \"brown\", \"black\", \"red\", \"grey\", \"white\", \"bald\"; \"hair\": \"length and style in two to four words, e.g. short straight or medium-length wavy\"; \"beard\": true or false; \"top\": \"main upper garment with its colour and pattern, e.g. blue-and-white checked shirt\"; \"bottom\": \"trousers, shorts, skirt or dress with colour, or empty if not visible\"; \"shoes\": \"colour and type, or empty\"; \"extras\": \"glasses, hat, bag or another item the character always wears, or empty\"}. Do not describe the face, the expression, the body shape, the pose or the background. Use plain colour words.";
+
+function parseFigurenblatt(text) {
+  const m = String(text || "").match(/\{[\s\S]*\}/);
+  if (!m) throw new Error("Antwort ohne JSON: " + String(text || "").slice(0, 80));
+  const p = JSON.parse(m[0]);
+  if (!HAARFARBE_AUS_BLATT[p.hair_color]) throw new Error("unbekannte Haarfarbe: " + JSON.stringify(p.hair_color));
+  // Laenge je Feld gedeckelt: der Prompt hat nur rund 1.600 Zeichen Luft (dev-tools/prompt-laenge.js).
+  const kurz = (v) => {
+    const t = stripEmotionWords(String(v || "").replace(/\s+/g, " ").trim());
+    if (t.length <= 50) return t;
+    const k = t.slice(0, 50);
+    return (k.lastIndexOf(" ") > 20 ? k.slice(0, k.lastIndexOf(" ")) : k).replace(/[,;:\s]+$/, "");
+  };
+  return { hair_color: p.hair_color, hair: kurz(p.hair), beard: p.beard === true, top: kurz(p.top),
+    bottom: kurz(p.bottom), shoes: kurz(p.shoes), extras: kurz(p.extras) };
+}
+
+async function beschreibeFigurenblatt(imageUrl) {
+  const text = await withTransientRetry(() => verifyImage([imageUrl], FIGURENBLATT_PROMPT), { retries: 3, delayMs: 3000 });
+  return parseFigurenblatt(text);
+}
+
+function mitArtikel(t) {
+  const x = String(t || "").trim();
+  if (!x || /^(a|an|the|his|her|their)\s/i.test(x)) return x;
+  return (/^[aeiou]/i.test(x) ? "an " : "a ") + x;
+}
+
+function heldKurzform(b) {
+  return [haarPhrase(b), mitArtikel(b.top)].filter(Boolean).join(", ");
+}
+
+function haarPhrase(b) {
+  if (b.hair_color === "bald") return "a bald head";
+  return ((b.hair ? b.hair + " " : "") + b.hair_color + " hair").trim();
+}
+
+// heldBeschreibungAusBlatt(spec, b): ersetzt spec.sceneDescription (bisher aus dem Foto: Haare plus
+// EIN Merkmal, beim Mann gar keine Kleidung). Jetzt fuer ALLE Helden mit Kleidung.
+function heldBeschreibungAusBlatt(spec, b) {
+  const teile = [ageRole(spec), haarPhrase(b)];
+  if (b.beard) teile.push("with a beard");
+  const kleidung = [mitArtikel(b.top), b.bottom].filter(Boolean).join(" and ");
+  if (kleidung) teile.push("wearing " + kleidung + (b.shoes ? " and " + b.shoes : ""));
+  if (b.extras) teile.push(b.extras);
+  return teile.filter(Boolean).join(", ");
+}
+
+// kinderUnterscheidung(heroSpecs): ein Satz, wenn mindestens zwei benannte Kinder vorkommen. Nur
+// mit Figurenblatt-Beschreibung aller Kinder -- aus dem Foto wissen wir zu wenig, um sie sicher
+// auseinanderzuhalten, und ein halber Unterscheidungssatz wuerde eher schaden.
+function kinderUnterscheidung(heroSpecs) {
+  const kinder = (heroSpecs || []).map((s, i) => ({ s, i })).filter(({ s }) => s.role === "girl" || s.role === "boy");
+  if (kinder.length < 2 || kinder.some(({ s }) => !s.blatt)) return "";
+  const teile = kinder.map(({ s, i }) => heroRef(s, i) + " has " + haarPhrase(s.blatt) + " and wears " + (mitArtikel(s.blatt.top) || "their own clothes"));
+  return "The named children look alike at a glance, so keep them strictly apart: " + teile.join("; ") +
+    ". Each child keeps exactly their own hair and clothes: never swap them, never mix them, and never draw any of these children a second time anywhere in the picture.";
 }
 
 // NEU: Stil-Regelblock, einmal kompakt (Spezifikation Abschnitt 2, wörtlich übersetzt aus der
@@ -2638,7 +2812,7 @@ const HERO_FINDABILITY_RULE = "Finding the named characters is meant to be a sma
 // ohnehin. Wuerde hier "bis zu drei" stehen, waeren es entsprechend mehr. Dieselbe Asymmetrie wie
 // beim Stil (Pruefung tolerant, Anweisung streng), die der Nutzer am 17.09.2026 ausdruecklich
 // bestaetigt hat.
-function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount, phase, composition, heroActions, licht }) {
+function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount, phase, composition, heroActions, licht, heldenNeu }) {
   // NEU (19.09.2026): ein reiner Querschnitt (cutaway/gridhouse) braucht an mehreren Stellen eine
   // andere Formulierung als eine offene Szene. overview_cutaway zaehlt hier NICHT dazu: dort gibt
   // es draussen echte Landschaft, Himmel und Horizont.
@@ -2677,6 +2851,9 @@ function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount, phase, co
   sentences.push(EDGE_AND_FACE_RULE);
   sentences.push(BASE_CANVAS_NOTE);
   sentences.push(imageRefMapping(heroSpecs, HERO_REF_START));
+  // NEU (21.09.2026, nur hinter /app?helden=neu): direkt hinter der Zuordnung Bild -> Held, also
+  // dort, wo das Modell die Helden kennenlernt, nicht erst im Schlussblock.
+  if (heldenNeu) { const unterscheidung = kinderUnterscheidung(heroSpecs); if (unterscheidung) sentences.push(unterscheidung); }
   // Direkt nach der Helden-Zuordnung, bevor irgendetwas anderes ueber Referenzbilder gesagt wird --
   // sonst koennte das Modell die nachfolgenden Bibliotheks-Blaetter (image_urls-Reihenfolge, siehe
   // buildSceneComposeInputs()) faelschlich als weitere Helden lesen.
@@ -2712,7 +2889,11 @@ function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount, phase, co
   const heroBits = heroSpecs.map((s, i) => {
     const pl = placements[i] || { spot: "middle", side: "centre" };
     const seite = pl.side === "centre" ? "in the centre of the image" : "on the " + pl.side + " of the image";
-    return heroRef(s, i) + " (" + stripEmotionWords(describeHero(s)) + ")" + aktion(i) + ", " + heroSpotText(pl.spot, phase, composition) + ", " + seite;
+    // NEU (21.09.2026, helden=neu): die volle Beschreibung steht schon in der Zuordnung Bild ->
+    // Held; hier reicht die Kurzform aus Haar und Oberteil. Sonst stuende die jetzt laengere
+    // Beschreibung (mit Kleidung) zweimal im Prompt und sprengt bei vielen Helden die Laengengrenze.
+    const kennzeichen = (heldenNeu && s.blatt) ? heldKurzform(s.blatt) : stripEmotionWords(describeHero(s));
+    return heroRef(s, i) + " (" + kennzeichen + ")" + aktion(i) + ", " + heroSpotText(pl.spot, phase, composition) + ", " + seite;
   }).join("; ");
   if (heroBits) {
     sentences.push("Where the characters from the reference images are in this particular scene — they are NOT all lined up at the front, each one stands exactly where it says here, each doing their own thing, never standing still and never posed neutrally: " + heroBits + ".");
@@ -3113,7 +3294,7 @@ function buildVerifyPrompt(heroSpecs, phaseId, compositionId) {
 // damit spaeter nachvollziehbar ist, welcher Typ ein Bild erzeugt hat. opts.composition erlaubt,
 // den Typ fuer einen gezielten Testlauf festzulegen statt zu wuerfeln (D5: "verschiedene Themen und
 // Kompositionstypen").
-function buildSceneComposeInputs({ heroSpecs, theme, situations, phase, composition, usedTexts, licht }) {
+function buildSceneComposeInputs({ heroSpecs, theme, situations, phase, composition, usedTexts, licht, heldenNeu }) {
   const phaseId = (phase && SCENE_PHASES[phase]) ? phase : ACTIVE_SCENE_PHASE;
   const phaseObj = SCENE_PHASES[phaseId];
   const comp = pickComposition(theme, phaseObj, composition);
@@ -3125,11 +3306,13 @@ function buildSceneComposeInputs({ heroSpecs, theme, situations, phase, composit
   const editImageUrl = sceneBaseCanvasUrl();
   const bgBudget = Math.max(0, 13 - heroRefUrls.length);
   const bgCount = Math.min(bgBudget, 3 + Math.round(Math.random())); // 3 oder 4 Blaetter
-  const bgUrls = bgCount > 0 ? pickBackgroundCharacterSheets(bgCount) : [];
+  // NEU (21.09.2026, /app?helden=neu): Blaetter mit Doppelgaengern der Helden fallen vorher weg.
+  const bgFilter = heldenNeu ? filterBgSheets(refHeroes) : null;
+  const bgUrls = bgCount > 0 ? pickBackgroundCharacterSheets(bgCount, bgFilter ? bgFilter.erlaubt : undefined) : [];
   const styleRefUrls = heroRefUrls.concat(bgUrls);
   // D3: eigene Handlung je Held, buchweite Sperrliste beachtet.
   const heroActions = pickHeroActions(refHeroes, theme && theme.locId, usedTexts);
-  const promptText = scenePrompt({ heroSpecs: refHeroes, theme, situations, bgCharacterCount: bgUrls.length, phase: phaseObj, composition: comp, heroActions, licht: licht !== false });
+  const promptText = scenePrompt({ heroSpecs: refHeroes, theme, situations, bgCharacterCount: bgUrls.length, phase: phaseObj, composition: comp, heroActions, licht: licht !== false, heldenNeu: !!heldenNeu });
   const instruction = sceneComposeInstruction(promptText);
   const verifyPrompt = buildVerifyPrompt(refHeroes, phaseId, comp.id);
   // figuresBand reist mit zum Server: dort wird figures_est dagegen geprueft (siehe
@@ -3144,7 +3327,17 @@ function buildSceneComposeInputs({ heroSpecs, theme, situations, phase, composit
   // das nach einer erfolgreichen Generierung an die buchweite Sperrliste (siehe szene.js).
   const usedNow = (situations || []).map((s) => s.text || s.en).filter(Boolean)
     .concat(heroActions.map((a) => a && a.en).filter(Boolean));
-  return { refHeroes, editImageUrl, styleRefUrls, heroRefUrls, promptText, instruction, verifyPrompt, phaseId, figuresBand, compositionId: comp.id, heroActions, usedNow };
+  // NEU (21.09.2026): was der Helden-Test getan hat, fuer das Test-Details-Panel. Ohne Schalter
+  // null -- das Panel sagt dann ausdruecklich "aus" statt nichts.
+  const heldenInfo = heldenNeu ? {
+    gewaehlt: bgUrls.map((u) => Number((String(u).match(/bgchars-(\d+)\./) || [])[1])),
+    erlaubt: bgFilter.erlaubt, entfernt: bgFilter.entfernt,
+    helden: refHeroes.map((s, i) => ({ ref: heroRef(s, i), name: s.name, beschreibung: stripEmotionWords(describeHero(s)),
+      quelle: s.blatt ? "Figurenblatt" : "Foto/Merkmale (Figurenblatt-Beschreibung fehlt" + (s.blattFehler ? ": " + s.blattFehler : "") + ")",
+      merkmale: heldMerkmale(s) })),
+    unterscheidung: kinderUnterscheidung(refHeroes) || null,
+  } : null;
+  return { refHeroes, editImageUrl, styleRefUrls, heroRefUrls, promptText, instruction, verifyPrompt, phaseId, figuresBand, compositionId: comp.id, heroActions, usedNow, heldenInfo };
 }
 
 async function composeSceneImage({ heroSpecs, theme, situations, phase, composition, licht }) {
@@ -3556,6 +3749,8 @@ async function runSceneJobPolling(sceneInputs, opts) {
         // "pruefung".
         richter: job.richterErgebnis || null,
         quelle: job.resultQuelle || null,
+        // NEU (21.09.2026): nur beim frischen Start bekannt, beim Fortsetzen null (wie promptText).
+        heldenInfo: built ? built.heldenInfo : null,
       };
     }
     if (job.status === "error") {
@@ -3724,6 +3919,8 @@ window.Pipeline = {
   buildCharacterVerifyPrompt, composeCharacterImage,
   startCharacterJob, pollCharacterJobOnce, runCharacterJobPolling,
   startSceneJob, pollSceneJobOnce, runSceneJobPolling, neueSceneJobId,
+  BGCHAR_MERKMALE, heldMerkmale, bgFigurAehnlich, filterBgSheets, beschreibeFigurenblatt, parseFigurenblatt,
+  heldBeschreibungAusBlatt, kinderUnterscheidung, FIGURENBLATT_PROMPT,
   SCENE_STYLE_BLOCK, FILL_EMPTY_SPACE_RULE, COHERENCE_RULE, ZERO_TEXT_RULE, EMOTION_WORDS_RULE,
   SAFE_MARGIN_RULE, SCENE_TOTAL_CHARACTER_TARGET_RULE,
   DEPTH_COHERENCE_RULE, HEAD_SCALE_CONSISTENCY_RULE, NO_MOUTH_EMPHASIS,

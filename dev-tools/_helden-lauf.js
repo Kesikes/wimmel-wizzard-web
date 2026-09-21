@@ -56,7 +56,11 @@ async function claudePruefung(urls, prompt) {
     method: "POST",
     headers: { "x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
     // KEIN temperature (neuere Modelle lehnen es mit HTTP 400 ab, siehe richter.js).
-    body: JSON.stringify({ model: CLAUDE_MODELL, max_tokens: 4000, system: SYSTEM,
+    // GEAENDERT (21.09.2026): Limit 16000 statt 4000 -- abgeschnittene Antworten zaehlen als Fehler
+    // und verkleinern die Stichprobe. Der Prompt selbst bleibt unangetastet (sonst waere G gegen C
+    // kein fairer Vergleich mehr); die Systemanweisung verlangt ohnehin knappe Stichworte vor dem
+    // JSON. Bezahlt wird nur, was tatsaechlich erzeugt wird, nicht das Limit.
+    body: JSON.stringify({ model: CLAUDE_MODELL, max_tokens: 16000, system: SYSTEM,
       messages: [{ role: "user", content: urls.map((u) => ({ type: "image", source: { type: "url", url: u } }))
         .concat([{ type: "text", text: prompt }]) }] }),
   });
@@ -64,7 +68,7 @@ async function claudePruefung(urls, prompt) {
   const d = await resp.json();
   claudeAufrufe++;
   if (d.usage) { tokenEin += d.usage.input_tokens || 0; tokenAus += d.usage.output_tokens || 0; }
-  if (d.stop_reason === "max_tokens") throw new Error("Antwort bei max_tokens=4000 abgeschnitten.");
+  if (d.stop_reason === "max_tokens") throw new Error("Antwort bei max_tokens=16000 abgeschnitten.");
   return (d.content || []).map((t) => t.text || "").join("");
 }
 const roh = JSON.parse(fs.readFileSync(sitzungDatei, "utf8"));

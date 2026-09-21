@@ -52,6 +52,7 @@ function bildBlock(quelle) {
 }
 
 let tokenEin = 0, tokenAus = 0;
+const KNAPP = "Antworte knapp: keine Herleitung, höchstens drei kurze Stichworte vor dem JSON. Das JSON steht am Ende.";
 async function frag(modell, inhalt, maxTokens) {
   const resp = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -60,8 +61,11 @@ async function frag(modell, inhalt, maxTokens) {
     // this model", HTTP 400, Live-Fehler 20.09.2026 mit claude-opus-5). Die Vorgabe des Modells
     // ist fuer diesen Zweck gut genug -- und ein Parameter, der den Aufruf scheitern laesst, ist
     // schlechter als gar keiner.
+    // GEAENDERT (21.09.2026): kuerzer anfordern UND mehr Luft. Jeder Aufruf bekommt am Ende den
+    // Satz KNAPP (keine Herleitung, hoechstens drei Stichworte vor dem JSON), und die Limits sind
+    // hochgesetzt (C 16000, D 8000). Bezahlt wird nur, was tatsaechlich erzeugt wird.
     body: JSON.stringify({ model: modell, max_tokens: maxTokens || 1000,
-      messages: [{ role: "user", content: inhalt }] }),
+      messages: [{ role: "user", content: inhalt.concat([{ type: "text", text: KNAPP }]) }] }),
   });
   if (!resp.ok) throw new Error("Anthropic " + resp.status + ": " + (await resp.text()).slice(0, 200));
   const d = await resp.json();
@@ -108,7 +112,7 @@ function zeile(f) { process.stdout.write(f.join("\t") + "\n"); }
         try {
           // max_tokens grosszuegig: drei von sechs Laeufen brachen bei 600 mitten im JSON ab.
           // Die Antwort ist kurz, das Limit kostet nur, was tatsaechlich erzeugt wird.
-          const text = await frag(modell, [bildBlock(quelle), { type: "text", text: FRAGEN_C }], 4000);
+          const text = await frag(modell, [bildBlock(quelle), { type: "text", text: FRAGEN_C }], 16000);
           const m = String(text).match(/\{[\s\S]*\}/);
           if (!m) throw new Error("Antwort ohne JSON: " + String(text).slice(0, 120));
           p = JSON.parse(m[0]);
@@ -158,7 +162,7 @@ function zeile(f) { process.stdout.write(f.join("\t") + "\n"); }
             bildBlock(b[1]),
             { type: "text", text: "Welcher der beiden Kandidaten trifft den GESICHTSSTIL der Referenz besser? Achte nur auf die Gesichter: Punktaugen, Nasenstrich statt ausmodellierter Nase, kein Mund. Alles andere ist egal. Antworte NUR als JSON: {\"besser\": \"ERSTER\" oder \"ZWEITER\", \"begruendung\": \"ein bis zwei Sätze\"}." },
           ];
-          const text = await frag(modell, inhalt, 2000);
+          const text = await frag(modell, inhalt, 8000);
           const m = String(text).match(/\{[\s\S]*\}/);
           if (!m) throw new Error("Antwort ohne JSON: " + String(text).slice(0, 120));
           const p = JSON.parse(m[0]);

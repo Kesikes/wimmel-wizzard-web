@@ -262,16 +262,21 @@ function handleTestParams() {
   // Verstoesse den D-Richter entscheiden statt der mittleren und leichten Stufe (siehe
   // api/_lib/richter.js). Vorerst aus, bis er sich im Live-Betrieb bewaehrt hat.
   const hatRichter = params.has("richter");
-  if (!hatPhase && !hatKomposition && !hatLicht && !hatRichter) return;
+  // NEU (21.09.2026): fuenfter Schalter, /app?helden=neu -- Doppelgaenger der Helden verhindern:
+  // bgchars-Blaetter mit aehnlichen Figuren fallen weg, Heldenbeschreibung aus dem Figurenblatt
+  // statt aus dem Foto, Unterscheidungssatz fuer die Kinder (siehe filterBgSheets() in pipeline.js).
+  const hatHelden = params.has("helden");
+  if (!hatPhase && !hatKomposition && !hatLicht && !hatRichter && !hatHelden) return;
   const phaseWert = hatPhase ? (params.get("phase") || "").trim() : null;
   const kompoWert = hatKomposition ? (params.get("komposition") || "").trim() : null;
   const lichtWert = hatLicht ? (params.get("licht") || "").trim().toLowerCase() : null;
   const richterWert = hatRichter ? (params.get("richter") || "").trim().toLowerCase() : null;
+  const heldenWert = hatHelden ? (params.get("helden") || "").trim().toLowerCase() : null;
   // Leerer Wert bei EINEM der drei = Testmodus komplett beenden, also auch das Licht. Siehe
   // Kommentar oben: ein leerer Wert ist nie eine Einstellung, er kommt nur beim Verlassen vor.
   if ((hatPhase && !phaseWert) || (hatKomposition && !kompoWert) || (hatLicht && !lichtWert) ||
-      (hatRichter && !richterWert)) {
-    AppState.update({ testPhase: null, testComposition: null, testLicht: null, testRichter: null });
+      (hatRichter && !richterWert) || (hatHelden && !heldenWert)) {
+    AppState.update({ testPhase: null, testComposition: null, testLicht: null, testRichter: null, testHelden: null });
     window.history.replaceState(null, "", window.location.pathname + window.location.hash);
     return;
   }
@@ -283,6 +288,8 @@ function handleTestParams() {
   if (hatLicht) patch.testLicht = (lichtWert === "aus") ? "aus" : null;
   // "an" schaltet den Richter ein, jeder andere Wert zurueck auf das bisherige Verhalten.
   if (hatRichter) patch.testRichter = (richterWert === "an") ? true : null;
+  // "neu" schaltet den Helden-Test ein, jeder andere Wert zurueck auf das bisherige Verhalten.
+  if (hatHelden) patch.testHelden = (heldenWert === "neu") ? "neu" : null;
   AppState.update(patch);
   window.history.replaceState(null, "", window.location.pathname + window.location.hash);
 }

@@ -1052,17 +1052,18 @@ Screens.zaubern = {
     // /app?phase= -- das loeschte nur die Phase und liess die Komposition stehen (siehe
     // handleTestParams() in app-shell.js). Ein Knopf, der beides in einem Zug loescht, kann diesen
     // Fehler gar nicht erst machen; die URL bleibt als zweiter Weg daneben stehen.
-    if (s.testPhase || s.testComposition || s.testLicht || s.testRichter) {
+    if (s.testPhase || s.testComposition || s.testLicht || s.testRichter || s.testHelden) {
       const teile = [];
       if (s.testPhase) teile.push("Phase: " + s.testPhase);
       if (s.testComposition) teile.push("Komposition: " + s.testComposition);
       if (s.testLicht === "aus") teile.push("Licht: AUS (Vorgabe waere an)");
       if (s.testRichter) teile.push("Richter: an");
+      if (s.testHelden === "neu") teile.push("Helden: NEU (Blätter gefiltert, Beschreibung aus dem Figurenblatt)");
       const testNote = h("div", { style: { marginTop: "20px", border: "3px dashed var(--yellow)", color: "var(--yellow)", padding: "12px 14px", fontSize: "13px", lineHeight: "1.45" } });
       testNote.appendChild(h("p", { style: { margin: "0 0 9px" } }, "Testmodus aktiv — " + teile.join(", ") + "."));
       const testExit = h("button", { type: "button", class: "h-black", style: { minHeight: "40px", padding: "0 14px", fontSize: "12px", border: "3px solid var(--yellow)", background: "transparent", color: "var(--yellow)", cursor: "pointer" } }, "Testmodus beenden");
       testExit.addEventListener("click", () => {
-        AppState.update({ testPhase: null, testComposition: null, testLicht: null, testRichter: null });
+        AppState.update({ testPhase: null, testComposition: null, testLicht: null, testRichter: null, testHelden: null });
         Router.goScreen("zaubern");
       });
       testNote.appendChild(testExit);
@@ -1113,7 +1114,7 @@ Screens.zaubern = {
         title: title, src: result.best.url,
         promptText: result.promptText, instruction: result.instruction,
         violations: result.best.violations, verify: result.best.verify, candidates: result.candidates,
-        richter: result.richter || null, quelle: result.quelle || null
+        richter: result.richter || null, quelle: result.quelle || null, heldenInfo: result.heldenInfo || null
       });
       zauberBusy = false;
       Router.goScreen("ergebnis");
@@ -1233,6 +1234,29 @@ Screens.zaubern = {
         // hart).
         // GEAENDERT (17.09.2026, D3): die buchweite Sperrliste wird mitgegeben, damit keine
         // Situation zweimal im selben Buch auftaucht (siehe topUpSituations() in pipeline.js).
+        // NEU (21.09.2026, /app?helden=neu): Heldenbeschreibung aus dem FIGURENBLATT. Einmal je
+        // Figur und Figurenblatt ein Pruefaufruf (gemini ueber fal, rund 2 Cent), danach an der
+        // Person gespeichert und wiederverwendet -- auch fuer den Doppelgaenger-Filter, der die
+        // Haarfarbe braucht. Scheitert die Beschreibung, laeuft diese Figur mit der alten
+        // Beschreibung weiter, und das Panel sagt es ausdruecklich (nie still).
+        if (sNow.testHelden === "neu") {
+          for (const spec of heroSpecs) {
+            const person = (AppState.data.people || []).find((p) => p.id === spec.id);
+            let blatt = person && person.blatt && person.blatt.fuer === spec.imageUrl ? person.blatt.daten : null;
+            if (!blatt) {
+              try {
+                blatt = await Pipeline.beschreibeFigurenblatt(spec.imageUrl);
+                if (person) AppState.updatePerson(person.id, { blatt: { fuer: spec.imageUrl, daten: blatt, am: new Date().toISOString() } });
+              } catch (e) {
+                spec.blattFehler = e && e.message ? e.message : String(e);
+              }
+            }
+            if (blatt) {
+              spec.blatt = blatt;
+              spec.sceneDescription = Pipeline.heldBeschreibungAusBlatt(spec, blatt);
+            }
+          }
+        }
         const usedTexts = sNow.usedSituations || [];
         const situations = Pipeline.autoSituations(theme, sNow.sceneUserSituations || [], 20, usedTexts);
         // Testschalter (siehe handleTestParams() in app-shell.js): ohne gesetzte Werte bleibt alles
@@ -1254,7 +1278,7 @@ Screens.zaubern = {
         // jetzt moeglich (siehe onUpdate unten) statt des vorherigen Fake-setTimeout(...,20000).
         // composeSceneImage() bleibt unveraendert in pipeline.js als eigenstaendig getestete
         // Referenz-/Fallback-Funktion erhalten, wird aber im Produktpfad nicht mehr aufgerufen.
-        const result = await Pipeline.runSceneJobPolling({ heroSpecs, theme, situations, usedTexts, phase: testPhase, composition: testComposition, licht: testLicht, richter: !!sNow.testRichter }, {
+        const result = await Pipeline.runSceneJobPolling({ heroSpecs, theme, situations, usedTexts, phase: testPhase, composition: testComposition, licht: testLicht, richter: !!sNow.testRichter, heldenNeu: sNow.testHelden === "neu" }, {
           // NEU (17.09.2026, Punkt 0): jobId sofort persistieren, sobald sie feststeht -- AppState
           // schreibt ohnehin nach jeder Aenderung in localStorage UND (anonyme Session) auf den
           // Server, der Merker uebersteht damit einen kompletten Tab-Reload.
@@ -1556,6 +1580,34 @@ function buildDebugDetails(image) {
     return zeilen.join("\n");
   }
   const richterBlock = richterText(image);
+  // NEU (21.09.2026): Helden-Test (/app?helden=neu). Wie beim Richter nie weggelassen.
+  function heldenText(bild) {
+    const hi = bild.heldenInfo;
+    if (!hi) {
+      return "Helden-Test (/app?helden=neu): kein Eintrag.\n" +
+        "  Entweder war der Schalter nicht gesetzt, oder das Bild wurde nach einem Neuladen\n" +
+        "  fortgesetzt (dann sind Filter und Beschreibung nicht mehr bekannt), oder es ist aelter\n" +
+        "  als Fassung 2026-09-21b.";
+    }
+    const z = ["Helden-Test (/app?helden=neu): AN"];
+    z.push("  Bibliotheksblätter gewählt: " + (hi.gewaehlt.length ? hi.gewaehlt.join(", ") : "KEINS") +
+      "   (erlaubt waren: " + (hi.erlaubt.length ? hi.erlaubt.join(", ") : "keins") + ")");
+    if (hi.entfernt.length) {
+      z.push("  Weggefiltert, " + hi.entfernt.length + " Blätter:");
+      hi.entfernt.forEach((e) => z.push("    Blatt " + e.blatt + ": " + e.grund));
+    } else z.push("  Weggefiltert: keins");
+    z.push("  Heldenbeschreibung:");
+    (hi.helden || []).forEach((h) => {
+      z.push("    " + (h.name || "?") + " (" + h.ref + ") — Quelle: " + h.quelle);
+      z.push("      " + h.beschreibung);
+      const m = h.merkmale || {};
+      z.push("      Merkmale für den Filter: " + [m.alter || "?", m.geschlecht || "?", m.haar || "Haar unbekannt",
+        m.bart === null || m.bart === undefined ? "Bart unbekannt" : (m.bart ? "Bart" : "kein Bart")].join(" / "));
+    });
+    z.push("  Unterscheidungssatz Kinder: " + (hi.unterscheidung || "keiner (weniger als zwei Kinder oder Beschreibung fehlt)"));
+    return z.join("\n");
+  }
+  const heldenBlock = heldenText(image);
 
   box.textContent =
     // NEU (19.09.2026): Prompt-Fassung ganz oben. Siehe PROMPT_VERSION in pipeline.js -- damit ist
@@ -1570,6 +1622,7 @@ function buildDebugDetails(image) {
     "Wertung: " + (ungeprueftText(gewaehlterKandidat(image)) || gruendeText(image.verify)) + "\n" +
     "Verify-JSON: " + verifyText + "\n" +
     (richterBlock ? "\n" + richterBlock + "\n" : "") + "\n" +
+    heldenBlock + "\n\n" +
     "--- Kandidaten ---\n" +
     (image.candidates || []).map((c, i) => "Kandidat " + (i + 1) + " (" + c.url + "): " +
       (ungeprueftText(c) || ((c.violations != null ? c.violations + " Verstöße" : "?") +

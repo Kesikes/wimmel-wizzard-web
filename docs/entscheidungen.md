@@ -314,6 +314,28 @@ wenn später ein Befund auftaucht und die Frage „liegt es am Licht?" im Raum s
 Kontrollbild einen Aufruf entfernt statt einen Commit. `/app?licht=an` bleibt gültig und bedeutet
 schlicht „Vorgabe".
 
+### NEU seit 21.09.2026 (Fassung `2026-09-21b`): `/app?helden=neu` — Doppelgänger verhindern
+
+Anlass: Heldenmessung 21.09. — Prüfung mit gemini 69 %, mit Claude 70 %, beide zählen Dopplungen
+meist als „einmal". Eine Doppelgängerin ist im fertigen Bild nicht entscheidbar, also muss die
+**Erzeugung** sie verhindern. Nur hinter dem Schalter; live ändert sich nichts.
+
+1. **Blätter filtern** (`filterBgSheets()`): jede der 75 Bibliotheksfiguren hat eine Merkmalliste
+   (`BGCHAR_MERKMALE`: Alter, Geschlecht, Haar, Bart). Ein Blatt fällt weg, wenn eine Figur einem
+   Helden gleicht — Alter gleich oder benachbart (Kleinkind/Kind, Erwachsen/Alt), Geschlecht
+   gleich oder unklar, Haarfarbe gleich oder benachbart (blond/hellbraun/braun), verdeckte Haare
+   zählen als gleich, bei Männern zusätzlich Bart. Bei den Testhelden A, B, C bleiben die Blätter
+   2, 3, 11, 13. Für den Mann fällt kein Blatt weg — in der Bibliothek gibt es keinen braunhaarigen
+   Mann mit Bart.
+2. **Beschreibung aus dem Figurenblatt** (`beschreibeFigurenblatt()`): einmal je Figur ein
+   Prüfaufruf (gemini über fal, rund 2 Cent), gespeichert an der Person. Haar, Bart und Kleidung
+   für **alle** Helden. Die volle Beschreibung steht in der Zuordnung Bild → Held, an der
+   Platzierung nur noch Haar und Oberteil (sonst reicht bei fünf Helden die Promptlänge nicht).
+3. **Unterscheidungssatz**, wenn mindestens zwei Kinder dabei sind, direkt hinter der Zuordnung.
+
+Scheitert eine Beschreibung, läuft die Figur mit der alten weiter; das Panel sagt es.
+Die Bild-Fassung trägt dann den Zusatz „· Helden NEU".
+
 ### Die drei Schalter
 
 ```

@@ -123,6 +123,9 @@ const DEFAULT_STATE = {
   // NEU (20.09.2026): /app?richter=an -- der D-Richter entscheidet bei Gleichstand der schweren
   // Verstoesse. null = aus, also bisheriges Verhalten.
   testRichter: null,
+  // NEU (21.09.2026): /app?helden=neu -- Doppelgaenger-Filter und Heldenbeschreibung aus dem
+  // Figurenblatt. null = aus, also bisheriges Verhalten.
+  testHelden: null,
 
   // Entscheidung / Widmung / Bestellung
   tier: 1, // 0 Poster, 1 Wimmelbuch (ab 2 Bildern), 2 Wimmelbuch (ab 5 Bildern, comingSoon -- siehe entscheidung.js TIERS)
@@ -419,17 +422,22 @@ const AppState = {
   // GEAENDERT (19.09.2026): bildFassung/pruefFassung werden AM BILD gespeichert. Vorher las das
   // Test-Details-Panel die Fassung des gerade geladenen Codes -- ein drei Tage altes Bild zeigte
   // also den heutigen Stand und damit eine Unwahrheit. Genau darauf stuetzt sich die Messreihe.
-  addImage({ title, src, promptText, instruction, violations, verify, candidates, richter, quelle }) {
+  addImage({ title, src, promptText, instruction, violations, verify, candidates, richter, quelle, heldenInfo }) {
     const id = "img-" + (this.data.images.length + 1) + "-" + Date.now().toString(36);
     const P = window.Pipeline || {};
     const image = { id, title: title || "", src, status: "done", promptText, instruction, violations, verify, candidates,
       // NEU (20.09.2026): das vollstaendige Richter-Ergebnis am Bild, damit das Test-Details-Panel
       // beide Urteile, "einig"/"knapp" und den Token-Verbrauch zeigen kann -- auch spaeter noch.
       richter: richter || null, quelle: quelle || null,
+      // NEU (21.09.2026): was der Helden-Test getan hat (gefilterte Blaetter, neue Beschreibung).
+      heldenInfo: heldenInfo || null,
       // Der Lichtschalter gehoert sichtbar an die Bild-Fassung: sonst sind Testbilder mit und
       // ohne Licht in der Messreihe nicht auseinanderzuhalten -- die Pruefsumme ist bei beiden
       // dieselbe, weil der Block nur zur Laufzeit dazukommt.
-      bildFassung: (P.BILD_FASSUNG || null) && (P.BILD_FASSUNG + (this.data.testLicht === "aus" ? " \u00b7 Licht AUS" : "")),
+      // Der Helden-Test kommt genauso dazu: sein Code steckt zwar in der Pruefsumme, wirkt aber nur
+      // mit Schalter -- ohne diesen Zusatz saehen Bilder mit und ohne ihn gleich aus.
+      bildFassung: (P.BILD_FASSUNG || null) && (P.BILD_FASSUNG + (this.data.testLicht === "aus" ? " \u00b7 Licht AUS" : "") +
+        (this.data.testHelden === "neu" ? " \u00b7 Helden NEU" : "")),
       pruefFassung: P.PRUEF_FASSUNG || null };
     const images = this.data.images.concat([image]);
     this.update({ images, currentImageId: id });

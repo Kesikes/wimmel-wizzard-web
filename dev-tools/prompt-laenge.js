@@ -49,6 +49,39 @@ Object.keys(P.THEME_META).forEach((themaName) => {
   });
 });
 
+// NEU (21.09.2026): derselbe Durchlauf mit dem Testschalter helden=neu -- laengere
+// Heldenbeschreibung aus dem Figurenblatt (mit Kleidung) und Unterscheidungssatz fuer Kinder.
+// Absichtlich lange Beschreibungen, damit der schlimmste Fall gemessen wird.
+function heldNeu(i) {
+  const s = held(i);
+  s.blatt = P.parseFigurenblatt(JSON.stringify({ hair_color: "light brown", hair: "long wavy with a fringe",
+    beard: false, top: "red-and-white striped long-sleeved shirt with a round collar",
+    bottom: "dark blue dungarees with big front pockets", shoes: "yellow rubber boots", extras: "round glasses and a small green backpack" }));
+  s.sceneDescription = P.heldBeschreibungAusBlatt(s, s.blatt);
+  return s;
+}
+let schlimmsterNeu = 0, fallNeu = "";
+Object.keys(P.THEME_META).forEach((themaName) => {
+  const theme = P.THEME_META[themaName];
+  Object.keys(P.SCENE_PHASES).forEach((phaseId) => {
+    const phase = P.SCENE_PHASES[phaseId];
+    phase.compositions.forEach((compId) => {
+      for (let n = 1; n <= 5; n++) {
+        const heroSpecs = []; for (let i = 1; i <= n; i++) heroSpecs.push(heldNeu(i));
+        const comp = P.pickComposition(theme, phase, compId);
+        const txt = P.scenePrompt({ heroSpecs, theme, situations: P.autoSituations(theme, [], 20, []),
+          bgCharacterCount: 4, phase, composition: comp, heroActions: P.pickHeroActions(heroSpecs, theme.locId, []), heldenNeu: true });
+        const laenge = P.sceneComposeInstruction(txt).length;
+        if (laenge > schlimmsterNeu) { schlimmsterNeu = laenge; fallNeu = themaName + " / " + phaseId + " / " + compId + " / " + n + " Helden"; }
+      }
+    });
+  });
+});
+console.log("Mit helden=neu, laengster Fall: " + fallNeu);
+console.log("  instruction  " + schlimmsterNeu + " Zeichen   Puffer " + (GRENZE - schlimmsterNeu) + (GRENZE - schlimmsterNeu < 0 ? "   <-- UEBER DER GRENZE" : ""));
+console.log("");
+if (schlimmsterNeu > schlimmster) { schlimmster = schlimmsterNeu; schlimmsterFall = "helden=neu: " + fallNeu; }
+
 const rest = GRENZE - schlimmster;
 console.log("Laengster Fall: " + schlimmsterFall);
 console.log("  instruction  " + schlimmster + " Zeichen");
