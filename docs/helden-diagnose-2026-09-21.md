@@ -228,3 +228,50 @@ Fehlerfall, und „fehlt" ist genau die Form, die es lösen kann.
 
 Wenn du es früh sehen willst: ein Werkzeugversuch ohne Produktcode, an 5 gespeicherten Kandidaten,
 denen ein Held fehlt: je ein Einsetz-Aufruf plus Prüfung, rund 0,85 $. Braucht deine Freigabe.
+
+---
+
+# Nachtrag 2: neue Sitzung und deine Zählung (21.09.2026)
+
+Neue Sitzung: 21 Bilder, 35 Kandidaten mit `heroes_found`. Deine Zählung: 12 Kandidaten der
+Szenen 16–21 (alle Stadt, Querschnitt), eingetragen in `wahrheit.tsv`.
+
+## a) neu, nach der gespeicherten Live-Zählung
+
+| Typ | genau einmal (laut Prüfung) |
+|---|---|
+| open | 7 von 11 |
+| cutaway | 7 von 24 |
+| alle | 14 von 35 (40 %) |
+
+Nach Fassung: `2026-09-20c` 4 von 12, `2026-09-20d` **0 von 6**. Diese Zahlen stehen aber auf der
+Prüfung, und die ist unzuverlässig (nächster Abschnitt).
+
+## Nach deiner Zählung
+
+- **Genau einmal: 4 von 12.** Mit Kleidung wie auf dem Blatt (deine strenge Regel): **3 von 12**.
+- **Das Problem ist Doppeln, nicht Fehlen:** in 36 Held-Plätzen 13-mal doppelt, 2-mal fehlend.
+- **Am häufigsten doppelt ist der Mann C: 6 von 12.** Mädchen B 4, Junge A 3. Gefehlt hat nur A (2-mal).
+
+## Wie gut war die Live-Prüfung? (ein Lauf je Kandidat, noch nicht die dreifache Messung)
+
+- **22 von 36 Held-Plätzen stimmen (61 %).** Die Regel für „schwer" verlangt 90 %.
+- Häufigster Fehler: **Die Prüfung meldet „fehlt", obwohl der Held genau einmal da ist: 6-mal**,
+  fast immer beim Jungen A. In Kandidat 16 K1 meldete sie sogar alle drei als fehlend.
+- 3 Dopplungen hat sie als „einmal" durchgelassen.
+- `heroes_ok` passt in 6 von 12 Fällen zu deiner Kleidungsangabe. Das ist nicht besser als
+  Münzwurf.
+
+## Was das an meinem Bericht ändert
+
+1. **e1 (hintere Ebene) verliert seinen Beleg.** Die 31 % gegen 8 % beruhten auf der Live-Zählung,
+   und die meldet gerade beim Kind oft fälschlich „fehlt". Echtes Fehlen ist in deiner Zählung
+   selten (2 von 36). e1 rückt nach hinten.
+2. **e2 und e3 rücken nach vorne.** Das echte Problem ist Doppeln, und am stärksten beim Mann,
+   dessen Beschreibung keine Kleidung enthält und für den es auf den Blättern mehrere bärtige
+   Doppelgänger gibt.
+3. **`heroes_found` bleibt mittel.** Mit 61 % würde „schwer" dritte Kandidaten für Fehlalarme
+   kaufen. Die neue Auswahlstufe (`b01ad36`) hat in den Szenen 16–21 nichts verändert, weil dort
+   beide Kandidaten jeweils einen Heldenfehler gemeldet bekamen. Ihr Nutzen hängt an einer
+   besseren Zählung.
+4. **Die Prüfung selbst ist jetzt eine eigene Baustelle**, gleichrangig mit dem Erzeugen.

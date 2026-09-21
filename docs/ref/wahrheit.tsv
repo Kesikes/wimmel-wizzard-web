@@ -28,3 +28,29 @@
 5 Berg	besser	rechts
 6 Berg	besser	gleich
 7 Berg	besser	links
+
+# Heldenzaehlung, eingetragen 2026-09-21
+16 Stadt K1	heroes_found	1,1,2+
+16 Stadt K1	heroes_kleidung	ja,ja,ja
+16 Stadt K2	heroes_found	1,1,1
+16 Stadt K2	heroes_kleidung	ja,ja,ja
+17 Stadt K1	heroes_found	1,1,1
+17 Stadt K1	heroes_kleidung	ja,ja,nein
+17 Stadt K2	heroes_found	2+,1,2+
+17 Stadt K2	heroes_kleidung	ja,ja,nein
+18 Stadt K1	heroes_found	1,2+,1
+18 Stadt K1	heroes_kleidung	ja,ja,ja
+18 Stadt K2	heroes_found	1,2+,2+
+18 Stadt K2	heroes_kleidung	ja,ja,nein
+19 Stadt K1	heroes_found	1,1,1
+19 Stadt K1	heroes_kleidung	ja,ja,ja
+19 Stadt K2	heroes_found	0,2+,1
+19 Stadt K2	heroes_kleidung	-,nein,ja
+20 Stadt K1	heroes_found	2+,1,2+
+20 Stadt K1	heroes_kleidung	ja,ja,ja
+20 Stadt K2	heroes_found	0,2+,2+
+20 Stadt K2	heroes_kleidung	-,ja,ja
+21 Stadt K1	heroes_found	1,1,1
+21 Stadt K1	heroes_kleidung	ja,ja,ja
+21 Stadt K2	heroes_found	2+,1,2+
+21 Stadt K2	heroes_kleidung	ja,ja,ja
