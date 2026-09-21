@@ -54,3 +54,29 @@
 21 Stadt K1	heroes_kleidung	ja,ja,ja
 21 Stadt K2	heroes_found	2+,1,2+
 21 Stadt K2	heroes_kleidung	ja,ja,ja
+
+# Heldenzaehlung, eingetragen 2026-09-21 (Szenen 22-27, ?helden=neu)
+22 Stadt K1	heroes_found	1,1,2+
+22 Stadt K1	heroes_kleidung	ja,ja,ja
+22 Stadt K2	heroes_found	1,1,1
+22 Stadt K2	heroes_kleidung	ja,ja,ja
+23 Stadt K1	heroes_found	1,1,1
+23 Stadt K1	heroes_kleidung	ja,ja,ja
+23 Stadt K2	heroes_found	2+,1,1
+23 Stadt K2	heroes_kleidung	ja,ja,ja
+24 Stadt K1	heroes_found	1,1,1
+24 Stadt K1	heroes_kleidung	ja,ja,ja
+24 Stadt K2	heroes_found	1,1,1
+24 Stadt K2	heroes_kleidung	ja,ja,ja
+25 Stadt K1	heroes_found	2+,1,2+
+25 Stadt K1	heroes_kleidung	ja,ja,ja
+25 Stadt K2	heroes_found	1,1,2+
+25 Stadt K2	heroes_kleidung	ja,ja,ja
+26 Stadt K1	heroes_found	2+,2+,1
+26 Stadt K1	heroes_kleidung	ja,ja,ja
+26 Stadt K2	heroes_found	2+,2+,2+
+26 Stadt K2	heroes_kleidung	ja,ja,ja
+27 Berg K1	heroes_found	1,1,1
+27 Berg K1	heroes_kleidung	ja,ja,ja
+27 Berg K2	heroes_found	2+,2+,1
+27 Berg K2	heroes_kleidung	ja,ja,ja

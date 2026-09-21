@@ -1372,7 +1372,7 @@ var ACTIVE_SCENE_PHASE = "phase1";
 // in den Kompositionstypen, aendert sich die Pruefsumme -- ohne dass jemand daran denken muss.
 // Das von Hand gepflegte Datum bleibt als lesbare Ergaenzung daneben stehen; verlassen tun wir uns
 // auf die Pruefsumme.
-var PROMPT_LABEL = "2026-09-21d";
+var PROMPT_LABEL = "2026-09-21e";
 
 // FNV-1a, 32 Bit. Bewusst kein crypto.subtle: das ist asynchron, und diese Kennung soll ohne
 // Umstand synchron beim Laden feststehen. Kollisionen sind hier belanglos -- es geht nicht um
@@ -1490,7 +1490,7 @@ var VERIFY_MAX_VERSUCHE = 2;
 // Kandidat --, bleibt die Pruefsumme sonst gleich, obwohl die Pruefung sich anders verhaelt.
 // Diese Zeichenkette ist der Platz, an dem so eine Aenderung sichtbar wird. Sie gehoert bei jeder
 // Aenderung an der Pruef-LOGIK hochgezaehlt, auch wenn der Prompt gleich bleibt.
-var PRUEF_VERHALTEN = "2026-09-21d: heroes_ok mittel statt schwer (Kleidungspruefung 64 %, Regel: schwer erst ab 90 %); 2026-09-21a: Heldenfehler entscheiden bei der Auswahl direkt nach den schweren Verstoessen, vor den uebrigen mittleren (loesen aber keinen dritten Kandidaten aus); ein Wiederholungsversuch bei unlesbarer Antwort, danach ungeprueft statt schlechtester Kandidat; D-Richter (claude-sonnet-5, zwei Aufrufe mit getauschter Reihenfolge) entscheidet bei Gleichstand der schweren Verstoesse, hinter /app?richter=an";
+var PRUEF_VERHALTEN = "2026-09-21e: Stil-Tor (claude-sonnet-5, absolute Stilpruefung gegen die Referenz je Kandidat, nein = SCHWER, kein Kandidat bestanden = abgelehnt) hinter /app?stiltor=an; Richter nennt den tatsaechlichen Grund, wenn er nicht gefragt wird; 2026-09-21d: heroes_ok mittel statt schwer (Kleidungspruefung 64 %, Regel: schwer erst ab 90 %); 2026-09-21a: Heldenfehler entscheiden bei der Auswahl direkt nach den schweren Verstoessen, vor den uebrigen mittleren (loesen aber keinen dritten Kandidaten aus); ein Wiederholungsversuch bei unlesbarer Antwort, danach ungeprueft statt schlechtester Kandidat; D-Richter (claude-sonnet-5, zwei Aufrufe mit getauschter Reihenfolge) entscheidet bei Gleichstand der schweren Verstoesse, hinter /app?richter=an";
 
 // SHADED_MAX_OF_TEN: wie viele der zehn groessten Gesichter plastisch gezeichnet sein duerfen.
 // EINS, nicht zwei oder drei -- Nutzer-Entscheidung nach folgender Ueberlegung: der gewuenschte
@@ -3354,7 +3354,7 @@ function buildVerifyPrompt(heroSpecs, phaseId, compositionId) {
 // damit spaeter nachvollziehbar ist, welcher Typ ein Bild erzeugt hat. opts.composition erlaubt,
 // den Typ fuer einen gezielten Testlauf festzulegen statt zu wuerfeln (D5: "verschiedene Themen und
 // Kompositionstypen").
-function buildSceneComposeInputs({ heroSpecs, theme, situations, phase, composition, usedTexts, licht, heldenNeu }) {
+function buildSceneComposeInputs({ heroSpecs, theme, situations, phase, composition, usedTexts, licht, heldenNeu, blattfilter }) {
   const phaseId = (phase && SCENE_PHASES[phase]) ? phase : ACTIVE_SCENE_PHASE;
   const phaseObj = SCENE_PHASES[phaseId];
   const comp = pickComposition(theme, phaseObj, composition);
@@ -3367,8 +3367,14 @@ function buildSceneComposeInputs({ heroSpecs, theme, situations, phase, composit
   const bgBudget = Math.max(0, 13 - heroRefUrls.length);
   const bgCount = Math.min(bgBudget, 3 + Math.round(Math.random())); // 3 oder 4 Blaetter
   // NEU (21.09.2026, /app?helden=neu): Blaetter mit Doppelgaengern der Helden fallen vorher weg.
+  // GEAENDERT (21.09.2026, 2026-09-21e): der Filter hat einen EIGENEN Schalter (/app?blattfilter=an).
+  // Verdacht des Nutzers: mit nur noch 3-4 von 13 Blaettern wird der Stil-Anker schwaecher (3 von 5
+  // Testszenen mit Stilkatastrophen). Damit Beschreibung und Filter getrennt testbar sind, ist der
+  // Filter in helden=neu jetzt AUS, solange er nicht ausdruecklich eingeschaltet wird. Berechnet
+  // wird er trotzdem -- das Panel zeigt dann, was er weggefiltert HAETTE.
   const bgFilter = heldenNeu ? filterBgSheets(refHeroes) : null;
-  const bgUrls = bgCount > 0 ? pickBackgroundCharacterSheets(bgCount, bgFilter ? bgFilter.erlaubt : undefined) : [];
+  const filterAn = !!(bgFilter && blattfilter);
+  const bgUrls = bgCount > 0 ? pickBackgroundCharacterSheets(bgCount, filterAn ? bgFilter.erlaubt : undefined) : [];
   const styleRefUrls = heroRefUrls.concat(bgUrls);
   // D3: eigene Handlung je Held, buchweite Sperrliste beachtet.
   const heroActions = pickHeroActions(refHeroes, theme && theme.locId, usedTexts);
@@ -3391,7 +3397,8 @@ function buildSceneComposeInputs({ heroSpecs, theme, situations, phase, composit
   // null -- das Panel sagt dann ausdruecklich "aus" statt nichts.
   const heldenInfo = heldenNeu ? {
     gewaehlt: bgUrls.map((u) => Number((String(u).match(/bgchars-(\d+)\./) || [])[1])),
-    erlaubt: bgFilter.erlaubt, entfernt: bgFilter.entfernt,
+    filterAn, erlaubt: filterAn ? bgFilter.erlaubt : BACKGROUND_CHARACTER_LIBRARY.map((p) => Number((String(p).match(/bgchars-(\d+)\./) || [])[1])),
+    entfernt: filterAn ? bgFilter.entfernt : [], haetteEntfernt: filterAn ? null : bgFilter.entfernt,
     helden: refHeroes.map((s, i) => ({ ref: heroRef(s, i), name: s.name, beschreibung: stripEmotionWords(describeHero(s)),
       quelle: s.blatt ? "Figurenblatt" : "Foto/Merkmale (Figurenblatt-Beschreibung fehlt" + (s.blattFehler ? ": " + s.blattFehler : "") + ")",
       merkmale: heldMerkmale(s) })),
@@ -3689,7 +3696,7 @@ function neueSceneJobId() {
   return "sj_" + Date.now().toString(36) + "_" + (zufall.length >= 4 ? zufall : "x0x0" + zufall);
 }
 
-async function startSceneJob({ jobId, instruction, verifyPrompt, editImageUrl, styleRefUrls, heroRefUrls, figuresBand, richter, richterRefUrl }) {
+async function startSceneJob({ jobId, instruction, verifyPrompt, editImageUrl, styleRefUrls, heroRefUrls, figuresBand, richter, richterRefUrl, stilTor }) {
   // BUGFIX (20.09.2026): richter und richterRefUrl standen in der Signatur, aber NICHT im Body.
   // Der Schalter /app?richter=an hat dadurch gar nichts getan -- der Server sah nie, dass er
   // gesetzt war, und das Panel zeigte folgerichtig keinen Richter-Abschnitt. Eine Angabe, die man
@@ -3698,7 +3705,7 @@ async function startSceneJob({ jobId, instruction, verifyPrompt, editImageUrl, s
   const resp = await fetch("/api/scene-job-start", {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ jobId: jobId || null, instruction, verifyPrompt, editImageUrl, styleRefUrls, heroRefUrls, figuresBand,
-      richter: !!richter, richterRefUrl: richterRefUrl || null }),
+      richter: !!richter, richterRefUrl: richterRefUrl || null, stilTor: !!stilTor }),
   });
   const data = await parseJsonResponse(resp);
   if (!resp.ok || data.error) {
@@ -3772,6 +3779,7 @@ async function runSceneJobPolling(sceneInputs, opts) {
       instruction: built.instruction, verifyPrompt: built.verifyPrompt, editImageUrl: built.editImageUrl,
       styleRefUrls: built.styleRefUrls, heroRefUrls: built.heroRefUrls, figuresBand: built.figuresBand,
       richter: !!(sceneInputs && sceneInputs.richter),
+      stilTor: !!(sceneInputs && sceneInputs.stilTor),
       richterRefUrl: richterReferenzUrl(),
     });
   }
@@ -3812,6 +3820,8 @@ async function runSceneJobPolling(sceneInputs, opts) {
         quelle: job.resultQuelle || null,
         // NEU (21.09.2026): nur beim frischen Start bekannt, beim Fortsetzen null (wie promptText).
         heldenInfo: built ? built.heldenInfo : null,
+        // NEU (21.09.2026): kein Kandidat hat das Stil-Tor bestanden (siehe markiereAbgelehnt()).
+        abgelehnt: job.resultAbgelehnt || null,
       };
     }
     if (job.status === "error") {

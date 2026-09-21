@@ -266,17 +266,24 @@ function handleTestParams() {
   // bgchars-Blaetter mit aehnlichen Figuren fallen weg, Heldenbeschreibung aus dem Figurenblatt
   // statt aus dem Foto, Unterscheidungssatz fuer die Kinder (siehe filterBgSheets() in pipeline.js).
   const hatHelden = params.has("helden");
-  if (!hatPhase && !hatKomposition && !hatLicht && !hatRichter && !hatHelden) return;
+  // NEU (21.09.2026, 2026-09-21e): /app?blattfilter=an schaltet den Doppelgaenger-Filter der
+  // bgchars-Blaetter zu (Vorgabe in helden=neu: AUS). /app?stiltor=an: absolute Stilpruefung je
+  // Kandidat durch Claude, "nein" ist schwer.
+  const hatBlattfilter = params.has("blattfilter");
+  const hatStilTor = params.has("stiltor");
+  if (!hatPhase && !hatKomposition && !hatLicht && !hatRichter && !hatHelden && !hatBlattfilter && !hatStilTor) return;
   const phaseWert = hatPhase ? (params.get("phase") || "").trim() : null;
   const kompoWert = hatKomposition ? (params.get("komposition") || "").trim() : null;
   const lichtWert = hatLicht ? (params.get("licht") || "").trim().toLowerCase() : null;
   const richterWert = hatRichter ? (params.get("richter") || "").trim().toLowerCase() : null;
   const heldenWert = hatHelden ? (params.get("helden") || "").trim().toLowerCase() : null;
+  const blattfilterWert = hatBlattfilter ? (params.get("blattfilter") || "").trim().toLowerCase() : null;
+  const stilTorWert = hatStilTor ? (params.get("stiltor") || "").trim().toLowerCase() : null;
   // Leerer Wert bei EINEM der drei = Testmodus komplett beenden, also auch das Licht. Siehe
   // Kommentar oben: ein leerer Wert ist nie eine Einstellung, er kommt nur beim Verlassen vor.
   if ((hatPhase && !phaseWert) || (hatKomposition && !kompoWert) || (hatLicht && !lichtWert) ||
-      (hatRichter && !richterWert) || (hatHelden && !heldenWert)) {
-    AppState.update({ testPhase: null, testComposition: null, testLicht: null, testRichter: null, testHelden: null });
+      (hatRichter && !richterWert) || (hatHelden && !heldenWert) || (hatBlattfilter && !blattfilterWert) || (hatStilTor && !stilTorWert)) {
+    AppState.update({ testPhase: null, testComposition: null, testLicht: null, testRichter: null, testHelden: null, testBlattfilter: null, testStilTor: null });
     window.history.replaceState(null, "", window.location.pathname + window.location.hash);
     return;
   }
@@ -290,6 +297,9 @@ function handleTestParams() {
   if (hatRichter) patch.testRichter = (richterWert === "an") ? true : null;
   // "neu" schaltet den Helden-Test ein, jeder andere Wert zurueck auf das bisherige Verhalten.
   if (hatHelden) patch.testHelden = (heldenWert === "neu") ? "neu" : null;
+  // "an" schaltet ein; "aus" und jeder andere Wert = Vorgabe (aus).
+  if (hatBlattfilter) patch.testBlattfilter = (blattfilterWert === "an") ? "an" : null;
+  if (hatStilTor) patch.testStilTor = (stilTorWert === "an") ? "an" : null;
   AppState.update(patch);
   window.history.replaceState(null, "", window.location.pathname + window.location.hash);
 }

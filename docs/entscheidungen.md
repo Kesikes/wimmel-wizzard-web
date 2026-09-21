@@ -29,6 +29,39 @@ Abschnitt 11: eine Produktentscheidung, die unmittelbar auf den Bildprompt durch
 
 ---
 
+## 0. Ausschlusskriterien
+
+### GÜLTIG (Produktentscheidung des Nutzers, 21.09.2026)
+
+> „Zwei Ausschlusskriterien, gleich wichtig: (1) Der Stil passt. (2) Jeder Held ist im Bild und
+> erkennbar, mit Frisur und Kleidung wie auf seinem Figurenblatt. Ein Bild, das eines davon
+> verfehlt, wird nicht gewählt und nicht als Alternative gezeigt. Doppelte Helden sind ein Fehler,
+> aber nachrangig – korrigierbar mit dem Stift."
+
+Ersetzt die frühere Vorgabe vom 17.09.2026 („Ein Kandidat mit falschem Stil darf nicht gewinnen,
+nur weil er weniger Kleinigkeiten hat", festgehalten bei `VIOLATION_SEVERITY` in `pipeline.js`) —
+einen eigenen Registereintrag „Stil geht vor" gab es nicht.
+
+**Stand der Umsetzung (Technik, 21.09.2026, Fassung `2026-09-21e`):**
+
+| Kriterium | im Code | Stufe | gemessen |
+|---|---|---|---|
+| (1) Stil | **Stil-Tor**: Claude (`claude-sonnet-5`) vergleicht jeden Kandidaten absolut mit dem Referenzbild, „passt ja/nein" (`stilTorUrteil()` in `api/_lib/richter.js`), hinter `/app?stiltor=an` | **schwer**; besteht keiner, ist das Ergebnis „abgelehnt" | **noch nicht** — Werkzeug `dev-tools/stiltor-messen.js` |
+| (2) Held fehlt | `heroes_found` = 0 | mittel (Heldenfehler zählen in der Auswahl vor den übrigen mittleren) | Fehlen erkannt 1 von 2, Fehlalarm 8 von 34 (Szenen 16–21) bzw. 3 von 36 (22–27) |
+| (2) Frisur/Kleidung | `heroes_ok` | mittel | 6/12 vor, 11/12 nach der Beschreibung aus dem Figurenblatt — aber ohne einen einzigen echten Kleidungsfehler in der Stichprobe |
+| Doppelt | `heroes_found` ≥ 2 | mittel, nachrangig | 61–70 % |
+
+**Offener Widerspruch, bewusst so beschlossen:** Nach der 90-%-Regel (Abschnitt 4) dürfte ein
+Kriterium erst nach einer Messung schwer sein. Das Stil-Tor ist auf ausdrücklichen Wunsch trotzdem
+schwer, weil die gemini-Prüfung Stilbrüche fast nie meldet (Szenen 22–27: meist shaded 0 / mouths
+0, obwohl 3 von 5 Szenen Stilkatastrophen enthielten). Es muss nachgemessen werden, bevor es live
+geht.
+
+Solange das Stil-Tor aus ist, wählt die App weiter nach der Prüfung — das Kriterium (1) ist live
+also noch NICHT umgesetzt.
+
+---
+
 ## 1. Hintergrund-Bibliothek
 
 ### GÜLTIG seit 18.09.2026: beides — vier bis sechs erkennbar, der Rest im selben Geist
@@ -365,6 +398,17 @@ meist als „einmal". Eine Doppelgängerin ist im fertigen Bild nicht entscheidb
 
 Scheitert eine Beschreibung, läuft die Figur mit der alten weiter; das Panel sagt es.
 Die Bild-Fassung trägt dann den Zusatz „· Helden NEU".
+
+### NEU seit 21.09.2026 (Fassung `2026-09-21e`): `blattfilter` und `stiltor`
+
+- **`/app?blattfilter=an`** — der Doppelgänger-Filter der bgchars-Blätter hat einen eigenen
+  Schalter. In `helden=neu` ist er jetzt standardmäßig **aus** (Beschreibung an, Filter aus).
+  Verdacht des Nutzers: mit nur 3–4 von 13 Blättern wird der Stil-Anker schwächer. Das Panel
+  zeigt bei ausgeschaltetem Filter, was er weggefiltert hätte. Filter und Beschreibung sind damit
+  getrennt testbar.
+- **`/app?stiltor=an`** — Stil-Tor, siehe Abschnitt 0. Kosten je Kandidat höchstens etwa 2 Cent
+  (zwei Bilder à höchstens 4.784 Token, Sonnet 5 zu 2 $ / 10 $ je Mio Token).
+- Ein leerer Wert bei einem der Schalter beendet den Testmodus wie bisher ganz.
 
 ### Die drei Schalter
 

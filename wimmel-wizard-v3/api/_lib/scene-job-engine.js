@@ -35,7 +35,7 @@ const {
   submitFalQueue, falQueueStatus, falQueueResult, callFalVerifySync, countViolations,
   compareSeverity, isGoodEnough, logFalError, VERIFY_MAX_VERSUCHE,
 } = require("./fal-queue");
-const { richterUrteil, richterGreift, RICHTER_MODELL } = require("./richter");
+const { richterUrteil, richterGreift, richterWarum, stilTorUrteil, RICHTER_MODELL } = require("./richter");
 
 // SCENE_MODEL: identisch zum Default-Endpoint in api/fal-proxy.js fuer kind==="scene" mit gesetztem
 // imageUrl (useProModel default true fuer Szenen, siehe dortiger Kommentar "nano-banana-pro/edit ...
@@ -107,7 +107,7 @@ function sceneGenerateBody(instruction, editImageUrl, styleRefUrls, seed) {
 // die ersten 2 Kandidaten (analog zu composeSceneImage()s "immer 2 parallele Kandidaten" in
 // pipeline.js). SPEICHERT NICHTS selbst in KV (macht der Aufrufer, api/scene-job-start.js) -- gleiches
 // Prinzip wie createCharacterJob().
-async function createSceneJob({ jobId, instruction, verifyPrompt, editImageUrl, styleRefUrls, heroRefUrls, figuresBand, richter, richterRefUrl, FAL_KEY }) {
+async function createSceneJob({ jobId, instruction, verifyPrompt, editImageUrl, styleRefUrls, heroRefUrls, figuresBand, richter, richterRefUrl, stilTor, FAL_KEY }) {
   const seedA = Math.floor(Math.random() * 1e9);
   const seedB = Math.floor(Math.random() * 1e9);
   const [reqA, reqB] = await Promise.all([
@@ -132,6 +132,8 @@ async function createSceneJob({ jobId, instruction, verifyPrompt, editImageUrl, 
     // Server keinen eigenen Host raten muss.
     richter: !!richter,
     richterRefUrl: richterRefUrl || null,
+    // NEU (21.09.2026, 2026-09-21e): Stil-Tor hinter /app?stiltor=an, siehe stilTorUrteil().
+    stilTor: !!stilTor,
     richterErgebnis: null,
     status: "in_progress", error: null,
     candidates: [candA, candB],
@@ -184,9 +186,15 @@ async function advanceSceneJob(job, { FAL_KEY, ANTHROPIC_KEY }) {
   // SYNCHRON abrufen (siehe callFalVerifySync()-Kommentar in fal-queue.js) fuer die erfolgreichen
   // Kandidaten, die noch keinen Verify-Versuch haben.
   const allGenSettled = next.candidates.every((c) => c.genStatus === "done" || c.genStatus === "error");
+  // Kandidaten, deren Pruefung IN DIESEM Durchlauf fertig wurde, bekommen ihr Stil-Tor erst im
+  // naechsten Durchlauf -- sonst liefen Pruefung und Claude-Aufruf in derselben Serverfunktion
+  // nacheinander, und bei mehr als 90 s (Laufzeit der Sperre, siehe scene-job-status.js) koennte ein
+  // zweiter Poll parallel dieselbe Arbeit anfangen.
+  const geradeGeprueft = new Set();
   if (allGenSettled) {
     for (const cand of next.candidates) {
       if (cand.genStatus !== "done" || cand.verifyStatus !== "pending") continue;
+      geradeGeprueft.add(cand);
       // NEU (20.09.2026): ein Pruefaufruf darf scheitern. Er wird EINMAL wiederholt (siehe
       // VERIFY_MAX_VERSUCHE in fal-queue.js) -- das kostet nur einen Pruefaufruf, keinen
       // Bildaufruf. Als "gescheitert" gelten ZWEI Faelle, die vorher verschieden behandelt wurden:
@@ -234,6 +242,26 @@ async function advanceSceneJob(job, { FAL_KEY, ANTHROPIC_KEY }) {
     }
   }
 
+  // Schritt 2b (NEU 21.09.2026, 2026-09-21e, nur mit /app?stiltor=an): das STIL-TOR je Kandidat,
+  // parallel. "nein" ist ein SCHWERER Verstoss (Produktentscheidung 21.09.: Stil ist eines von zwei
+  // Ausschlusskriterien). Ein gescheiterter Aufruf ergibt urteil null -- das zaehlt weder als "ja"
+  // noch als "nein" und steht im Panel als "nicht geprueft".
+  if (next.stilTor) {
+    const offen = next.candidates.filter((c) => c.genStatus === "done" && c.url && !c.stilTor &&
+      (c.verifyStatus === "done" || c.verifyStatus === "ungeprueft") && !geradeGeprueft.has(c));
+    const ergebnisse = await Promise.all(offen.map((c) => ANTHROPIC_KEY
+      ? stilTorUrteil(next.richterRefUrl, c.url, ANTHROPIC_KEY)
+      : Promise.resolve({ modell: RICHTER_MODELL, urteil: null, fehler: "ANTHROPIC_API_KEY ist in der Vercel-Umgebung NICHT gesetzt.", versuche: 0, tokenEin: 0, tokenAus: 0 })));
+    offen.forEach((c, i) => {
+      c.stilTor = ergebnisse[i];
+      if (c.stilTor.urteil === "nein" && c.severity) {
+        c.severity.heavy = (c.severity.heavy || 0) + 1;
+        c.severity.gruende = (c.severity.gruende || []).concat(["Stil-Tor (" + c.stilTor.modell + "): NEIN, SCHWER — " + (c.stilTor.begruendung || "")]);
+        c.violations = (c.violations || 0) + 1;
+      }
+    });
+  }
+
   // Schritt 3: sobald ALLE Kandidaten (Generierung UND Verify) durchgelaufen sind, entscheiden --
   // dritten Kandidaten nachschieben (wie composeSceneImage()s Verhalten bei Bedarf, hoechstens
   // EINMAL) oder Job abschliessen (besten verfuegbaren waehlen -- NIE hart abbrechen, gleiches
@@ -242,7 +270,7 @@ async function advanceSceneJob(job, { FAL_KEY, ANTHROPIC_KEY }) {
   // Bewertung fehlt. "error" gibt es beim Verify seit dem 20.09.2026 nicht mehr, bleibt aber in
   // der Bedingung stehen: Job-Datensaetze aus der Zeit davor koennen den Wert noch tragen.
   const allSettled = next.candidates.every((c) =>
-    (c.genStatus === "done" && (c.verifyStatus === "done" || c.verifyStatus === "ungeprueft")) ||
+    (c.genStatus === "done" && (c.verifyStatus === "done" || c.verifyStatus === "ungeprueft") && (!next.stilTor || !!c.stilTor)) ||
     c.genStatus === "error" || c.verifyStatus === "error");
   if (allSettled) {
     const usable = next.candidates.filter((c) =>
@@ -297,8 +325,8 @@ async function advanceSceneJob(job, { FAL_KEY, ANTHROPIC_KEY }) {
               await richterUrteil(next.richterRefUrl, paar[0], paar[1], ANTHROPIC_KEY),
               { schluesselVorhanden: true });
           } else {
-            next.richterErgebnis = Object.assign(grund, { ergebnis: "nicht_gefragt",
-              fehler: "Die Kandidaten unterscheiden sich bei den schweren Verstoessen — es entscheidet wie bisher die Pruefung." });
+            // GEAENDERT (21.09.2026): der tatsaechliche Grund statt eines festen Satzes.
+            next.richterErgebnis = Object.assign(grund, { ergebnis: "nicht_gefragt", fehler: richterWarum(next.candidates) });
           }
         }
       }
@@ -339,6 +367,9 @@ function finalizeJob(job, usableCandidates) {
   //   3. geprueft mit schwerem Verstoss       -- nachweislich mangelhaft
   // Innerhalb Gruppe 1 und 3 entscheidet wie bisher compareSeverity() stufenweise.
   function gruppe(c) {
+    // NEU (21.09.2026): ein Stil-Tor-"nein" landet immer in Gruppe 3, auch wenn die gemini-Pruefung
+    // gescheitert ist -- ein Kandidat mit nachgewiesenem Stilbruch ist nicht "unbekannt".
+    if (c.stilTor && c.stilTor.urteil === "nein") return 3;
     if (c.verifyStatus === "ungeprueft") return 2;
     return isGoodEnough(c.severity) ? 1 : 3;
   }
@@ -357,6 +388,7 @@ function finalizeJob(job, usableCandidates) {
       job.resultVerify = vomRichter.verify;
       job.resultVerifyStatus = vomRichter.verifyStatus || null;
       job.resultQuelle = "richter";
+      markiereAbgelehnt(job, vomRichter);
       return;
     }
   }
@@ -374,9 +406,22 @@ function finalizeJob(job, usableCandidates) {
   job.resultSeverity = best.severity || null;
   job.resultVerify = best.verify;
   job.resultVerifyStatus = best.verifyStatus || null;
+  markiereAbgelehnt(job, best);
+}
+
+// NEU (21.09.2026, Produktentscheidung): "Ein Bild, das eines der beiden Ausschlusskriterien
+// verfehlt, wird nicht gewaehlt und nicht als Alternative gezeigt." Hat auch der BESTE Kandidat ein
+// Stil-Tor-"nein", dann hat keiner bestanden. Der Job wird trotzdem abgeschlossen (sonst waeren die
+// Kandidaten fuer die Auswertung verloren), traegt aber resultAbgelehnt -- der Ergebnis-Screen
+// zeigt das Bild dann ausdruecklich als abgelehnt statt als Ergebnis.
+function markiereAbgelehnt(job, best) {
+  job.resultAbgelehnt = (best && best.stilTor && best.stilTor.urteil === "nein")
+    ? "Kein Kandidat hat das Stil-Tor bestanden. Begruendung zu diesem: " + (best.stilTor.begruendung || "—")
+    : null;
 }
 
 module.exports = {
   SCENE_MODEL,
   createSceneJob, advanceSceneJob,
+  finalizeJob, // fuer dev-tools (Nachrechnen ohne Aufrufe)
 };

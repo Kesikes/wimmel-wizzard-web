@@ -153,4 +153,87 @@ function richterGreift(kandidaten) {
   return gleichauf;
 }
 
-module.exports = { RICHTER_MODELL, richterUrteil, richterGreift };
+// NEU (21.09.2026, 2026-09-21e): WARUM der Richter NICHT gefragt wurde -- der tatsaechliche Grund
+// statt des festen Satzes "unterscheiden sich bei den schweren Verstoessen". Dieselbe Logik wie
+// richterGreift(), nur dass sie den Zweig benennt, an dem es scheitert. Befund des Nutzers: in den
+// Szenen 24, 25 und 27 stand der feste Satz da, obwohl die schweren Verstoesse gleich waren und der
+// HELDENBEFUND den Unterschied gemacht hat.
+function richterWarum(kandidaten) {
+  const alle = kandidaten || [];
+  const nr = (c) => "K" + (alle.indexOf(c) + 1);
+  const geprueft = alle.filter((c) => c.verifyStatus === "done" && c.severity && typeof c.severity.heavy === "number");
+  if (geprueft.length < 2) {
+    return "Nur " + geprueft.length + " Kandidat(en) geprueft — nichts zu vergleichen, es entscheidet die Gruppenlogik.";
+  }
+  const kleinste = Math.min.apply(null, geprueft.map((c) => c.severity.heavy));
+  let gleichauf = geprueft.filter((c) => c.severity.heavy === kleinste);
+  if (gleichauf.length === 1) {
+    return "Schwere Verstoesse verschieden (" + geprueft.map((c) => nr(c) + ": " + c.severity.heavy).join(", ") +
+      ") — " + nr(gleichauf[0]) + " hat die wenigsten, es entscheidet die Pruefung.";
+  }
+  if (gleichauf.every((c) => typeof c.severity.helden === "number")) {
+    const wenigste = Math.min.apply(null, gleichauf.map((c) => c.severity.helden));
+    const danach = gleichauf.filter((c) => c.severity.helden === wenigste);
+    if (danach.length === 1) {
+      return "Schwere Verstoesse gleich (" + kleinste + "), aber der HELDENBEFUND unterscheidet sich (" +
+        gleichauf.map((c) => nr(c) + ": heroes_found " + JSON.stringify((c.verify || {}).heroes_found || null)).join(", ") +
+        ") — Heldenfehler entscheiden vor dem Richter, gewaehlt wird " + nr(danach[0]) + ".";
+    }
+    gleichauf = danach;
+  }
+  if (gleichauf.length > 2) return gleichauf.length + " Kandidaten gleichauf — der Richter vergleicht nur genau zwei, es entscheidet die Pruefung.";
+  const ungeprueft = alle.some((c) => c.verifyStatus === "ungeprueft");
+  if (kleinste > 0 && ungeprueft) return "Beide Gleichauf-Kandidaten haben schwere Verstoesse, und es gibt einen ungeprueften — der liegt nach der Gruppenlogik vorn.";
+  return "Richter haette greifen muessen — Grund unbekannt (bitte melden).";
+}
+
+// NEU (21.09.2026, 2026-09-21e, Schalter /app?stiltor=an): das STIL-TOR. Eine ABSOLUTE Pruefung je
+// Kandidat gegen das Referenzbild -- nicht "welcher ist besser", sondern "passt der Stil, ja oder
+// nein". Anlass: in 3 von 5 Testszenen Stilkatastrophen bis hin zu fotoartigen Bildern, und die
+// gemini-Pruefung meldete bei fast allen shaded 0 / mouths 0. "nein" ist SCHWER
+// (Produktentscheidung 21.09.: zwei Ausschlusskriterien, Stil und Helden).
+// Ein gescheiterter Aufruf ist KEIN "nein" und KEIN "ja": urteil bleibt null und zaehlt nirgends.
+const STIL_TOR_FRAGE = "Bild 1 ist die STILREFERENZ, Bild 2 ist ein neu erzeugtes Bild. Passt der ZEICHENSTIL der Figuren in Bild 2 zur Referenz? Massgeblich ist nur, wie die MENSCHEN gezeichnet sind: dicke schwarze Kontur, flache Farbflaechen, runde Koepfe, Punktaugen, ein einzelner senkrechter Nasenstrich, kein Mund, keine plastische Schattierung im Gesicht. NICHT massgeblich: Licht und Schatten am Boden, Verlaeufe in Himmel oder Landschaft, Motiv, Kulisse, Farben, Anzahl der Figuren, Tiere. Antworte \"nein\" nur bei einem KLAREN Stilbruch: wenn viele Figuren anders gezeichnet sind als in der Referenz -- zum Beispiel fotoartig, plastisch modelliert, mit Muendern, im Anime-, Manga- oder glatten 3D-Stil. Einzelne Abweichungen an wenigen Figuren sind noch ein \"ja\". Antworte NUR als JSON: {\"passt\": \"ja\" oder \"nein\", \"begruendung\": \"ein bis zwei Saetze\"}.";
+const STIL_TOR_VERSUCHE = 2;
+
+async function einStilTor(referenzUrl, kandUrl, KEY) {
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "x-api-key": KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+    body: JSON.stringify({
+      model: RICHTER_MODELL, max_tokens: MAX_TOKENS,
+      messages: [{ role: "user", content: [bild(referenzUrl), bild(kandUrl), { type: "text", text: STIL_TOR_FRAGE }] }],
+    }),
+  });
+  if (!resp.ok) throw new Error("Anthropic " + resp.status + ": " + (await resp.text()).slice(0, 200));
+  const d = await resp.json();
+  if (d.stop_reason === "max_tokens") throw new Error("Antwort bei max_tokens=" + MAX_TOKENS + " abgeschnitten.");
+  const text = (d.content || []).map((t) => t.text || "").join("");
+  const m = String(text).match(/\{[\s\S]*\}/);
+  if (!m) throw new Error("Antwort ohne lesbares JSON: " + String(text).slice(0, 150));
+  const p = JSON.parse(m[0]);
+  if (p.passt !== "ja" && p.passt !== "nein") throw new Error("Unerwarteter Wert in passt: " + JSON.stringify(p.passt));
+  return { urteil: p.passt, begruendung: String(p.begruendung || "").replace(/\s+/g, " ").slice(0, 300),
+    tokenEin: (d.usage && d.usage.input_tokens) || 0, tokenAus: (d.usage && d.usage.output_tokens) || 0 };
+}
+
+async function stilTorUrteil(referenzUrl, kandUrl, KEY) {
+  const e = { modell: RICHTER_MODELL, urteil: null, begruendung: null, fehler: null, versuche: 0, tokenEin: 0, tokenAus: 0 };
+  if (!KEY) { e.fehler = "ANTHROPIC_API_KEY ist in der Vercel-Umgebung NICHT gesetzt."; return e; }
+  if (!referenzUrl) { e.fehler = "Kein Referenzbild uebergeben."; return e; }
+  for (let i = 0; i < STIL_TOR_VERSUCHE; i++) {
+    e.versuche++;
+    try {
+      const u = await einStilTor(referenzUrl, kandUrl, KEY);
+      e.tokenEin += u.tokenEin; e.tokenAus += u.tokenAus;
+      e.urteil = u.urteil; e.begruendung = u.begruendung; e.fehler = null;
+      return e;
+    } catch (err) {
+      e.fehler = err && err.message ? err.message : String(err);
+      await logFalError("stil-tor (" + RICHTER_MODELL + ", Versuch " + e.versuche + ")", e.fehler);
+    }
+  }
+  return e;
+}
+
+module.exports = { RICHTER_MODELL, richterUrteil, richterGreift, richterWarum, stilTorUrteil, STIL_TOR_FRAGE };

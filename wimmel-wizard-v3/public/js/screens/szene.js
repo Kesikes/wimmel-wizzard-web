@@ -1052,18 +1052,20 @@ Screens.zaubern = {
     // /app?phase= -- das loeschte nur die Phase und liess die Komposition stehen (siehe
     // handleTestParams() in app-shell.js). Ein Knopf, der beides in einem Zug loescht, kann diesen
     // Fehler gar nicht erst machen; die URL bleibt als zweiter Weg daneben stehen.
-    if (s.testPhase || s.testComposition || s.testLicht || s.testRichter || s.testHelden) {
+    if (s.testPhase || s.testComposition || s.testLicht || s.testRichter || s.testHelden || s.testBlattfilter || s.testStilTor) {
       const teile = [];
       if (s.testPhase) teile.push("Phase: " + s.testPhase);
       if (s.testComposition) teile.push("Komposition: " + s.testComposition);
       if (s.testLicht === "aus") teile.push("Licht: AUS (Vorgabe waere an)");
       if (s.testRichter) teile.push("Richter: an");
-      if (s.testHelden === "neu") teile.push("Helden: NEU (Blätter gefiltert, Beschreibung aus dem Figurenblatt)");
+      if (s.testHelden === "neu") teile.push("Helden: NEU (Beschreibung aus dem Figurenblatt, Blattfilter " + (s.testBlattfilter === "an" ? "AN" : "aus") + ")");
+      else if (s.testBlattfilter === "an") teile.push("Blattfilter: an (wirkt nur zusammen mit helden=neu)");
+      if (s.testStilTor === "an") teile.push("Stil-Tor: an");
       const testNote = h("div", { style: { marginTop: "20px", border: "3px dashed var(--yellow)", color: "var(--yellow)", padding: "12px 14px", fontSize: "13px", lineHeight: "1.45" } });
       testNote.appendChild(h("p", { style: { margin: "0 0 9px" } }, "Testmodus aktiv — " + teile.join(", ") + "."));
       const testExit = h("button", { type: "button", class: "h-black", style: { minHeight: "40px", padding: "0 14px", fontSize: "12px", border: "3px solid var(--yellow)", background: "transparent", color: "var(--yellow)", cursor: "pointer" } }, "Testmodus beenden");
       testExit.addEventListener("click", () => {
-        AppState.update({ testPhase: null, testComposition: null, testLicht: null, testRichter: null, testHelden: null });
+        AppState.update({ testPhase: null, testComposition: null, testLicht: null, testRichter: null, testHelden: null, testBlattfilter: null, testStilTor: null });
         Router.goScreen("zaubern");
       });
       testNote.appendChild(testExit);
@@ -1114,7 +1116,8 @@ Screens.zaubern = {
         title: title, src: result.best.url,
         promptText: result.promptText, instruction: result.instruction,
         violations: result.best.violations, verify: result.best.verify, candidates: result.candidates,
-        richter: result.richter || null, quelle: result.quelle || null, heldenInfo: result.heldenInfo || null
+        richter: result.richter || null, quelle: result.quelle || null, heldenInfo: result.heldenInfo || null,
+        abgelehnt: result.abgelehnt || null
       });
       zauberBusy = false;
       Router.goScreen("ergebnis");
@@ -1278,7 +1281,7 @@ Screens.zaubern = {
         // jetzt moeglich (siehe onUpdate unten) statt des vorherigen Fake-setTimeout(...,20000).
         // composeSceneImage() bleibt unveraendert in pipeline.js als eigenstaendig getestete
         // Referenz-/Fallback-Funktion erhalten, wird aber im Produktpfad nicht mehr aufgerufen.
-        const result = await Pipeline.runSceneJobPolling({ heroSpecs, theme, situations, usedTexts, phase: testPhase, composition: testComposition, licht: testLicht, richter: !!sNow.testRichter, heldenNeu: sNow.testHelden === "neu" }, {
+        const result = await Pipeline.runSceneJobPolling({ heroSpecs, theme, situations, usedTexts, phase: testPhase, composition: testComposition, licht: testLicht, richter: !!sNow.testRichter, heldenNeu: sNow.testHelden === "neu", blattfilter: sNow.testBlattfilter === "an", stilTor: sNow.testStilTor === "an" }, {
           // NEU (17.09.2026, Punkt 0): jobId sofort persistieren, sobald sie feststeht -- AppState
           // schreibt ohnehin nach jeder Aenderung in localStorage UND (anonyme Session) auf den
           // Server, der Merker uebersteht damit einen kompletten Tab-Reload.
@@ -1426,11 +1429,13 @@ Screens.ergebnis = {
     // Schwere aus wie der Server.
     const sevBand = (Pipeline.SCENE_PHASES[Pipeline.ACTIVE_SCENE_PHASE] || {}).figuresBand;
     const sev = image.verify ? Pipeline.severityOf(image.verify, sevBand) : null;
-    if (!image.verify || (sev && sev.heavy > 0)) {
+    // NEU (21.09.2026): "abgelehnt" = kein Kandidat hat das Stil-Tor bestanden (Produktentscheidung:
+    // so ein Bild wird nicht gewaehlt). Es liegt nur fuer die Auswertung im Speicher.
+    if (image.abgelehnt || !image.verify || (sev && sev.heavy > 0)) {
       const noticeBox = h("div", { style: { margin: "0 14px 16px", background: "var(--yellow)", border: "4px solid var(--ink)", padding: "13px 14px", boxShadow: "5px 6px 0 var(--ink)" } });
-      noticeBox.appendChild(h("p", { class: "h-black", style: { margin: "0 0 5px", fontSize: "12px", letterSpacing: ".04em" } }, "⚠ Bitte einmal gegenchecken"));
+      noticeBox.appendChild(h("p", { class: "h-black", style: { margin: "0 0 5px", fontSize: "12px", letterSpacing: ".04em" } }, image.abgelehnt ? "✕ Nicht bestanden" : "⚠ Bitte einmal gegenchecken"));
       noticeBox.appendChild(h("p", { style: { margin: "0", fontSize: "12.5px", lineHeight: "1.45" } },
-        !image.verify
+        image.abgelehnt ? "Keiner der Versuche hat unseren Zeichenstil getroffen (automatische Stilprüfung). Dieses Bild ist deshalb nicht als Ergebnis gedacht und wird dir nur zur Kontrolle gezeigt — bitte zaubere die Szene neu." : !image.verify
           ? "Unsere automatische Qualitätsprüfung konnte dieses Bild nicht auswerten (technischer Fehler beim Prüf-Schritt) — wir wissen nicht sicher, ob alles passt. Bitte einmal selbst durchschauen, bevor du weitermachst."
           : "Unsere automatische Qualitätsprüfung hat bei diesem Bild etwas Grundlegendes gefunden — beim Zeichenstil, bei einer eurer Figuren oder bei der räumlichen Tiefe. Der beste von mehreren Versuchen wurde trotzdem gewählt. Bitte einmal selbst durchschauen, bevor du weitermachst."));
       wrap.appendChild(noticeBox);
@@ -1592,6 +1597,11 @@ function buildDebugDetails(image) {
     const z = ["Helden-Test (/app?helden=neu): AN"];
     z.push("  Bibliotheksblätter gewählt: " + (hi.gewaehlt.length ? hi.gewaehlt.join(", ") : "KEINS") +
       "   (erlaubt waren: " + (hi.erlaubt.length ? hi.erlaubt.join(", ") : "keins") + ")");
+    // NEU (2026-09-21e): Filter hat einen eigenen Schalter. Bilder davor hatten ihn immer an.
+    z.push("  Blattfilter: " + (hi.filterAn === false ? "AUS (/app?blattfilter=an schaltet ihn ein)" : "AN"));
+    if (hi.filterAn === false && hi.haetteEntfernt && hi.haetteEntfernt.length) {
+      z.push("  Hätte weggefiltert: Blatt " + hi.haetteEntfernt.map((e) => e.blatt).join(", "));
+    }
     if (hi.entfernt.length) {
       z.push("  Weggefiltert, " + hi.entfernt.length + " Blätter:");
       hi.entfernt.forEach((e) => z.push("    Blatt " + e.blatt + ": " + e.grund));
@@ -1612,6 +1622,15 @@ function buildDebugDetails(image) {
     return z.join("\n");
   }
   const heldenBlock = heldenText(image);
+  // NEU (21.09.2026): Stil-Tor je Kandidat. Kein Eintrag heisst: Schalter war aus (oder aeltere
+  // Fassung) -- das steht dann ausdruecklich da.
+  function stilTorText(k) {
+    const t = k && k.stilTor;
+    if (!t) return "Stil-Tor: nicht gelaufen (Schalter /app?stiltor=an war aus, oder Bild vor 2026-09-21e)";
+    if (!t.urteil) return "Stil-Tor: NICHT GEPRÜFT — " + (t.fehler || "unbekannter Fehler") + " (zählt weder als ja noch als nein)";
+    return "Stil-Tor (" + (t.modell || "?") + "): " + (t.urteil === "nein" ? "NEIN — SCHWER" : "ja") + " — " + (t.begruendung || "") +
+      (t.tokenEin ? "  [" + t.tokenEin + "/" + t.tokenAus + " Token]" : "");
+  }
 
   box.textContent =
     // NEU (19.09.2026): Prompt-Fassung ganz oben. Siehe PROMPT_VERSION in pipeline.js -- damit ist
@@ -1627,10 +1646,12 @@ function buildDebugDetails(image) {
     "Verify-JSON: " + verifyText + "\n" +
     (richterBlock ? "\n" + richterBlock + "\n" : "") + "\n" +
     heldenBlock + "\n\n" +
+    (image.abgelehnt ? "ABGELEHNT: " + image.abgelehnt + "\n\n" : "") +
     "--- Kandidaten ---\n" +
     (image.candidates || []).map((c, i) => "Kandidat " + (i + 1) + " (" + c.url + "): " +
       (ungeprueftText(c) || ((c.violations != null ? c.violations + " Verstöße" : "?") +
-        "\n  Wertung: " + gruendeText(c.verify) + "\n  " + JSON.stringify(c.verify)))).join("\n") +
+        "\n  Wertung: " + gruendeText(c.verify) + "\n  " + JSON.stringify(c.verify))) +
+      "\n  " + stilTorText(c)).join("\n") +
     "\n\n--- scenePrompt() ---\n" + (image.promptText || "(kein Prompt gespeichert)") +
     "\n\n--- sceneComposeInstruction() (tatsächlich an fal.ai gesendet) ---\n" + (image.instruction || "(keine Instruction gespeichert)");
   toggle.addEventListener("click", () => { box.style.display = box.style.display === "none" ? "block" : "none"; });
@@ -1674,11 +1695,11 @@ function buildDesktopErgebnis(s, image) {
   // Desktop erschien der Warnkasten dadurch ueber praktisch jedem Bild und war damit wertlos.
   const dSevBand = (Pipeline.SCENE_PHASES[Pipeline.ACTIVE_SCENE_PHASE] || {}).figuresBand;
   const dSev = image.verify ? Pipeline.severityOf(image.verify, dSevBand) : null;
-  if (!image.verify || (dSev && dSev.heavy > 0)) {
+  if (image.abgelehnt || !image.verify || (dSev && dSev.heavy > 0)) {
     const dNoticeBox = h("div", { style: { marginTop: "12px", background: "var(--yellow)", border: "4px solid var(--ink)", padding: "13px 14px", boxShadow: "5px 6px 0 var(--ink)" } });
-    dNoticeBox.appendChild(h("p", { class: "h-black", style: { margin: "0 0 5px", fontSize: "12px", letterSpacing: ".04em" } }, "⚠ Bitte einmal gegenchecken"));
+    dNoticeBox.appendChild(h("p", { class: "h-black", style: { margin: "0 0 5px", fontSize: "12px", letterSpacing: ".04em" } }, image.abgelehnt ? "✕ Nicht bestanden" : "⚠ Bitte einmal gegenchecken"));
     dNoticeBox.appendChild(h("p", { style: { margin: "0", fontSize: "13px", lineHeight: "1.45" } },
-      !image.verify
+      image.abgelehnt ? "Keiner der Versuche hat unseren Zeichenstil getroffen (automatische Stilprüfung). Dieses Bild ist deshalb nicht als Ergebnis gedacht und wird dir nur zur Kontrolle gezeigt — bitte zaubere die Szene neu." : !image.verify
         ? "Unsere automatische Qualitätsprüfung konnte dieses Bild nicht auswerten (technischer Fehler beim Prüf-Schritt) — wir wissen nicht sicher, ob alles passt. Bitte einmal selbst durchschauen, bevor du weitermachst."
         : "Unsere automatische Qualitätsprüfung hat bei diesem Bild etwas Grundlegendes gefunden — beim Zeichenstil, bei einer eurer Figuren oder bei der räumlichen Tiefe. Der beste von mehreren Versuchen wurde trotzdem gewählt. Bitte einmal selbst durchschauen, bevor du weitermachst."));
     top.appendChild(dNoticeBox);

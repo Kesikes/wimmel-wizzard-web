@@ -65,7 +65,10 @@ const abschnitte = auswahl.map((k, ki) => {
     '<h2>' + (ki + 1) + ' / ' + auswahl.length + ' — ' + esc(k.kennung) + '</h2>' + warn +
     '<a href="' + esc(k.url) + '" target="_blank" rel="noopener"><img class="szene" src="' + esc(k.url) + '" alt=""></a>' +
     '<p class="hinweis">Antippen oeffnet das Bild in voller Groesse in einem neuen Tab — zum Suchen kleiner Figuren.</p>' +
-    '<table>' + zeilen + '</table><div class="eintrag" id="z' + ki + '">noch nicht vollstaendig</div></section>';
+    // NEU (21.09.2026): Stil als eigene Zeile -- Wahrheit fuer das Stil-Tor (dev-tools/stiltor-messen.js).
+    '<table>' + zeilen + '<tr><td class="held"><b>Stil</b></td><td colspan="2"><span class="klabel">Zeichenstil passt zur Referenz:</span>' +
+    '<label><input type="radio" name="k' + ki + 'stil" value="ja"> ja</label><label><input type="radio" name="k' + ki + 'stil" value="nein"> nein (Stilbruch)</label></td></tr>' +
+    '</table><div class="eintrag" id="z' + ki + '">noch nicht vollstaendig</div></section>';
 }).join("\n");
 
 const html = `<!doctype html>
@@ -103,6 +106,8 @@ const html = `<!doctype html>
     <p><b>Worum es geht:</b> Du zaehlst, wie oft jede benannte Figur im Bild vorkommt. Deine Zaehlung
     ist die Wahrheit, gegen die danach die automatische Pruefung gemessen wird. Auf dieser Seite steht
     <b>nicht</b>, was die Pruefung gezaehlt hat und welchen Kandidaten die App gewaehlt hat.</p>
+    <p><b>Stil:</b> je Kandidat einmal — passt der Zeichenstil der Figuren zur Referenz (flach, Punktaugen,
+    Nasenstrich, kein Mund), oder ist es ein Stilbruch (fotoartig, plastisch, Münder, anderer Zeichenstil)?</p>
     <p><b>Je Figur:</b> fehlt / einmal / doppelt (zwei oder mehr). <b>Kleidung stimmt</b> heisst:
     Frisur, Haarfarbe und Kleidung wie auf dem Figurenblatt. Fehlt die Figur, lass Kleidung leer.
     Ist eine Figur zweimal da und nur eine davon richtig angezogen: doppelt, Kleidung nein.</p>
@@ -147,11 +152,14 @@ ${abschnitte}
         if (z !== "0" && k === null) voll = false;
         zahlen.push(z); kleid.push(z === "0" ? "-" : k);
       }
+      var stil = wert("k" + ki + "stil");
+      if (stil === null) voll = false;
       var box = document.getElementById("z" + ki);
       if (voll) {
         fertig++;
         var zeilen = kennung + TAB + "heroes_found" + TAB + zahlen.join(",") + "\\n" +
-                     kennung + TAB + "heroes_kleidung" + TAB + kleid.join(",");
+                     kennung + TAB + "heroes_kleidung" + TAB + kleid.join(",") + "\\n" +
+                     kennung + TAB + "stil" + TAB + stil;
         box.textContent = zeilen; alle.push(zeilen);
       } else box.textContent = "noch nicht vollstaendig";
     });
