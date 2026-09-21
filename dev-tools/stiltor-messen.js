@@ -31,7 +31,10 @@ try {
 const n = liste.length * LAEUFE;
 // Kosten: 2 Bilder zu hoechstens 4.784 Token + ~900 Token Frage; Ausgabe jetzt mit Zahlenlisten
 // grosszuegig ~400 Token; Sonnet 5: 2 $ / 10 $ je Mio.
-const schaetzung = n * ((2 * 4784 + 900) / 1e6 * 2 + 400 / 1e6 * 10);
+// Seit 21h zwei Aufrufe je Lauf (A und, falls STIL_TOR_KOPF_MESSEN, B).
+const { STIL_TOR_KOPF_MESSEN } = require(path.join(__dirname, "../wimmel-wizard-v3/api/_lib/richter.js"));
+const aufrufeJeLauf = STIL_TOR_KOPF_MESSEN ? 2 : 1;
+const schaetzung = n * aufrufeJeLauf * ((2 * 4784 + 700) / 1e6 * 2 + 400 / 1e6 * 10);
 const z2 = (v) => (v === null || v === undefined || !isFinite(v)) ? "  —  " : Number(v).toFixed(2);
 
 function auswerten(daten) {
@@ -101,7 +104,7 @@ if (process.env.AUSWERTEN === "1") {
   auswerten(daten);
   process.exit(0);
 }
-console.log("Kandidaten " + liste.length + " x Laeufe " + LAEUFE + " = " + n + " Aufrufe an " + RICHTER_MODELL +
+console.log("Kandidaten " + liste.length + " x Laeufe " + LAEUFE + " x " + aufrufeJeLauf + " Teil(e) = " + (n * aufrufeJeLauf) + " Aufrufe an " + RICHTER_MODELL +
   ", hoechstens etwa " + schaetzung.toFixed(2) + " $. Mit Stil-Wahrheit: " + liste.filter(([k]) => wahr.has(k)).length);
 if (process.env.TROCKEN === "1") process.exit(0);
 const KEY = process.env.ANTHROPIC_API_KEY;
