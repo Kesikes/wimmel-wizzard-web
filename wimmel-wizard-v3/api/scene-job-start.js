@@ -59,7 +59,8 @@ module.exports = async (req, res) => {
   // vom Client (wie die leere Leinwand), damit der Server keinen Host raten muss.
   const richter = body.richter === true;
   const richterRefUrl = isImageRef(body.richterRefUrl) ? body.richterRefUrl : null;
-  // NEU (21.09.2026, 2026-09-21e): Stil-Tor hinter /app?stiltor=an (siehe api/_lib/richter.js).
+  // NEU (21.09.2026, 2026-09-21e): Stil-Tor (siehe api/_lib/richter.js). Seit dem Grundstand
+  // schickt der Client true, ausser mit dem Kontrollschalter /app?stiltor=aus.
   const stilTor = body.stilTor === true;
   const rohBand = Array.isArray(body.figuresBand) ? body.figuresBand.map(Number) : null;
   const figuresBand = (rohBand && rohBand.length === 2 && rohBand.every((v) => Number.isFinite(v) && v >= 0)

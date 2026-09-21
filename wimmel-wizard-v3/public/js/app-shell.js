@@ -297,12 +297,14 @@ function handleTestParams() {
   // wie bei den anderen beiden fuehrt ein unbekannter Wert zum normalen Verhalten.
   if (hatLicht) patch.testLicht = (lichtWert === "aus") ? "aus" : null;
   // "an" schaltet den Richter ein, jeder andere Wert zurueck auf das bisherige Verhalten.
-  if (hatRichter) patch.testRichter = (richterWert === "an") ? true : null;
-  // "neu" schaltet den Helden-Test ein, jeder andere Wert zurueck auf das bisherige Verhalten.
-  if (hatHelden) patch.testHelden = (heldenWert === "neu") ? "neu" : null;
+  // GEAENDERT (21.09.2026, Grundstand): Richter, Heldenbeschreibung aus dem Figurenblatt und
+  // Stil-Tor sind jetzt VORGABE. Die Schalter sind seitdem AUS-Schalter fuer Kontrollbilder:
+  // richter=aus, helden=alt, stiltor=aus. Jeder andere Wert (auch das alte "an"/"neu") = Vorgabe.
+  if (hatRichter) patch.testRichter = (richterWert === "aus") ? "aus" : null;
+  if (hatHelden) patch.testHelden = (heldenWert === "alt") ? "alt" : null;
   // "an" schaltet ein; "aus" und jeder andere Wert = Vorgabe (aus).
   if (hatBlattfilter) patch.testBlattfilter = (blattfilterWert === "an") ? "an" : null;
-  if (hatStilTor) patch.testStilTor = (stilTorWert === "an") ? "an" : null;
+  if (hatStilTor) patch.testStilTor = (stilTorWert === "aus") ? "aus" : null;
   if (hatKoepfe) patch.testKoepfe = (koepfeWert === "gross" || koepfeWert === "groß") ? "gross" : null;
   AppState.update(patch);
   window.history.replaceState(null, "", window.location.pathname + window.location.hash);

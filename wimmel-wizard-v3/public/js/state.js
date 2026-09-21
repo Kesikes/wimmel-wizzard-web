@@ -122,8 +122,10 @@ const DEFAULT_STATE = {
   testLicht: null,
   // NEU (20.09.2026): /app?richter=an -- der D-Richter entscheidet bei Gleichstand der schweren
   // Verstoesse. null = aus, also bisheriges Verhalten.
+  // GEAENDERT (21.09.2026, Grundstand): Richter ist Vorgabe; "aus" = Kontrollbild ohne Richter.
   testRichter: null,
-  // NEU (21.09.2026): /app?helden=neu -- Doppelgaenger-Filter und Heldenbeschreibung aus dem
+  // GEAENDERT (21.09.2026, Grundstand): Heldenbeschreibung aus dem Figurenblatt ist Vorgabe;
+  // "alt" = Kontrollbild mit der alten Beschreibung. Frueher: /app?helden=neu -- Doppelgaenger-Filter und Heldenbeschreibung aus dem
   // Figurenblatt. null = aus, also bisheriges Verhalten.
   testHelden: null,
   // NEU (21.09.2026): /app?blattfilter=an (Doppelgaenger-Filter, nur zusammen mit helden=neu) und
@@ -445,9 +447,9 @@ const AppState = {
       // Der Helden-Test kommt genauso dazu: sein Code steckt zwar in der Pruefsumme, wirkt aber nur
       // mit Schalter -- ohne diesen Zusatz saehen Bilder mit und ohne ihn gleich aus.
       bildFassung: (P.BILD_FASSUNG || null) && (P.BILD_FASSUNG + (this.data.testLicht === "aus" ? " \u00b7 Licht AUS" : "") +
-        (this.data.testHelden === "neu" ? " \u00b7 Helden NEU" + (this.data.testBlattfilter === "an" ? " + Blattfilter" : "") : "") +
+        (this.data.testHelden === "alt" ? " \u00b7 Helden ALT" : (this.data.testBlattfilter === "an" ? " \u00b7 Blattfilter" : "")) +
         (this.data.testKoepfe === "gross" ? " \u00b7 Köpfe GROSS" : "")),
-      pruefFassung: (P.PRUEF_FASSUNG || null) && (P.PRUEF_FASSUNG + (this.data.testStilTor === "an" ? " \u00b7 Stil-Tor AN" : "")) };
+      pruefFassung: (P.PRUEF_FASSUNG || null) && (P.PRUEF_FASSUNG + (this.data.testStilTor === "aus" ? " \u00b7 Stil-Tor AUS" : "") + (this.data.testRichter === "aus" ? " \u00b7 Richter AUS" : "")) };
     const images = this.data.images.concat([image]);
     this.update({ images, currentImageId: id });
     return image;

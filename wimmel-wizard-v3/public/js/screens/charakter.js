@@ -440,6 +440,18 @@ async function generateExtraViewsAndFinish(person, frontResult, sceneDescription
     imageUrlThreeQuarter: threeQR.status === "fulfilled" ? threeQR.value.url : null,
     pendingJobId: null, pendingSceneDescription: null,
   });
+  // NEU (21.09.2026, Grundstand): die Heldenbeschreibung aus dem Figurenblatt entsteht jetzt schon
+  // hier, gleich nach dem Frontbild -- im Hintergrund, die Kundin wartet nicht darauf. Scheitert
+  // sie, holt der Szenenstart sie nach (siehe runGeneration() in szene.js), und das Panel sagt es.
+  // Gespeichert wird sie nur, wenn die Person noch dasselbe Frontbild hat (sonst gehoert sie zu
+  // einem verworfenen Bild).
+  if (Pipeline.beschreibeFigurenblatt && frontResult && frontResult.url) {
+    const fuer = frontResult.url;
+    Pipeline.beschreibeFigurenblatt(fuer).then((daten) => {
+      const p = (AppState.data.people || []).find((x) => x.id === person.id);
+      if (p && p.imageUrl === fuer) AppState.updatePerson(person.id, { blatt: { fuer, daten, am: new Date().toISOString() } });
+    }).catch(() => { /* Nachholen beim Szenenstart */ });
+  }
   Router.goScreen("charakterblatt");
 }
 

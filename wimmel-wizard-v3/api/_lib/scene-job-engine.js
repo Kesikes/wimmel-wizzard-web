@@ -126,13 +126,14 @@ async function createSceneJob({ jobId, instruction, verifyPrompt, editImageUrl, 
     // mitgeschickt (SCENE_PHASES in pipeline.js). Reist im Job mit, damit jeder Poll-Durchlauf
     // dieselbe Spanne benutzt wie der Start.
     figuresBand: Array.isArray(figuresBand) ? figuresBand : null,
-    // NEU (20.09.2026): D-Richter, vorerst hinter /app?richter=an. Beides reist im Job mit, damit
+    // NEU (20.09.2026): D-Richter. Seit 21.09.2026 (Grundstand) Vorgabe, aus nur mit /app?richter=aus. Beides reist im Job mit, damit
     // jeder Poll-Durchlauf dieselbe Einstellung sieht wie der Start. richterRefUrl kommt vom
     // Client (window.location.origin + Asset-Pfad) -- genau wie die leere Leinwand, damit der
     // Server keinen eigenen Host raten muss.
     richter: !!richter,
     richterRefUrl: richterRefUrl || null,
-    // NEU (21.09.2026, 2026-09-21e): Stil-Tor hinter /app?stiltor=an, siehe stilTorUrteil().
+    // NEU (21.09.2026, 2026-09-21e): Stil-Tor, siehe stilTorUrteil(). Seit dem Grundstand Vorgabe,
+    // aus nur mit /app?stiltor=aus.
     stilTor: !!stilTor,
     richterErgebnis: null,
     status: "in_progress", error: null,
@@ -242,7 +243,7 @@ async function advanceSceneJob(job, { FAL_KEY, ANTHROPIC_KEY }) {
     }
   }
 
-  // Schritt 2b (NEU 21.09.2026, 2026-09-21e, nur mit /app?stiltor=an): das STIL-TOR je Kandidat,
+  // Schritt 2b (NEU 21.09.2026, 2026-09-21e; seit dem Grundstand Vorgabe): das STIL-TOR je Kandidat,
   // parallel. "nein" ist ein SCHWERER Verstoss (Produktentscheidung 21.09.: Stil ist eines von zwei
   // Ausschlusskriterien). Ein gescheiterter Aufruf ergibt urteil null -- das zaehlt weder als "ja"
   // noch als "nein" und steht im Panel als "nicht geprueft".
@@ -285,7 +286,15 @@ async function advanceSceneJob(job, { FAL_KEY, ANTHROPIC_KEY }) {
     // GEAENDERT (20.09.2026): nachgelegt wird nur, wenn ueberhaupt ETWAS geprueft werden konnte.
     // Konnte kein einziger Kandidat geprueft werden, ist die Pruefung kaputt und nicht das Bild --
     // ein weiterer, bezahlter Bildaufruf wuerde daran nichts aendern und nur Geld kosten.
-    const hasGoodEnough = !geprueft.length || geprueft.some((c) => isGoodEnough(c.severity));
+    // GEAENDERT (21.09.2026, Grundstand, Produktentscheidung): der dritte, bezahlte Kandidat kommt
+    // NUR noch, wenn KEIN Kandidat das Stil-Tor besteht. Tiefe, Figurengroesse und die uebrigen
+    // gemini-Befunde loesen ihn nicht mehr aus. Ein technisch gescheitertes Stil-Tor (urteil null)
+    // zaehlt als bestanden. Ohne Stil-Tor (Kontrollschalter /app?stiltor=aus) gibt es keinen
+    // dritten Kandidaten -- es gibt dann nichts, was ihn ausloesen duerfte.
+    // "geprueft" bleibt fuer die Auswertung stehen, entscheidet hier aber nichts mehr.
+    void geprueft;
+    const stilBestanden = (c) => !c.stilTor || c.stilTor.urteil !== "nein";
+    const hasGoodEnough = !next.stilTor || !usable.length || usable.some(stilBestanden);
     // GEAENDERT (19.09.2026): Deckel auf genCount statt auf candidates.length -- siehe
     // MAX_GENERATIONS oben. Alte Job-Datensaetze ohne genCount fallen auf die Listenlaenge
     // zurueck, damit ein zum Zeitpunkt des Deploys laufender Job nicht ploetzlich weiterzaehlt.
@@ -313,7 +322,7 @@ async function advanceSceneJob(job, { FAL_KEY, ANTHROPIC_KEY }) {
           tokenEin: 0, tokenAus: 0, schluesselVorhanden: !!ANTHROPIC_KEY };
         if (!next.richter) {
           next.richterErgebnis = Object.assign(grund, { ergebnis: "aus",
-            fehler: "Der Schalter war nicht gesetzt — ohne /app?richter=an entscheidet die Pruefung." });
+            fehler: "Der Richter war abgeschaltet (Kontrollschalter /app?richter=aus) — die Pruefung entscheidet." });
         } else if (!ANTHROPIC_KEY) {
           next.richterErgebnis = Object.assign(grund, { ergebnis: "kein_urteil",
             fehler: "ANTHROPIC_API_KEY ist in der Vercel-Umgebung NICHT gesetzt — der Richter konnte nicht gefragt werden." });

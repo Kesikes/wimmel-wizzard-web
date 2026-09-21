@@ -568,9 +568,16 @@ function buildChatPanel() {
 // kein eigenes try/catch noetig.
 async function buildThemeFromLocation(locationLabel, locationType) {
   const en = await Pipeline.translateFreeText(locationLabel || "");
+  // GEAENDERT (21.09.2026, Grundstand): der Typ kommt nicht mehr ungeprueft vom Sprachmodell. Der
+  // Code entscheidet (Pipeline.chatOrtTyp): Querschnitt nur bei eindeutigem Innenraum, Berg und
+  // Stadt nie.
+  const ort = Pipeline.chatOrtTyp(locationLabel, locationType);
   return {
     locId: "generic",
-    type: locationType === "cutaway" ? "cutaway" : "landscape",
+    type: ort.type,
+    nieQuerschnitt: ort.nieQuerschnitt,
+    label: locationLabel || null,
+    typGrund: ort.grund,
     en: en || "a cozy scene",
     regions: ["in the foreground", "further in the background", "off to one side", "in a quieter corner of the scene"],
     regionMin: 5
@@ -1052,15 +1059,15 @@ Screens.zaubern = {
     // /app?phase= -- das loeschte nur die Phase und liess die Komposition stehen (siehe
     // handleTestParams() in app-shell.js). Ein Knopf, der beides in einem Zug loescht, kann diesen
     // Fehler gar nicht erst machen; die URL bleibt als zweiter Weg daneben stehen.
-    if (s.testPhase || s.testComposition || s.testLicht || s.testRichter || s.testHelden || s.testBlattfilter || s.testStilTor || s.testKoepfe) {
+    if (s.testPhase || s.testComposition || s.testLicht || s.testRichter === "aus" || s.testHelden === "alt" || s.testBlattfilter === "an" || s.testStilTor === "aus" || s.testKoepfe) {
       const teile = [];
       if (s.testPhase) teile.push("Phase: " + s.testPhase);
       if (s.testComposition) teile.push("Komposition: " + s.testComposition);
       if (s.testLicht === "aus") teile.push("Licht: AUS (Vorgabe waere an)");
-      if (s.testRichter) teile.push("Richter: an");
-      if (s.testHelden === "neu") teile.push("Helden: NEU (Beschreibung aus dem Figurenblatt, Blattfilter " + (s.testBlattfilter === "an" ? "AN" : "aus") + ")");
-      else if (s.testBlattfilter === "an") teile.push("Blattfilter: an (wirkt nur zusammen mit helden=neu)");
-      if (s.testStilTor === "an") teile.push("Stil-Tor: an");
+      if (s.testRichter === "aus") teile.push("Richter: AUS (Vorgabe wäre an)");
+      if (s.testHelden === "alt") teile.push("Helden: ALT (Vorgabe wäre Beschreibung aus dem Figurenblatt)");
+      if (s.testBlattfilter === "an") teile.push("Blattfilter: an" + (s.testHelden === "alt" ? " (wirkt nicht zusammen mit helden=alt)" : ""));
+      if (s.testStilTor === "aus") teile.push("Stil-Tor: AUS (Vorgabe wäre an)");
       if (s.testKoepfe === "gross") teile.push("Köpfe: GROSS für alle");
       const testNote = h("div", { style: { marginTop: "20px", border: "3px dashed var(--yellow)", color: "var(--yellow)", padding: "12px 14px", fontSize: "13px", lineHeight: "1.45" } });
       testNote.appendChild(h("p", { style: { margin: "0 0 9px" } }, "Testmodus aktiv — " + teile.join(", ") + "."));
@@ -1243,7 +1250,7 @@ Screens.zaubern = {
         // Person gespeichert und wiederverwendet -- auch fuer den Doppelgaenger-Filter, der die
         // Haarfarbe braucht. Scheitert die Beschreibung, laeuft diese Figur mit der alten
         // Beschreibung weiter, und das Panel sagt es ausdruecklich (nie still).
-        if (sNow.testHelden === "neu") {
+        if (sNow.testHelden !== "alt") {
           for (const spec of heroSpecs) {
             const person = (AppState.data.people || []).find((p) => p.id === spec.id);
             let blatt = person && person.blatt && person.blatt.fuer === spec.imageUrl ? person.blatt.daten : null;
@@ -1282,7 +1289,7 @@ Screens.zaubern = {
         // jetzt moeglich (siehe onUpdate unten) statt des vorherigen Fake-setTimeout(...,20000).
         // composeSceneImage() bleibt unveraendert in pipeline.js als eigenstaendig getestete
         // Referenz-/Fallback-Funktion erhalten, wird aber im Produktpfad nicht mehr aufgerufen.
-        const result = await Pipeline.runSceneJobPolling({ heroSpecs, theme, situations, usedTexts, phase: testPhase, composition: testComposition, licht: testLicht, richter: !!sNow.testRichter, heldenNeu: sNow.testHelden === "neu", blattfilter: sNow.testBlattfilter === "an", stilTor: sNow.testStilTor === "an", koepfeGross: sNow.testKoepfe === "gross" }, {
+        const result = await Pipeline.runSceneJobPolling({ heroSpecs, theme, situations, usedTexts, phase: testPhase, composition: testComposition, licht: testLicht, richter: sNow.testRichter !== "aus", heldenNeu: sNow.testHelden !== "alt", blattfilter: sNow.testBlattfilter === "an" && sNow.testHelden !== "alt", stilTor: sNow.testStilTor !== "aus", koepfeGross: sNow.testKoepfe === "gross" }, {
           // NEU (17.09.2026, Punkt 0): jobId sofort persistieren, sobald sie feststeht -- AppState
           // schreibt ohnehin nach jeder Aenderung in localStorage UND (anonyme Session) auf den
           // Server, der Merker uebersteht damit einen kompletten Tab-Reload.
@@ -1559,7 +1566,8 @@ function buildDebugDetails(image) {
     if (!r) {
       return "D-Richter: kein Eintrag.\n" +
         "  Entweder wurde dieses Bild vor dem Einbau des Richters erzeugt, oder der Schalter\n" +
-        "  /app?richter=an war nicht gesetzt, oder die App lief auf einem aelteren Stand.\n" +
+        "  /app?richter=an war nicht gesetzt (vor dem Grundstand 2026-09-21i), oder die App lief\n" +
+        "  auf einem aelteren Stand.\n" +
         "  Bilder ab Prompt-Fassung 2026-09-20d tragen hier immer einen Eintrag.";
     }
     const zeilen = [];
@@ -1590,12 +1598,12 @@ function buildDebugDetails(image) {
   function heldenText(bild) {
     const hi = bild.heldenInfo;
     if (!hi) {
-      return "Helden-Test (/app?helden=neu): kein Eintrag.\n" +
-        "  Entweder war der Schalter nicht gesetzt, oder das Bild wurde nach einem Neuladen\n" +
+      return "Helden (Beschreibung aus dem Figurenblatt): kein Eintrag.\n" +
+        "  Entweder war /app?helden=alt gesetzt (bzw. vor 2026-09-21i helden=neu nicht), oder das Bild wurde nach einem Neuladen\n" +
         "  fortgesetzt (dann sind Filter und Beschreibung nicht mehr bekannt), oder es ist aelter\n" +
         "  als Fassung 2026-09-21b.";
     }
-    const z = ["Helden-Test (/app?helden=neu): AN"];
+    const z = ["Helden (Beschreibung aus dem Figurenblatt): AN"];
     z.push("  Bibliotheksblätter gewählt: " + (hi.gewaehlt.length ? hi.gewaehlt.join(", ") : "KEINS") +
       "   (erlaubt waren: " + (hi.erlaubt.length ? hi.erlaubt.join(", ") : "keins") + ")");
     // NEU (2026-09-21e): Filter hat einen eigenen Schalter. Bilder davor hatten ihn immer an.
@@ -1627,8 +1635,8 @@ function buildDebugDetails(image) {
   // Fassung) -- das steht dann ausdruecklich da.
   function stilTorText(k) {
     const t = k && k.stilTor;
-    if (!t) return "Stil-Tor: nicht gelaufen (Schalter /app?stiltor=an war aus, oder Bild vor 2026-09-21e)";
-    if (!t.urteil) return "Stil-Tor: NICHT GEPRÜFT — " + (t.fehler || "unbekannter Fehler") + " (zählt weder als ja noch als nein)";
+    if (!t) return "Stil-Tor: nicht gelaufen (/app?stiltor=aus gesetzt, vor 2026-09-21i nicht eingeschaltet, oder Bild vor 2026-09-21e)";
+    if (!t.urteil) return "Stil-Tor: NICHT GEPRÜFT — " + (t.fehler || "unbekannter Fehler") + " (zählt als bestanden)";
     // GEAENDERT (2026-09-21g): zwei Teile -- A Stil ja/nein, B Kopfanteil als Zahl gegen die
     // Referenz. Aeltere Eintraege (21e/21f) haben nur urteil + begruendung.
     const kw = t.kopf;

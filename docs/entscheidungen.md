@@ -185,6 +185,21 @@ sondern welches Feld zuerst geprüft wurde — `scale_est` und `depth_ratio` zie
 
 ## 4. Auswahl unter den Kandidaten
 
+### GÜLTIG (Produktentscheidungen des Nutzers, 21.09.2026): Regeln der Kandidatenwahl
+
+Beschlossen mit „Plan passt" zu `plan-kandidatenwahl-2026-09-21.md`. In der Spalte „gebaut" steht,
+ab welcher Fassung die Regel im Code gilt; „Schritt 3" heißt: kommt mit der Kandidatenwahl.
+
+| Regel | gebaut |
+|---|---|
+| Der **dritte Kandidat** kommt **nur**, wenn **kein** Kandidat das Stil-Tor besteht. Tiefe, Figurengröße und die übrigen Prüfbefunde lösen keinen bezahlten dritten Lauf mehr aus. Ohne Stil-Tor (Kontrollschalter `stiltor=aus`) gibt es keinen dritten Kandidaten. | `2026-09-21i` |
+| Ein **technisch gescheitertes** Stil-Tor zählt als **bestanden**. | `2026-09-21i` (dritter Kandidat), Anzeige Schritt 3 |
+| Besteht auch der dritte das Stil-Tor nicht: **kein Bild**, „Das hat diesmal nicht geklappt" + „Nochmal zaubern"; der neue Durchgang ist für die Kundin **kostenlos**. | Schritt 3 |
+| Der **Richter** bestimmt bei jedem Paar den **Favoriten**. Uneinig oder gescheitert: K1 vorne, kein Rückfall auf die Heldenzählung. | Schritt 3 |
+| Besteht **nur einer**: nur diesen zeigen, kein Umschalter, kein dritter Kandidat. | Schritt 3 |
+| **Hinweistext** unter dem Bild, direkt über dem Stift-Knopf, ersetzt den gelben Warnkasten: „Die Bilder malt eine KI. Sie macht manchmal kleine Fehler — zum Beispiel ist eine Figur doppelt da. Mit dem Stift kannst du solche Stellen einfach korrigieren." | Schritt 3 |
+| **Stift** vorerst ohne Umschalter Malen/Verschieben; der kommt nur, wenn der Handytest des Nutzers ungewollte Striche zeigt. | Schritt 4 |
+
 ### GÜLTIG (Produktentscheidung des Nutzers, 21.09.2026): die Kundin entscheidet
 
 > „Die automatische Auswahl bestimmt nur noch den Favoriten. Die Entscheidung trifft die Kundin."
@@ -360,6 +375,34 @@ fast immer anschlägt, kein Geld ausgibt. Zurück auf schwer, sobald die Ursache
 ---
 
 ## 9. Testschalter
+
+### GÜLTIG seit 21.09.2026 (Fassung `2026-09-21i`): Grundstand — was Vorgabe ist
+
+Produktentscheidung des Nutzers („Plan passt", 21.09.2026). Keine neuen Schalter: die bestehenden
+werden umgedreht und sind seitdem **Kontrollschalter**, wie `licht=aus`.
+
+| Baustein | Vorgabe | Kontrollschalter | Kennzeichen in der Fassung |
+|---|---|---|---|
+| Heldenbeschreibung aus dem Figurenblatt, Einmal-Sätze, Kinder-Satz | **an** | `helden=alt` | Bild: „· Helden ALT" |
+| Stil-Tor Teil A | **an** | `stiltor=aus` | Prüfung: „· Stil-Tor AUS" |
+| Stil-Tor Teil B (Kopfanteil) | **aus** (`STIL_TOR_KOPF_MESSEN = false`) | — | — |
+| D-Richter | **an** | `richter=aus` | Prüfung: „· Richter AUS" |
+| Blattfilter | **aus** | `blattfilter=an` | Bild: „· Blattfilter" |
+| Große Köpfe | **aus** — siehe unten | `koepfe=gross` | Bild: „· Köpfe GROSS" |
+
+- Die alten Werte `richter=an`, `helden=neu`, `stiltor=an` bedeuten jetzt einfach die Vorgabe.
+- Die **Figurenblatt-Beschreibung** entsteht jetzt schon bei der Charaktererstellung, im
+  Hintergrund gleich nach dem Frontbild (`generateExtraViewsAndFinish()` in `charakter.js`).
+  Fehlt sie beim Szenenstart (gescheitert, oder Figur älter), holt der Szenenstart sie nach wie
+  bisher.
+- **`koepfe=gross` ist noch NICHT Vorgabe.** Entscheidung des Nutzers: Vorgabe, *sofern* die
+  Durchsicht der neuen Panels keinen Rückschritt zeigt. Die Durchsicht war am 21.09. nicht möglich:
+  `docs/ref/sitzung.json` (Stand 20:32) endet bei Szene 27, Fassung `2026-09-21d` — es gibt darin
+  keine einzige Szene mit „Köpfe GROSS". Gemeldet statt still entschieden; wird Vorgabe, sobald die
+  Szenen vorliegen und durchgesehen sind.
+- Promptlänge in der neuen Vorgabe (Helden aus dem Figurenblatt, ohne große Köpfe), künstlicher
+  Extremfall 5 Helden: 23.831–23.875 Zeichen, Puffer 125–169 zur Grenze 24.000. Mit
+  `koepfe=gross` dazu weiterhin knapp darüber. Siehe Abschnitt 14.
 
 ### GÜLTIG seit 20.09.2026: Licht ist die Vorgabe, `licht=aus` ist der Kontrollschalter
 
@@ -584,3 +627,44 @@ Der Chat kann es bereits: `sceneChat()` gibt über das Werkzeug `add_scene` eine
 Offen ist nur noch die Bestätigung am echten Fall — der Test läuft, siehe
 `testgeschichte-freitext.md`. Der Bauauftrag hängt nicht davon ab: dass die Aufnahme genau einen
 Eintrag erzeugt, steht im Code.
+
+---
+
+## 13. Thema und Kompositionstyp
+
+### GÜLTIG (Produktentscheidung des Nutzers, 21.09.2026; Code ab Fassung `2026-09-21i`)
+
+| Thema | open | overview_open | cutaway | gridhouse | overview_cutaway |
+|---|---|---|---|---|---|
+| Bauernhof | ✓ | ✓ | — | — | erlaubt, **noch nicht gebaut** (beim Prompt-Aufräumen testen) |
+| Weihnachten | — | — | ✓ | ✓ | ✓ |
+| Urlaub | ✓ | ✓ | — | — | — |
+| Berg | ✓ | ✓ | **nie** | **nie** | **nie** |
+| Stadt | ✓ | ✓ | **nie** | **nie** | **nie** |
+| Spielplatz | ✓ | ✓ | — | — | — |
+
+- **Berg und Stadt nie als Querschnitt** — auch nicht über den Chat-Weg und auch nicht mit dem
+  Testschalter `komposition=…`: ein erzwungener Querschnitt wird dort verworfen
+  (`querschnittVerboten()` / `pickComposition()` in `pipeline.js`).
+- **Chat-Weg: Querschnitt nur bei eindeutigem Innenraum.** Regel im Code, nicht nur im Prompt
+  (`chatOrtTyp()` in `pipeline.js`, aufgerufen von `buildThemeFromLocation()` in `szene.js`). Das
+  Sprachmodell schlägt `location_type` vor; Querschnitt wird es nur, wenn das Modell „cutaway" sagt
+  **und** das Orts-Label ein Innenraum-Wort enthält (Café, Wohnung, Küche, Schule, Kita, Laden,
+  Museum, Schiff, Zug …). Offene Orte (Straße, Markt, Platz, Park, Garten, Strand, Wald, Hof,
+  Terrasse …) sind **immer offen**; Berg- und Stadt-Wörter (Berg, Alm, Hütte, Stadt, Innenstadt …)
+  verbieten den Querschnitt ganz. **Offene Wörter und Berg/Stadt gewinnen gegen Innenraum-Wörter:**
+  „Café in der Stadt" wird offen, „Café" allein ein Querschnitt. Unklare Labels („Bei Oma") werden
+  offen.
+
+---
+
+## 14. Vorgemerkt für das Prompt-Aufräumen — nicht gebaut
+
+Nutzer, 21.09.2026: jetzt nicht bauen, beim Prompt-Aufräumen angehen.
+
+- In Phase 1 laufen alle Außenthemen über „open". Offene Szenen enger führen, z. B. mit benannten
+  Zonen.
+- **Promptlänge:** mit 5 Helden wird die Szene heute im Extremfall abgelehnt (eigene Grenze
+  24.000). Muss **vor dem Launch** gelöst sein — zusammen mit der Frage, wo fal wirklich abschneidet.
+- Weiter Meldungen aufräumen, die einen falschen Grund nennen.
+- Bauernhof mit `overview_cutaway` testen (Abschnitt 13).

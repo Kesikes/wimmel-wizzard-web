@@ -227,7 +227,9 @@ const STIL_TOR_FRAGE_A = "Bild 1 ist die STILREFERENZ, Bild 2 ist ein neu erzeug
 const STIL_TOR_FRAGE = STIL_TOR_FRAGE_A;
 const STIL_TOR_FRAGE_B = "Bild 1 ist eine Referenzzeichnung, Bild 2 ein neu erzeugtes Bild. Das ist eine MESSUNG, kein Urteil. Schaetze fuer JEDES der beiden Bilder getrennt den Kopfanteil an der Koerperhoehe, also Kopfhoehe (Scheitel bis Kinn) geteilt durch die ganze Figurenhoehe (Scheitel bis Fusssohle), als Dezimalzahl, z. B. 0.25. Nimm dafuer die FUENF GROESSTEN ERWACHSENEN und getrennt die FUENF GROESSTEN KINDER, die vollstaendig zu sehen sind. Sind es weniger, nimm so viele wie da sind; gibt es keine, gib eine leere Liste. Schaetze jede Figur einzeln. Antworte NUR als JSON: {\"ref_erwachsene\": [Zahlen], \"ref_kinder\": [Zahlen], \"bild_erwachsene\": [Zahlen], \"bild_kinder\": [Zahlen]}.";
 // Teil B abschaltbar, um Kosten zu sparen (ein zweiter Aufruf je Kandidat).
-const STIL_TOR_KOPF_MESSEN = true;
+// GEAENDERT (21.09.2026, Grundstand): AUS. Teil B trennte in der Messung nicht (siehe Register,
+// Abschnitt 9) und kostet je Kandidat einen zweiten Aufruf. Code bleibt fuer spaeter stehen.
+const STIL_TOR_KOPF_MESSEN = false;
 const STIL_TOR_VERSUCHE = 2;
 const STIL_TOR_MAX_TOKENS = 4000;
 // Grenze fuer das Verhaeltnis "Kopfanteil Kandidat / Kopfanteil Referenz" (kleinster Wert aus
@@ -330,7 +332,9 @@ async function stilTorUrteil(referenzUrl, kandUrl, KEY, grenze) {
     }
   }
   const ent = stilTorEntscheid(e.stil, e.kopf, g);
-  e.urteil = ent.urteil; e.grund = ent.grund;
+  e.urteil = ent.urteil;
+  // Ist Teil B abgeschaltet, sagt der Grund das -- nicht "nicht messbar" (das waere ein falscher Grund).
+  e.grund = (!STIL_TOR_KOPF_MESSEN && ent.urteil === "ja") ? "Teil A ja; Teil B abgeschaltet" : ent.grund;
   return e;
 }
 

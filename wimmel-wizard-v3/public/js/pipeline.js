@@ -1372,7 +1372,7 @@ var ACTIVE_SCENE_PHASE = "phase1";
 // in den Kompositionstypen, aendert sich die Pruefsumme -- ohne dass jemand daran denken muss.
 // Das von Hand gepflegte Datum bleibt als lesbare Ergaenzung daneben stehen; verlassen tun wir uns
 // auf die Pruefsumme.
-var PROMPT_LABEL = "2026-09-21h";
+var PROMPT_LABEL = "2026-09-21i";
 
 // FNV-1a, 32 Bit. Bewusst kein crypto.subtle: das ist asynchron, und diese Kennung soll ohne
 // Umstand synchron beim Laden feststehen. Kollisionen sind hier belanglos -- es geht nicht um
@@ -1407,7 +1407,9 @@ function bildFingerprint() {
    // NEU (21.09.2026): Helden-Test (helden=neu) -- Filter, Beschreibung, Unterscheidungssatz.
    heldMerkmale, bgFigurAehnlich, filterBgSheets, heldBeschreibungAusBlatt, haarPhrase, mitArtikel, heldKurzform, kinderUnterscheidung,
    heldGruppe, heldExklusivMerkmal, heldEinmalSatz, allCharactersRuleKurz,
-   pickBackgroundCharacterSheets].forEach(function (fn) {
+   pickBackgroundCharacterSheets,
+   // NEU (21.09.2026, Grundstand): Thema-Tabelle als Code-Regel.
+   pickComposition, querschnittVerboten, chatOrtTyp].forEach(function (fn) {
     teile.push(String(fn));
   });
   // Der Lichtblock steht nur bei gesetztem Schalter im Prompt, seine Formulierung gehoert aber zur
@@ -1423,6 +1425,7 @@ function bildFingerprint() {
     DEPTH_COHERENCE_RULE, HEAD_SCALE_CONSISTENCY_RULE, SAFE_MARGIN_RULE, EMOTION_WORDS_RULE,
     ZERO_TEXT_RULE, PHASE2_FOREGROUND_RULE, HERO_FINDABILITY_RULE].join("|"));
   teile.push(String(GROUP_SLOTS));
+  try { teile.push(JSON.stringify([QUERSCHNITT_TYPEN, CHAT_INNENRAUM, CHAT_OFFEN, CHAT_NIE_QUERSCHNITT])); } catch (e) { /* flach */ }
   try { teile.push(JSON.stringify([BGCHAR_MERKMALE, ALTER_NACHBARN, HAAR_NACHBARN, HAARFARBE_AUS_BLATT, FIGURENBLATT_PROMPT, GROSSE_KOEPFE_SATZ])); } catch (e) { /* flach */ }
   return fnv1a(teile.join("\u0000"));
 }
@@ -1490,7 +1493,7 @@ var VERIFY_MAX_VERSUCHE = 2;
 // Kandidat --, bleibt die Pruefsumme sonst gleich, obwohl die Pruefung sich anders verhaelt.
 // Diese Zeichenkette ist der Platz, an dem so eine Aenderung sichtbar wird. Sie gehoert bei jeder
 // Aenderung an der Pruef-LOGIK hochgezaehlt, auch wenn der Prompt gleich bleibt.
-var PRUEF_VERHALTEN = "2026-09-21h: Stil-Tor Teil A wieder woertlich die erste Fassung (21e) als eigener Aufruf, entscheidet allein; Teil B Kopfanteil als zweiter Aufruf nur Messwert; 2026-09-21g: Stil-Tor in zwei Teilen (A Stil ja/nein ohne Kopfgroesse, B Kopfanteil als Zahl gegen die Referenz; B entscheidet erst ab kalibrierter Grenze); 2026-09-21f: Stil-Tor fragt zusaetzlich nach den Proportionen (grosse runde Koepfe bei allen, normale Comic-Proportionen = passt nicht); 2026-09-21e: Stil-Tor (claude-sonnet-5, absolute Stilpruefung gegen die Referenz je Kandidat, nein = SCHWER, kein Kandidat bestanden = abgelehnt) hinter /app?stiltor=an; Richter nennt den tatsaechlichen Grund, wenn er nicht gefragt wird; 2026-09-21d: heroes_ok mittel statt schwer (Kleidungspruefung 64 %, Regel: schwer erst ab 90 %); 2026-09-21a: Heldenfehler entscheiden bei der Auswahl direkt nach den schweren Verstoessen, vor den uebrigen mittleren (loesen aber keinen dritten Kandidaten aus); ein Wiederholungsversuch bei unlesbarer Antwort, danach ungeprueft statt schlechtester Kandidat; D-Richter (claude-sonnet-5, zwei Aufrufe mit getauschter Reihenfolge) entscheidet bei Gleichstand der schweren Verstoesse, hinter /app?richter=an";
+var PRUEF_VERHALTEN = "2026-09-21i: Grundstand -- Richter, Stil-Tor (nur Teil A, Teil B abgeschaltet) und Heldenbeschreibung aus dem Figurenblatt sind Vorgabe (aus nur per richter=aus, stiltor=aus, helden=alt); dritter Kandidat NUR, wenn kein Kandidat das Stil-Tor besteht (technisch gescheitertes Stil-Tor zaehlt als bestanden), Tiefe/Figurengroesse loesen ihn nicht mehr aus; Berg/Stadt nie Querschnitt, Chat-Weg Querschnitt nur bei eindeutigem Innenraum; 2026-09-21h: Stil-Tor Teil A wieder woertlich die erste Fassung (21e) als eigener Aufruf, entscheidet allein; Teil B Kopfanteil als zweiter Aufruf nur Messwert; 2026-09-21g: Stil-Tor in zwei Teilen (A Stil ja/nein ohne Kopfgroesse, B Kopfanteil als Zahl gegen die Referenz; B entscheidet erst ab kalibrierter Grenze); 2026-09-21f: Stil-Tor fragt zusaetzlich nach den Proportionen (grosse runde Koepfe bei allen, normale Comic-Proportionen = passt nicht); 2026-09-21e: Stil-Tor (claude-sonnet-5, absolute Stilpruefung gegen die Referenz je Kandidat, nein = SCHWER, kein Kandidat bestanden = abgelehnt) hinter /app?stiltor=an; Richter nennt den tatsaechlichen Grund, wenn er nicht gefragt wird; 2026-09-21d: heroes_ok mittel statt schwer (Kleidungspruefung 64 %, Regel: schwer erst ab 90 %); 2026-09-21a: Heldenfehler entscheiden bei der Auswahl direkt nach den schweren Verstoessen, vor den uebrigen mittleren (loesen aber keinen dritten Kandidaten aus); ein Wiederholungsversuch bei unlesbarer Antwort, danach ungeprueft statt schlechtester Kandidat; D-Richter (claude-sonnet-5, zwei Aufrufe mit getauschter Reihenfolge) entscheidet bei Gleichstand der schweren Verstoesse, hinter /app?richter=an";
 
 // SHADED_MAX_OF_TEN: wie viele der zehn groessten Gesichter plastisch gezeichnet sein duerfen.
 // EINS, nicht zwei oder drei -- Nutzer-Entscheidung nach folgender Ueberlegung: der gewuenschte
@@ -2638,9 +2641,20 @@ const COMPOSITION_TYPES = {
 // Orte aus dem Chat-Weg bekommen ihren type in buildThemeFromLocation() (szene.js).
 //
 // forced: erlaubt, den Typ fuer einen gezielten Testlauf festzulegen (D5) statt zu wuerfeln.
+// GEAENDERT (21.09.2026, Grundstand, Produktentscheidung Thema-Tabelle): Berg und Stadt NIE als
+// Querschnitt (cutaway, gridhouse, overview_cutaway) -- auch nicht ueber den Chat-Weg und auch
+// nicht mit dem Testschalter /app?komposition=... . Ein erzwungener Querschnitt wird bei diesen
+// Themen verworfen und normal gewuerfelt. Chat-Themen tragen dafuer nieQuerschnitt (siehe
+// chatOrtTyp() unten). Bauernhof mit overview_cutaway ist erlaubt, aber noch NICHT gebaut
+// (Prompt-Aufraeumen).
+const QUERSCHNITT_TYPEN = ["cutaway", "gridhouse", "overview_cutaway"];
+function querschnittVerboten(theme) {
+  return !!(theme && (theme.locId === "mountains" || theme.locId === "city" || theme.nieQuerschnitt));
+}
 function pickComposition(theme, phase, forced) {
-  if (forced && COMPOSITION_TYPES[forced]) return COMPOSITION_TYPES[forced];
-  const istGebaeude = !!(theme && theme.type === "cutaway");
+  const verboten = querschnittVerboten(theme);
+  if (forced && COMPOSITION_TYPES[forced] && !(verboten && QUERSCHNITT_TYPEN.indexOf(forced) >= 0)) return COMPOSITION_TYPES[forced];
+  const istGebaeude = !verboten && !!(theme && theme.type === "cutaway");
   const erlaubt = (phase.compositions || ["open"]).filter((id) => {
     if (id === "open") return !istGebaeude;
     if (id === "cutaway" || id === "gridhouse") return istGebaeude;
@@ -2657,6 +2671,34 @@ function pickComposition(theme, phase, forced) {
   const ohneGrid = liste.filter((id) => id !== "gridhouse");
   const wahl = (ohneGrid.length ? ohneGrid : liste)[Math.floor(Math.random() * (ohneGrid.length ? ohneGrid.length : liste.length))];
   return COMPOSITION_TYPES[wahl] || COMPOSITION_TYPES.open;
+}
+
+// NEU (21.09.2026, Grundstand, Produktentscheidung): Typ eines frei erzaehlten Orts (Chat-Weg).
+// Das Sprachmodell schlaegt location_type vor, der CODE entscheidet: Querschnitt nur, wenn der Ort
+// EINDEUTIG ein Innenraum ist. Offene Orte (Strasse, Markt, Platz, Park ...) sind immer offen, und
+// Berg- und Stadt-Woerter verbieten den Querschnitt ganz (auch per Testschalter). Offene Woerter
+// gewinnen gegen Innenraum-Woerter: "Cafe in der Stadt" wird offen.
+// Rueckgabe: { type: "cutaway"|"landscape", nieQuerschnitt: bool, grund: string }.
+const CHAT_INNENRAUM = ["café", "cafe", "kaffee", "wohnung", "wohnzimmer", "kinderzimmer", "zimmer", "küche", "kueche",
+  "schule", "klassenzimmer", "kita", "kindergarten", "haus", "zuhause", "daheim", "laden", "geschäft", "geschaeft",
+  "supermarkt", "bäckerei", "baeckerei", "museum", "bibliothek", "bücherei", "buecherei", "schiff", "zug", "bahn",
+  "flugzeug", "restaurant", "praxis", "krankenhaus", "turnhalle", "halle", "kino", "theater", "schloss", "burg",
+  "werkstatt", "stall", "scheune", "keller", "dachboden", "hotel", "bad", "hallenbad", "kirche", "büro", "buero"];
+const CHAT_OFFEN = ["straße", "strasse", "gasse", "markt", "platz", "park", "garten", "spielplatz", "strand", "meer",
+  "see", "wald", "wiese", "feld", "hof", "zoo", "draußen", "draussen", "terrasse", "hafen", "ufer", "fluss",
+  "insel", "camping", "zelt", "freibad", "dorf", "rummel", "jahrmarkt", "kirmes", "weihnachtsmarkt"];
+const CHAT_NIE_QUERSCHNITT = ["berg", "alm", "alpen", "gebirge", "gipfel", "hütte", "huette", "stadt", "innenstadt", "city"];
+function chatWortDa(label, liste) {
+  const l = " " + String(label || "").toLowerCase() + " ";
+  // Treffer am Wortanfang ("Bergwiese", "Stadtpark", "Schulküche"), nie mitten im Wort.
+  return liste.some((w) => new RegExp("(^|[^a-zäöüß])" + w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).test(l));
+}
+function chatOrtTyp(label, modellTyp) {
+  const nie = chatWortDa(label, CHAT_NIE_QUERSCHNITT);
+  if (nie) return { type: "landscape", nieQuerschnitt: true, grund: "Berg/Stadt: nie Querschnitt" };
+  if (chatWortDa(label, CHAT_OFFEN)) return { type: "landscape", nieQuerschnitt: false, grund: "offener Ort" };
+  if (modellTyp === "cutaway" && chatWortDa(label, CHAT_INNENRAUM)) return { type: "cutaway", nieQuerschnitt: false, grund: "eindeutiger Innenraum" };
+  return { type: "landscape", nieQuerschnitt: false, grund: modellTyp === "cutaway" ? "Innenraum nicht eindeutig, deshalb offen" : "offen (Modell)" };
 }
 
 // NEU (17.09.2026, D2): Phase-2-Zusatz. Nutzer-Vorgabe, woertlich: "Vordergrund: klar erkennbare
@@ -3982,7 +4024,7 @@ window.Pipeline = {
   PEN_INSTRUCTION_REMOVE, PEN_INSTRUCTION_REDO,
   resizeImageToDataUri, generateImage, generateImageWithRetry, verifyImage, countViolations,
   richterReferenzUrl, SCENE_PHASES, ACTIVE_SCENE_PHASE, DEPTH_MIN_RATIO, SCALE_MIN_FIT, PROMPT_VERSION, PROMPT_LABEL, promptFingerprint, BILD_FASSUNG, PRUEF_FASSUNG, bildFingerprint, pruefFingerprint, heroRef, HERO_REF_START, lichtBlock, lichtKeywords, VERIFY_MAX_VERSUCHE, PRUEF_VERHALTEN, severityOf, compareSeverity, isGoodEnough,
-  COMPOSITION_TYPES, pickComposition, layerSizeText,
+  COMPOSITION_TYPES, pickComposition, querschnittVerboten, chatOrtTyp, layerSizeText,
   HERO_ACTION_LIBRARY, pickHeroActions, shuffledPool,
   // Szenen-Komposition (neu, siehe Modul-Abschnitt oben)
   GAG_LIBRARY, THEME_META, pickGagChips, topUpSituations,
