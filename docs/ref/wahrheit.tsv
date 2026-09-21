@@ -82,8 +82,8 @@
 27 Berg K2	heroes_kleidung	ja,ja,ja
 
 # Stilurteil des Nutzers, eingetragen 2026-09-21 (Szenen 22-27; Heldenzeilen stehen schon oben)
-22 Stadt K1	stil	nein
-22 Stadt K2	stil	nein
+22 Stadt K1	stil	ja
+22 Stadt K2	stil	ja
 23 Stadt K1	stil	ja
 23 Stadt K2	stil	nein
 24 Stadt K1	stil	ja
@@ -94,3 +94,4 @@
 26 Stadt K2	stil	nein
 27 Berg K1	stil	ja
 27 Berg K2	stil	nein
+# KORRIGIERT 21.09.2026 (Nutzer, nach nochmaligem Ansehen): 22 K1 und 22 K2 Stil ja statt nein -- viele Muender, aber akzeptabel.

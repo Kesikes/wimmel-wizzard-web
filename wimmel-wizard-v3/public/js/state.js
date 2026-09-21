@@ -130,6 +130,8 @@ const DEFAULT_STATE = {
   // /app?stiltor=an (absolute Stilpruefung je Kandidat). null = aus.
   testBlattfilter: null,
   testStilTor: null,
+  // NEU (21.09.2026): /app?koepfe=gross -- grosse runde Koepfe fuer alle Menschen im Bildprompt.
+  testKoepfe: null,
 
   // Entscheidung / Widmung / Bestellung
   tier: 1, // 0 Poster, 1 Wimmelbuch (ab 2 Bildern), 2 Wimmelbuch (ab 5 Bildern, comingSoon -- siehe entscheidung.js TIERS)
@@ -443,7 +445,8 @@ const AppState = {
       // Der Helden-Test kommt genauso dazu: sein Code steckt zwar in der Pruefsumme, wirkt aber nur
       // mit Schalter -- ohne diesen Zusatz saehen Bilder mit und ohne ihn gleich aus.
       bildFassung: (P.BILD_FASSUNG || null) && (P.BILD_FASSUNG + (this.data.testLicht === "aus" ? " \u00b7 Licht AUS" : "") +
-        (this.data.testHelden === "neu" ? " \u00b7 Helden NEU" + (this.data.testBlattfilter === "an" ? " + Blattfilter" : "") : "")),
+        (this.data.testHelden === "neu" ? " \u00b7 Helden NEU" + (this.data.testBlattfilter === "an" ? " + Blattfilter" : "") : "") +
+        (this.data.testKoepfe === "gross" ? " \u00b7 Köpfe GROSS" : "")),
       pruefFassung: (P.PRUEF_FASSUNG || null) && (P.PRUEF_FASSUNG + (this.data.testStilTor === "an" ? " \u00b7 Stil-Tor AN" : "")) };
     const images = this.data.images.concat([image]);
     this.update({ images, currentImageId: id });

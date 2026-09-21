@@ -33,14 +33,14 @@ if (process.env.TROCKEN === "1") process.exit(0);
 const KEY = process.env.ANTHROPIC_API_KEY;
 if (!KEY) { console.error("ANTHROPIC_API_KEY fehlt."); process.exit(1); }
 (async () => {
-  let ein = 0, aus = 0, treffer = 0, gewertet = 0, fehler = 0, stabil = 0, stabilBasis = 0;
+  let ein = 0, aus = 0, treffer = 0, gewertet = 0, fehler = 0, stabil = 0, stabilBasis = 0, ersterFehler = null;
   const mat = { ja: { ja: 0, nein: 0 }, nein: { ja: 0, nein: 0 } };
   for (const [kennung, url] of liste) {
     const urteile = [];
     for (let l = 0; l < LAEUFE; l++) {
       const u = await stilTorUrteil(REF, url, KEY);
       ein += u.tokenEin; aus += u.tokenAus;
-      if (!u.urteil) { fehler++; console.log("  " + kennung + "  FEHLER — " + u.fehler); continue; }
+      if (!u.urteil) { fehler++; if (!ersterFehler) ersterFehler = u.fehler; console.log("  " + kennung + "  FEHLER — " + u.fehler); continue; }
       urteile.push(u.urteil);
       const w = wahr.get(kennung);
       if (w === "ja" || w === "nein") { gewertet++; mat[w][u.urteil]++; if (w === u.urteil) treffer++; }
@@ -49,7 +49,17 @@ if (!KEY) { console.error("ANTHROPIC_API_KEY fehlt."); process.exit(1); }
     if (urteile.length >= 2) { stabilBasis++; if (urteile.every((x) => x === urteile[0])) stabil++; }
   }
   console.log("");
-  console.log("Treffer gegen dein Urteil: " + (gewertet ? treffer + " von " + gewertet + " (" + Math.round(100 * treffer / gewertet) + " %)" : "KEINE DATEN (keine Stil-Zeilen in wahrheit.tsv)"));
+  // BUGFIX (21.09.2026, Nutzer-Befund): hier stand bei 0 Vergleichen immer "keine Stil-Zeilen in
+  // wahrheit.tsv" -- auch dann, als die Zeilen da waren und ALLE Aufrufe gescheitert sind. Ein
+  // falscher Grund ist schlimmer als keiner. Jetzt wird der tatsaechliche Grund genannt.
+  function keineDatenGrund() {
+    const mitWahrheit = liste.filter(([k]) => wahr.has(k)).length;
+    if (fehler === n) return "alle " + n + " Aufrufe sind gescheitert — erster Fehler: " + ersterFehler;
+    if (!wahr.size) return "in docs/ref/wahrheit.tsv steht keine einzige stil-Zeile";
+    if (!mitWahrheit) return "wahrheit.tsv hat stil-Zeilen, aber fuer keinen dieser " + liste.length + " Kandidaten (andere Kennungen)";
+    return "die " + mitWahrheit + " Kandidaten mit stil-Zeile hatten nur gescheiterte Aufrufe (" + fehler + " von " + n + " gescheitert, erster Fehler: " + ersterFehler + ")";
+  }
+  console.log("Treffer gegen dein Urteil: " + (gewertet ? treffer + " von " + gewertet + " (" + Math.round(100 * treffer / gewertet) + " %)" : "KEINE DATEN — " + keineDatenGrund()));
   if (gewertet) console.log("  du ja  -> Tor ja " + mat.ja.ja + " / nein " + mat.ja.nein + "   (Fehlalarm = gutes Bild aussortiert)\n  du nein -> Tor ja " + mat.nein.ja + " / nein " + mat.nein.nein + "   (durchgerutscht = Stilbruch gewaehlt)");
   if (stabilBasis) console.log("Stabilitaet: " + stabil + " von " + stabilBasis + " Kandidaten in allen Laeufen gleich");
   if (fehler) console.log("Gescheiterte Aufrufe: " + fehler + " (zaehlen nirgends mit)");

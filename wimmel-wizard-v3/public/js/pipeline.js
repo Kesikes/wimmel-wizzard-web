@@ -1372,7 +1372,7 @@ var ACTIVE_SCENE_PHASE = "phase1";
 // in den Kompositionstypen, aendert sich die Pruefsumme -- ohne dass jemand daran denken muss.
 // Das von Hand gepflegte Datum bleibt als lesbare Ergaenzung daneben stehen; verlassen tun wir uns
 // auf die Pruefsumme.
-var PROMPT_LABEL = "2026-09-21e";
+var PROMPT_LABEL = "2026-09-21f";
 
 // FNV-1a, 32 Bit. Bewusst kein crypto.subtle: das ist asynchron, und diese Kennung soll ohne
 // Umstand synchron beim Laden feststehen. Kollisionen sind hier belanglos -- es geht nicht um
@@ -1423,7 +1423,7 @@ function bildFingerprint() {
     DEPTH_COHERENCE_RULE, HEAD_SCALE_CONSISTENCY_RULE, SAFE_MARGIN_RULE, EMOTION_WORDS_RULE,
     ZERO_TEXT_RULE, PHASE2_FOREGROUND_RULE, HERO_FINDABILITY_RULE].join("|"));
   teile.push(String(GROUP_SLOTS));
-  try { teile.push(JSON.stringify([BGCHAR_MERKMALE, ALTER_NACHBARN, HAAR_NACHBARN, HAARFARBE_AUS_BLATT, FIGURENBLATT_PROMPT])); } catch (e) { /* flach */ }
+  try { teile.push(JSON.stringify([BGCHAR_MERKMALE, ALTER_NACHBARN, HAAR_NACHBARN, HAARFARBE_AUS_BLATT, FIGURENBLATT_PROMPT, GROSSE_KOEPFE_SATZ])); } catch (e) { /* flach */ }
   return fnv1a(teile.join("\u0000"));
 }
 
@@ -1490,7 +1490,7 @@ var VERIFY_MAX_VERSUCHE = 2;
 // Kandidat --, bleibt die Pruefsumme sonst gleich, obwohl die Pruefung sich anders verhaelt.
 // Diese Zeichenkette ist der Platz, an dem so eine Aenderung sichtbar wird. Sie gehoert bei jeder
 // Aenderung an der Pruef-LOGIK hochgezaehlt, auch wenn der Prompt gleich bleibt.
-var PRUEF_VERHALTEN = "2026-09-21e: Stil-Tor (claude-sonnet-5, absolute Stilpruefung gegen die Referenz je Kandidat, nein = SCHWER, kein Kandidat bestanden = abgelehnt) hinter /app?stiltor=an; Richter nennt den tatsaechlichen Grund, wenn er nicht gefragt wird; 2026-09-21d: heroes_ok mittel statt schwer (Kleidungspruefung 64 %, Regel: schwer erst ab 90 %); 2026-09-21a: Heldenfehler entscheiden bei der Auswahl direkt nach den schweren Verstoessen, vor den uebrigen mittleren (loesen aber keinen dritten Kandidaten aus); ein Wiederholungsversuch bei unlesbarer Antwort, danach ungeprueft statt schlechtester Kandidat; D-Richter (claude-sonnet-5, zwei Aufrufe mit getauschter Reihenfolge) entscheidet bei Gleichstand der schweren Verstoesse, hinter /app?richter=an";
+var PRUEF_VERHALTEN = "2026-09-21f: Stil-Tor fragt zusaetzlich nach den Proportionen (grosse runde Koepfe bei allen, normale Comic-Proportionen = passt nicht); 2026-09-21e: Stil-Tor (claude-sonnet-5, absolute Stilpruefung gegen die Referenz je Kandidat, nein = SCHWER, kein Kandidat bestanden = abgelehnt) hinter /app?stiltor=an; Richter nennt den tatsaechlichen Grund, wenn er nicht gefragt wird; 2026-09-21d: heroes_ok mittel statt schwer (Kleidungspruefung 64 %, Regel: schwer erst ab 90 %); 2026-09-21a: Heldenfehler entscheiden bei der Auswahl direkt nach den schweren Verstoessen, vor den uebrigen mittleren (loesen aber keinen dritten Kandidaten aus); ein Wiederholungsversuch bei unlesbarer Antwort, danach ungeprueft statt schlechtester Kandidat; D-Richter (claude-sonnet-5, zwei Aufrufe mit getauschter Reihenfolge) entscheidet bei Gleichstand der schweren Verstoesse, hinter /app?richter=an";
 
 // SHADED_MAX_OF_TEN: wie viele der zehn groessten Gesichter plastisch gezeichnet sein duerfen.
 // EINS, nicht zwei oder drei -- Nutzer-Entscheidung nach folgender Ueberlegung: der gewuenschte
@@ -2285,7 +2285,7 @@ function kinderUnterscheidung(heroSpecs) {
   const kinder = (heroSpecs || []).map((s, i) => ({ s, i })).filter(({ s }) => s.role === "girl" || s.role === "boy");
   if (kinder.length < 2 || kinder.some(({ s }) => !s.blatt)) return "";
   const teile = kinder.map(({ s, i }) => heroRef(s, i) + " has " + haarPhrase(s.blatt) + " and wears " + (mitArtikel(s.blatt.top) || "their own clothes"));
-  return "The named children look alike at a glance, so keep them strictly apart: " + teile.join("; ") +
+  return "Keep the named children strictly apart: " + teile.join("; ") +
     ". Each child keeps exactly their own hair and clothes: never swap or mix them.";
 }
 
@@ -2301,6 +2301,14 @@ function kinderUnterscheidung(heroSpecs) {
 // Ohren, kein sichtbarer Hals -- sind ohnehin stilisierte MENSCHEN-Designentscheidungen, kein Tier hat
 // von Natur aus "keine Ohren"), plus ein eigener, kurzer Satz fuer Tiere: gleicher flacher Zeichenstil
 // (dicke Outline, flaechige Farben), aber natuerliche Anatomie statt der Menschen-Gesichtsformel.
+// NEU (21.09.2026, 2026-09-21f, nur hinter /app?koepfe=gross): grosse runde Koepfe fuer ALLE
+// Menschen. Befund des Nutzers: zwei Stilbrueche (24 K2, 27 K2) mit kleinen Koepfen und normalen
+// Comic-Proportionen, die Helden wirkten erwachsen. Im Bildprompt stand bisher "round heads" ohne
+// "large"; die chibi-Proportionen standen nur bei den Kleinkindern (ageRole()). Positiv formuliert.
+// Die Groessenangabe ist an den bgchars-Blaettern abgelesen: Erwachsene etwa ein Viertel, Kinder
+// etwa ein Drittel der ganzen Figurenhoehe.
+const GROSSE_KOEPFE_SATZ = "Every person, child or adult, has a large round head on a small, simple body, as on the reference sheets: about a quarter of the height for grown-ups, a third for children.";
+
 const SCENE_STYLE_BLOCK = "Every human or human-like character in the scene, named heroes and background characters alike, is drawn in exactly the same flat, minimal illustration style: round heads, dot eyes, a single vertical nose line, never a mouth, no ears, no visible neck (the head sits directly on the shoulders), thin limbs with no joints, thick black marker outline, graphic recording sketchnote style, applied consistently to every character in the picture. Animals are drawn in the same flat-color, thick-black-marker-outline illustration style, but keep their own natural features (mouths, ears, snouts, tails, fur/feather texture drawn simply) rather than the stylized human face design described above.";
 
 // NEU: die folgenden drei Konstanten sind, wo möglich, WÖRTLICH aus der Spezifikation Abschnitt 2
@@ -2474,7 +2482,8 @@ function allCharactersRule(heroSpecs) {
 // fuer das Bildmodell greifbar ist -- und steht weiter am Prompt-Ende.
 function allCharactersRuleKurz(heroSpecs) {
   const n = heroSpecs.length;
-  return "All " + n + " characters from the reference images must appear, and none of them twice: everything here happens at the same moment, so the same person cannot be in two places at once — not in two rooms, not on two floors, not once indoors and once outdoors.";
+  // GEKUERZT (2026-09-21f, Promptlaenge mit koepfe=gross): gleicher Inhalt, knapper.
+  return "All " + n + " characters from the reference images appear, none of them twice: it all happens at one moment, and nobody can be in two places at once, not even in two rooms of one house.";
 }
 
 // NEU: baut die Vignetten fuer eine Szene: vorhandene (z.B. nutzereigene) Situationen plus
@@ -2867,7 +2876,7 @@ const HERO_FINDABILITY_RULE = "Finding the named characters is meant to be a sma
 // ohnehin. Wuerde hier "bis zu drei" stehen, waeren es entsprechend mehr. Dieselbe Asymmetrie wie
 // beim Stil (Pruefung tolerant, Anweisung streng), die der Nutzer am 17.09.2026 ausdruecklich
 // bestaetigt hat.
-function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount, phase, composition, heroActions, licht, heldenNeu }) {
+function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount, phase, composition, heroActions, licht, heldenNeu, koepfeGross }) {
   // NEU (19.09.2026): ein reiner Querschnitt (cutaway/gridhouse) braucht an mehreren Stellen eine
   // andere Formulierung als eine offene Szene. overview_cutaway zaehlt hier NICHT dazu: dort gibt
   // es draussen echte Landschaft, Himmel und Horizont.
@@ -2977,6 +2986,7 @@ function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount, phase, co
   if (situationText) sentences.push(stripEmotionWords(situationText));
   if (phase.id === "phase2") sentences.push(PHASE2_FOREGROUND_RULE);
   sentences.push(SCENE_STYLE_BLOCK);
+  if (koepfeGross) sentences.push(GROSSE_KOEPFE_SATZ);
   sentences.push(FLAT_FACE_RULE);
   sentences.push(imHaus ? FILL_EMPTY_SPACE_RULE_HAUS : FILL_EMPTY_SPACE_RULE);
   sentences.push(COHERENCE_RULE);
@@ -3354,7 +3364,7 @@ function buildVerifyPrompt(heroSpecs, phaseId, compositionId) {
 // damit spaeter nachvollziehbar ist, welcher Typ ein Bild erzeugt hat. opts.composition erlaubt,
 // den Typ fuer einen gezielten Testlauf festzulegen statt zu wuerfeln (D5: "verschiedene Themen und
 // Kompositionstypen").
-function buildSceneComposeInputs({ heroSpecs, theme, situations, phase, composition, usedTexts, licht, heldenNeu, blattfilter }) {
+function buildSceneComposeInputs({ heroSpecs, theme, situations, phase, composition, usedTexts, licht, heldenNeu, blattfilter, koepfeGross }) {
   const phaseId = (phase && SCENE_PHASES[phase]) ? phase : ACTIVE_SCENE_PHASE;
   const phaseObj = SCENE_PHASES[phaseId];
   const comp = pickComposition(theme, phaseObj, composition);
@@ -3378,7 +3388,7 @@ function buildSceneComposeInputs({ heroSpecs, theme, situations, phase, composit
   const styleRefUrls = heroRefUrls.concat(bgUrls);
   // D3: eigene Handlung je Held, buchweite Sperrliste beachtet.
   const heroActions = pickHeroActions(refHeroes, theme && theme.locId, usedTexts);
-  const promptText = scenePrompt({ heroSpecs: refHeroes, theme, situations, bgCharacterCount: bgUrls.length, phase: phaseObj, composition: comp, heroActions, licht: licht !== false, heldenNeu: !!heldenNeu });
+  const promptText = scenePrompt({ heroSpecs: refHeroes, theme, situations, bgCharacterCount: bgUrls.length, phase: phaseObj, composition: comp, heroActions, licht: licht !== false, heldenNeu: !!heldenNeu, koepfeGross: !!koepfeGross });
   const instruction = sceneComposeInstruction(promptText);
   const verifyPrompt = buildVerifyPrompt(refHeroes, phaseId, comp.id);
   // figuresBand reist mit zum Server: dort wird figures_est dagegen geprueft (siehe
@@ -3991,7 +4001,7 @@ window.Pipeline = {
   startCharacterJob, pollCharacterJobOnce, runCharacterJobPolling,
   startSceneJob, pollSceneJobOnce, runSceneJobPolling, neueSceneJobId,
   BGCHAR_MERKMALE, heldMerkmale, bgFigurAehnlich, filterBgSheets, beschreibeFigurenblatt, parseFigurenblatt,
-  heldBeschreibungAusBlatt, kinderUnterscheidung, FIGURENBLATT_PROMPT, heldEinmalSatz, heldExklusivMerkmal, haarPhrase,
+  heldBeschreibungAusBlatt, kinderUnterscheidung, FIGURENBLATT_PROMPT, GROSSE_KOEPFE_SATZ, heldEinmalSatz, heldExklusivMerkmal, haarPhrase,
   SCENE_STYLE_BLOCK, FILL_EMPTY_SPACE_RULE, COHERENCE_RULE, ZERO_TEXT_RULE, EMOTION_WORDS_RULE,
   SAFE_MARGIN_RULE, SCENE_TOTAL_CHARACTER_TARGET_RULE,
   DEPTH_COHERENCE_RULE, HEAD_SCALE_CONSISTENCY_RULE, NO_MOUTH_EMPHASIS,

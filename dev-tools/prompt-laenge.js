@@ -72,14 +72,16 @@ Object.keys(P.THEME_META).forEach((themaName) => {
         const heroSpecs = []; for (let i = 1; i <= n; i++) heroSpecs.push(heldNeu(i));
         const comp = P.pickComposition(theme, phase, compId);
         const txt = P.scenePrompt({ heroSpecs, theme, situations: P.autoSituations(theme, [], 20, []),
-          bgCharacterCount: 4, phase, composition: comp, heroActions: P.pickHeroActions(heroSpecs, theme.locId, []), heldenNeu: true });
+          bgCharacterCount: 4, phase, composition: comp, heroActions: P.pickHeroActions(heroSpecs, theme.locId, []), heldenNeu: true,
+          // NEU (2026-09-21f): koepfe=gross dazu -- der schlimmste Fall ist beides zusammen.
+          koepfeGross: true });
         const laenge = P.sceneComposeInstruction(txt).length;
         if (laenge > schlimmsterNeu) { schlimmsterNeu = laenge; fallNeu = themaName + " / " + phaseId + " / " + compId + " / " + n + " Helden"; }
       }
     });
   });
 });
-console.log("Mit helden=neu, laengster Fall: " + fallNeu);
+console.log("Mit helden=neu + koepfe=gross, laengster Fall: " + fallNeu);
 console.log("  instruction  " + schlimmsterNeu + " Zeichen   Puffer " + (GRENZE - schlimmsterNeu) + (GRENZE - schlimmsterNeu < 0 ? "   <-- UEBER DER GRENZE" : ""));
 console.log("");
 if (schlimmsterNeu > schlimmster) { schlimmster = schlimmsterNeu; schlimmsterFall = "helden=neu: " + fallNeu; }

@@ -408,6 +408,18 @@ Die Bild-Fassung trägt dann den Zusatz „· Helden NEU".
   getrennt testbar.
 - **`/app?stiltor=an`** — Stil-Tor, siehe Abschnitt 0. Kosten je Kandidat höchstens etwa 2 Cent
   (zwei Bilder à höchstens 4.784 Token, Sonnet 5 zu 2 $ / 10 $ je Mio Token).
+- **`/app?koepfe=gross`** (Fassung `2026-09-21f`) — ein Satz nach dem Stilblock verlangt für ALLE
+  Menschen große runde Köpfe auf kleinem Körper (Erwachsene etwa ein Viertel, Kinder ein Drittel
+  der Höhe, abgelesen an den bgchars-Blättern). Anlass: 24 K2 und 27 K2 mit kleinen Köpfen und
+  normalen Comic-Proportionen; im Prompt stand „round heads", nie „large", chibi nur bei
+  Kleinkindern. Promptlänge mit `helden=neu`: eure 3 Helden höchstens rund 21.600 Zeichen; der
+  künstliche Extremfall (5 Kinder, maximal lange Beschreibungen) liegt je nach gezogenen
+  Situationen bei 23.965–24.066, also bis knapp 70 Zeichen ÜBER der eigenen Grenze von 24.000
+  (Start wird dann mit HTTP 400 abgelehnt, ohne Kosten).
+- **Stil-Tor seit `2026-09-21f`** fragt zusätzlich nach den Proportionen: kleine Köpfe mit normalen
+  Comic- oder Menschenproportionen = passt nicht. Messung davor (Szenen 22–27, Urteil des Nutzers
+  nach Korrektur von 22 K1/K2): 0 Fehlalarme, stabil, 20 von 24 = 83 %; durchgerutscht 24 K2 und
+  27 K2.
 - Ein leerer Wert bei einem der Schalter beendet den Testmodus wie bisher ganz.
 
 ### Die drei Schalter

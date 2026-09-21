@@ -271,7 +271,9 @@ function handleTestParams() {
   // Kandidat durch Claude, "nein" ist schwer.
   const hatBlattfilter = params.has("blattfilter");
   const hatStilTor = params.has("stiltor");
-  if (!hatPhase && !hatKomposition && !hatLicht && !hatRichter && !hatHelden && !hatBlattfilter && !hatStilTor) return;
+  // NEU (21.09.2026, 2026-09-21f): /app?koepfe=gross -- grosse runde Koepfe fuer alle Menschen.
+  const hatKoepfe = params.has("koepfe");
+  if (!hatPhase && !hatKomposition && !hatLicht && !hatRichter && !hatHelden && !hatBlattfilter && !hatStilTor && !hatKoepfe) return;
   const phaseWert = hatPhase ? (params.get("phase") || "").trim() : null;
   const kompoWert = hatKomposition ? (params.get("komposition") || "").trim() : null;
   const lichtWert = hatLicht ? (params.get("licht") || "").trim().toLowerCase() : null;
@@ -279,11 +281,12 @@ function handleTestParams() {
   const heldenWert = hatHelden ? (params.get("helden") || "").trim().toLowerCase() : null;
   const blattfilterWert = hatBlattfilter ? (params.get("blattfilter") || "").trim().toLowerCase() : null;
   const stilTorWert = hatStilTor ? (params.get("stiltor") || "").trim().toLowerCase() : null;
+  const koepfeWert = hatKoepfe ? (params.get("koepfe") || "").trim().toLowerCase() : null;
   // Leerer Wert bei EINEM der drei = Testmodus komplett beenden, also auch das Licht. Siehe
   // Kommentar oben: ein leerer Wert ist nie eine Einstellung, er kommt nur beim Verlassen vor.
   if ((hatPhase && !phaseWert) || (hatKomposition && !kompoWert) || (hatLicht && !lichtWert) ||
-      (hatRichter && !richterWert) || (hatHelden && !heldenWert) || (hatBlattfilter && !blattfilterWert) || (hatStilTor && !stilTorWert)) {
-    AppState.update({ testPhase: null, testComposition: null, testLicht: null, testRichter: null, testHelden: null, testBlattfilter: null, testStilTor: null });
+      (hatRichter && !richterWert) || (hatHelden && !heldenWert) || (hatBlattfilter && !blattfilterWert) || (hatStilTor && !stilTorWert) || (hatKoepfe && !koepfeWert)) {
+    AppState.update({ testPhase: null, testComposition: null, testLicht: null, testRichter: null, testHelden: null, testBlattfilter: null, testStilTor: null, testKoepfe: null });
     window.history.replaceState(null, "", window.location.pathname + window.location.hash);
     return;
   }
@@ -300,6 +303,7 @@ function handleTestParams() {
   // "an" schaltet ein; "aus" und jeder andere Wert = Vorgabe (aus).
   if (hatBlattfilter) patch.testBlattfilter = (blattfilterWert === "an") ? "an" : null;
   if (hatStilTor) patch.testStilTor = (stilTorWert === "an") ? "an" : null;
+  if (hatKoepfe) patch.testKoepfe = (koepfeWert === "gross" || koepfeWert === "groß") ? "gross" : null;
   AppState.update(patch);
   window.history.replaceState(null, "", window.location.pathname + window.location.hash);
 }
