@@ -55,7 +55,9 @@ Object.keys(P.THEME_META).forEach((themaName) => {
 function heldNeu(i) {
   const s = held(i);
   s.blatt = P.parseFigurenblatt(JSON.stringify({ hair_color: "light brown", hair: "long wavy with a fringe",
-    beard: false, top: "red-and-white striped long-sleeved shirt with a round collar",
+    // Je Held ein ANDERES Oberteil: sonst findet heldExklusivMerkmal() kein Alleinstellungsmerkmal
+    // und der Einmal-Satz faellt kuerzer aus als im echten Fall (2026-09-21c).
+    beard: false, top: ["red", "blue", "green", "yellow", "purple"][(i - 1) % 5] + "-and-white striped long-sleeved shirt with a collar",
     bottom: "dark blue dungarees with big front pockets", shoes: "yellow rubber boots", extras: "round glasses and a small green backpack" }));
   s.sceneDescription = P.heldBeschreibungAusBlatt(s, s.blatt);
   return s;

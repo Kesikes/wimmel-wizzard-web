@@ -1372,7 +1372,7 @@ var ACTIVE_SCENE_PHASE = "phase1";
 // in den Kompositionstypen, aendert sich die Pruefsumme -- ohne dass jemand daran denken muss.
 // Das von Hand gepflegte Datum bleibt als lesbare Ergaenzung daneben stehen; verlassen tun wir uns
 // auf die Pruefsumme.
-var PROMPT_LABEL = "2026-09-21b";
+var PROMPT_LABEL = "2026-09-21c";
 
 // FNV-1a, 32 Bit. Bewusst kein crypto.subtle: das ist asynchron, und diese Kennung soll ohne
 // Umstand synchron beim Laden feststehen. Kollisionen sind hier belanglos -- es geht nicht um
@@ -1406,6 +1406,7 @@ function bildFingerprint() {
    sceneLayerText, layerSizeText, imageRefMapping, lichtBlock, lichtKeywords,
    // NEU (21.09.2026): Helden-Test (helden=neu) -- Filter, Beschreibung, Unterscheidungssatz.
    heldMerkmale, bgFigurAehnlich, filterBgSheets, heldBeschreibungAusBlatt, haarPhrase, mitArtikel, heldKurzform, kinderUnterscheidung,
+   heldGruppe, heldExklusivMerkmal, heldEinmalSatz, allCharactersRuleKurz,
    pickBackgroundCharacterSheets].forEach(function (fn) {
     teile.push(String(fn));
   });
@@ -2215,9 +2216,47 @@ function heldKurzform(b) {
   return [haarPhrase(b), mitArtikel(b.top)].filter(Boolean).join(", ");
 }
 
+// GEAENDERT (21.09.2026, 2026-09-21c): das Modell schreibt in "hair" manchmal selbst "hair" oder
+// die Farbe mit ("short spiky hair") -- dann stand "short spiky hair light brown hair" im Prompt.
+// Jetzt werden beide aus der Frisur entfernt, bevor Farbe und "hair" angehaengt werden.
 function haarPhrase(b) {
   if (b.hair_color === "bald") return "a bald head";
-  return ((b.hair ? b.hair + " " : "") + b.hair_color + " hair").trim();
+  const farbe = String(b.hair_color || "");
+  const frisur = String(b.hair || "")
+    .replace(/\bhair\b/gi, " ")
+    .replace(new RegExp("\\b" + farbe.replace(/[^a-z ]/gi, "") + "\\b", "gi"), " ")
+    .replace(/\s*,\s*$/, "").replace(/\s+/g, " ").trim();
+  return ((frisur ? frisur + " " : "") + farbe + " hair").trim();
+}
+
+// NEU (21.09.2026, 2026-09-21c, nur helden=neu): ein Merkmal, das NUR dieser Held im ganzen Bild
+// hat -- positiv und kurz ("the only man in it with a beard"). Abgeleitet aus der Figurenblatt-
+// Beschreibung, damit es fuer jede Familie funktioniert. Reihenfolge: Bart (nur Maenner), dann
+// das Oberteil, dann ein Extra (Brille, Muetze). Ein Merkmal, das ein ANDERER Held derselben Gruppe
+// auch hat, taugt nicht und wird uebersprungen. Findet sich keins, gibt es keinen Satzteil statt
+// eines falschen.
+function heldGruppe(spec) {
+  return ({ boy: "child", girl: "child", man: "man", woman: "woman", grandfather: "older man", grandmother: "older woman" })[spec && spec.role] || null;
+}
+function heldExklusivMerkmal(spec, alle) {
+  const b = spec && spec.blatt;
+  const gruppe = heldGruppe(spec);
+  if (!b || !gruppe) return null;
+  const andere = (alle || []).filter((o) => o !== spec && heldGruppe(o) === gruppe && o.blatt);
+  const gleich = (x, y) => String(x || "").trim().toLowerCase() === String(y || "").trim().toLowerCase();
+  if (b.beard && /man$/.test(gruppe) && !andere.some((o) => o.blatt.beard)) return { gruppe, merkmal: "with a beard" };
+  if (b.top && !andere.some((o) => gleich(o.blatt.top, b.top))) return { gruppe, merkmal: "wearing " + mitArtikel(b.top) };
+  if (b.extras && !andere.some((o) => gleich(o.blatt.extras, b.extras))) return { gruppe, merkmal: "with " + b.extras };
+  return null;
+}
+// Ein Satz je Held: genau einmal, plus sein exklusives Merkmal. Ersetzt im Test-Weg den Einzelsatz,
+// den bisher nur der ERSTE Held bekam (allCharactersRule()), und steht direkt hinter der
+// Platzierung -- das ist der Gedanke des Zweigs positions-test.
+function heldEinmalSatz(spec, i, alle) {
+  const ref = heroRef(spec, i);
+  const m = heldExklusivMerkmal(spec, alle);
+  return ref.charAt(0).toUpperCase() + ref.slice(1) + " appears only once" +
+    (m ? " and is the only " + m.gruppe + " in the picture " + m.merkmal : " in the whole picture") + ".";
 }
 
 // heldBeschreibungAusBlatt(spec, b): ersetzt spec.sceneDescription (bisher aus dem Foto: Haare plus
@@ -2239,7 +2278,7 @@ function kinderUnterscheidung(heroSpecs) {
   if (kinder.length < 2 || kinder.some(({ s }) => !s.blatt)) return "";
   const teile = kinder.map(({ s, i }) => heroRef(s, i) + " has " + haarPhrase(s.blatt) + " and wears " + (mitArtikel(s.blatt.top) || "their own clothes"));
   return "The named children look alike at a glance, so keep them strictly apart: " + teile.join("; ") +
-    ". Each child keeps exactly their own hair and clothes: never swap them, never mix them, and never draw any of these children a second time anywhere in the picture.";
+    ". Each child keeps exactly their own hair and clothes: never swap or mix them.";
 }
 
 // NEU: Stil-Regelblock, einmal kompakt (Spezifikation Abschnitt 2, wörtlich übersetzt aus der
@@ -2420,6 +2459,14 @@ function allCharactersRule(heroSpecs) {
   // argumentiert physisch statt formal: dieselbe Person kann nicht in zwei Raeumen gleichzeitig
   // sein. Das ist fuer ein Bildmodell greifbarer als eine Zaehlvorgabe.
   return "Each of the " + n + " characters from the reference images (" + namesList + ") appears in exactly ONE vignette across the whole scene, never duplicated. This is not a stylistic preference but a fact about the scene: all of it happens at the same moment, so the same person cannot be in two places at once — not in two rooms of the same house, not on two floors, not once indoors and once outdoors. " + gross(names[0]) + " appears only once: if you have already drawn " + names[0] + " somewhere, " + names[0] + " does not appear again anywhere else in this picture. All " + n + " of these characters must each appear at least once, clearly recognizable according to their reference image and the mapping above. None of them may be omitted.";
+}
+
+// NEU (21.09.2026, 2026-09-21c, nur helden=neu): Kurzfassung, weil jeder Held seinen eigenen
+// Einmal-Satz hat (heldEinmalSatz()). Die physische Begruendung bleibt -- sie war der Teil, der
+// fuer das Bildmodell greifbar ist -- und steht weiter am Prompt-Ende.
+function allCharactersRuleKurz(heroSpecs) {
+  const n = heroSpecs.length;
+  return "All " + n + " characters from the reference images must appear, and none of them twice: everything here happens at the same moment, so the same person cannot be in two places at once — not in two rooms, not on two floors, not once indoors and once outdoors.";
 }
 
 // NEU: baut die Vignetten fuer eine Szene: vorhandene (z.B. nutzereigene) Situationen plus
@@ -2899,6 +2946,9 @@ function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount, phase, co
     sentences.push("Where the characters from the reference images are in this particular scene — they are NOT all lined up at the front, each one stands exactly where it says here, each doing their own thing, never standing still and never posed neutrally: " + heroBits + ".");
     sentences.push(HERO_FINDABILITY_RULE);
   }
+  // NEU (21.09.2026, 2026-09-21c, nur helden=neu): je Held ein eigener Einmal-Satz mit exklusivem
+  // Merkmal, direkt hinter der Platzierung.
+  if (heroBits && heldenNeu) sentences.push(heroSpecs.map((s, i) => heldEinmalSatz(s, i, heroSpecs)).join(" "));
   if (heroBits) sentences.push("The characters from the reference images above do exactly the activity given for each of them and nothing else. The little scenes and running gags listed further below belong to the unnamed background characters — never hand one of them to a character from the reference images instead of their own activity.");
   // NEU (D2): Zielzahl aus der Phase.
   // GEAENDERT (18.09.2026): hier stand "individual characters in total". Das Modell hat Tiere
@@ -2930,7 +2980,9 @@ function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount, phase, co
   sentences.push(INDOOR_OUTDOOR_RULE);
   sentences.push(SAFE_MARGIN_RULE);
   sentences.push(EMOTION_WORDS_RULE);
-  sentences.push(allCharactersRule(heroSpecs));
+  // Im Test-Weg stehen die Einmal-Saetze je Held schon oben; hier nur noch die physische Begruendung
+  // fuer alle -- ohne Namensliste und ohne den Sondersatz fuer den ersten Helden (Promptlaenge).
+  sentences.push(heldenNeu ? allCharactersRuleKurz(heroSpecs) : allCharactersRule(heroSpecs));
   sentences.push(sizeRuleReminder(phase, composition));
   sentences.push(EDGE_AND_FACE_REMINDER);
   sentences.push(ZERO_TEXT_RULE);
@@ -3336,6 +3388,7 @@ function buildSceneComposeInputs({ heroSpecs, theme, situations, phase, composit
       quelle: s.blatt ? "Figurenblatt" : "Foto/Merkmale (Figurenblatt-Beschreibung fehlt" + (s.blattFehler ? ": " + s.blattFehler : "") + ")",
       merkmale: heldMerkmale(s) })),
     unterscheidung: kinderUnterscheidung(refHeroes) || null,
+    einmal: refHeroes.map((s, i) => heldEinmalSatz(s, i, refHeroes)),
   } : null;
   return { refHeroes, editImageUrl, styleRefUrls, heroRefUrls, promptText, instruction, verifyPrompt, phaseId, figuresBand, compositionId: comp.id, heroActions, usedNow, heldenInfo };
 }
@@ -3920,7 +3973,7 @@ window.Pipeline = {
   startCharacterJob, pollCharacterJobOnce, runCharacterJobPolling,
   startSceneJob, pollSceneJobOnce, runSceneJobPolling, neueSceneJobId,
   BGCHAR_MERKMALE, heldMerkmale, bgFigurAehnlich, filterBgSheets, beschreibeFigurenblatt, parseFigurenblatt,
-  heldBeschreibungAusBlatt, kinderUnterscheidung, FIGURENBLATT_PROMPT,
+  heldBeschreibungAusBlatt, kinderUnterscheidung, FIGURENBLATT_PROMPT, heldEinmalSatz, heldExklusivMerkmal, haarPhrase,
   SCENE_STYLE_BLOCK, FILL_EMPTY_SPACE_RULE, COHERENCE_RULE, ZERO_TEXT_RULE, EMOTION_WORDS_RULE,
   SAFE_MARGIN_RULE, SCENE_TOTAL_CHARACTER_TARGET_RULE,
   DEPTH_COHERENCE_RULE, HEAD_SCALE_CONSISTENCY_RULE, NO_MOUTH_EMPHASIS,

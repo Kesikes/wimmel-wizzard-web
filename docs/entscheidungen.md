@@ -333,6 +333,15 @@ meist als „einmal". Eine Doppelgängerin ist im fertigen Bild nicht entscheidb
    Platzierung nur noch Haar und Oberteil (sonst reicht bei fünf Helden die Promptlänge nicht).
 3. **Unterscheidungssatz**, wenn mindestens zwei Kinder dabei sind, direkt hinter der Zuordnung.
 
+4. **Seit `2026-09-21c`: ein Einmal-Satz je Held**, direkt hinter der Platzierung (Gedanke des
+   Zweigs `positions-test`), mit einem **exklusiven Merkmal** aus der Figurenblatt-Beschreibung:
+   „The man from reference image 4 appears only once and is the only man in the picture with a
+   beard." Reihenfolge der Merkmale: Bart (nur Männer), Oberteil, Extra; ein Merkmal, das ein
+   anderer Held derselben Gruppe auch hat, wird übersprungen. Anlass: erste Szene mit
+   `helden=neu`, der Mann in beiden Kandidaten doppelt — die Regel „appears only once" galt bisher
+   nur für den ersten Helden. Am Prompt-Ende bleibt nur die physische Begründung für alle
+   (`allCharactersRuleKurz()`).
+
 Scheitert eine Beschreibung, läuft die Figur mit der alten weiter; das Panel sagt es.
 Die Bild-Fassung trägt dann den Zusatz „· Helden NEU".
 

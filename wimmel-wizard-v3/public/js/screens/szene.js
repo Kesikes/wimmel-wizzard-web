@@ -1605,6 +1605,10 @@ function buildDebugDetails(image) {
         m.bart === null || m.bart === undefined ? "Bart unbekannt" : (m.bart ? "Bart" : "kein Bart")].join(" / "));
     });
     z.push("  Unterscheidungssatz Kinder: " + (hi.unterscheidung || "keiner (weniger als zwei Kinder oder Beschreibung fehlt)"));
+    // NEU (2026-09-21c): je Held der Einmal-Satz mit exklusivem Merkmal. Bilder aus 2026-09-21b
+    // haben das Feld nicht -- dann steht das ausdruecklich da.
+    if (Array.isArray(hi.einmal)) { z.push("  Einmal-Sätze je Held:"); hi.einmal.forEach((t) => z.push("    " + t)); }
+    else z.push("  Einmal-Sätze je Held: keine (Bild vor Fassung 2026-09-21c)");
     return z.join("\n");
   }
   const heldenBlock = heldenText(image);
