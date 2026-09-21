@@ -1435,12 +1435,19 @@ function buildDebugDetails(image) {
   // Lauf steht als FEHLER da und zaehlt nirgends mit.
   function richterText(bild) {
     const r = bild.richter;
-    if (!r) return null;
+    // GEAENDERT (20.09.2026, Nutzer-Befund): der Abschnitt wird NIE weggelassen. Fehlt der
+    // Eintrag, sagt das Panel warum er fehlen kann, statt still zu schweigen.
+    if (!r) {
+      return "D-Richter: kein Eintrag.\n" +
+        "  Entweder wurde dieses Bild vor dem Einbau des Richters erzeugt, oder der Schalter\n" +
+        "  /app?richter=an war nicht gesetzt, oder die App lief auf einem aelteren Stand.\n" +
+        "  Bilder ab Prompt-Fassung 2026-09-20d tragen hier immer einen Eintrag.";
+    }
     const zeilen = [];
     const kurz = (u) => u ? ("…" + String(u).slice(-16)) : "—";
     const label = { einig: "EINIG", knapp: "KNAPP — Rückfall auf die Prüfung",
       kein_urteil: "KEIN URTEIL — Rückfall auf die Prüfung",
-      nicht_gefragt: "nicht gefragt" }[r.ergebnis] || r.ergebnis;
+      nicht_gefragt: "nicht gefragt", aus: "AUS" }[r.ergebnis] || r.ergebnis;
     zeilen.push("D-Richter (" + (r.modell || "?") + "): " + label);
     (r.urteile || []).forEach((u, i) => {
       if (u.fehler) { zeilen.push("  Lauf " + (i + 1) + ": FEHLER — " + u.fehler); return; }
@@ -1449,6 +1456,10 @@ function buildDebugDetails(image) {
       if (u.begruendung) zeilen.push("           " + u.begruendung);
     });
     if (r.fehler && !(r.urteile || []).some((u) => u.fehler)) zeilen.push("  " + r.fehler);
+    // Der Schluessel ist die haeufigste Ursache fuer ein ausbleibendes Urteil, und von aussen
+    // nicht zu sehen. Der Server meldet nur, OB er da ist -- nie seinen Wert.
+    if (r.schluesselVorhanden === false) zeilen.push("  ANTHROPIC_API_KEY: in Vercel NICHT gesetzt.");
+    else if (r.schluesselVorhanden === true) zeilen.push("  ANTHROPIC_API_KEY: gesetzt.");
     if (r.tokenEin || r.tokenAus) {
       zeilen.push("  Verbrauch: " + r.tokenEin + " Eingabe-, " + r.tokenAus + " Ausgabe-Token");
     }

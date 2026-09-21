@@ -276,14 +276,30 @@ async function advanceSceneJob(job, { FAL_KEY, ANTHROPIC_KEY }) {
     } else {
       // NEU (20.09.2026): der D-Richter, bevor entschieden wird. Er greift NUR bei Gleichstand der
       // schweren Verstoesse (siehe richterGreift()) und nur, wenn der Schalter gesetzt ist.
-      if (next.richter && !next.richterErgebnis) {
-        const paar = richterGreift(usable);
-        if (paar) {
-          next.richterErgebnis = await richterUrteil(next.richterRefUrl, paar[0], paar[1], ANTHROPIC_KEY);
+      // GEAENDERT (20.09.2026): der Eintrag entsteht IMMER, auch wenn der Richter gar nicht
+      // gefragt wurde. Vorher fehlte der Abschnitt im Panel dann einfach -- und ein fehlender
+      // Abschnitt sagt nicht, WARUM er fehlt. Genau daran ist der Body-Fehler oben eine Stunde
+      // lang unentdeckt geblieben. Ein ausdrueckliches "aus" ist eine Auskunft, ein Loch nicht.
+      if (!next.richterErgebnis) {
+        const grund = { modell: RICHTER_MODELL, urteile: [], gewaehlteUrl: null,
+          tokenEin: 0, tokenAus: 0, schluesselVorhanden: !!ANTHROPIC_KEY };
+        if (!next.richter) {
+          next.richterErgebnis = Object.assign(grund, { ergebnis: "aus",
+            fehler: "Der Schalter war nicht gesetzt — ohne /app?richter=an entscheidet die Pruefung." });
+        } else if (!ANTHROPIC_KEY) {
+          next.richterErgebnis = Object.assign(grund, { ergebnis: "kein_urteil",
+            fehler: "ANTHROPIC_API_KEY ist in der Vercel-Umgebung NICHT gesetzt — der Richter konnte nicht gefragt werden." });
+          await logFalError("richter", "ANTHROPIC_API_KEY fehlt in der Vercel-Umgebung.");
         } else {
-          next.richterErgebnis = { modell: RICHTER_MODELL, urteile: [], ergebnis: "nicht_gefragt",
-            gewaehlteUrl: null, tokenEin: 0, tokenAus: 0,
-            fehler: "Die Kandidaten unterscheiden sich bei den schweren Verstoessen — es entscheidet wie bisher die Pruefung." };
+          const paar = richterGreift(usable);
+          if (paar) {
+            next.richterErgebnis = Object.assign(
+              await richterUrteil(next.richterRefUrl, paar[0], paar[1], ANTHROPIC_KEY),
+              { schluesselVorhanden: true });
+          } else {
+            next.richterErgebnis = Object.assign(grund, { ergebnis: "nicht_gefragt",
+              fehler: "Die Kandidaten unterscheiden sich bei den schweren Verstoessen — es entscheidet wie bisher die Pruefung." });
+          }
         }
       }
       finalizeJob(next, usable);
