@@ -185,6 +185,17 @@ sondern welches Feld zuerst geprüft wurde — `scale_est` und `depth_ratio` zie
 
 ## 4. Auswahl unter den Kandidaten
 
+### GÜLTIG (Produktentscheidung des Nutzers, 21.09.2026): die Kundin entscheidet
+
+> „Die automatische Auswahl bestimmt nur noch den Favoriten. Die Entscheidung trifft die Kundin."
+
+Anlass: In fast jeder Szene gibt es einen guten Kandidaten, aber die automatische Auswahl trifft ihn
+oft nicht (Heldenzählung rund 70 %, gemini-Stilprüfung blind, Stil-Tor nur grobe Brüche, Richter
+rund 4 von 5). Die Verfeinerung der Auswahl ist damit beendet; keine neuen Messreihen und keine
+neuen Testschalter, bis die Kandidatenwahl steht. Plan: `plan-kandidatenwahl-2026-09-21.md`.
+Die Einträge darunter beschreiben, wie der **Favorit** heute zustande kommt; sie werden mit dem
+Bau der Kandidatenwahl angepasst (Favorit künftig nur noch durch den Richter).
+
 ### GÜLTIG seit 21.09.2026 (Prüf-Fassung `2026-09-21d`): `heroes_ok` mittel statt schwer
 
 Dieselbe Regel wie für `heroes_found`: **ein Prüffeld darf erst „schwer" sein, wenn gemessen ist,
