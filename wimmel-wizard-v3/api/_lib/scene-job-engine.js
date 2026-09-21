@@ -256,7 +256,7 @@ async function advanceSceneJob(job, { FAL_KEY, ANTHROPIC_KEY }) {
       c.stilTor = ergebnisse[i];
       if (c.stilTor.urteil === "nein" && c.severity) {
         c.severity.heavy = (c.severity.heavy || 0) + 1;
-        c.severity.gruende = (c.severity.gruende || []).concat(["Stil-Tor (" + c.stilTor.modell + "): NEIN, SCHWER — " + (c.stilTor.begruendung || "")]);
+        c.severity.gruende = (c.severity.gruende || []).concat(["Stil-Tor (" + c.stilTor.modell + "): NEIN, SCHWER — " + (c.stilTor.grund || "") + (c.stilTor.stil === "nein" ? " — " + (c.stilTor.begruendung || "") : "")]);
         c.violations = (c.violations || 0) + 1;
       }
     });

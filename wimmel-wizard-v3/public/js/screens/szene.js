@@ -1629,8 +1629,16 @@ function buildDebugDetails(image) {
     const t = k && k.stilTor;
     if (!t) return "Stil-Tor: nicht gelaufen (Schalter /app?stiltor=an war aus, oder Bild vor 2026-09-21e)";
     if (!t.urteil) return "Stil-Tor: NICHT GEPRÜFT — " + (t.fehler || "unbekannter Fehler") + " (zählt weder als ja noch als nein)";
-    return "Stil-Tor (" + (t.modell || "?") + "): " + (t.urteil === "nein" ? "NEIN — SCHWER" : "ja") + " — " + (t.begruendung || "") +
-      (t.tokenEin ? "  [" + t.tokenEin + "/" + t.tokenAus + " Token]" : "");
+    // GEAENDERT (2026-09-21g): zwei Teile -- A Stil ja/nein, B Kopfanteil als Zahl gegen die
+    // Referenz. Aeltere Eintraege (21e/21f) haben nur urteil + begruendung.
+    const kw = t.kopf;
+    const zahl = (v) => (v === null || v === undefined) ? "—" : Number(v).toFixed(2);
+    const teilB = kw ? "\n    Teil B Kopfanteil: Erwachsene " + zahl(kw.bildErw) + " (Referenz " + zahl(kw.refErw) + ", ×" + zahl(kw.verhErw) + "), Kinder " +
+      zahl(kw.bildKind) + " (Referenz " + zahl(kw.refKind) + ", ×" + zahl(kw.verhKind) + ") → Wert " + zahl(kw.wert) +
+      (t.kopfGrenze === null || t.kopfGrenze === undefined ? " (Grenze noch nicht kalibriert)" : " (Grenze " + t.kopfGrenze + ")") : "";
+    return "Stil-Tor (" + (t.modell || "?") + "): " + (t.urteil === "nein" ? "NEIN — SCHWER" : "ja") +
+      (t.grund ? " — " + t.grund : "") + (t.stil ? "\n    Teil A Stil: " + t.stil : "") + " — " + (t.begruendung || "") + teilB +
+      (t.tokenEin ? "\n    [" + t.tokenEin + "/" + t.tokenAus + " Token]" : "");
   }
 
   box.textContent =

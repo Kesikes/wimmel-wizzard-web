@@ -197,32 +197,90 @@ function richterWarum(kandidaten) {
 // des Nutzers (Szenen 22-27): 0 Fehlalarme, stabil, aber 24 K2 und 27 K2 durchgerutscht -- beide
 // "komplett anderer Stil: kleine Koepfe, normale Comic-Proportionen, die Helden wirken erwachsen".
 // Die Frage nannte bisher nur Gesicht und Kontur, die Kopfgroesse gar nicht.
-const STIL_TOR_FRAGE = "Bild 1 ist die STILREFERENZ, Bild 2 ist ein neu erzeugtes Bild. Passt der ZEICHENSTIL der Figuren in Bild 2 zur Referenz? Massgeblich ist nur, wie die MENSCHEN gezeichnet sind: dicke schwarze Kontur, flache Farbflaechen, runde Koepfe, Punktaugen, ein einzelner senkrechter Nasenstrich, kein Mund, keine plastische Schattierung im Gesicht. NICHT massgeblich: Licht und Schatten am Boden, Verlaeufe in Himmel oder Landschaft, Motiv, Kulisse, Farben, Anzahl der Figuren, Tiere. Antworte \"nein\" nur bei einem KLAREN Stilbruch: wenn viele Figuren anders gezeichnet sind als in der Referenz -- zum Beispiel fotoartig, plastisch modelliert, mit Muendern, im Anime-, Manga- oder glatten 3D-Stil. Einzelne Abweichungen an wenigen Figuren sind noch ein \"ja\". Achte ausserdem ausdruecklich auf die PROPORTIONEN: In der Referenz haben ALLE Menschen, Kinder wie Erwachsene, einen GROSSEN RUNDEN KOPF im Verhaeltnis zum Koerper. Haben die Menschen in Bild 2 stattdessen kleine Koepfe mit normalen Comic- oder Menschenproportionen -- so dass die Erwachsenen wie gewoehnlich gezeichnete Erwachsene wirken --, dann passt der Stil NICHT, auch wenn Kontur und Gesichter stimmen. Antworte NUR als JSON: {\"passt\": \"ja\" oder \"nein\", \"begruendung\": \"ein bis zwei Saetze\"}.";
+// UMGEBAUT (21.09.2026, 2026-09-21g): das Stil-Tor hat jetzt ZWEI Teile, beide in EINEM Aufruf.
+// Messung davor (Szenen 22-27, Urteil des Nutzers, 2 Laeufe):
+//   - Frage ohne Proportionen (21e): 0 Fehlalarme, aber 24 K2 und 27 K2 durchgerutscht.
+//   - Frage MIT "grosse Koepfe" im Ja/Nein (21f): alle 8 Brueche erkannt, aber 10 Fehlalarme von
+//     16 guten, stabil -- Claudes Grenze fuer "gross" liegt systematisch strenger als die des
+//     Nutzers.
+// Nach dem Grundsatz "das Modell misst, der Code entscheidet":
+//   a) die ALTE Stilfrage (Kontur, Farbflaechen, Gesichter) als Ja/Nein -- sie hatte 0 Fehlalarme;
+//   b) eine ZAHL: der Kopfanteil an der Koerperhoehe, je fuer die fuenf groessten Erwachsenen und
+//      Kinder, im Kandidaten UND im Referenzbild. Der Code bildet das Verhaeltnis Kandidat/Referenz
+//      -- so hebt sich ein gleichmaessiger Schaetzfehler des Modells heraus.
+// Durchgefallen = a) nein ODER b) unter STIL_TOR_KOPF_GRENZE. Die Grenze wird an den Urteilen des
+// Nutzers kalibriert (dev-tools/stiltor-messen.js). Solange sie null ist, wird b) nur GEMESSEN und
+// entscheidet nichts -- eine unkalibrierte Grenze waere geraten, und geraten sieht im Code aus wie
+// gemessen.
+const STIL_TOR_FRAGE = "Bild 1 ist die STILREFERENZ, Bild 2 ist ein neu erzeugtes Bild. Beantworte zwei Dinge. " +
+  "TEIL A, STIL: Passt der ZEICHENSTIL der Figuren in Bild 2 zur Referenz? Massgeblich ist nur, wie die MENSCHEN gezeichnet sind: dicke schwarze Kontur, flache Farbflaechen, runde Koepfe, Punktaugen, ein einzelner senkrechter Nasenstrich, kein Mund, keine plastische Schattierung im Gesicht. NICHT massgeblich: Licht und Schatten am Boden, Verlaeufe in Himmel oder Landschaft, Motiv, Kulisse, Farben, Anzahl der Figuren, Tiere, und bei diesem Teil auch NICHT die Kopfgroesse. Antworte \"nein\" nur bei einem KLAREN Stilbruch: wenn viele Figuren anders gezeichnet sind als in der Referenz -- zum Beispiel fotoartig, plastisch modelliert, mit Muendern, im Anime-, Manga- oder glatten 3D-Stil. Einzelne Abweichungen an wenigen Figuren sind noch ein \"ja\". " +
+  "TEIL B, MESSUNG, kein Urteil: Schaetze fuer JEDES der beiden Bilder getrennt den Kopfanteil an der Koerperhoehe, also Kopfhoehe (Scheitel bis Kinn) geteilt durch die ganze Figurenhoehe (Scheitel bis Fusssohle), als Dezimalzahl, z. B. 0.25. Nimm dafuer die FUENF GROESSTEN ERWACHSENEN und getrennt die FUENF GROESSTEN KINDER, die vollstaendig zu sehen sind. Sind es weniger, nimm so viele wie da sind; gibt es keine, gib eine leere Liste. Rate nicht nach dem Gesamteindruck, sondern schaetze jede Figur einzeln. " +
+  "Antworte NUR als JSON: {\"passt\": \"ja\" oder \"nein\", \"begruendung\": \"ein bis zwei Saetze zu Teil A\", \"ref_erwachsene\": [Zahlen], \"ref_kinder\": [Zahlen], \"bild_erwachsene\": [Zahlen], \"bild_kinder\": [Zahlen]}.";
 const STIL_TOR_VERSUCHE = 2;
+const STIL_TOR_MAX_TOKENS = 4000;
+// Grenze fuer das Verhaeltnis "Kopfanteil Kandidat / Kopfanteil Referenz" (kleinster Wert aus
+// Erwachsenen und Kindern). null = noch nicht kalibriert, Teil B entscheidet nichts.
+const STIL_TOR_KOPF_GRENZE = null;
+
+function median(liste) {
+  const z = (liste || []).map(Number).filter((v) => isFinite(v) && v > 0 && v < 1).sort((a, b) => a - b);
+  if (!z.length) return null;
+  const m = Math.floor(z.length / 2);
+  return z.length % 2 ? z[m] : (z[m - 1] + z[m]) / 2;
+}
+// kopfWerte(p): aus den vier Listen die Mediane und die Verhaeltnisse Kandidat/Referenz. Fehlt eine
+// Seite (keine Kinder im Bild, leere Liste), bleibt das Verhaeltnis null -- NIE 0.
+function kopfWerte(p) {
+  const w = {
+    refErw: median(p.ref_erwachsene), refKind: median(p.ref_kinder),
+    bildErw: median(p.bild_erwachsene), bildKind: median(p.bild_kinder),
+  };
+  w.verhErw = (w.refErw && w.bildErw) ? w.bildErw / w.refErw : null;
+  w.verhKind = (w.refKind && w.bildKind) ? w.bildKind / w.refKind : null;
+  const vorhanden = [w.verhErw, w.verhKind].filter((v) => v !== null);
+  w.wert = vorhanden.length ? Math.min.apply(null, vorhanden) : null;
+  return w;
+}
 
 async function einStilTor(referenzUrl, kandUrl, KEY) {
   const resp = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "x-api-key": KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
     body: JSON.stringify({
-      model: RICHTER_MODELL, max_tokens: MAX_TOKENS,
+      model: RICHTER_MODELL, max_tokens: STIL_TOR_MAX_TOKENS,
       messages: [{ role: "user", content: [bild(referenzUrl), bild(kandUrl), { type: "text", text: STIL_TOR_FRAGE }] }],
     }),
   });
   if (!resp.ok) throw new Error("Anthropic " + resp.status + ": " + (await resp.text()).slice(0, 200));
   const d = await resp.json();
-  if (d.stop_reason === "max_tokens") throw new Error("Antwort bei max_tokens=" + MAX_TOKENS + " abgeschnitten.");
+  if (d.stop_reason === "max_tokens") throw new Error("Antwort bei max_tokens=" + STIL_TOR_MAX_TOKENS + " abgeschnitten.");
   const text = (d.content || []).map((t) => t.text || "").join("");
   const m = String(text).match(/\{[\s\S]*\}/);
   if (!m) throw new Error("Antwort ohne lesbares JSON: " + String(text).slice(0, 150));
   const p = JSON.parse(m[0]);
   if (p.passt !== "ja" && p.passt !== "nein") throw new Error("Unerwarteter Wert in passt: " + JSON.stringify(p.passt));
-  return { urteil: p.passt, begruendung: String(p.begruendung || "").replace(/\s+/g, " ").slice(0, 300),
+  return { stil: p.passt, begruendung: String(p.begruendung || "").replace(/\s+/g, " ").slice(0, 300),
+    kopf: kopfWerte(p),
+    roh: { ref_erwachsene: p.ref_erwachsene || [], ref_kinder: p.ref_kinder || [], bild_erwachsene: p.bild_erwachsene || [], bild_kinder: p.bild_kinder || [] },
     tokenEin: (d.usage && d.usage.input_tokens) || 0, tokenAus: (d.usage && d.usage.output_tokens) || 0 };
 }
 
-async function stilTorUrteil(referenzUrl, kandUrl, KEY) {
-  const e = { modell: RICHTER_MODELL, urteil: null, begruendung: null, fehler: null, versuche: 0, tokenEin: 0, tokenAus: 0 };
+// entscheide(stil, kopf, grenze): der Code entscheidet. Gibt { urteil, grund } zurueck.
+function stilTorEntscheid(stil, kopf, grenze) {
+  if (stil === "nein") return { urteil: "nein", grund: "Teil A: Stilbruch" };
+  if (grenze !== null && grenze !== undefined && kopf && kopf.wert !== null && kopf.wert < grenze) {
+    return { urteil: "nein", grund: "Teil B: Kopfanteil " + kopf.wert.toFixed(2) + " x Referenz, unter der Grenze " + grenze };
+  }
+  const bInfo = !kopf || kopf.wert === null ? "Teil B nicht messbar"
+    : (grenze === null || grenze === undefined ? "Teil B " + kopf.wert.toFixed(2) + " x Referenz (Grenze noch nicht kalibriert, entscheidet nichts)"
+      : "Teil B " + kopf.wert.toFixed(2) + " x Referenz, ueber der Grenze " + grenze);
+  return { urteil: "ja", grund: "Teil A ja; " + bInfo };
+}
+
+async function stilTorUrteil(referenzUrl, kandUrl, KEY, grenze) {
+  const g = grenze === undefined ? STIL_TOR_KOPF_GRENZE : grenze;
+  const e = { modell: RICHTER_MODELL, urteil: null, stil: null, kopf: null, kopfGrenze: g, grund: null,
+    begruendung: null, fehler: null, versuche: 0, tokenEin: 0, tokenAus: 0 };
   if (!KEY) { e.fehler = "ANTHROPIC_API_KEY ist in der Vercel-Umgebung NICHT gesetzt."; return e; }
   if (!referenzUrl) { e.fehler = "Kein Referenzbild uebergeben."; return e; }
   for (let i = 0; i < STIL_TOR_VERSUCHE; i++) {
@@ -230,7 +288,8 @@ async function stilTorUrteil(referenzUrl, kandUrl, KEY) {
     try {
       const u = await einStilTor(referenzUrl, kandUrl, KEY);
       e.tokenEin += u.tokenEin; e.tokenAus += u.tokenAus;
-      e.urteil = u.urteil; e.begruendung = u.begruendung; e.fehler = null;
+      const ent = stilTorEntscheid(u.stil, u.kopf, g);
+      Object.assign(e, { stil: u.stil, kopf: u.kopf, roh: u.roh, begruendung: u.begruendung, urteil: ent.urteil, grund: ent.grund, fehler: null });
       return e;
     } catch (err) {
       e.fehler = err && err.message ? err.message : String(err);
@@ -240,4 +299,4 @@ async function stilTorUrteil(referenzUrl, kandUrl, KEY) {
   return e;
 }
 
-module.exports = { RICHTER_MODELL, richterUrteil, richterGreift, richterWarum, stilTorUrteil, STIL_TOR_FRAGE };
+module.exports = { RICHTER_MODELL, richterUrteil, richterGreift, richterWarum, stilTorUrteil, stilTorEntscheid, kopfWerte, STIL_TOR_FRAGE, STIL_TOR_KOPF_GRENZE };

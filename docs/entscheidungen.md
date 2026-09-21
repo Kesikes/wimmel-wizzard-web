@@ -420,6 +420,14 @@ Die Bild-Fassung trägt dann den Zusatz „· Helden NEU".
   Comic- oder Menschenproportionen = passt nicht. Messung davor (Szenen 22–27, Urteil des Nutzers
   nach Korrektur von 22 K1/K2): 0 Fehlalarme, stabil, 20 von 24 = 83 %; durchgerutscht 24 K2 und
   27 K2.
+- **Stil-Tor seit `2026-09-21g` in zwei Teilen.** Messung der Kopffrage im Ja/Nein (21f): alle 8
+  Bruch-Urteile erkannt, aber 10 Fehlalarme von 16 guten, stabil — Claudes Grenze für „groß" liegt
+  systematisch strenger. Jetzt nach dem Grundsatz „das Modell misst, der Code entscheidet":
+  **A** die alte Stilfrage ohne Kopfgröße (ja/nein, hatte 0 Fehlalarme), **B** eine Zahl — Kopfanteil
+  an der Körperhöhe für die fünf größten Erwachsenen und Kinder, im Kandidaten UND im Referenzbild;
+  der Code bildet das Verhältnis Kandidat/Referenz. Durchgefallen = A nein ODER B unter
+  `STIL_TOR_KOPF_GRENZE`. Die Grenze ist **null, bis sie am Urteil des Nutzers kalibriert ist** —
+  bis dahin wird B nur gemessen und im Panel gezeigt.
 - Ein leerer Wert bei einem der Schalter beendet den Testmodus wie bisher ganz.
 
 ### Die drei Schalter
