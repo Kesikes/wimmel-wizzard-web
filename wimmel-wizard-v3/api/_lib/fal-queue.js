@@ -196,7 +196,15 @@ const VIOLATION_SEVERITY = {
   // (Verhaeltnis 1,0) mit grossem Abstand von allen gelungenen Bildern (2,5 bis 4,5), ohne einen
   // einzigen Fehlalarm. style_ok bleibt "mittel", solange es ueberwiegend den Weihnachtsmann und
   // normale Tiere meldet statt echter Stilbrueche.
-  heroes_ok: "heavy", depth_ratio: "heavy",
+  // HERABGESTUFT (21.09.2026, 2026-09-21d, Nutzer-Entscheidung): heroes_ok von "heavy" auf "medium".
+  // Die Heldenmessung vom 21.09. (docs/ref/helden-ergebnis.txt, 12 Kandidaten x 3 Laeufe gegen die
+  // Zaehlung des Nutzers) hat die Kleidungspruefung bei 64 % Treffern gesehen -- die "95 %" von oben
+  // stammen aus einer Zeit, in der heroes_ok nur "ist die Heldin da?" fragte. Es gilt dieselbe
+  // Regel wie fuer heroes_found: schwer erst ab 90 % gemessener Uebereinstimmung. Anlass: Szene mit
+  // 2026-09-21c -- K1 verlor wegen heroes_ok false (Pullover-Farbe) gegen K2 mit 10/10 plastischen
+  // Gesichtern und 10/10 Muendern, und der Richter wurde nicht gefragt, weil nur K2 ohne schweren
+  // Verstoss war.
+  heroes_ok: "medium", depth_ratio: "heavy",
   style_ok: "medium",
   // mittel (Szenen-Verify)
   // GEAENDERT (17.09.2026, nach dem ersten Kalibrierungslauf): "density" (dreiwertig) heisst jetzt

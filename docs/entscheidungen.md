@@ -152,6 +152,27 @@ sondern welches Feld zuerst geprüft wurde — `scale_est` und `depth_ratio` zie
 
 ## 4. Auswahl unter den Kandidaten
 
+### GÜLTIG seit 21.09.2026 (Prüf-Fassung `2026-09-21d`): `heroes_ok` mittel statt schwer
+
+Dieselbe Regel wie für `heroes_found`: **ein Prüffeld darf erst „schwer" sein, wenn gemessen ist,
+dass es in mindestens 90 % der Fälle mit dem Blick des Nutzers übereinstimmt.** Die Heldenmessung
+vom 21.09. (`docs/ref/helden-ergebnis.txt`, 12 Kandidaten × 3 Läufe gegen `wahrheit.tsv`) hat die
+Kleidungsprüfung `heroes_ok` bei **64 %** gesehen. Die frühere Angabe „rund 95 %" stammt aus der
+Zeit, als das Feld nur fragte, ob die Heldin überhaupt da ist.
+
+Anlass (erste Szene mit Bild-Fassung `2026-09-21c`): K1 verlor wegen `heroes_ok false`
+(Pullover-Farbe) gegen K2 mit 10 von 10 plastischen Gesichtern und 10 von 10 Mündern. Weil nur K2
+ohne schweren Verstoß war, wurde der Richter nicht gefragt.
+
+Folgen:
+- Haben beide Kandidaten keinen schweren Verstoß, entscheidet bei `/app?richter=an` der Richter —
+  sofern beide denselben Heldenbefund haben (Abschnitt „Heldenfehler vor den übrigen mittleren").
+- Ein `heroes_ok false` löst **keinen dritten Kandidaten** mehr aus.
+- Nachgerechnet an allen gespeicherten Szenen bis Szene 21 (`dev-tools/auswahl-nachrechnen.js`,
+  ohne Aufrufe): die Wahl nach der Prüfung allein ändert sich in **keiner**; in den Szenen 10, 20
+  und 21 würde neu der Richter gefragt. Ein dritter Kandidat wäre nirgends weggefallen.
+- Zurück auf schwer, sobald eine Messung ≥ 90 % zeigt.
+
 ### GÜLTIG seit 21.09.2026 (Fassung `2026-09-21a`): Heldenfehler vor den übrigen mittleren
 
 `compareSeverity()` vergleicht jetzt **schwer → Heldenfehler → mittel → leicht**. Ein Kandidat mit

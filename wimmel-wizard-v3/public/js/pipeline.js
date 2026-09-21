@@ -1372,7 +1372,7 @@ var ACTIVE_SCENE_PHASE = "phase1";
 // in den Kompositionstypen, aendert sich die Pruefsumme -- ohne dass jemand daran denken muss.
 // Das von Hand gepflegte Datum bleibt als lesbare Ergaenzung daneben stehen; verlassen tun wir uns
 // auf die Pruefsumme.
-var PROMPT_LABEL = "2026-09-21c";
+var PROMPT_LABEL = "2026-09-21d";
 
 // FNV-1a, 32 Bit. Bewusst kein crypto.subtle: das ist asynchron, und diese Kennung soll ohne
 // Umstand synchron beim Laden feststehen. Kollisionen sind hier belanglos -- es geht nicht um
@@ -1490,7 +1490,7 @@ var VERIFY_MAX_VERSUCHE = 2;
 // Kandidat --, bleibt die Pruefsumme sonst gleich, obwohl die Pruefung sich anders verhaelt.
 // Diese Zeichenkette ist der Platz, an dem so eine Aenderung sichtbar wird. Sie gehoert bei jeder
 // Aenderung an der Pruef-LOGIK hochgezaehlt, auch wenn der Prompt gleich bleibt.
-var PRUEF_VERHALTEN = "2026-09-21a: Heldenfehler entscheiden bei der Auswahl direkt nach den schweren Verstoessen, vor den uebrigen mittleren (loesen aber keinen dritten Kandidaten aus); ein Wiederholungsversuch bei unlesbarer Antwort, danach ungeprueft statt schlechtester Kandidat; D-Richter (claude-sonnet-5, zwei Aufrufe mit getauschter Reihenfolge) entscheidet bei Gleichstand der schweren Verstoesse, hinter /app?richter=an";
+var PRUEF_VERHALTEN = "2026-09-21d: heroes_ok mittel statt schwer (Kleidungspruefung 64 %, Regel: schwer erst ab 90 %); 2026-09-21a: Heldenfehler entscheiden bei der Auswahl direkt nach den schweren Verstoessen, vor den uebrigen mittleren (loesen aber keinen dritten Kandidaten aus); ein Wiederholungsversuch bei unlesbarer Antwort, danach ungeprueft statt schlechtester Kandidat; D-Richter (claude-sonnet-5, zwei Aufrufe mit getauschter Reihenfolge) entscheidet bei Gleichstand der schweren Verstoesse, hinter /app?richter=an";
 
 // SHADED_MAX_OF_TEN: wie viele der zehn groessten Gesichter plastisch gezeichnet sein duerfen.
 // EINS, nicht zwei oder drei -- Nutzer-Entscheidung nach folgender Ueberlegung: der gewuenschte
@@ -1532,7 +1532,15 @@ var VIOLATION_SEVERITY = {
   // style_ok bleibt "mittel": es hat im dritten Lauf neun Mal angeschlagen, davon vier Mal auf den
   // Weihnachtsmann und vier Mal auf ganz normale Tiere. Solange das so ist, darf es kein Geld
   // ausgeben.
-  heroes_ok: "heavy", depth_ratio: "heavy",
+  // HERABGESTUFT (21.09.2026, 2026-09-21d, Nutzer-Entscheidung): heroes_ok von "heavy" auf "medium".
+  // Die Heldenmessung vom 21.09. (docs/ref/helden-ergebnis.txt, 12 Kandidaten x 3 Laeufe gegen die
+  // Zaehlung des Nutzers) hat die Kleidungspruefung bei 64 % Treffern gesehen -- die "95 %" von oben
+  // stammen aus einer Zeit, in der heroes_ok nur "ist die Heldin da?" fragte. Es gilt dieselbe
+  // Regel wie fuer heroes_found: schwer erst ab 90 % gemessener Uebereinstimmung. Anlass: Szene mit
+  // 2026-09-21c -- K1 verlor wegen heroes_ok false (Pullover-Farbe) gegen K2 mit 10/10 plastischen
+  // Gesichtern und 10/10 Muendern, und der Richter wurde nicht gefragt, weil nur K2 ohne schweren
+  // Verstoss war.
+  heroes_ok: "medium", depth_ratio: "heavy",
   style_ok: "medium",
   // mittel
   // GEAENDERT (17.09.2026, nach dem ersten Kalibrierungslauf): "density" heisst jetzt
