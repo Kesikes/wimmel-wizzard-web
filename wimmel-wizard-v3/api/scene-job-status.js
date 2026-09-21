@@ -39,6 +39,16 @@ module.exports = async (req, res) => {
     return;
   }
   if (!job) {
+    // NEU (21.09.2026): der Browser legt die jobId jetzt ab, BEVOR der Start-Aufruf zurueck ist
+    // (siehe scene-job-start.js). Fragt er in diesem Fenster nach -- etwa nach einem Neuladen --,
+    // gibt es den Datensatz noch nicht, die Start-Sperre aber schon. Dann "startet noch" statt
+    // "unbekannt", sonst wuerde der Browser einen Auftrag aufgeben, der gerade anlaeuft.
+    let startetNoch = null;
+    try { startetNoch = await kvGetJson("scenejob:" + jobId + ":start"); } catch (e) { startetNoch = null; }
+    if (startetNoch != null) {
+      res.status(200).json({ job: { jobId, status: "starting", candidates: [] } });
+      return;
+    }
     res.status(404).json({ error: "Unbekannte oder abgelaufene jobId." });
     return;
   }

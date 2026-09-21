@@ -229,7 +229,11 @@ async function parseJsonResponse(resp) {
       return JSON.parse(raw);
     } catch (e) {
       const snippet = raw.trim().slice(0, 180) || "(leere Antwort)";
-      throw new Error("Antwort war kein gültiges JSON (Status " + resp.status + "): " + snippet);
+      // NEU (21.09.2026): Status mitgeben -- eine HTML-Fehlerseite von Vercel (504 bei zu langem
+      // Durchlauf) muss als Server-Aussetzer erkennbar bleiben, nicht als endgueltiger Fehler.
+      const err = new Error("Antwort war kein gültiges JSON (Status " + resp.status + "): " + snippet);
+      err.httpStatus = resp.status;
+      throw err;
     }
   }
   try {
@@ -3328,7 +3332,8 @@ async function withTransientRetry(fn, opts) {
     try {
       return await fn();
     } catch (e) {
-      if (!isTransientNetworkError(e) || attempt >= retries) throw e;
+      const voruebergehend = opts.istVoruebergehend ? opts.istVoruebergehend(e) : isTransientNetworkError(e);
+      if (!voruebergehend || attempt >= retries) throw e;
       attempt++;
       if (opts.onRetry) opts.onRetry(attempt);
       await waitWithVisibilityWakeup(delayMs);
@@ -3408,7 +3413,14 @@ async function runCharacterJobPolling(prompt, opts) {
    nutzt diesen Mechanismus jetzt als REGULÄREN Weg, composeSceneImage() bleibt nur noch als
    eigenstaendig getestete Referenz/Fallback-Funktion erhalten (siehe dortiger Kommentar), wird aber
    im Produktpfad nicht mehr aufgerufen. */
-async function startSceneJob({ instruction, verifyPrompt, editImageUrl, styleRefUrls, heroRefUrls, figuresBand, richter, richterRefUrl }) {
+// NEU (21.09.2026): Szenen-jobId im Browser erzeugen. Format muss zur Pruefung in
+// api/scene-job-start.js passen (sj_<zeit>_<zufall>, nur a-z0-9).
+function neueSceneJobId() {
+  const zufall = (Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)).replace(/[^a-z0-9]/g, "").slice(0, 10);
+  return "sj_" + Date.now().toString(36) + "_" + (zufall.length >= 4 ? zufall : "x0x0" + zufall);
+}
+
+async function startSceneJob({ jobId, instruction, verifyPrompt, editImageUrl, styleRefUrls, heroRefUrls, figuresBand, richter, richterRefUrl }) {
   // BUGFIX (20.09.2026): richter und richterRefUrl standen in der Signatur, aber NICHT im Body.
   // Der Schalter /app?richter=an hat dadurch gar nichts getan -- der Server sah nie, dass er
   // gesetzt war, und das Panel zeigte folgerichtig keinen Richter-Abschnitt. Eine Angabe, die man
@@ -3416,11 +3428,20 @@ async function startSceneJob({ instruction, verifyPrompt, editImageUrl, styleRef
   // aus, als waere sie angekommen.
   const resp = await fetch("/api/scene-job-start", {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ instruction, verifyPrompt, editImageUrl, styleRefUrls, heroRefUrls, figuresBand,
+    body: JSON.stringify({ jobId: jobId || null, instruction, verifyPrompt, editImageUrl, styleRefUrls, heroRefUrls, figuresBand,
       richter: !!richter, richterRefUrl: richterRefUrl || null }),
   });
   const data = await parseJsonResponse(resp);
-  if (!resp.ok || data.error) throw new Error(data.error || ("Start-Fehler " + resp.status));
+  if (!resp.ok || data.error) {
+    // NEU (21.09.2026): eine echte Server-Antwort mit Fehler heisst, der Auftrag wurde NICHT
+    // angelegt (die Start-Sperre wird dann serverseitig wieder freigegeben) -- der Aufrufer darf
+    // seinen Merker loeschen. Ein reiner Verbindungsabbruch (TypeError aus fetch) kommt hier gar
+    // nicht an und bleibt ungeklaert: dort weiss niemand, ob der Auftrag angekommen ist.
+    const err = new Error(data.error || ("Start-Fehler " + resp.status));
+    err.httpStatus = resp.status;
+    err.nichtGestartet = true;
+    throw err;
+  }
   if (!data.jobId) throw new Error("Start-Antwort hatte keine jobId.");
   return data.jobId;
 }
@@ -3428,7 +3449,17 @@ async function startSceneJob({ instruction, verifyPrompt, editImageUrl, styleRef
 async function pollSceneJobOnce(jobId) {
   const resp = await fetch("/api/scene-job-status?jobId=" + encodeURIComponent(jobId));
   const data = await parseJsonResponse(resp);
-  if (!resp.ok || data.error) throw new Error(data.error || ("Status-Fehler " + resp.status));
+  if (!resp.ok || data.error) {
+    // NEU (21.09.2026): nur 404 ("unbekannt oder abgelaufen") ist endgueltig. Alles andere -- vor
+    // allem 502/504, wenn ein Fortschritts-Durchlauf mit synchroner Pruefung zu lange dauert --
+    // sagt nichts darueber, ob der Auftrag auf dem Server weiterlaeuft. Bisher loeschte der
+    // Browser bei JEDEM solchen Fehler seinen Merker, und das naechste Neuladen startete ein
+    // neues, bezahltes Bild, waehrend das alte auf dem Server fertig wurde.
+    const err = new Error(data.error || ("Status-Fehler " + resp.status));
+    err.httpStatus = resp.status;
+    if (resp.status === 404) err.jobEndgueltig = true;
+    throw err;
+  }
   if (!data.job) throw new Error("Status-Antwort hatte keinen Job.");
   return data.job;
 }
@@ -3458,22 +3489,35 @@ async function runSceneJobPolling(sceneInputs, opts) {
   const intervalMs = opts.intervalMs || 7000;
   let built = null;
   let jobId = opts.existingJobId || null;
+  let gemeldet = jobId;
   if (!jobId) {
     built = buildSceneComposeInputs(sceneInputs || {});
+    // NEU (21.09.2026): jobId entsteht HIER im Browser und wird ueber onJobId gemeldet, BEVOR der
+    // Start-Aufruf losgeht -- der Aufrufer legt sie dauerhaft ab. Ein Neuladen mitten im Start
+    // findet damit den Auftrag wieder, statt einen zweiten zu bezahlen (siehe scene-job-start.js).
+    const vorgeschlagen = neueSceneJobId();
+    gemeldet = vorgeschlagen;
+    if (opts.onJobId) opts.onJobId(vorgeschlagen);
     jobId = await startSceneJob({
+      jobId: vorgeschlagen,
       instruction: built.instruction, verifyPrompt: built.verifyPrompt, editImageUrl: built.editImageUrl,
       styleRefUrls: built.styleRefUrls, heroRefUrls: built.heroRefUrls, figuresBand: built.figuresBand,
       richter: !!(sceneInputs && sceneInputs.richter),
       richterRefUrl: richterReferenzUrl(),
     });
   }
-  if (opts.onJobId) opts.onJobId(jobId);
+  // Der Server nimmt die vorgeschlagene jobId an; sollte er je eine andere liefern, wird auch die
+  // gemeldet.
+  if (opts.onJobId && jobId !== gemeldet) opts.onJobId(jobId);
   for (;;) {
     if (opts.signal && opts.signal.aborted) throw new Error("Abgebrochen.");
     // BUGFIX (Sammel-Runde 16.09.2026): gleicher Fix wie in runCharacterJobPolling() oben -- ein
     // reiner Verbindungsaussetzer bei diesem einzelnen Poll darf den Job nicht abbrechen.
     const job = await withTransientRetry(() => pollSceneJobOnce(jobId), {
       delayMs: intervalMs,
+      // NEU (21.09.2026): auch Server-Aussetzer (5xx) sind voruebergehend -- der Auftrag laeuft
+      // dabei weiter. Nur 404 und ein Job mit status "error" beenden das Abfragen.
+      istVoruebergehend: (e) => isTransientNetworkError(e) || !!(e && e.httpStatus >= 500),
       onRetry: (attempt) => { if (opts.onUpdate) opts.onUpdate({ status: "reconnecting", attempt }); },
     });
     if (opts.onUpdate) opts.onUpdate(job);
@@ -3499,7 +3543,11 @@ async function runSceneJobPolling(sceneInputs, opts) {
         quelle: job.resultQuelle || null,
       };
     }
-    if (job.status === "error") throw new Error(job.error || "Generierung fehlgeschlagen.");
+    if (job.status === "error") {
+      const err = new Error(job.error || "Generierung fehlgeschlagen.");
+      err.jobEndgueltig = true;
+      throw err;
+    }
     await waitWithVisibilityWakeup(intervalMs);
   }
 }
@@ -3660,7 +3708,7 @@ window.Pipeline = {
   backgroundLibraryInstruction, buildSceneComposeInputs,
   buildCharacterVerifyPrompt, composeCharacterImage,
   startCharacterJob, pollCharacterJobOnce, runCharacterJobPolling,
-  startSceneJob, pollSceneJobOnce, runSceneJobPolling,
+  startSceneJob, pollSceneJobOnce, runSceneJobPolling, neueSceneJobId,
   SCENE_STYLE_BLOCK, FILL_EMPTY_SPACE_RULE, COHERENCE_RULE, ZERO_TEXT_RULE, EMOTION_WORDS_RULE,
   SAFE_MARGIN_RULE, SCENE_TOTAL_CHARACTER_TARGET_RULE,
   DEPTH_COHERENCE_RULE, HEAD_SCALE_CONSISTENCY_RULE, NO_MOUTH_EMPHASIS,

@@ -10,7 +10,7 @@
 // bereits zusammengebauten Textbausteine plus die Referenzbild-URLs. Das haelt diesen Endpunkt
 // simpel und vermeidet, dass die umfangreiche Szenen-Prompt-Logik aus pipeline.js hier ein zweites
 // Mal nachgebaut werden muesste (siehe Kommentar in scene-job-engine.js).
-const { kvSetJson } = require("./_lib/kv");
+const { kvSetJson, kvTryLock, kvUnlock } = require("./_lib/kv");
 const { createSceneJob } = require("./_lib/scene-job-engine");
 const { checkRateLimit } = require("./_lib/rate-limit");
 const { logFalError } = require("./_lib/fal-queue");
@@ -92,7 +92,30 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const jobId = "sj_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 10);
+  // NEU (21.09.2026, Nutzer-Befund "jedes Neuladen kostet zwei neue fal-Aufrufe"): der Browser darf
+  // die jobId jetzt SELBST vorschlagen und legt sie VOR diesem Aufruf in seinem gespeicherten Stand
+  // ab. Bisher kam die jobId erst mit der Antwort -- wurde die Seite in genau diesem Moment neu
+  // geladen, wusste der Browser nichts von dem Auftrag, obwohl er auf dem Server schon lief.
+  // Die Sperre "scenejob:<id>:start" (SET NX) sorgt dafuer, dass dieselbe jobId NIE zweimal bei
+  // fal.ai landet -- auch nicht, wenn derselbe Aufruf doppelt ankommt. Ein zweiter Aufruf mit
+  // derselben jobId bekommt einfach die jobId zurueck, ohne dass etwas Neues losgeschickt wird.
+  // Ohne Vorschlag (aeltere Clients, Testwerkzeuge) erzeugt der Server die jobId wie bisher.
+  const vorschlag = typeof body.jobId === "string" ? body.jobId.trim() : "";
+  const jobId = /^sj_[a-z0-9]{4,14}_[a-z0-9]{4,14}$/.test(vorschlag)
+    ? vorschlag
+    : "sj_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 10);
+  const startSperre = "scenejob:" + jobId + ":start";
+  let gesperrt = false;
+  try {
+    gesperrt = await kvTryLock(startSperre, JOB_TTL_SECONDS);
+  } catch (e) {
+    res.status(502).json({ error: "KV-Zugriff fehlgeschlagen: " + (e && e.message ? e.message : String(e)) });
+    return;
+  }
+  if (!gesperrt) {
+    res.status(200).json({ jobId, bereitsGestartet: true });
+    return;
+  }
   try {
     const job = await createSceneJob({ jobId, instruction, verifyPrompt, editImageUrl, styleRefUrls, heroRefUrls, figuresBand, richter, richterRefUrl, FAL_KEY });
     await kvSetJson("scenejob:" + jobId, job, JOB_TTL_SECONDS);
@@ -100,6 +123,10 @@ module.exports = async (req, res) => {
   } catch (e) {
     // BUGFIX (Sammel-Runde 16.09.2026): gleicher Fix wie in api/char-job-start.js -- roher
     // fal.ai-Fehlertext ging vorher 1:1 an den Client, jetzt zentral ueber logFalError().
+    // NEU (21.09.2026): nichts wurde gespeichert -> Start-Sperre wieder frei, damit der
+    // Status-Endpunkt "unbekannt" meldet statt "startet noch" und der Browser ehrlich sagen kann,
+    // dass der Start nicht geklappt hat.
+    await kvUnlock(startSperre);
     const friendly = await logFalError("scene-job-start", e && e.message ? e.message : String(e));
     res.status(502).json({ error: friendly });
   }

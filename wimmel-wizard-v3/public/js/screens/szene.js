@@ -32,8 +32,23 @@ const THEMES = ["Bauernhof", "Weihnachten", "Urlaub", "Berg", "Stadt", "Spielpla
 // uebriggeblieben ist, die naechste ABSICHTLICH neu gestartete Szene stillschweigend durch das alte
 // Bild ersetzen. Ein Reload/Wiederoeffnen des Zaubern-Screens laeuft NICHT hier durch und behaelt
 // den Merker damit genau dort, wo Fortsetzen richtig ist.
+// BUGFIX (21.09.2026, Nutzer-Befund "Beim Neuladen startet automatisch eine neue Bilderzeugung,
+// jedes versehentliche Neuladen kostet zwei neue fal-Aufrufe"): der Zaubern-Screen hat bisher bei
+// JEDEM Anzeigen gezaubert, sobald kein Job-Merker da war. Den gab es nach einem fertigen Bild, nach
+// einem Verbindungsfehler oder nach einem Server-Aussetzer nicht mehr -- also startete jedes
+// Neuladen, jede Zurueck-Taste vom Ergebnis, jedes Wiederherstellen des Tabs und der Rail-Knopf
+// "Zaubern" ein neues, bezahltes Bild.
+// NEUE REGEL: ein neues Bild startet NUR, wenn dieser Auftrag gesetzt ist. Er lebt bewusst nur im
+// Speicher dieser Seite (nicht im AppState, nicht in localStorage) -- ein Neuladen, ein neuer Tab
+// oder ein Wiedereinstieg ueber ?resume= koennen ihn damit gar nicht mitbringen. Gesetzt wird er
+// ausschliesslich von einem Knopfdruck: hier (Bottom-Bar "Los, zaubern", fertige Aufnahme,
+// fertiger Chat), vom "Nochmal versuchen"-Knopf und vom "Neues Bild zaubern"-Knopf auf dem
+// Ruhe-Screen. runGeneration() verbraucht ihn sofort, er gilt also genau fuer EINEN Start.
+let zauberStartAuftrag = false;
+
 function goZaubernFresh() {
   if (AppState.data.pendingSceneJob) AppState.update({ pendingSceneJob: null });
+  zauberStartAuftrag = true;
   Router.goScreen("zaubern");
 }
 
@@ -910,9 +925,42 @@ function zauberSteps() {
 }
 let zauberBusy = false;
 
+// NEU (21.09.2026): was der Zaubern-Screen zeigt, wenn weder ein Auftrag laeuft noch gerade ein
+// Knopf gedrueckt wurde -- also nach einem Neuladen ohne laufenden Auftrag, nach der Zurueck-Taste
+// vom Ergebnis, nach dem Rail-Knopf "Zaubern". Frueher startete genau hier ein neues Bild.
+// Bewusst KEIN automatisches Weiterleiten zum Ergebnis: die Zurueck-Taste wuerde sonst in einer
+// Schleife haengen (zurueck -> weiter -> zurueck).
+function renderZauberRuhe(root) {
+  const wrap = h("section", { class: "scr-pad" });
+  wrap.appendChild(h("p", { class: "kicker kicker-yellow" }, "Gerade wird nichts gezaubert"));
+  const bild = AppState.currentImage();
+  wrap.appendChild(h("h1", { class: "h1-scr", style: { fontSize: "28px" } }, bild ? "Dein Bild ist fertig." : "Noch kein Bild in Arbeit."));
+  wrap.appendChild(h("p", { class: "caveat-sub" }, "ein neues Bild fange ich nur an, wenn du unten darauf tippst — Neuladen oder Zurückgehen startet nie eins."));
+  const knopf = { marginTop: "14px", minHeight: "48px", width: "100%", fontSize: "13px", cursor: "pointer" };
+  if (bild) {
+    wrap.appendChild(h("button", { type: "button", class: "h-black", style: Object.assign({}, knopf, { background: "var(--ink)", color: "var(--paper)", border: "3px solid var(--ink)" }), onClick: () => Router.goScreen("ergebnis") }, "Bild ansehen"));
+  }
+  wrap.appendChild(h("button", { type: "button", class: "h-black", style: Object.assign({}, knopf, { background: "var(--yellow)", color: "var(--ink)", border: "3px solid var(--ink)" }), onClick: () => goZaubernFresh() }, bild ? "Neues Bild zaubern" : "Jetzt zaubern"));
+  root.appendChild(wrap);
+}
+
+// NEU (21.09.2026): welche Fehler bedeuten "dieser Auftrag ist wirklich vorbei"? Nur dann darf der
+// Job-Merker weg. Alles andere (Verbindung weg, Server-Aussetzer 5xx, Vercel-Zeitlimit) sagt nichts
+// darueber, ob der Auftrag auf dem Server weiterlaeuft -- dann bleibt der Merker, und ein Neuladen
+// fragt denselben Auftrag weiter ab, statt ein zweites Bild zu bezahlen.
+function auftragEndgueltigVorbei(e) {
+  return !!(e && (e.jobEndgueltig || e.nichtGestartet));
+}
+
 Screens.zaubern = {
   render(root) {
     const s = AppState.data;
+    // NEU (21.09.2026): ohne laufenden Auftrag und ohne Knopfdruck wird NICHT gezaubert.
+    const laufend = s.pendingSceneJob && s.pendingSceneJob.jobId;
+    if (!zauberBusy && !laufend && !zauberStartAuftrag) {
+      renderZauberRuhe(root);
+      return;
+    }
     const wrap = h("section", { style: { background: "var(--ink)", color: "var(--paper)", padding: "26px 14px 30px", minHeight: "74vh" } });
 
     // "2-5" statt "2-4" Minuten (NEU): composeSceneImage() kann jetzt einen dritten Kandidaten
@@ -978,7 +1026,14 @@ Screens.zaubern = {
     const errorBox = h("div", { style: { display: "none", marginTop: "22px", border: "3px solid var(--yellow)", background: "rgba(0,0,0,.25)", padding: "16px" } });
     const errorText = h("p", { style: { margin: "0 0 12px", fontSize: "14px", lineHeight: "1.5" } }, "");
     errorBox.appendChild(errorText);
-    const retryBtn = h("button", { type: "button", class: "h-black", style: { minHeight: "44px", width: "100%", background: "var(--yellow)", color: "var(--ink)", border: "3px solid var(--paper)", fontSize: "13px", cursor: "pointer" }, onClick: () => { zauberBusy = false; Router.navigate("/app/bild/zaubern", { replace: true }); } }, "Nochmal versuchen");
+    const retryBtn = h("button", { type: "button", class: "h-black", style: { minHeight: "44px", width: "100%", background: "var(--yellow)", color: "var(--ink)", border: "3px solid var(--paper)", fontSize: "13px", cursor: "pointer" }, onClick: () => {
+      // GEAENDERT (21.09.2026): mit gespeichertem Auftrag heisst der Knopf "Weiter abfragen" und
+      // fragt DENSELBEN Auftrag weiter ab. Nur ohne Auftrag startet er ein neues Bild -- dann ist
+      // es ein bewusster Knopfdruck, also genau der erlaubte Weg.
+      zauberBusy = false;
+      if (!(AppState.data.pendingSceneJob && AppState.data.pendingSceneJob.jobId)) zauberStartAuftrag = true;
+      Router.navigate("/app/bild/zaubern", { replace: true });
+    } }, "Nochmal versuchen");
     errorBox.appendChild(retryBtn);
     wrap.appendChild(errorBox);
 
@@ -1017,7 +1072,21 @@ Screens.zaubern = {
 
     function showError(msg) {
       errorText.textContent = msg;
+      retryBtn.textContent = (AppState.data.pendingSceneJob && AppState.data.pendingSceneJob.jobId) ? "Weiter abfragen" : "Nochmal versuchen";
       errorBox.style.display = "block";
+    }
+
+    // NEU (21.09.2026): gemeinsame Fehlerbehandlung fuer Neustart und Fortsetzen.
+    function auftragFehler(e, vorsatz) {
+      zauberBusy = false;
+      const text = e && e.message ? e.message : String(e);
+      const merker = AppState.data.pendingSceneJob;
+      if (!merker || !merker.jobId || auftragEndgueltigVorbei(e)) {
+        if (merker) AppState.update({ pendingSceneJob: null });
+        showError(vorsatz + " (" + text + "). Mit „Nochmal versuchen“ fange ich neu an.");
+        return;
+      }
+      showError("Die Verbindung ist gerade abgerissen (" + text + "). Dein Bild wird auf dem Server trotzdem weiter gezaubert — tipp auf „Weiter abfragen“ oder lade die Seite neu, ich fange dabei nicht neu an.");
     }
 
     // NEU (17.09.2026, Punkt 0): gemeinsamer Abschluss fuer den frischen Start UND das Fortsetzen --
@@ -1057,25 +1126,38 @@ Screens.zaubern = {
     // zweiten, parallelen (und separat bezahlten) Job zu starten.
     function resumeSceneJob(pending) {
       zauberBusy = true;
+      zauberStartAuftrag = false;
       resumeNote.style.display = "block";
       setPhase("gen");
-      Pipeline.runSceneJobPolling(null, {
+      // NEU (21.09.2026): wurde direkt nach dem Knopfdruck neu geladen, kann der Start-Aufruf den
+      // Server noch unterwegs sein -- dann meldet er kurz "unbekannt". In den ersten 90 Sekunden
+      // nach dem Start ist das kein Beweis, dass nichts laeuft; also ein paar Mal nachfragen,
+      // bevor der Merker aufgegeben wird.
+      const jung = () => pending.gestartetAm && (Date.now() - pending.gestartetAm) < 90000;
+      const abfragen = () => Pipeline.runSceneJobPolling(null, {
         existingJobId: pending.jobId,
         onUpdate: (job) => {
-          if (!zauberBusy || !job || !job.candidates) return;
+          if (!zauberBusy || !job || !job.candidates || !job.candidates.length) return;
           const allGenSettled = job.candidates.every((c) => c.genStatus === "done" || c.genStatus === "error");
           setPhase(allGenSettled ? "verify" : "gen");
         },
-      }).then((result) => {
+      }).catch((e) => {
+        if (e && e.httpStatus === 404 && jung()) {
+          return new Promise((r) => setTimeout(r, 8000)).then(abfragen);
+        }
+        throw e;
+      });
+      abfragen().then((result) => {
         setPhase("done");
         finishSceneResult(result, pending.title || AppState.data.sceneTheme);
       }).catch((e) => {
         // Haeufigster echter Fall hier: der Job-Datensatz ist abgelaufen (1 Stunde Gueltigkeit, siehe
         // JOB_TTL_SECONDS in api/scene-job-start.js) -- dann ist Fortsetzen nicht mehr moeglich und
-        // ein Neustart ueber den vorhandenen "Nochmal versuchen"-Button ist der richtige Weg.
-        zauberBusy = false;
-        AppState.update({ pendingSceneJob: null });
-        showError("Das begonnene Bild konnte ich nicht mehr fortsetzen (" + (e && e.message ? e.message : String(e)) + "). Mit „Nochmal versuchen“ fange ich neu an.");
+        // ein Neustart ueber den "Nochmal versuchen"-Button ist der richtige Weg.
+        // GEAENDERT (21.09.2026): der Merker faellt nur noch bei einem ENDGUELTIGEN Fehler weg (siehe
+        // auftragFehler()). Vorher reichte ein einziger Server-Aussetzer, und das naechste
+        // Neuladen startete ein neues Bild.
+        auftragFehler(e, "Das begonnene Bild konnte ich nicht mehr fortsetzen");
       });
     }
 
@@ -1090,6 +1172,12 @@ Screens.zaubern = {
       // Abfrage startete jeder Reload und jedes Wiederoeffnen eine komplett neue Generierung.
       const pendingJob = AppState.data.pendingSceneJob;
       if (pendingJob && pendingJob.jobId) { resumeSceneJob(pendingJob); return; }
+      // NEU (21.09.2026): ohne Knopfdruck kein neues Bild (siehe zauberStartAuftrag oben). render()
+      // zeigt in diesem Fall schon den Ruhe-Screen; das hier ist die zweite Sicherung, falls
+      // runGeneration() je von woanders aufgerufen wird. Der Auftrag wird SOFORT verbraucht, damit
+      // er nie fuer einen zweiten Start taugt.
+      if (!zauberStartAuftrag) return;
+      zauberStartAuftrag = false;
       const heroSpecs = s.people.filter((p) => p.status === "done" && p.imageUrl).map((p) => {
         const spec = Pipeline.makeCharacterSpec({ id: p.id, name: p.name, role: p.role, sourceType: "chips" });
         spec.identityCore.age = p.age;
@@ -1170,9 +1258,11 @@ Screens.zaubern = {
           // NEU (17.09.2026, Punkt 0): jobId sofort persistieren, sobald sie feststeht -- AppState
           // schreibt ohnehin nach jeder Aenderung in localStorage UND (anonyme Session) auf den
           // Server, der Merker uebersteht damit einen kompletten Tab-Reload.
-          onJobId: (jobId) => AppState.update({ pendingSceneJob: { jobId: jobId, title: sNow.sceneTheme || null } }),
+          // GEAENDERT (21.09.2026): kommt jetzt VOR dem Start-Aufruf (die jobId entsteht im
+          // Browser, siehe runSceneJobPolling()) -- gestartetAm fuer resumeSceneJob().
+          onJobId: (jobId) => AppState.update({ pendingSceneJob: { jobId: jobId, title: sNow.sceneTheme || null, gestartetAm: Date.now() } }),
           onUpdate: (job) => {
-            if (!zauberBusy || !job || !job.candidates) return;
+            if (!zauberBusy || !job || !job.candidates || !job.candidates.length) return;
             const allGenSettled = job.candidates.every((c) => c.genStatus === "done" || c.genStatus === "error");
             setPhase(allGenSettled ? "verify" : "gen");
           },
@@ -1184,11 +1274,10 @@ Screens.zaubern = {
         // Render dieses Screens noch leer, sceneTheme wird erst durch finalizeChatScene() gesetzt.
         finishSceneResult(result, sNow.sceneTheme);
       } catch (e) {
-        zauberBusy = false;
         // NEU (17.09.2026, Punkt 0): Merker auch im Fehlerfall leeren, sonst wuerde der naechste
         // Aufruf dieses Screens versuchen, einen abgebrochenen Job fortzusetzen.
-        AppState.update({ pendingSceneJob: null });
-        showError("Zaubern hat nicht geklappt: " + (e && e.message ? e.message : String(e)));
+        // GEAENDERT (21.09.2026): nur noch bei einem ENDGUELTIGEN Fehler (siehe auftragFehler()).
+        auftragFehler(e, "Zaubern hat nicht geklappt");
       }
     }
     runGeneration();
