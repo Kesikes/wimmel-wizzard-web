@@ -302,7 +302,8 @@ function countViolations(verifyOutputText, figuresBand) {
   catch (e) {
     try { parsed = JSON.parse(ohneNotiz(match[0])); } catch (e2) { return fail; }
   }
-  const severity = { heavy: 0, medium: 0, light: 0, gruende: [] };
+  // helden: siehe severityOf() in pipeline.js -- 1 verletzt, 0 in Ordnung, null nicht gezaehlt.
+  const severity = { heavy: 0, medium: 0, light: 0, helden: null, gruende: [] };
   // NEU (19.09.2026), zweite Kopie -- die ausfuehrliche Begruendung steht bei severityOf() in
   // public/js/pipeline.js. Kurz: die Tiefe entscheidet mit, wie schwer ein zu kleines scale_est
   // zaehlt, und jede so zustandegekommene Wertung schreibt ihren Grund im Klartext mit.
@@ -358,6 +359,7 @@ function countViolations(verifyOutputText, figuresBand) {
     else if (k === "heroes_found") {
       if (!Array.isArray(parsed[k]) || !parsed[k].length) return;
       bad = parsed[k].some((z) => { const m = Number(z); return !isFinite(m) || m !== 1; });
+      severity.helden = bad ? 1 : 0;
     }
     // NEU (19.09.2026), siehe pipeline.js: Muender werden gezaehlt statt geschaetzt.
     else if (k === "mouths_of_ten") {
@@ -388,12 +390,15 @@ function ohneSchwere(wer) {
   try { console.error("[AUDIT] compareSeverity ohne severity aufgerufen (" + wer + ") — 99/99/99 ist eine Notbremse, kein Messwert."); }
   catch (e) { /* egal */ }
 }
+// GEAENDERT (21.09.2026): schwer -> Heldenfehler -> mittel -> leicht, Begruendung bei
+// compareSeverity() in pipeline.js.
 function compareSeverity(a, b) {
   if (!a) ohneSchwere("erstes Argument");
   if (!b) ohneSchwere("zweites Argument");
   const x = a || { heavy: 99, medium: 99, light: 99 };
   const y = b || { heavy: 99, medium: 99, light: 99 };
   if (x.heavy !== y.heavy) return x.heavy - y.heavy;
+  if (typeof x.helden === "number" && typeof y.helden === "number" && x.helden !== y.helden) return x.helden - y.helden;
   if (x.medium !== y.medium) return x.medium - y.medium;
   return x.light - y.light;
 }

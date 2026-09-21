@@ -1372,7 +1372,7 @@ var ACTIVE_SCENE_PHASE = "phase1";
 // in den Kompositionstypen, aendert sich die Pruefsumme -- ohne dass jemand daran denken muss.
 // Das von Hand gepflegte Datum bleibt als lesbare Ergaenzung daneben stehen; verlassen tun wir uns
 // auf die Pruefsumme.
-var PROMPT_LABEL = "2026-09-20d";
+var PROMPT_LABEL = "2026-09-21a";
 
 // FNV-1a, 32 Bit. Bewusst kein crypto.subtle: das ist asynchron, und diese Kennung soll ohne
 // Umstand synchron beim Laden feststehen. Kollisionen sind hier belanglos -- es geht nicht um
@@ -1485,7 +1485,7 @@ var VERIFY_MAX_VERSUCHE = 2;
 // Kandidat --, bleibt die Pruefsumme sonst gleich, obwohl die Pruefung sich anders verhaelt.
 // Diese Zeichenkette ist der Platz, an dem so eine Aenderung sichtbar wird. Sie gehoert bei jeder
 // Aenderung an der Pruef-LOGIK hochgezaehlt, auch wenn der Prompt gleich bleibt.
-var PRUEF_VERHALTEN = "2026-09-20c: ein Wiederholungsversuch bei unlesbarer Antwort, danach ungeprueft statt schlechtester Kandidat; D-Richter (claude-sonnet-5, zwei Aufrufe mit getauschter Reihenfolge) entscheidet bei Gleichstand der schweren Verstoesse, hinter /app?richter=an";
+var PRUEF_VERHALTEN = "2026-09-21a: Heldenfehler entscheiden bei der Auswahl direkt nach den schweren Verstoessen, vor den uebrigen mittleren (loesen aber keinen dritten Kandidaten aus); ein Wiederholungsversuch bei unlesbarer Antwort, danach ungeprueft statt schlechtester Kandidat; D-Richter (claude-sonnet-5, zwei Aufrufe mit getauschter Reihenfolge) entscheidet bei Gleichstand der schweren Verstoesse, hinter /app?richter=an";
 
 // SHADED_MAX_OF_TEN: wie viele der zehn groessten Gesichter plastisch gezeichnet sein duerfen.
 // EINS, nicht zwei oder drei -- Nutzer-Entscheidung nach folgender Ueberlegung: der gewuenschte
@@ -1601,8 +1601,17 @@ var DEFAULT_SEVERITY = "medium";
 // und einmal mittel zaehlt. out.gruende sammelt je Verstoss einen Klartext-Satz, den das
 // Test-Details-Panel ausgibt. compareSeverity() liest ausschliesslich heavy/medium/light, das
 // zusaetzliche Feld stoert dort nicht.
+// NEU (21.09.2026, Nutzer-Produktentscheidung, siehe docs/entscheidungen.md: "Jeder Held kommt in
+// jedem Bild GENAU EINMAL vor ... Hier sind wir sehr streng."): heroes_found bleibt "mittel" --
+// es loest also weiterhin KEINEN dritten, bezahlten Kandidaten aus --, entscheidet aber bei der
+// AUSWAHL vor allen anderen mittleren Fehlern. Anlass: Bild 6 (20.09.) hatte einen Kandidaten mit
+// [1,1,1] und einen mit [0,0,1], beide mit zwei mittleren Verstoessen; gewaehlt wurde der mit den
+// fehlenden Helden, weil ein Heldenfehler bisher genauso viel wog wie ein Mund zu viel.
+// severity.helden: 1 = Heldenzaehlung verletzt, 0 = gezaehlt und in Ordnung, null = NICHT
+// gezaehlt (Feld fehlt oder ist unbrauchbar). null ist ausdruecklich nicht 0 -- ein fehlender
+// Messwert darf nie wie "alles gut" aussehen (derselbe Fehlertyp wie violations 99 / Number("")).
 function severityOf(parsed, figuresBand) {
-  var out = { heavy: 0, medium: 0, light: 0, gruende: [] };
+  var out = { heavy: 0, medium: 0, light: 0, helden: null, gruende: [] };
   if (!parsed || typeof parsed !== "object") return out;
   // Tiefe vorab bestimmen, sie beeinflusst die Wertung von scale_est.
   var tiefe = Number(parsed.depth_ratio);
@@ -1660,6 +1669,7 @@ function severityOf(parsed, figuresBand) {
     else if (k === "heroes_found") {
       if (!Array.isArray(parsed[k]) || !parsed[k].length) return;
       bad = parsed[k].some(function (z) { var m = Number(z); return !isFinite(m) || m !== 1; });
+      out.helden = bad ? 1 : 0;
     }
     // NEU (19.09.2026): Muender werden gezaehlt statt geschaetzt, siehe MOUTHS_MAX_OF_TEN oben.
     else if (k === "mouths_of_ten") {
@@ -1690,12 +1700,17 @@ function ohneSchwere(wer) {
   try { console.error("[AUDIT] compareSeverity ohne severity aufgerufen (" + wer + ") — 99/99/99 ist eine Notbremse, kein Messwert."); }
   catch (e) { /* egal */ }
 }
+// GEAENDERT (21.09.2026): Reihenfolge jetzt schwer -> Heldenfehler -> mittel -> leicht. Die
+// Heldenstufe greift nur, wenn BEIDE Kandidaten gezaehlt wurden (helden ist eine Zahl); fehlt die
+// Zaehlung bei einem, wird die Stufe uebersprungen statt "nicht gezaehlt" als "richtig" zu lesen.
+// Die Heldenfehler bleiben dabei in medium mitgezaehlt -- die Stufe zieht sie nur nach vorne.
 function compareSeverity(a, b) {
   if (!a) ohneSchwere("erstes Argument");
   if (!b) ohneSchwere("zweites Argument");
   a = a || { heavy: 99, medium: 99, light: 99 };
   b = b || { heavy: 99, medium: 99, light: 99 };
   if (a.heavy !== b.heavy) return a.heavy - b.heavy;
+  if (typeof a.helden === "number" && typeof b.helden === "number" && a.helden !== b.helden) return a.helden - b.helden;
   if (a.medium !== b.medium) return a.medium - b.medium;
   return a.light - b.light;
 }

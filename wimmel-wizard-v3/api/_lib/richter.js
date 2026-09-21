@@ -134,7 +134,16 @@ function richterGreift(kandidaten) {
     typeof c.severity.heavy === "number");
   if (geprueft.length < 2) return null;
   const kleinste = Math.min.apply(null, geprueft.map((c) => c.severity.heavy));
-  const gleichauf = geprueft.filter((c) => c.severity.heavy === kleinste);
+  let gleichauf = geprueft.filter((c) => c.severity.heavy === kleinste);
+  // NEU (21.09.2026): Heldenfehler entscheiden vor dem Richter (siehe compareSeverity() in
+  // fal-queue.js). Der Richter urteilt ueber den STIL -- er darf nie einen Kandidaten mit fehlendem
+  // oder doppeltem Helden ueber einen mit richtigen Helden heben. Nur wenn alle Gleichauf-Kandidaten
+  // gezaehlt wurden, wird nach der Heldenstufe weiter gefiltert; fehlt eine Zaehlung, bleibt es beim
+  // bisherigen Vergleich nur ueber die schweren Verstoesse.
+  if (gleichauf.every((c) => typeof c.severity.helden === "number")) {
+    const wenigsteHeldenfehler = Math.min.apply(null, gleichauf.map((c) => c.severity.helden));
+    gleichauf = gleichauf.filter((c) => c.severity.helden === wenigsteHeldenfehler);
+  }
   if (gleichauf.length !== 2) return null;
   // Gibt es einen ungeprueften Kandidaten, der nach der Gruppenlogik VOR diesen beiden laege?
   // Das ist der Fall, wenn die beiden Gleichstaendigen schwere Verstoesse haben (Gruppe 3) und

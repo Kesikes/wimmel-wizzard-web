@@ -23,11 +23,12 @@ let fehler = 0;
 for (const f of faelle) {
   const a = P.severityOf(f.v, band);
   const b = Q.countViolations(JSON.stringify(f.v), band).severity;
-  const gleich = a.heavy === b.heavy && a.medium === b.medium && a.light === b.light &&
+  // helden seit 21.09.2026 mitverglichen (Auswahlstufe zwischen schwer und mittel).
+  const gleich = a.heavy === b.heavy && a.helden === b.helden && a.medium === b.medium && a.light === b.light &&
                  JSON.stringify(a.gruende) === JSON.stringify(b.gruende);
   if (!gleich) fehler++;
   console.log((gleich ? "OK  " : "ABW ") + f.name);
-  console.log("    client " + a.heavy + "/" + a.medium + "/" + a.light + "   server " + b.heavy + "/" + b.medium + "/" + b.light);
+  console.log("    client " + a.heavy + "/" + a.medium + "/" + a.light + " helden " + a.helden + "   server " + b.heavy + "/" + b.medium + "/" + b.light + " helden " + b.helden);
   a.gruende.forEach(g => console.log("      · " + g));
   if (!gleich) b.gruende.forEach(g => console.log("    S · " + g));
 }
