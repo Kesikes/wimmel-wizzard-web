@@ -325,7 +325,9 @@ function handleTestParams() {
   // "an" schaltet ein; "aus" und jeder andere Wert = Vorgabe (aus).
   if (hatBlattfilter) patch.testBlattfilter = (blattfilterWert === "an") ? "an" : null;
   if (hatStilTor) patch.testStilTor = (stilTorWert === "aus") ? "aus" : null;
-  if (hatKoepfe) patch.testKoepfe = (koepfeWert === "gross" || koepfeWert === "groß") ? "gross" : null;
+  // GEAENDERT (22.09.2026): grosse Koepfe sind Vorgabe; "normal" ist der Kontrollschalter.
+  // Jeder andere Wert (auch das alte "gross") = Vorgabe.
+  if (hatKoepfe) patch.testKoepfe = (koepfeWert === "normal") ? "normal" : null;
   AppState.update(patch);
   window.history.replaceState(null, "", window.location.pathname + window.location.hash);
 }

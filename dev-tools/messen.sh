@@ -75,7 +75,8 @@ bilder.forEach((bild, bi) => {
   const kandidaten = (bild.candidates && bild.candidates.length) ? bild.candidates : [{ url: bild.src }];
   kandidaten.forEach((k, ki) => {
     if (!k || !k.url) return;
-    const gewaehlt = (k.url === bild.src) ? "ja" : "nein";
+    const gewUrl = (Array.isArray(bild.angebot) && bild.angebot[bild.gewaehlt || 0]) ? bild.angebot[bild.gewaehlt || 0].url : bild.src;
+    const gewaehlt = (k.url === gewUrl) ? "ja" : "nein";
     console.log([bi + 1, bild.title || "Wimmelbild", ki + 1, gewaehlt, k.url].join("\t"));
   });
 });

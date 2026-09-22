@@ -11,6 +11,11 @@
 //
 // Ohne Argumente: docs/ref/sitzung.json und docs/ref/messwerte.tsv (legt messen.sh dort ab).
 const fs = require("fs");
+
+// GEAENDERT (22.09.2026, Nutzer-Befund Szene 34 "beide nicht gewaehlt"): gewaehlt ist der Kandidat aus
+// angebot[gewaehlt].url -- bild.src zeigt nach einer Stift-Korrektur auf das KORRIGIERTE Bild und
+// passt dann zu keinem Kandidaten mehr. Aeltere Bilder ohne angebot: wie bisher bild.src.
+function gewaehlteUrl(bild) { return (Array.isArray(bild.angebot) && bild.angebot[bild.gewaehlt || 0]) ? bild.angebot[bild.gewaehlt || 0].url : bild.src; }
 const path = require("path");
 
 const sitzungDatei = process.argv[2] || "docs/ref/sitzung.json";
@@ -71,7 +76,7 @@ bilder.forEach((bild, bi) => {
       return a + " / " + bWert + (einig ? "" : "  ≠");
     });
     if (v.shaded_of_ten === undefined && v.blank_of_ten === undefined && v.mouths_of_ten === undefined) ohneGespeichert++;
-    reihen1.push([(bi + 1) + " " + (bild.title || ""), "K" + (ki + 1), k.url === bild.src ? "ja" : "nein"].concat(zelle)
+    reihen1.push([(bi + 1) + " " + (bild.title || ""), "K" + (ki + 1), k.url === gewaehlteUrl(bild) ? "ja" : "nein"].concat(zelle)
       .concat([v.style_ok === undefined ? "" : "style_ok=" + v.style_ok]));
   });
 });
@@ -93,7 +98,7 @@ bilder.forEach((bild, bi) => {
   console.log((bi + 1) + " " + (bild.title || ""));
   kand.forEach((k, ki) => {
     const s = k.verify ? P.severityOf(k.verify, band) : null;
-    const marke = k.url === bild.src ? "GEWAEHLT" : "        ";
+    const marke = k.url === gewaehlteUrl(bild) ? "GEWAEHLT" : "        ";
     console.log("  " + marke + " K" + (ki + 1) + "  " +
       (s ? s.heavy + " schwer / " + s.medium + " mittel / " + s.light + " leicht" : "keine gespeicherte Pruefung") +
       (k.violations != null ? "   (violations " + k.violations + ")" : ""));
@@ -106,7 +111,7 @@ bilder.forEach((bild, bi) => {
       P.compareSeverity(P.severityOf(a.verify, band), P.severityOf(b.verify, band)));
     const sollte = sortiert[0];
     console.log("  -> Stufenweiser Vergleich (erst schwer, dann mittel, dann leicht) ergibt: K" +
-      (kand.indexOf(sollte) + 1) + (sollte.url === bild.src ? " — das ist der gewaehlte." : " — ABWEICHUNG zum gewaehlten!"));
+      (kand.indexOf(sollte) + 1) + (sollte.url === gewaehlteUrl(bild) ? " — das ist der gewaehlte." : " — ABWEICHUNG zum gewaehlten!"));
   }
   console.log("");
 });

@@ -1417,7 +1417,7 @@ var ACTIVE_SCENE_PHASE = "phase1";
 // in den Kompositionstypen, aendert sich die Pruefsumme -- ohne dass jemand daran denken muss.
 // Das von Hand gepflegte Datum bleibt als lesbare Ergaenzung daneben stehen; verlassen tun wir uns
 // auf die Pruefsumme.
-var PROMPT_LABEL = "2026-09-21j";
+var PROMPT_LABEL = "2026-09-22a";
 
 // FNV-1a, 32 Bit. Bewusst kein crypto.subtle: das ist asynchron, und diese Kennung soll ohne
 // Umstand synchron beim Laden feststehen. Kollisionen sind hier belanglos -- es geht nicht um

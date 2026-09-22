@@ -55,7 +55,7 @@ console.log("Schwere als schwer/h(Heldenfehler)/mittel/leicht\n");
   const rAlt = richterGreift(alt), rNeu = richterGreift(neu);
   const d3Alt = !alt.some((c) => c.verifyStatus === "done" && Q.isGoodEnough(c.severity)) && alt.some((c) => c.verifyStatus === "done");
   const d3Neu = !neu.some((c) => c.verifyStatus === "done" && Q.isGoodEnough(c.severity)) && neu.some((c) => c.verifyStatus === "done");
-  const damals = nr(bild.src);
+  const damals = nr((Array.isArray(bild.angebot) && bild.angebot[bild.gewaehlt || 0]) ? bild.angebot[bild.gewaehlt || 0].url : bild.src); // seit 22.09.: angebot statt src (Stift-Korrektur)
   const hoAnders = kand.some((c) => c.verify && c.verify.heroes_ok === false);
   const aenderung = wAlt.url !== wNeu.url || !!rAlt !== !!rNeu || d3Alt !== d3Neu;
   if (!hoAnders && !aenderung) return;

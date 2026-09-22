@@ -10,6 +10,13 @@
    ========================================================================== */
 
 const IMAGE_TARGET = 5;
+// NEU (22.09.2026, Nutzer-Befund "Wimmelbilder 34 von 5"): Zaehler und Vorschau bei mehr Bildern
+// als dem Buchumfang. IMAGE_TARGET ist der groesste Buchumfang (5 Bilder, Konzeptpapier
+// Abschnitt 3). Darueber zeigt der Zaehler die echte Zahl ohne "von 5", der Ring bleibt voll, und
+// der Text sagt, dass nicht alle ins Buch passen. WELCHE Bilder ins Buch kommen, ist eine offene
+// Produktfrage (Register, Abschnitt 15) -- hier wird nichts versprochen.
+function bilderZaehler(n) { return n > IMAGE_TARGET ? String(n) : n + "/" + IMAGE_TARGET; }
+function bilderStand(n) { return n > IMAGE_TARGET ? n + " (ins Buch passen höchstens " + IMAGE_TARGET + ")" : n + " von " + IMAGE_TARGET; }
 
 Screens.dashboard = {
   render(root) {
@@ -99,8 +106,8 @@ Screens.dashboard = {
 
     const doneImages = AppState.doneImagesCount();
     cards.appendChild(buildBlockCard({
-      ring: Math.round((doneImages / IMAGE_TARGET) * 100),
-      ringLabel: doneImages + "/" + IMAGE_TARGET,
+      ring: Math.min(100, Math.round((doneImages / IMAGE_TARGET) * 100)),
+      ringLabel: bilderZaehler(doneImages),
       shadow: "var(--ink)",
       title: "Wimmelbilder",
       body: bildBody(s, doneImages),
@@ -231,7 +238,7 @@ function buildDesktopDashboard(s, notice) {
   const stand = h("div", { style: { border: "4px solid var(--ink)", background: "var(--blue)", padding: "18px" } });
   stand.appendChild(h("p", { class: "h-black", style: { margin: "0 0 12px", fontSize: "12px", letterSpacing: ".08em" } }, "Stand jetzt"));
   stand.appendChild(standRow("Figuren", dDoneChars + " von " + dTotalChars));
-  stand.appendChild(standRow("Wimmelbilder", dDoneImages + " von " + IMAGE_TARGET));
+  stand.appendChild(standRow("Wimmelbilder", bilderStand(dDoneImages)));
   stand.appendChild(standRow("Produkt", TIERS[s.tier].name + " · " + TIERS[s.tier].price));
   stand.appendChild(h("p", { class: "caveat", style: { margin: "12px 0 0", fontSize: "20px", lineHeight: "1.1" } }, "nichts davon ist verbindlich."));
   aside.appendChild(stand);
@@ -261,7 +268,9 @@ function buildDesktopDashboard(s, notice) {
   imgCard.appendChild(h("span", { class: "h-black", style: { display: "block", fontSize: "26px", lineHeight: "1", letterSpacing: "-.03em" } }, "Wimmelbilder"));
   imgCard.appendChild(h("span", { style: { display: "block", margin: "10px 0 16px", fontSize: "15px", lineHeight: "1.5" } }, bildBody(s, dDoneImages)));
   const thumbRow = h("span", { style: { display: "flex", gap: "8px" } });
-  const doneImgs = s.images.filter((img) => img.status === "done").slice(0, 2);
+  // GEAENDERT (22.09.2026): die NEUESTEN zwei statt der aeltesten zwei -- bei vielen Bildern zeigte
+  // die Vorschau sonst Bilder von vor Tagen neben dem Text ueber das zuletzt fertige.
+  const doneImgs = s.images.filter((img) => img.status === "done").slice(-2).reverse();
   doneImgs.forEach((img) => {
     thumbRow.appendChild(h("img", { src: img.src, alt: img.title || "", style: { width: "88px", border: "3px solid var(--ink)" } }));
   });
@@ -301,8 +310,11 @@ function charakterBody(s, doneChars, totalChars) {
 function bildBody(s, doneImages) {
   if (doneImages === 0) return "Noch kein Bild. Leg los, wenn du bereit bist.";
   const lastDone = s.images.filter((img) => img.status === "done").slice(-1)[0];
-  const label = lastDone ? "„" + lastDone.title + "“" : "Ein Bild";
-  return label + " ist fertig. Nächste Szene wartet.";
+  const label = lastDone && lastDone.title ? "„" + lastDone.title + "“" : "ein Bild";
+  // GEAENDERT (22.09.2026): "zuletzt fertig" statt "X ist fertig" -- bei mehreren Bildern mit
+  // verschiedenen Themen war unklar, welches gemeint ist. Ab dem Buchumfang ein ehrlicher Zusatz.
+  if (doneImages > IMAGE_TARGET) return doneImages + " Bilder gezaubert, zuletzt " + label + ". Ins Buch passen höchstens " + IMAGE_TARGET + ".";
+  return "Zuletzt fertig: " + label + ". Nächste Szene wartet.";
 }
 
 function standRow(label, value) {

@@ -139,7 +139,8 @@ const DEFAULT_STATE = {
   // /app?stiltor=an (absolute Stilpruefung je Kandidat). null = aus.
   testBlattfilter: null,
   testStilTor: null,
-  // NEU (21.09.2026): /app?koepfe=gross -- grosse runde Koepfe fuer alle Menschen im Bildprompt.
+  // NEU (21.09.2026): grosse runde Koepfe fuer alle Menschen im Bildprompt. Seit 22.09.2026 Vorgabe;
+  // "normal" = Kontrollbild ohne den Satz (/app?koepfe=normal).
   testKoepfe: null,
 
   // Entscheidung / Widmung / Bestellung
@@ -465,7 +466,7 @@ const AppState = {
       // mit Schalter -- ohne diesen Zusatz saehen Bilder mit und ohne ihn gleich aus.
       bildFassung: (P.BILD_FASSUNG || null) && (P.BILD_FASSUNG + (this.data.testLicht === "aus" ? " \u00b7 Licht AUS" : "") +
         (this.data.testHelden === "alt" ? " \u00b7 Helden ALT" : (this.data.testBlattfilter === "an" ? " \u00b7 Blattfilter" : "")) +
-        (this.data.testKoepfe === "gross" ? " \u00b7 Köpfe GROSS" : "")),
+        (this.data.testKoepfe === "normal" ? " \u00b7 Köpfe NORMAL" : "")),
       pruefFassung: (P.PRUEF_FASSUNG || null) && (P.PRUEF_FASSUNG + (this.data.testStilTor === "aus" ? " \u00b7 Stil-Tor AUS" : "") + (this.data.testRichter === "aus" ? " \u00b7 Richter AUS" : "")) };
     const images = this.data.images.concat([image]);
     this.update({ images, currentImageId: id, freierDurchgang: null });

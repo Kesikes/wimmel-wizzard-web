@@ -411,18 +411,29 @@ werden umgedreht und sind seitdem **Kontrollschalter**, wie `licht=aus`.
 | Stil-Tor Teil B (Kopfanteil) | **aus** (`STIL_TOR_KOPF_MESSEN = false`) | — | — |
 | D-Richter | **an** | `richter=aus` | Prüfung: „· Richter AUS" |
 | Blattfilter | **aus** | `blattfilter=an` | Bild: „· Blattfilter" |
-| Große Köpfe | **aus** — siehe unten | `koepfe=gross` | Bild: „· Köpfe GROSS" |
+| Große Köpfe | **an** seit 22.09.2026 (`2026-09-22a`) — siehe unten | `koepfe=normal` | Bild: „· Köpfe NORMAL" |
 
 - Die alten Werte `richter=an`, `helden=neu`, `stiltor=an` bedeuten jetzt einfach die Vorgabe.
 - Die **Figurenblatt-Beschreibung** entsteht jetzt schon bei der Charaktererstellung, im
   Hintergrund gleich nach dem Frontbild (`generateExtraViewsAndFinish()` in `charakter.js`).
   Fehlt sie beim Szenenstart (gescheitert, oder Figur älter), holt der Szenenstart sie nach wie
   bisher.
-- **`koepfe=gross` ist noch NICHT Vorgabe.** Entscheidung des Nutzers: Vorgabe, *sofern* die
-  Durchsicht der neuen Panels keinen Rückschritt zeigt. Die Durchsicht war am 21.09. nicht möglich:
-  `docs/ref/sitzung.json` (Stand 20:32) endet bei Szene 27, Fassung `2026-09-21d` — es gibt darin
-  keine einzige Szene mit „Köpfe GROSS". Gemeldet statt still entschieden; wird Vorgabe, sobald die
-  Szenen vorliegen und durchgesehen sind.
+- **Große Köpfe sind seit 22.09.2026 Vorgabe** (Fassung `2026-09-22a`). Entscheidung des Nutzers:
+  Vorgabe, sofern die Durchsicht der neuen Panels keinen Rückschritt zeigt. Am 21.09. war die
+  Durchsicht nicht möglich (Sitzung wurde nicht gespeichert, siehe Abschnitt 10). Durchgesehen am
+  22.09., Szenen 30–33 (8 Kandidaten, alle Querschnitt, weil vor dem Grundstand erzeugt; Stadt 30–31,
+  Berg 32–33):
+  - große, runde Köpfe bei 7 von 8 Kandidaten, deutlich bei 31 K1/K2 und 33 K2; nicht bei 30 K1
+    (normale Comic-Proportionen, dazu Münder — Stil-Tor „nein"). Deckt sich mit dem Eindruck des
+    Nutzers (3 von 4 in den Stadtszenen).
+  - Kein Rückschritt: Stil-Tor 7 von 8 bestanden (wie davor), Münder und Schattierung im selben
+    Rahmen wie ohne den Satz (gemini: mouths 0–3, shaded 0–4).
+  - Nebenbefunde, die NICHT an den Köpfen liegen: Schrift im Bild (30 K2 „BAKERY"), Doppelungen
+    (31 K1 zwei Trägerpaare mit Glasscheibe, 31 K2 der blonde Held doppelt), in 32 K1 sind die
+    Helden im Querschnitt riesig (Querschnitt bei Berg ist inzwischen gesperrt).
+  - Teil B (Kopfanteil, nur gemessen) zeigt auch hier keinen Unterschied (Verhältnis 0,90–1,16).
+  Mit großen Köpfen liegt der Prompt-Extremfall mit 5 Helden knapp ÜBER der Grenze — siehe
+  Abschnitt 14 und 16.
 - Promptlänge in der neuen Vorgabe (Helden aus dem Figurenblatt, ohne große Köpfe), künstlicher
   Extremfall 5 Helden: 23.831–23.875 Zeichen, Puffer 125–169 zur Grenze 24.000. Mit
   `koepfe=gross` dazu weiterhin knapp darüber. Siehe Abschnitt 14.
@@ -546,6 +557,14 @@ gesetzt. Wer dem dokumentierten Weg folgte, war weiter im Testmodus, ohne es zu 
 ---
 
 ## 10. Wahrheit und Messung
+
+### GÜLTIG seit 22.09.2026: „gewählt" in den Messwerkzeugen kommt aus dem Angebot
+
+Befund des Nutzers: Szene 34 zeigte in der Stilmessung beide Kandidaten als „nicht gewählt".
+Ursache: Die Werkzeuge verglichen mit `bild.src`, und das zeigt nach einer Stift-Korrektur auf das
+korrigierte Bild. Die Anzeige in der App war richtig: beide Kandidaten bestanden das Stil-Tor, der
+Richter war einig für K2 (Favorit), die Nutzerin wählte K1 und korrigierte ihn mit dem Stift.
+`messen.sh`, `auswertung.js` und `auswahl-nachrechnen.js` nehmen jetzt `angebot[gewaehlt].url`.
 
 ### GÜLTIG seit 22.09.2026: der Server-Stand ist schlanker als der im Browser
 
@@ -713,6 +732,14 @@ Nutzer, 21.09.2026: jetzt nicht bauen, beim Prompt-Aufräumen angehen.
 
 ## 15. Offen — noch nicht entschieden
 
+### OFFEN: Welche Bilder kommen ins Buch? (Befund 22.09.2026)
+
+Nichts begrenzt die Zahl der Bilder in einem Projekt, das Buch fasst höchstens 5. Das Dashboard
+zeigt seit 22.09. die echte Zahl („34 (ins Buch passen höchstens 5)") statt „34 von 5". Offen: Wählt
+die Kundin vor der Bestellung aus, und wird die Zahl der Durchgänge begrenzt?
+Außerdem widersprechen sich die Produkttexte: `entscheidung.js` sagt „ab 2 Wimmelbildern" und „ab 5",
+das Konzeptpapier (Abschnitt 3) sagt 1, 3 oder 5 Bilder.
+
 ### OFFEN: Produktleiter (Idee des Nutzers, 21.09.2026)
 
 Nur festgehalten, nichts entschieden, nichts gebaut. Quelle und Einzelheiten:
@@ -723,4 +750,82 @@ Kurz: Poster (A3/A2, gefaltet, per Brief, unter 10 €) → kleines Softcover-He
 Bild. Offen sind: DIN-Format gegen 16:9, Falzlinien durchs Bild (Probedruck), Figurengröße im
 Mini-Heft (eventuell eigenes Profil mit weniger, größeren Figuren), Kalkulation Poster unter
 10 € mit allen Kosten und 5 € Startguthaben, Einzeldruckkosten für Pappbuch und Rahmen.
+
+---
+
+## 16. Vor dem Launch
+
+### VOR DEM LAUNCH: stille Fehler systematisch beseitigen (Auftrag des Nutzers, 22.09.2026)
+
+Anlass: Zum vierten Mal sah ein Fehler wie ein Erfolg aus (`violations: 99`, Nullwerte statt
+Fehler, der nie gefragte Richter, das abgelehnte Speichern mit „gespeichert" in der Kopfzeile).
+Regel: **Ein Fehler muss als Fehler sichtbar sein — in der App, im Panel oder im Log. Nie als Wert.**
+
+Durchsicht des ganzen Codes am 22.09.2026 (`api/`, `public/js/`; `dev-tools/` nicht). Nach Schwere:
+
+**Hoch**
+1. Figuren-Pfad (`char-job-engine.js`): eine unlesbare Prüfantwort wird als `violations: 99` mit
+   Status „done" gespeichert — dasselbe Muster wie früher im Szenen-Pfad, dort längst behoben.
+   Folge: unnötiger dritter, bezahlter Kandidat; Prüfwerte werden an der Person nicht gespeichert.
+2. `countViolations` (Server und Client): lesbares, aber unvollständiges JSON zählt als
+   „0 Verstöße". `ohneNotiz()` schneidet alle Felder nach `notiz` ab; fehlende Felder werden
+   übersprungen. Ein leeres `{}` ergäbe „keine Verstöße".
+3. Bestellabschluss (`checkout.js`, Screen „fertig"): zeigt „Euer Buch ist unterwegs", eine feste
+   Bestellnummer, ein festes Lieferdatum und bei leerer Widmung „Für Mia, die alles findet." —
+   ohne dass irgendetwas bestellt wird. Vor dem Launch sperren oder als Vorschau kennzeichnen.
+4. Fest verdrahtete Speicher-Zusagen: „alles gespeichert" (Dashboard-Laufband, letzte Leiste),
+   „Ich speichere nach jeder Eingabe." — unabhängig vom tatsächlichen Server-Stand.
+
+**Mittel**
+5. Speichern: Grenze 20 Speicherungen je Stunde, der Client speichert 2 s nach jeder Änderung —
+   ein Chat mit 15 Zügen reißt die Grenze. Kein erneuter Versuch nach 429/Netzfehler, kein
+   Speichern beim Verlassen der Seite.
+6. Schutz „älterer und ärmerer Stand": ein alter Tab bekommt bei jeder Änderung einen frischen
+   Zeitstempel und überschreibt dann einen reicheren Server-Stand. Besser: Versionsnummer vom Server.
+7. Status-Endpunkte schlucken Fehler aus dem Job-Fortschritt ohne Log. Ein dauerhafter Fehler lässt
+   den Job eine Stunde auf „läuft"; ein verlorenes Speichern nach dem Abschicken des dritten
+   Kandidaten kann ihn doppelt bezahlen.
+8. Figuren-Pfad ohne zweiten Prüfversuch; fällt die Prüfung ganz aus, kommt trotzdem ein dritter,
+   bezahlter Kandidat und danach die falsche Meldung „keiner der Versuche war erfolgreich".
+9. Stil-Tor: ein technischer Ausfall zählt je Kandidat als bestanden (Produktentscheidung). Fällt es
+   aber systematisch aus (Referenzbild nicht erreichbar, Schlüssel fehlt), merkt das niemand.
+   Es braucht einen Vermerk am Job und einen Alarm.
+10. Textprüfung (`moderate`): eine leere oder unerwartete Antwort gilt als „unbedenklich" (fail-open
+    statt fail-closed).
+11. Foto-Weg: eine leere Bildbeschreibung ergibt still eine Figur ohne Merkmale aus dem Foto.
+12. Übersetzung: bei einem Fehler still Wörterbuch-Rückfall, deutscher Freitext kann dann im
+    englischen Bildprompt landen (auch das ganze Aufnahme-Transkript und Stift-Wünsche).
+
+**Niedrig**
+13. Kopfzeile zeigt direkt nach einer Änderung noch das vorige „gespeichert"; ein volles
+    `localStorage` wird geschluckt.
+14. Warn-Mails: die Sperrfrist wird vor dem Versand gesetzt; scheitert der Versand, sind 15 Minuten
+    lang keine Warnungen möglich.
+15. `kvGetJson`: ein beschädigter Eintrag sieht aus wie „nicht vorhanden" (dann auch keine
+    Sicherung beim Speichern).
+16. Chat-Weg: `add_scene` mit leerer Situationsliste lässt die erzählte Geschichte still weg.
+17. Mehr als 5 fertige Figuren: die sechste und weitere fallen still aus dem Bild.
+18. Zaubern-Screen: „Qualitätsprüfung ✓" und „Beste Variante ausgewählt" stehen da, auch wenn nichts
+    geprüft werden konnte.
+19. Angebot und Bild speichern `verifyStatus`, `severity` und `stilTor` des gewählten Kandidaten nicht
+    mit; nach Wechsel oder Stift-Korrektur zeigt das Panel „keine Wertung" statt „ungeprüft".
+20. Veraltete Beschriftungen: Richter-Panel sagt „Rückfall auf die Prüfung" (tatsächlich K1 vorn);
+    Token-Zahlen `|| 0` sehen bei fehlender Angabe wie „0 Token" aus.
+21. Dashboard: „Gesamt-Vorschau öffnet sich, sobald zwei Bilder fertig sind" steht auch bei 7 fertigen
+    Bildern da — die Vorschau gibt es noch nicht (Befund beim Test am 22.09.).
+
+**Wiederkehrende Ursachen**
+- Zwei Kopien derselben Logik (Figuren- gegen Szenen-Pfad, Server gegen Client): ein Fix landet nur
+  in einer.
+- „Nicht gemessen" fällt auf einen Standardwert zurück, der wie ein Ergebnis aussieht.
+- Erfolgstexte sind fest verdrahtet statt aus dem tatsächlichen Ergebnis abgeleitet; Server-Handler
+  schlucken Fehler ohne Log.
+
+Bereits behoben: `violations: 99` im Szenen-Pfad (20.09.), Richter-Body (20.09.), Speichern und
+Kopfzeile (22.09., Abschnitt 10). Nichts aus der Liste oben ist gebaut.
+
+### VOR DEM LAUNCH: Promptlänge mit 5 Helden
+
+Siehe Abschnitt 14. Mit großen Köpfen (Vorgabe seit `2026-09-22a`) liegt der Extremfall knapp über
+der eigenen Grenze von 24.000 Zeichen; der Start wird dann ohne Kosten abgelehnt.
 

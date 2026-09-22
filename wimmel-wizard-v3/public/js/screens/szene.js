@@ -1071,7 +1071,7 @@ Screens.zaubern = {
     // /app?phase= -- das loeschte nur die Phase und liess die Komposition stehen (siehe
     // handleTestParams() in app-shell.js). Ein Knopf, der beides in einem Zug loescht, kann diesen
     // Fehler gar nicht erst machen; die URL bleibt als zweiter Weg daneben stehen.
-    if (s.testPhase || s.testComposition || s.testLicht || s.testRichter === "aus" || s.testHelden === "alt" || s.testBlattfilter === "an" || s.testStilTor === "aus" || s.testKoepfe) {
+    if (s.testPhase || s.testComposition || s.testLicht || s.testRichter === "aus" || s.testHelden === "alt" || s.testBlattfilter === "an" || s.testStilTor === "aus" || s.testKoepfe === "normal") {
       const teile = [];
       if (s.testPhase) teile.push("Phase: " + s.testPhase);
       if (s.testComposition) teile.push("Komposition: " + s.testComposition);
@@ -1080,7 +1080,7 @@ Screens.zaubern = {
       if (s.testHelden === "alt") teile.push("Helden: ALT (Vorgabe wäre Beschreibung aus dem Figurenblatt)");
       if (s.testBlattfilter === "an") teile.push("Blattfilter: an" + (s.testHelden === "alt" ? " (wirkt nicht zusammen mit helden=alt)" : ""));
       if (s.testStilTor === "aus") teile.push("Stil-Tor: AUS (Vorgabe wäre an)");
-      if (s.testKoepfe === "gross") teile.push("Köpfe: GROSS für alle");
+      if (s.testKoepfe === "normal") teile.push("Köpfe: NORMAL (Vorgabe wäre groß)");
       const testNote = h("div", { style: { marginTop: "20px", border: "3px dashed var(--yellow)", color: "var(--yellow)", padding: "12px 14px", fontSize: "13px", lineHeight: "1.45" } });
       testNote.appendChild(h("p", { style: { margin: "0 0 9px" } }, "Testmodus aktiv — " + teile.join(", ") + "."));
       const testExit = h("button", { type: "button", class: "h-black", style: { minHeight: "40px", padding: "0 14px", fontSize: "12px", border: "3px solid var(--yellow)", background: "transparent", color: "var(--yellow)", cursor: "pointer" } }, "Testmodus beenden");
@@ -1314,7 +1314,7 @@ Screens.zaubern = {
         // jetzt moeglich (siehe onUpdate unten) statt des vorherigen Fake-setTimeout(...,20000).
         // composeSceneImage() bleibt unveraendert in pipeline.js als eigenstaendig getestete
         // Referenz-/Fallback-Funktion erhalten, wird aber im Produktpfad nicht mehr aufgerufen.
-        const result = await Pipeline.runSceneJobPolling({ heroSpecs, theme, situations, usedTexts, phase: testPhase, composition: testComposition, licht: testLicht, richter: sNow.testRichter !== "aus", heldenNeu: sNow.testHelden !== "alt", blattfilter: sNow.testBlattfilter === "an" && sNow.testHelden !== "alt", stilTor: sNow.testStilTor !== "aus", koepfeGross: sNow.testKoepfe === "gross" }, {
+        const result = await Pipeline.runSceneJobPolling({ heroSpecs, theme, situations, usedTexts, phase: testPhase, composition: testComposition, licht: testLicht, richter: sNow.testRichter !== "aus", heldenNeu: sNow.testHelden !== "alt", blattfilter: sNow.testBlattfilter === "an" && sNow.testHelden !== "alt", stilTor: sNow.testStilTor !== "aus", koepfeGross: sNow.testKoepfe !== "normal" }, {
           // NEU (17.09.2026, Punkt 0): jobId sofort persistieren, sobald sie feststeht -- AppState
           // schreibt ohnehin nach jeder Aenderung in localStorage UND (anonyme Session) auf den
           // Server, der Merker uebersteht damit einen kompletten Tab-Reload.
