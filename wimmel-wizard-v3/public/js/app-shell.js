@@ -164,7 +164,13 @@ function renderBottomBar() {
 
 function renderSaveHint() {
   const btn = document.getElementById("save-hint");
-  btn.textContent = "gespeichert";
+  // GEAENDERT (22.09.2026): ehrlich. "gespeichert" nur, solange der letzte Server-Abgleich geklappt
+  // hat (oder noch keiner lief); sonst "nur auf diesem Gerät" mit dem Grund als Tooltip. Vorher
+  // stand hier immer "gespeichert" -- auch waehrend der Server seit Stunden jeden Stand ablehnte.
+  const letzter = Pipeline.saveSessionRemote && Pipeline.saveSessionRemote.letzter;
+  const nurLokal = !!(letzter && !letzter.ok);
+  btn.textContent = nurLokal ? "nur auf diesem Gerät" : "gespeichert";
+  btn.title = nurLokal ? "Auf diesem Gerät gespeichert, aber nicht auf dem Server (" + letzter.grund + ")." : "";
   btn.classList.remove("flash");
   // kurzer, dezenter Hinweis-Flash nach echtem Auto-Save (kein eigener Button-Zweck in der Referenz)
   void btn.offsetWidth;
@@ -199,7 +205,7 @@ let remoteSyncTimer = null;
 function scheduleRemoteSync() {
   if (remoteSyncTimer) clearTimeout(remoteSyncTimer);
   remoteSyncTimer = setTimeout(() => {
-    Pipeline.saveSessionRemote(AppState.data.sessionId, AppState.data);
+    Pipeline.saveSessionRemote(AppState.data.sessionId, AppState.data).then(() => renderSaveHint());
   }, 2000);
 }
 

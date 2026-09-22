@@ -1596,7 +1596,7 @@ function buildDebugDetails(image) {
       (ungeprueftText(c) || ((c.violations != null ? c.violations + " Verstöße" : "?") +
         "\n  Wertung: " + gruendeText(c.verify) + "\n  " + JSON.stringify(c.verify))) +
       "\n  " + stilTorText(c)).join("\n") +
-    "\n\n--- scenePrompt() ---\n" + (image.promptText || "(kein Prompt gespeichert)") +
+    "\n\n--- scenePrompt() ---\n" + (image.promptText || (image.promptTextNurLokal ? "(nur im Browser gespeichert, in dem das Bild entstand — steht vollständig in der instruction unten)" : "(kein Prompt gespeichert)")) +
     "\n\n--- sceneComposeInstruction() (tatsächlich an fal.ai gesendet) ---\n" + (image.instruction || "(keine Instruction gespeichert)");
   toggle.addEventListener("click", () => { box.style.display = box.style.display === "none" ? "block" : "none"; });
   wrap.appendChild(toggle);
@@ -1619,8 +1619,8 @@ function buildDebugDetails(image) {
 // Inhalt unveraendert uebernommen, mit diesen bewussten Angleichungen:
 //   - Stift-Knopf heisst ueberall "Stift · markieren, was weg soll" (mobil vorher nur "Stift").
 //   - Ueberschrift ueberall "Da ist es." (mobil vorher mit Zeilenumbruch nach "ist").
-//   - "schau erst mal in Ruhe." und der Knopf "Wimmelbild ist fertig!" bleiben Desktop-only: am
-//     Handy uebernimmt die feste Leiste unten diese Aufgabe (siehe app-shell.js).
+//   - "schau erst mal in Ruhe." bleibt Desktop-only. Den Fertig-Knopf gibt es seit 22.09.2026 nur
+//     noch in der festen Leiste unten (siehe app-shell.js), auf allen Bildschirmgroessen.
 //
 // ENTFERNT (21.09.2026, Schritt 3): der gelbe Warnkasten ("Bitte einmal gegenchecken", bei
 // gescheiterter Pruefung oder schwerem Verstoss; "Nicht bestanden", wenn kein Kandidat das Stil-Tor
@@ -1700,17 +1700,12 @@ function buildErgebnisAnsicht(s, image) {
   if (s.penOn) werkzeuge.appendChild(buildPenPanel({ image, canvas, img, mark, errorId: "pen-error" }));
   seite.appendChild(werkzeuge);
 
-  const hinweis = h("div", { class: "erg-hinweis", style: { position: "relative", background: "var(--blue)", border: "4px solid var(--ink)", boxShadow: "5px 6px 0 var(--ink)", padding: "15px 15px 15px 56px", transform: "rotate(-.8deg)" } });
-  hinweis.appendChild(h("img", { src: assetPath("wizard-magnifier.webp"), alt: "", style: { position: "absolute", left: "-18px", top: "-14px", width: "48px", transform: "rotate(-10deg)" } }));
-  hinweis.appendChild(h("p", { class: "caveat", style: { fontSize: "21px", lineHeight: "1.12" } },
-    s.penOn ? "kringel einfach drüber. ich muss nicht genau wissen, wo das Ding anfängt – ich verstehe, was du meinst."
-            : "irgendwas störend? nimm den Stift und mal es durch. der Rest der Szene bleibt genau so."));
-  seite.appendChild(hinweis);
+  // ENTFERNT (22.09.2026, Nutzer): die blaue Sprechblase "irgendwas störend? nimm den Stift …" /
+  // "kringel einfach drüber …". Neben dem KI-Hinweis direkt darueber war sie doppelt.
 
-  const unten = h("div", { class: "erg-unten desktop-only" });
-  unten.appendChild(h("button", { type: "button", class: "h-black", style: { width: "100%", minHeight: "60px", background: "var(--red)", color: "var(--paper)", border: "3px solid var(--ink)", boxShadow: "5px 5px 0 var(--ink)", fontSize: "17px", cursor: "pointer" }, onClick: () => Router.goScreen("entscheidung") }, "Wimmelbild ist fertig!"));
-  unten.appendChild(h("p", { class: "caveat", style: { margin: "10px 0 0", textAlign: "center", fontSize: "20px" } }, "nachbessern geht auch später noch."));
-  seite.appendChild(unten);
+  // ENTFERNT (22.09.2026, Nutzer): der zweite "Fertig"-Knopf ("Wimmelbild ist fertig!") in der
+  // Desktop-Seitenleiste. Die feste Leiste unten ("Bild ist fertig!", app-shell.js) steht auf allen
+  // Bildschirmgroessen und fuehrt an dieselbe Stelle -- ein Knopf reicht.
 
   erg.appendChild(seite);
   return erg;

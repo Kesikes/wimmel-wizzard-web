@@ -322,16 +322,58 @@ async function moderateText(text) {
 // (localStorage bleibt ohnehin die primaere, sofortige Speicherebene, siehe state.js AppState.save()
 // -- das hier ist nur die zusaetzliche, geraeteuebergreifende Ebene). Aufrufer (app-shell.js) loggt
 // bestenfalls, unterbricht aber nie den normalen App-Ablauf deswegen.
+// BUGFIX (22.09.2026, Nutzer-Befund "Sitzung frisch geholt, neue Szenen fehlen"): der Server nimmt
+// hoechstens 1.000.000 Zeichen an (api/session.js). Je Bild lagen rund 37.000 Zeichen im Stand,
+// fast alles promptText und instruction -- nach 27 Bildern war die Grenze erreicht, und JEDES
+// weitere Speichern wurde still mit "Speicherstand ist zu groß" abgelehnt. Die Kopfzeile zeigte
+// trotzdem "gespeichert". Zwei Aenderungen:
+//   1. standFuerServer(): der Server-Stand laesst promptText weg -- es steckt woertlich in
+//      instruction (nachgeprueft an 22 von 22 Bildern). Reicht das nicht, verliert zuerst der
+//      Speicherstand der Fehlversuche und dann der der AELTESTEN Bilder die instruction; das Bild
+//      traegt dann "instructionNurLokal: true", damit niemand eine fehlende instruction fuer einen
+//      Messwert haelt. Im Browser (localStorage) bleibt alles vollstaendig.
+//   2. saveSessionRemote() meldet Erfolg UND Grund; die Kopfzeile sagt ehrlich "nur auf diesem
+//      Gerät", wenn der Server nicht gespeichert hat (siehe renderSaveHint() in app-shell.js).
+const SERVER_STAND_GRENZE = 950000; // Luft unter den 1.000.000 des Servers
+function standFuerServer(data) {
+  const kopie = Object.assign({}, data);
+  kopie.images = (data.images || []).map((b) => {
+    if (!b || !b.promptText) return b;
+    const o = Object.assign({}, b);
+    delete o.promptText;
+    o.promptTextNurLokal = true;
+    return o;
+  });
+  let laenge = JSON.stringify(kopie).length;
+  if (laenge > SERVER_STAND_GRENZE && Array.isArray(data.fehlversuche)) {
+    kopie.fehlversuche = data.fehlversuche.map((f) => {
+      if (!f || !f.instruction) return f;
+      const o = Object.assign({}, f); delete o.instruction; o.instructionNurLokal = true; return o;
+    });
+    laenge = JSON.stringify(kopie).length;
+  }
+  for (let i = 0; i < kopie.images.length && laenge > SERVER_STAND_GRENZE; i++) {
+    const b = kopie.images[i];
+    if (!b || !b.instruction) continue;
+    const o = Object.assign({}, b); delete o.instruction; o.instructionNurLokal = true;
+    kopie.images[i] = o;
+    laenge = JSON.stringify(kopie).length;
+  }
+  return kopie;
+}
 async function saveSessionRemote(sessionId, data) {
   try {
     const resp = await fetch("/api/session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mode: "save", sessionId, data }),
+      body: JSON.stringify({ mode: "save", sessionId, data: standFuerServer(data) }),
     });
     const parsed = await parseJsonResponse(resp);
-    return !!(resp.ok && parsed && parsed.ok);
+    const ok = !!(resp.ok && parsed && parsed.ok);
+    saveSessionRemote.letzter = { ok, grund: ok ? null : ((parsed && parsed.error) || ("Server " + resp.status)), am: Date.now() };
+    return ok;
   } catch (e) {
+    saveSessionRemote.letzter = { ok: false, grund: "keine Verbindung", am: Date.now() };
     return false;
   }
 }
@@ -4022,7 +4064,7 @@ window.Pipeline = {
   translate, translateChip, ageRole, twoColorBoost, makeCharacterSpec,
   charPrompt, charInScene, charPromptFromChips, charInSceneFromChips, describeHero, translateFreeText,
   transcribeAudio, moderateText, sceneChat,
-  saveSessionRemote, loadSessionRemote, requestResumeEmail,
+  saveSessionRemote, standFuerServer, loadSessionRemote, requestResumeEmail,
   charSheetViewPrompt, charSheetViewPromptFromChips, threeQuarterEditInstruction,
   sideViewEditInstruction, backViewEditInstruction,
   kontextInstruction, photoStyleInstruction, traitBitFromPhotoDescription, describePhotoTraits,

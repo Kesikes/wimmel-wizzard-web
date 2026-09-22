@@ -188,3 +188,31 @@ Vorschlag für die Abarbeitung, nach Abschluss der Bildqualität:
 - Gerahmtes Bild: eigener Rahmenlieferant oder über die Druckerei?
 
 *Erledigt am 19.09.: Produktstufen, Seitenzahlen und die Doppelseiten-Frage — siehe Abschnitt 3.*
+
+---
+
+## 9. OFFEN — Produktidee: Produktleiter (Idee Matthias, 21.09.2026)
+
+**Status: offene Idee, nicht entschieden, nichts gebaut.** Die Produktstufen aus Abschnitt 3
+gelten unverändert, bis Matthias anders entscheidet.
+
+Vom günstigen Einstieg bis zum Geschenkstück:
+
+1. **Poster** DIN A3 oder A2, gefaltet, per Brief verschickbar, unter 10 €
+2. **kleines Softcover-Heft im Pixi-Format** (Name offen — „Pixi" ist eine Marke von Carlsen und
+   darf nicht als Produktname verwendet werden)
+3. **Buch mit weichen Seiten** (das bisherige Softcover)
+4. **Pappbuch**
+5. **gerahmtes Bild**
+
+**Offene Punkte**
+
+- **Format:** DIN-Format gegen Bildformat 16:9. Entweder bleibt ein freier Streifen (für Titel,
+  Name, Suchaufgaben), oder das Bild wird beschnitten.
+- **Falz:** Falzlinien laufen beim gefalteten Poster durch das Bild. Klären per Probedruck.
+- **Mini-Heft:** Sind die Figuren im kleinen Druck zu klein? Eventuell braucht es ein eigenes
+  Profil mit weniger, größeren Figuren.
+- **Kalkulation Poster unter 10 €:** einschließlich Druck, Falz, Porto, Zahlungsgebühren und
+  5 € Startguthaben.
+- **Pappbuch und Rahmen:** Einzeldruckkosten bei der Druckerei anfragen.
+

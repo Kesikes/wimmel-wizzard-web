@@ -547,6 +547,20 @@ gesetzt. Wer dem dokumentierten Weg folgte, war weiter im Testmodus, ohne es zu 
 
 ## 10. Wahrheit und Messung
 
+### GÜLTIG seit 22.09.2026: der Server-Stand ist schlanker als der im Browser
+
+Befund: `sitzung.json` enthielt nach neuem Holen dieselben 27 Bilder wie am Vorabend. Ursache: Der
+Server nimmt höchstens 1.000.000 Zeichen an. Je Bild lagen rund 37.000 Zeichen im Stand, fast alles
+`promptText` und `instruction`. Seit Bild 27 wurde deshalb jeder Speicherversuch abgelehnt, still,
+und die Kopfzeile zeigte trotzdem „gespeichert". Jetzt gilt:
+- Der Server-Stand enthält kein `promptText` mehr, denn es steht wörtlich in `instruction`. Das Bild
+  trägt dafür `promptTextNurLokal: true`. Reicht das nicht, verlieren zuerst die Fehlversuche und
+  dann die ältesten Bilder ihre `instruction` (`instructionNurLokal: true`). Kandidaten, Prüfwerte
+  und Fassungen bleiben immer erhalten.
+- Die Kopfzeile sagt „nur auf diesem Gerät", wenn der Server nicht gespeichert hat. Den Grund zeigt
+  der Tooltip.
+- Im Browser bleibt alles vollständig.
+
 ### GÜLTIG seit 20.09.2026
 
 `docs/ref/wahrheit.tsv` hält fest, was der Nutzer **selbst am Bild gezählt** hat. Nur dorthin, was
@@ -676,7 +690,7 @@ Eintrag erzeugt, steht im Code.
   Museum, Schiff, Zug …). Offene Orte (Straße, Markt, Platz, Park, Garten, Strand, Wald, Hof,
   Terrasse …) sind **immer offen**; Berg- und Stadt-Wörter (Berg, Alm, Hütte, Stadt, Innenstadt …)
   verbieten den Querschnitt ganz. **Offene Wörter und Berg/Stadt gewinnen gegen Innenraum-Wörter:**
-  „Café in der Stadt" wird offen, „Café" allein ein Querschnitt. Unklare Labels („Bei Oma") werden
+  „Café in der Stadt" wird offen (vom Nutzer bestätigt, 22.09.), „Café" allein ein Querschnitt. Unklare Labels („Bei Oma") werden
   offen.
 
 ---
@@ -691,3 +705,19 @@ Nutzer, 21.09.2026: jetzt nicht bauen, beim Prompt-Aufräumen angehen.
   24.000). Muss **vor dem Launch** gelöst sein — zusammen mit der Frage, wo fal wirklich abschneidet.
 - Weiter Meldungen aufräumen, die einen falschen Grund nennen.
 - Bauernhof mit `overview_cutaway` testen (Abschnitt 13).
+
+---
+
+## 15. Offen — noch nicht entschieden
+
+### OFFEN: Produktleiter (Idee des Nutzers, 21.09.2026)
+
+Nur festgehalten, nichts entschieden, nichts gebaut. Quelle und Einzelheiten:
+`konzept-konto-layout-druck.md`, Abschnitt 9 (Produktthemen führt diese Datei nicht doppelt).
+
+Kurz: Poster (A3/A2, gefaltet, per Brief, unter 10 €) → kleines Softcover-Heft im Pixi-Format
+(Name offen, „Pixi" ist eine Carlsen-Marke) → Buch mit weichen Seiten → Pappbuch → gerahmtes
+Bild. Offen sind: DIN-Format gegen 16:9, Falzlinien durchs Bild (Probedruck), Figurengröße im
+Mini-Heft (eventuell eigenes Profil mit weniger, größeren Figuren), Kalkulation Poster unter
+10 € mit allen Kosten und 5 € Startguthaben, Einzeldruckkosten für Pappbuch und Rahmen.
+

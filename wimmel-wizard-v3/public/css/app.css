@@ -112,12 +112,11 @@ textarea.field { min-height: 108px; resize: none; padding: 11px; line-height: 1.
 .erg-seite { display: contents; }
 .erg-kopf { order: 0; padding: 0 14px; margin-bottom: 14px; }
 .erg-bild { order: 1; }
-.erg-werkzeuge, .erg-hinweis, .erg-unten { order: 2; }
+.erg-werkzeuge { order: 2; }
 .erg-titel { margin-bottom: 14px; }
 .erg-warnung { margin-top: 2px; }
 .erg-werkzeuge { padding: 12px 14px 0; }
 .erg-werkzeuge > div { margin-left: 0 !important; margin-right: 0 !important; }
-.erg-hinweis { margin: 16px 14px 0; }
 .erg-stift-etikett {
   position: absolute; left: 22%; top: 34%; margin: -30px 0 0 74px; background: var(--red); color: var(--paper);
   font-size: 10px; letter-spacing: .06em; padding: 5px 7px; transform: rotate(-3deg); pointer-events: none;
@@ -135,8 +134,6 @@ textarea.field { min-height: 108px; resize: none; padding: 11px; line-height: 1.
   .erg-titel { font-size: 44px; letter-spacing: -.045em; margin-bottom: 0; }
   .erg-warnung { margin-top: 12px; }
   .erg-werkzeuge { padding: 0; display: flex; flex-direction: column; gap: 10px; }
-  .erg-hinweis { margin: 0; }
-  .erg-unten { margin-top: auto; border-top: 4px solid var(--ink); padding-top: 18px; }
   .erg-stift-etikett { left: 20%; top: 30%; margin: -34px 0 0 160px; font-size: 12px; padding: 7px 10px; }
 }
 .erg-wahl { order: 2; padding: 12px 14px 0; }
