@@ -1559,6 +1559,21 @@ function buildDebugDetails(image) {
     return z.join("\n");
   }
   const heldenBlock = heldenText(image);
+  // NEU (22.09.2026, Falz): Lage der Helden (heroes_x, 0 = links, 100 = rechts) und ob einer im
+  // Falzstreifen 46,5–53,5 steht. NUR Messwert, keine Gewichtung. Fehlt das Feld, steht das da.
+  function falzText(v) {
+    const xs = v && Array.isArray(v.heroes_x) ? v.heroes_x : null;
+    if (!xs) return "Falz: nicht gemessen (Prüfung vor 2026-09-22c oder Feld fehlt)";
+    const namen = ((image.heldenInfo && image.heldenInfo.helden) || []).map((h) => h.name);
+    const teile = xs.map((x, i) => {
+      const n = Number(x);
+      const wer = namen[i] || ("Held " + (i + 1));
+      if (!isFinite(n) || n < 0) return wer + " –";
+      return wer + " " + Math.round(n) + (n >= 46.5 && n <= 53.5 ? " IM FALZ" : "");
+    });
+    const imFalz = xs.filter((x) => { const n = Number(x); return isFinite(n) && n >= 46.5 && n <= 53.5; }).length;
+    return "Falz (Messwert, ungewertet; 0 links, 100 rechts, Streifen 46,5–53,5): " + teile.join(", ") + " → " + (imFalz ? imFalz + " im Falz" : "keiner im Falz");
+  }
   // NEU (21.09.2026): Stil-Tor je Kandidat. Kein Eintrag heisst: Schalter war aus (oder aeltere
   // Fassung) -- das steht dann ausdruecklich da.
   function stilTorText(k) {
@@ -1597,7 +1612,7 @@ function buildDebugDetails(image) {
     (image.candidates || []).map((c, i) => "Kandidat " + (i + 1) + " (" + c.url + "): " +
       (ungeprueftText(c) || ((c.violations != null ? c.violations + " Verstöße" : "?") +
         "\n  Wertung: " + gruendeText(c.verify) + "\n  " + JSON.stringify(c.verify))) +
-      "\n  " + stilTorText(c)).join("\n") +
+      "\n  " + stilTorText(c) + "\n  " + falzText(c.verify)).join("\n") +
     "\n\n--- scenePrompt() ---\n" + (image.promptText || (image.promptTextNurLokal ? "(nur im Browser gespeichert, in dem das Bild entstand — steht vollständig in der instruction unten)" : "(kein Prompt gespeichert)")) +
     "\n\n--- sceneComposeInstruction() (tatsächlich an fal.ai gesendet) ---\n" + (image.instruction || "(keine Instruction gespeichert)");
   toggle.addEventListener("click", () => { box.style.display = box.style.display === "none" ? "block" : "none"; });

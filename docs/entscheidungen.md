@@ -905,7 +905,14 @@ Bei der Doppelseite 296 mm entspricht das einem Streifen von rund 7 % der Bildbr
     deckt das zum großen Teil ab.
   - Querschnitt: Beim aufgeschnittenen Haus liegt oft eine Wand oder ein Treppenhaus in der Mitte.
     Das ist gut, sollte aber nicht erzwungen werden.
-  - Prüfen ohne neue Messreihe: gemini-Prüfung und Stil-Tor melden die Lage der Helden bisher
+  - **Gebaut 22.09.2026 (Nutzer: „5c ja")**: Hintergrund-Szenen nur noch links oder rechts
+    (`SIDE_CYCLE` = links, rechts, rechts, links — Viererzyklus, damit die beiden
+    Vordergrund-Plätze nicht auf dieselbe Seite fallen), Fassung `2026-09-22c`.
+  - **Gebaut 22.09.2026 (Nutzer: „5d ja, nur Messwert")**: Die gemini-Prüfung meldet `heroes_x`
+    (waagerechte Lage je Held, 0–100, −1 = fehlt). Das Panel zeigt je Kandidat „Falz (Messwert,
+    ungewertet)" und wer im Streifen 46,5–53,5 steht. Keine Gewichtung: beide Kopien der
+    Wertung überspringen das Feld (geprüft). Prüf-Fassung `2026-09-22c`.
+  - Prüfen ohne neue Messreihe (Einschätzung vom 22.09., inzwischen gebaut, siehe oben): gemini-Prüfung und Stil-Tor melden die Lage der Helden bisher
     nicht. Vorschlag: In der ohnehin laufenden Prüfung zu jedem Helden ein Feld `position_x`
     (0–100, Mittelpunkt des Helden von links) mitmelden lassen. Der Code rechnet aus, ob ein Held
     im Streifen 46,5–53,5 steht, und zeigt es im Panel — nur als Messwert, ohne Gewichtung

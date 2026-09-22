@@ -1445,7 +1445,7 @@ var ACTIVE_SCENE_PHASE = "phase1";
 // in den Kompositionstypen, aendert sich die Pruefsumme -- ohne dass jemand daran denken muss.
 // Das von Hand gepflegte Datum bleibt als lesbare Ergaenzung daneben stehen; verlassen tun wir uns
 // auf die Pruefsumme.
-var PROMPT_LABEL = "2026-09-22b";
+var PROMPT_LABEL = "2026-09-22c";
 
 // FNV-1a, 32 Bit. Bewusst kein crypto.subtle: das ist asynchron, und diese Kennung soll ohne
 // Umstand synchron beim Laden feststehen. Kollisionen sind hier belanglos -- es geht nicht um
@@ -1566,7 +1566,7 @@ var VERIFY_MAX_VERSUCHE = 2;
 // Kandidat --, bleibt die Pruefsumme sonst gleich, obwohl die Pruefung sich anders verhaelt.
 // Diese Zeichenkette ist der Platz, an dem so eine Aenderung sichtbar wird. Sie gehoert bei jeder
 // Aenderung an der Pruef-LOGIK hochgezaehlt, auch wenn der Prompt gleich bleibt.
-var PRUEF_VERHALTEN = "2026-09-21j: Kandidatenwahl -- gezeigt werden nur Kandidaten, die das Stil-Tor bestehen; Favorit bestimmt der Richter bei jedem bestandenen Paar, sonst K1 (kein Rueckfall auf Heldenzaehlung oder Schwere); besteht keiner (auch der dritte nicht), gibt es kein Bild und einen kostenlosen neuen Durchgang; 2026-09-21i: Grundstand -- Richter, Stil-Tor (nur Teil A, Teil B abgeschaltet) und Heldenbeschreibung aus dem Figurenblatt sind Vorgabe (aus nur per richter=aus, stiltor=aus, helden=alt); dritter Kandidat NUR, wenn kein Kandidat das Stil-Tor besteht (technisch gescheitertes Stil-Tor zaehlt als bestanden), Tiefe/Figurengroesse loesen ihn nicht mehr aus; Berg/Stadt nie Querschnitt, Chat-Weg Querschnitt nur bei eindeutigem Innenraum; 2026-09-21h: Stil-Tor Teil A wieder woertlich die erste Fassung (21e) als eigener Aufruf, entscheidet allein; Teil B Kopfanteil als zweiter Aufruf nur Messwert; 2026-09-21g: Stil-Tor in zwei Teilen (A Stil ja/nein ohne Kopfgroesse, B Kopfanteil als Zahl gegen die Referenz; B entscheidet erst ab kalibrierter Grenze); 2026-09-21f: Stil-Tor fragt zusaetzlich nach den Proportionen (grosse runde Koepfe bei allen, normale Comic-Proportionen = passt nicht); 2026-09-21e: Stil-Tor (claude-sonnet-5, absolute Stilpruefung gegen die Referenz je Kandidat, nein = SCHWER, kein Kandidat bestanden = abgelehnt) hinter /app?stiltor=an; Richter nennt den tatsaechlichen Grund, wenn er nicht gefragt wird; 2026-09-21d: heroes_ok mittel statt schwer (Kleidungspruefung 64 %, Regel: schwer erst ab 90 %); 2026-09-21a: Heldenfehler entscheiden bei der Auswahl direkt nach den schweren Verstoessen, vor den uebrigen mittleren (loesen aber keinen dritten Kandidaten aus); ein Wiederholungsversuch bei unlesbarer Antwort, danach ungeprueft statt schlechtester Kandidat; D-Richter (claude-sonnet-5, zwei Aufrufe mit getauschter Reihenfolge) entscheidet bei Gleichstand der schweren Verstoesse, hinter /app?richter=an";
+var PRUEF_VERHALTEN = "2026-09-22c: Pruefung meldet heroes_x (waagerechte Lage je Held, 0-100) als reine Messung fuer den Falzstreifen 46,5-53,5, ungewertet; 2026-09-21j: Kandidatenwahl -- gezeigt werden nur Kandidaten, die das Stil-Tor bestehen; Favorit bestimmt der Richter bei jedem bestandenen Paar, sonst K1 (kein Rueckfall auf Heldenzaehlung oder Schwere); besteht keiner (auch der dritte nicht), gibt es kein Bild und einen kostenlosen neuen Durchgang; 2026-09-21i: Grundstand -- Richter, Stil-Tor (nur Teil A, Teil B abgeschaltet) und Heldenbeschreibung aus dem Figurenblatt sind Vorgabe (aus nur per richter=aus, stiltor=aus, helden=alt); dritter Kandidat NUR, wenn kein Kandidat das Stil-Tor besteht (technisch gescheitertes Stil-Tor zaehlt als bestanden), Tiefe/Figurengroesse loesen ihn nicht mehr aus; Berg/Stadt nie Querschnitt, Chat-Weg Querschnitt nur bei eindeutigem Innenraum; 2026-09-21h: Stil-Tor Teil A wieder woertlich die erste Fassung (21e) als eigener Aufruf, entscheidet allein; Teil B Kopfanteil als zweiter Aufruf nur Messwert; 2026-09-21g: Stil-Tor in zwei Teilen (A Stil ja/nein ohne Kopfgroesse, B Kopfanteil als Zahl gegen die Referenz; B entscheidet erst ab kalibrierter Grenze); 2026-09-21f: Stil-Tor fragt zusaetzlich nach den Proportionen (grosse runde Koepfe bei allen, normale Comic-Proportionen = passt nicht); 2026-09-21e: Stil-Tor (claude-sonnet-5, absolute Stilpruefung gegen die Referenz je Kandidat, nein = SCHWER, kein Kandidat bestanden = abgelehnt) hinter /app?stiltor=an; Richter nennt den tatsaechlichen Grund, wenn er nicht gefragt wird; 2026-09-21d: heroes_ok mittel statt schwer (Kleidungspruefung 64 %, Regel: schwer erst ab 90 %); 2026-09-21a: Heldenfehler entscheiden bei der Auswahl direkt nach den schweren Verstoessen, vor den uebrigen mittleren (loesen aber keinen dritten Kandidaten aus); ein Wiederholungsversuch bei unlesbarer Antwort, danach ungeprueft statt schlechtester Kandidat; D-Richter (claude-sonnet-5, zwei Aufrufe mit getauschter Reihenfolge) entscheidet bei Gleichstand der schweren Verstoesse, hinter /app?richter=an";
 
 // SHADED_MAX_OF_TEN: wie viele der zehn groessten Gesichter plastisch gezeichnet sein duerfen.
 // EINS, nicht zwei oder drei -- Nutzer-Entscheidung nach folgender Ueberlegung: der gewuenschte
@@ -2581,7 +2581,11 @@ const LAYER_CYCLE = [
   "foreground", "midground", "background", "midground", "background",
   "midground", "background", "midground", "background", "midground",
 ];
-const SIDE_CYCLE = ["left", "center", "right"];
+// GEAENDERT (22.09.2026, Nutzer "5c": Falz in der Buchmitte): die Hintergrund-Szenen bekommen nur
+// noch links oder rechts, nie "center" -- vorher landete jede dritte Suchaufgabe ausdruecklich in
+// der Mitte, also im Falz. Viererzyklus statt Zweierzyklus: bei einem Zweierzyklus fielen die
+// beiden Vordergrund-Plaetze in LAYER_CYCLE (Index 0 und 10) auf dieselbe Seite.
+const SIDE_CYCLE = ["left", "right", "right", "left"];
 // GEAENDERT (17.09.2026, D3): vierter Parameter usedTexts -- die buchweite Sperrliste, siehe
 // topUpSituations().
 function autoSituations(theme, existing, target, usedTexts) {
@@ -3421,7 +3425,12 @@ function buildVerifyPrompt(heroSpecs, phaseId, compositionId) {
 
     "10. TEXT: Ist das Bild vollständig frei von Text -- keine Buchstaben, Wörter, Zahlen, Schilder, Poster, Beschriftungen oder Aufschriften auf Kleidung und Gegenständen, auch nicht klein oder im Hintergrund?",
 
-    "Antworte NUR als JSON-Objekt mit genau diesen elf Feldern, notiz immer als LETZTES: {\"heroes_found\": [Zahlen], \"heroes_ok\": true/false, \"shaded_of_ten\": Zahl, \"blank_of_ten\": Zahl, \"depth_ratio\": Zahl, \"scale_est\": Zahl, \"heads_ok\": true/false, \"figures_est\": Zahl, \"mouths_of_ten\": Zahl, \"logic_ok\": true/false, \"no_text_ok\": true/false, \"notiz\": \"kurzer Text\"}.",
+    // NEU (22.09.2026, Nutzer "5d", Falz): Lage der Helden als reine Messung, NICHT gewertet
+    // (severityOf()/countViolations() ueberspringen unbekannte Felder). Der Code prueft den
+    // Falzstreifen 46,5–53,5 und zeigt es im Panel.
+    "11. LAGE DER BENANNTEN FIGUREN (nur Messung, wird nicht bewertet): Gib für JEDE der " + n + " benannten Figuren (" + names + "), in derselben Reihenfolge wie bei heroes_found, an, wo ihre Körpermitte waagerecht im Bild steht: 0 ist der linke Bildrand, 100 der rechte, 50 die genaue Mitte. Kommt eine Figur mehrmals vor, nimm die Stelle, an der sie am deutlichsten zu sehen ist; fehlt sie, schreib -1. Antworte im Feld heroes_x mit einer Liste von " + n + " ganzen Zahlen.",
+
+    "Antworte NUR als JSON-Objekt mit genau diesen zwölf Feldern, notiz immer als LETZTES: {\"heroes_found\": [Zahlen], \"heroes_x\": [Zahlen], \"heroes_ok\": true/false, \"shaded_of_ten\": Zahl, \"blank_of_ten\": Zahl, \"depth_ratio\": Zahl, \"scale_est\": Zahl, \"heads_ok\": true/false, \"figures_est\": Zahl, \"mouths_of_ten\": Zahl, \"logic_ok\": true/false, \"no_text_ok\": true/false, \"notiz\": \"kurzer Text\"}.",
     // NEU (18.09.2026): notiz. Grund: der Prompt verlangte an zwei Stellen eine Begruendung ("nenne,
     // welche Figur du meinst"), das Antwortformat liess aber nur die acht Wertungsfelder zu -- die
     // Begruendung ging also jedes Mal verloren. Sichtbar wurde das, als bei einem Bild zwei von drei
@@ -3432,7 +3441,7 @@ function buildVerifyPrompt(heroSpecs, phaseId, compositionId) {
     // Angezeigt wird es ohne Zusatzarbeit, weil buildDebugDetails() (szene.js) das rohe Verify-JSON
     // je Kandidat ausgibt.
     "notiz ist ein kurzer deutscher Freitext, höchstens zwei Sätze, und wird NICHT bewertet -- er dient nur dazu, dass ein Mensch nachvollziehen kann, warum ein Feld false ist. Steht irgendwo false, schreib dort in Stichworten hin, was du gesehen hast; ist alles in Ordnung, schreib eine leere Zeichenkette. Verwende darin KEINE Anführungszeichen und KEINE Zeilenumbrüche, damit das JSON gültig bleibt.",
-    "Bei allen *_ok-Feldern bedeutet true: kein Verstoß. logic_ok=true, wenn Innen und Außen NICHT vermischt sind. heroes_found, depth_ratio, scale_est, figures_est, mouths_of_ten, shaded_of_ten und blank_of_ten sind keine true/false-Urteile, sondern deine gemessenen Zahlen — bewertet werden sie hinterher im Code.",
+    "Bei allen *_ok-Feldern bedeutet true: kein Verstoß. logic_ok=true, wenn Innen und Außen NICHT vermischt sind. heroes_found, heroes_x, depth_ratio, scale_est, figures_est, mouths_of_ten, shaded_of_ten und blank_of_ten sind keine true/false-Urteile, sondern deine gemessenen Zahlen — bewertet werden sie hinterher im Code.",
     "Wichtig zur Strenge: bewerte nur, was du tatsächlich siehst. Wenn du dir bei einem der Ja/Nein-Punkte nicht sicher bist, antworte dort true -- ein vermuteter Verstoß ist kein Verstoß. Das gilt aber NICHT für die gezielte Suche unter Punkt 2: dort sollst du wirklich nachsehen und einen gefundenen Ausreißer auch benennen, statt vorsichtshalber true zu antworten.",
 
   ];
