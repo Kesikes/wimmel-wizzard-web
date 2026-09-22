@@ -1,6 +1,6 @@
 # Plan: Prompt-Aufräumen (22.09.2026)
 
-**Status: PLAN, nichts gebaut.** Anlass: Mit 5 Helden liegt der Bildprompt seit Fassung
+**Status: PLAN, nichts gebaut.** Freigegeben am 22.09. mit Änderungen (siehe „Entscheidungen des Nutzers" am Ende). Schritt 1 und 2 erledigt: `prompt-inventar-2026-09-22.md`. Anlass: Mit 5 Helden liegt der Bildprompt seit Fassung
 `2026-09-22b` bis zu rund 450 Zeichen über unserer eigenen Grenze. Die Szene wird dann beim Start
 abgelehnt, ohne Kosten. Entscheidungen trifft der Nutzer; das Register (`entscheidungen.md`) bleibt
 die Quelle.
@@ -229,3 +229,19 @@ Annahmen zur Kostenrechnung:
 Quellen zur fal-Grenze:
 [fal – Nano Banana Pro edit API](https://fal.ai/models/fal-ai/nano-banana-pro/edit/api),
 [fal – Nano Banana Pro API-Referenz](https://fal.ai/docs/model-api-reference/image-generation-api/nano-banana-pro)
+
+---
+
+## Entscheidungen des Nutzers (22.09.2026)
+
+1. fal-Grenze: nur das Schema abfragen, kein Ablehnungs- und kein Abschneidetest. **Ergebnis:
+   `maxLength` 50.000 Zeichen** (`NanoBananaProEditInput.prompt`).
+2. Bildpreis ist belegt: 499 Bildaufrufe = 74,85 $ = **0,15 $ je Bild, immer in 4K**. Es gilt der
+   Dashboard-Wert, nicht die Doku.
+3. Vergleich: **bester Kandidat alt gegen besten Kandidaten neu**, nicht jeden einzeln. Dazu je
+   Fassung zählen, wie oft ein Kandidat am Stil-Tor scheitert.
+4. Nicht streichen, nur kürzen: leeres Blatt (ein Satz statt vier), „100 bis 130 Menschen" bleibt,
+   bis ein Vergleich etwas anderes zeigt.
+5. Das Mund-Sandwich vorn und hinten bleibt.
+6. Nach Schritt 2 entscheidet der Nutzer die Liste, bevor neu aufgebaut wird.
+
