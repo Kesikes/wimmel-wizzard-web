@@ -738,6 +738,8 @@ Eintrag erzeugt, steht im Code.
 
 ## 14. Vorgemerkt für das Prompt-Aufräumen — nicht gebaut
 
+**Plan dazu (22.09.2026, nicht gebaut): `plan-prompt-aufraeumen-2026-09-22.md`.**
+
 Nutzer, 21.09.2026: jetzt nicht bauen, beim Prompt-Aufräumen angehen.
 
 - In Phase 1 laufen alle Außenthemen über „open". Offene Szenen enger führen, z. B. mit benannten
