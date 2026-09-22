@@ -768,6 +768,40 @@ vereinbarten Regel („mindestens 4 von 5 gleich gut oder besser") ist der neue 
      sind zurückgestellt: Sie gehörten zum Umbau, der bei Dichte und Größe verloren hat, und den
      Falz hält die Falzregel schon frei. Der neue Aufbau bleibt ausgeschaltet im Code.
   3. Bauernhof als `overview_cutaway`: regulär mitwürfeln (Abschnitt 13), Fassung `2026-09-22d`.
+
+**Ergebnis des Baustein-Vergleichs „Alter als Größe" (22.09.2026, Urteil des Nutzers, blind,
+2 Szenen):** Beim Punkt **Alter und Größe der Kinder zweimal „gleich"** — der Baustein zeigt keine
+Wirkung auf das, wofür er gedacht war. Sonst: Bauernhof mit Baustein besser im Gesamteindruck, in
+Größe/Zoom und in der Dichte; Stadt überall gleich. Kein Nachteil, aber auch kein Beleg.
+**Entscheidung: `ALTER_ALS_GROESSE` bleibt aus**, bis eine Fassung gefunden ist, die wirkt.
+- Gegenprobe an den Figurenblättern (angesehen, kostenlos): Die Blätter zeigen die Kinder allein auf
+  Weiß. Ihr Alter steckt dort in Kopfgröße und Körperbau, nicht in einem Maßstab. Im Szenenbild
+  fehlt dem Modell also jeder Vergleich — ein Satz in der Heldenbeschreibung reicht offenbar nicht.
+- Nächster möglicher Versuch (nicht gebaut): die Größenrelation dorthin schreiben, wo die Regeln
+  nachweislich wirken — in den Größenblock und in die Platzierungszeile („her head reaches only to
+  the hip of the grown-ups next to her"), statt in die Figurenbeschreibung.
+
+### OFFEN (Produktentscheidung): Münder und Schattierung als Stilbruch zählen
+
+Befund aus demselben Lauf (A2 Stadt, alter Prompt): Das Stil-Tor hat den Kandidaten mit **10 von 10
+Gesichtern mit Mund und 10 von 10 plastisch schattiert** als „bestanden" durchgelassen und den
+sauberen Kandidaten (1 Mund, 0 schattiert) als „nicht bestanden" abgelehnt — also genau verkehrt
+herum. Weil nur einer „bestand", hätte die Kundin ausschließlich das stilistisch kaputte Bild
+gesehen. Der Nutzer hat es im Vergleich ebenfalls bemängelt („Stil falsch").
+
+**Vorschlag:** Zusätzlich zum Stil-Tor gilt ein Bild als Stilbruch, wenn die Prüfung
+`mouths_of_ten >= 8` **oder** `shaded_of_ten >= 8` meldet. Nachgerechnet an den 12 Kandidaten mit
+deinem Stil-Urteil (Register Abschnitt 10):
+
+| | Zahl |
+|---|---|
+| Übereinstimmung mit deinem Urteil | 9 von 12 |
+| Fehlalarme (du „ja", Regel „nein") | **0 von 8** |
+| erkannte Brüche | 1 von 4 (plus der Fall oben) |
+
+Die 90-%-Regel ist damit nicht erfüllt (75 %). Die Regel schlägt aber **nie** bei einem guten Bild
+an und fängt genau die Fälle, die das Stil-Tor übersieht. Als *zusätzliches* Ausschlusskriterium,
+das nur bei Extremwerten greift, halte ich sie für vertretbar — entschieden ist das nicht.
 - Anmerkungen des Nutzers: fehlende Heldin (T1) und doppelter Held (T3) ließen sich per Stift
   korrigieren.
 - Befund nebenbei: Im Café-Bild (T6 neu) stand „wmlstil" auf einem Schild. Das Wort steht am
