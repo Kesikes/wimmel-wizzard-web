@@ -1634,20 +1634,24 @@ function buildErgebnisAnsicht(s, image) {
   // crossOrigin ist am sichtbaren <img> nicht noetig: captureAnnotatedImage() laedt fuer die
   // Pixel ein eigenes Same-Origin-Bild ueber api/image-proxy.js (siehe dort).
   const imgBox = h("div", { style: { position: "relative" } });
+  // NEU (Schritt 4): zoomEbene traegt Bild, Canvas und Etikett gemeinsam -- Zoom und Verschiebung
+  // mit zwei Fingern wirken auf alle drei zugleich (siehe setupFreehand()).
+  const zoomEbene = h("div", { class: "erg-zoom", style: { position: "relative" } });
+  imgBox.appendChild(zoomEbene);
   const img = h("img", { src: image.src, alt: "Fertiges Wimmelbild", style: { display: "block", width: "100%" } });
-  imgBox.appendChild(img);
+  zoomEbene.appendChild(img);
   const canvas = h("canvas", { style: { position: "absolute", inset: "0", width: "100%", height: "100%", touchAction: "none" } });
   canvas.classList.toggle("hidden", !s.penOn);
-  imgBox.appendChild(canvas);
+  zoomEbene.appendChild(canvas);
   const penTag = h("span", { class: "h-black erg-stift-etikett" }, (s.penMode === "redo") ? "das hier neu" : "das da weg");
   penTag.classList.toggle("hidden", !s.penOn);
-  imgBox.appendChild(penTag);
+  zoomEbene.appendChild(penTag);
   // 16:9 -> 2:1-Druckbeschnitt-Vorschau, siehe buildCropViewport().
   const crop = buildCropViewport(imgBox);
   crop.classList.add("erg-crop");
   bildSpalte.appendChild(crop);
   erg.appendChild(bildSpalte);
-  const mark = setupFreehand(canvas, img);
+  const mark = setupFreehand(canvas, img, zoomEbene, image.id + "#" + (image.gewaehlt || 0) + "#" + image.src);
 
   // --- Seitenleiste (am Handy aufgeloest, siehe oben) ---
   const seite = h("aside", { class: "erg-seite" });
@@ -1712,70 +1716,179 @@ function buildErgebnisAnsicht(s, image) {
   return erg;
 }
 
-// Echtes Freihand-Kritzeln im Stift-Modus: Kreis, Durchstreichen, Gekritzel
-// gelten alle gleichwertig als Zeiger auf ein Objekt (siehe Briefing Schritt 4).
-// GEAENDERT (Sammel-Runde 10.09.2026, Punkt D: "Stift-Werkzeug UI bauen und mit
-// PEN_INSTRUCTION_REMOVE/PEN_INSTRUCTION_REDO verbinden -- aktuell nirgends aufgerufen"). Vorher
-// war das hier eine reine Deko-Funktion: sie zeichnete rote Freihand-Linien auf ein Overlay-Canvas,
-// tat aber sonst NICHTS damit -- keine Erfassung der Markierung, kein API-Aufruf, kein Ergebnis.
-// PEN_INSTRUCTION_REMOVE/PEN_INSTRUCTION_REDO (pipeline.js, wortgleich aus der Spezifikation
-// Abschnitt 4) lagen fertig vor, wurden aber von keinem Screen aufgerufen. Gibt jetzt ein Objekt mit
-// hasMark()/clear() zurueck, damit der neue Anwenden-Button (buildPenPanel() unten) weiss, ob
-// ueberhaupt etwas markiert wurde, und die Markierung nach einem erfolgreichen/abgebrochenen Editier-
-// Durchlauf wieder loeschen kann, ohne das ganze Canvas-Element neu zu erzeugen.
-function setupFreehand(canvas, img) {
-  const ctx = canvas.getContext("2d");
-  let drawing = false;
-  let last = null;
-  let marked = false;
+// GEAENDERT (21.09.2026, Plan Kandidatenwahl Schritt 4 "Stift am Handy"). Vorher: ein Canvas in
+// Bildschirmaufloesung, ein Finger malt, kein Zoom, kein Rueckgaengig -- und ein zweiter Finger
+// malte einfach mit (es wurde immer touches[0] genommen).
+// Jetzt:
+//   - EIN Finger (oder die Maus) malt, ZWEI Finger zoomen und verschieben. Kein Umschalter
+//     "Malen / Verschieben" (Nutzer-Entscheidung: kommt nur, wenn der Handytest ungewollte Striche
+//     zeigt).
+//   - Ein Strich ist bis zum Loslassen VORLAEUFIG. Setzt waehrenddessen ein zweiter Finger auf,
+//     wird er verworfen -- der haeufigste Fehler beim Zoomen.
+//   - Striche liegen in BILDKOORDINATEN (0..1 der vollen Bildbreite/-hoehe), nicht in
+//     Bildschirmpixeln. Nur so passt die Markierung nach dem Zoomen noch zum Bild, und
+//     captureAnnotatedImage() zeichnet sie scharf in voller Aufloesung statt ein hochskaliertes
+//     Bildschirm-Canvas darueberzulegen. Die Strichbreite wird beim Malen festgelegt (6 Bildschirm-
+//     pixel beim jeweiligen Zoom), damit ein feiner Kringel im Zoom auch fein bleibt.
+//   - Rueckgaengig (letzter Strich); "Markierung loeschen" (alle) wie bisher.
+//   - Zoom und Verschiebung wirken auf zoomEbene (Bild + Canvas + Etikett zusammen); die
+//     Druckbeschnitt-Box (overflow:hidden) schneidet den Rest ab. Knopf "ganzes Bild" setzt zurueck.
+//   - Die Striche ueberleben ein Neuzeichnen des Screens (Moduswechsel "Weg damit"/"Neu zeichnen"
+//     loest eins aus) -- sie liegen in penStriche, gebunden an Bild und gewaehlten Kandidaten.
+let penStriche = { key: null, liste: [] };
+const STIFT_FARBE = "#E4442A";
+const STIFT_BREITE_PX = 6;
+const ZOOM_MAX = 5;
 
-  function resize() {
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width;
-    canvas.height = rect.height;
-    ctx.lineWidth = 6;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.strokeStyle = "#E4442A";
-  }
-  if (img.complete) resize(); else img.addEventListener("load", resize);
-  window.addEventListener("resize", resize);
-
-  function point(e) {
-    const rect = canvas.getBoundingClientRect();
-    const cx = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
-    const cy = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
-    return { x: cx, y: cy };
-  }
-  function start(e) {
-    if (canvas.classList.contains("hidden")) return;
-    drawing = true;
-    last = point(e);
-    e.preventDefault();
-  }
-  function move(e) {
-    if (!drawing) return;
-    const p = point(e);
+function zeichneStriche(ctx, w, h, liste) {
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.strokeStyle = STIFT_FARBE;
+  ctx.fillStyle = STIFT_FARBE;
+  liste.forEach((s) => {
+    const lw = Math.max(1, s.breite * w);
+    if (s.punkte.length === 1) {
+      ctx.beginPath();
+      ctx.arc(s.punkte[0].x * w, s.punkte[0].y * h, lw / 2, 0, Math.PI * 2);
+      ctx.fill();
+      return;
+    }
+    ctx.lineWidth = lw;
     ctx.beginPath();
-    ctx.moveTo(last.x, last.y);
-    ctx.lineTo(p.x, p.y);
+    s.punkte.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x * w, p.y * h); else ctx.lineTo(p.x * w, p.y * h); });
     ctx.stroke();
-    last = p;
-    marked = true;
-    e.preventDefault();
-  }
-  function end() { drawing = false; }
+  });
+}
 
-  canvas.addEventListener("mousedown", start);
-  canvas.addEventListener("mousemove", move);
-  window.addEventListener("mouseup", end);
-  canvas.addEventListener("touchstart", start, { passive: false });
-  canvas.addEventListener("touchmove", move, { passive: false });
-  canvas.addEventListener("touchend", end);
+function setupFreehand(canvas, img, zoomEbene, key) {
+  const ctx = canvas.getContext("2d");
+  if (penStriche.key !== key) penStriche = { key, liste: [] };
+  const striche = penStriche.liste;
+  let vorlaeufig = null; // der Strich unter dem Finger, erst beim Loslassen endgueltig
+  let geste = null;      // Zwei-Finger-Geste: { d0, z0, p0: {x,y} } (p0 in Ebenen-Koordinaten)
+  let fingerWeg = false; // nach einer Geste: erst malen, wenn ALLE Finger weg waren
+  const zoom = { z: 1, tx: 0, ty: 0 };
+  const aenderung = [];
+
+  function groesse() {
+    const w = canvas.offsetWidth, h = canvas.offsetHeight; // Layout-Groesse, ohne Zoom
+    const dpr = window.devicePixelRatio || 1;
+    return { w, h, cw: Math.max(1, Math.round(w * dpr)), ch: Math.max(1, Math.round(h * dpr)) };
+  }
+  function neuZeichnen() {
+    const g = groesse();
+    if (canvas.width !== g.cw || canvas.height !== g.ch) { canvas.width = g.cw; canvas.height = g.ch; }
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    zeichneStriche(ctx, canvas.width, canvas.height, vorlaeufig ? striche.concat([vorlaeufig]) : striche);
+  }
+  if (img.complete) neuZeichnen(); else img.addEventListener("load", neuZeichnen);
+  window.addEventListener("resize", neuZeichnen);
+
+  function zoomAnwenden() {
+    if (!zoomEbene) return;
+    zoomEbene.style.transformOrigin = "0 0";
+    zoomEbene.style.transform = zoom.z === 1 ? "" : "translate(" + zoom.tx + "px," + zoom.ty + "px) scale(" + zoom.z + ")";
+    aenderung.forEach((f) => f(zoom.z));
+  }
+  function zoomBegrenzen() {
+    zoom.z = Math.min(ZOOM_MAX, Math.max(1, zoom.z));
+    const w = zoomEbene ? zoomEbene.offsetWidth : 0, h = zoomEbene ? zoomEbene.offsetHeight : 0;
+    zoom.tx = Math.min(0, Math.max(w - zoom.z * w, zoom.tx));
+    zoom.ty = Math.min(0, Math.max(h - zoom.z * h, zoom.ty));
+    if (zoom.z === 1) { zoom.tx = 0; zoom.ty = 0; }
+  }
+
+  // Bildschirmpunkt -> Bildkoordinaten 0..1. getBoundingClientRect() des Canvas enthaelt Zoom und
+  // Verschiebung bereits, deshalb genuegt eine Division.
+  function bildPunkt(clientX, clientY) {
+    const r = canvas.getBoundingClientRect();
+    return { x: (clientX - r.left) / r.width, y: (clientY - r.top) / r.height };
+  }
+  // Bildschirmpunkt -> Punkt in der ungezoomten Ebene (fuer die Verschiebung).
+  function ebenenPunkt(clientX, clientY) {
+    const r = zoomEbene.parentNode.getBoundingClientRect();
+    return { x: (clientX - r.left - zoom.tx) / zoom.z, y: (clientY - r.top - zoom.ty) / zoom.z };
+  }
+  function aktiv() { return !canvas.classList.contains("hidden"); }
+
+  function strichBeginnen(clientX, clientY) {
+    const w = canvas.offsetWidth || 1;
+    vorlaeufig = { breite: STIFT_BREITE_PX / zoom.z / w, punkte: [bildPunkt(clientX, clientY)] };
+    neuZeichnen();
+  }
+  function strichWeiter(clientX, clientY) {
+    if (!vorlaeufig) return;
+    vorlaeufig.punkte.push(bildPunkt(clientX, clientY));
+    neuZeichnen();
+  }
+  function strichFertig() {
+    if (!vorlaeufig) return;
+    striche.push(vorlaeufig);
+    vorlaeufig = null;
+    neuZeichnen();
+  }
+  function strichVerwerfen() {
+    if (!vorlaeufig) return;
+    vorlaeufig = null;
+    neuZeichnen();
+  }
+
+  // --- Maus (Desktop): nur malen ---
+  canvas.addEventListener("mousedown", (e) => { if (!aktiv()) return; strichBeginnen(e.clientX, e.clientY); e.preventDefault(); });
+  canvas.addEventListener("mousemove", (e) => { if (vorlaeufig) { strichWeiter(e.clientX, e.clientY); e.preventDefault(); } });
+  window.addEventListener("mouseup", strichFertig);
+
+  // --- Beruehrung: ein Finger malt, zwei Finger zoomen/verschieben ---
+  function abstand(t) { return Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY) || 1; }
+  function mitte(t) { return { x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2 }; }
+  canvas.addEventListener("touchstart", (e) => {
+    if (!aktiv()) return;
+    e.preventDefault();
+    if (e.touches.length >= 2) {
+      strichVerwerfen();
+      const m = mitte(e.touches);
+      geste = { d0: abstand(e.touches), z0: zoom.z, p0: ebenenPunkt(m.x, m.y) };
+      fingerWeg = true;
+      return;
+    }
+    if (fingerWeg || geste) return;
+    strichBeginnen(e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: false });
+  canvas.addEventListener("touchmove", (e) => {
+    if (!aktiv()) return;
+    e.preventDefault();
+    if (geste && e.touches.length >= 2) {
+      const m = mitte(e.touches);
+      const r = zoomEbene.parentNode.getBoundingClientRect();
+      zoom.z = Math.min(ZOOM_MAX, Math.max(1, geste.z0 * abstand(e.touches) / geste.d0));
+      zoom.tx = m.x - r.left - zoom.z * geste.p0.x;
+      zoom.ty = m.y - r.top - zoom.z * geste.p0.y;
+      zoomBegrenzen();
+      zoomAnwenden();
+      return;
+    }
+    if (vorlaeufig && e.touches.length === 1) strichWeiter(e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: false });
+  function touchEnde(e) {
+    if (e.touches.length < 2) geste = null;
+    if (e.touches.length === 0) {
+      if (fingerWeg) { fingerWeg = false; strichVerwerfen(); return; }
+      strichFertig();
+    }
+  }
+  canvas.addEventListener("touchend", touchEnde);
+  canvas.addEventListener("touchcancel", (e) => { strichVerwerfen(); touchEnde(e); });
 
   return {
-    hasMark: () => marked,
-    clear: () => { marked = false; if (canvas.width && canvas.height) ctx.clearRect(0, 0, canvas.width, canvas.height); }
+    hasMark: () => striche.length > 0,
+    anzahl: () => striche.length,
+    undo: () => { striche.pop(); neuZeichnen(); },
+    clear: () => { striche.length = 0; vorlaeufig = null; neuZeichnen(); },
+    zoomZurueck: () => { zoom.z = 1; zoom.tx = 0; zoom.ty = 0; zoomAnwenden(); },
+    zoomStufe: () => zoom.z,
+    beiZoom: (f) => { aenderung.push(f); },
+    // Fuer captureAnnotatedImage(): zeichnet die Striche in beliebiger Aufloesung.
+    zeichneAuf: (zctx, w, h) => zeichneStriche(zctx, w, h, striche),
   };
 }
 
@@ -1827,7 +1940,7 @@ function penSafeImageUrl(url) {
 // Sicherheitsnetz, das die JPEG-Qualitaet in Schritten weiter absenkt, falls das Ergebnis trotzdem
 // noch zu gross waere (deutlich seltener Fall, aber besser ein etwas komprimierteres Bild als ein
 // erneuter 413-Fehler).
-async function captureAnnotatedImage(canvas, img) {
+async function captureAnnotatedImage(canvas, img, mark) {
   const proxied = await loadImage(penSafeImageUrl(img.src));
   const srcW = proxied.naturalWidth || proxied.width || canvas.width;
   const srcH = proxied.naturalHeight || proxied.height || canvas.height;
@@ -1838,7 +1951,11 @@ async function captureAnnotatedImage(canvas, img) {
   off.height = Math.max(1, Math.round(srcH * scale));
   const octx = off.getContext("2d");
   octx.drawImage(proxied, 0, 0, off.width, off.height);
-  octx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, off.width, off.height);
+  // GEAENDERT (21.09.2026, Schritt 4): die Striche liegen in Bildkoordinaten und werden direkt in
+  // der Zielaufloesung gezeichnet (scharf, unabhaengig vom Zoom); das Bildschirm-Canvas nur noch
+  // als Rueckfall fuer einen Aufrufer ohne mark.
+  if (mark && mark.zeichneAuf) mark.zeichneAuf(octx, off.width, off.height);
+  else octx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, off.width, off.height);
   let quality = 0.85;
   let dataUri = off.toDataURL("image/jpeg", quality);
   // 3.5MB Ziel-Obergrenze fuer den reinen Bild-String -- laesst Spielraum unter dem harten 4.5MB-
@@ -1903,7 +2020,7 @@ async function applyPenEdit({ image, canvas, img, mark, mode, errorId, applyBtn,
     // GEAENDERT (Punkt 12): captureAnnotatedImage() ist jetzt async (laedt das Ausgangsbild ueber
     // api/image-proxy.js nach, siehe dortiger Kommentar) -- await ergaenzt. Faellt bei fehlender
     // Markierung auf ein unveraendertes Composite zurueck (leeres Canvas-Overlay), unproblematisch.
-    const composite = await captureAnnotatedImage(canvas, img);
+    const composite = await captureAnnotatedImage(canvas, img, mark);
     // NEU (Punkt 13): drei Faelle je nachdem, was vorliegt -- Markierung allein (bisheriges
     // Verhalten, PEN_INSTRUCTION_REMOVE/REDO unveraendert), Freitext allein (neue generische
     // Editier-Anweisung aus dem uebersetzten Freitext), oder beides kombiniert (PEN_INSTRUCTION_*
@@ -1968,6 +2085,24 @@ function buildPenPanel({ image, canvas, img, mark, errorId }) {
     mode === "redo"
       ? "kringel das Objekt ein, das anders werden soll — ich zeichne es neu, alles andere bleibt gleich."
       : "kringel das Objekt ein, das raus soll — ich entferne es komplett."));
+
+  // NEU (21.09.2026, Schritt 4): Bedienung am Handy. Der Querformat-Tipp erscheint nur hochkant auf
+  // schmalen Bildschirmen (reines CSS, .erg-quer-tipp) -- ein Hinweis, kein Zwang; iOS Safari laesst
+  // die Ausrichtung ohnehin nicht festlegen.
+  wrap.appendChild(h("p", { class: "erg-quer-tipp" }, "Tipp: dreh dein Handy quer — dann ist das Bild größer."));
+  wrap.appendChild(h("p", { class: "erg-gesten-tipp" }, "Ein Finger malt. Mit zwei Fingern zoomst und verschiebst du das Bild."));
+  const stiftReihe = h("div", { style: { display: "flex", gap: "8px", marginBottom: "10px" } });
+  const undoBtn = h("button", { type: "button", class: "h-black",
+    style: { flex: "1", minHeight: "40px", fontSize: "11px", border: "3px solid var(--ink)", background: "var(--paper)", color: "var(--ink)", cursor: "pointer" },
+    onClick: () => mark.undo() }, "↶ Rückgängig");
+  const ganzBtn = h("button", { type: "button", class: "h-black",
+    style: { flex: "1", minHeight: "40px", fontSize: "11px", border: "3px solid var(--ink)", background: "var(--paper)", color: "var(--ink)", cursor: "pointer" },
+    onClick: () => mark.zoomZurueck() }, "Ganzes Bild");
+  ganzBtn.disabled = mark.zoomStufe() === 1;
+  mark.beiZoom((z) => { ganzBtn.disabled = z === 1; });
+  stiftReihe.appendChild(undoBtn);
+  stiftReihe.appendChild(ganzBtn);
+  wrap.appendChild(stiftReihe);
 
   // NEU (Sammel-Runde 11.09.2026, Punkt 13: "Zusätzlich zum großen 'Bild ist fertig'-Button eine
   // Texteingabe-Möglichkeit für Änderungswünsche, kombinierbar mit Kringel/Antippen eines Details" --

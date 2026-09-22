@@ -145,3 +145,10 @@ textarea.field { min-height: 108px; resize: none; padding: 11px; line-height: 1.
   .erg-wahl { padding: 0; }
   .erg-ki-hinweis { margin: 0; }
 }
+/* Stift am Handy (Schritt 4) */
+.erg-quer-tipp { display: none; margin: 0 0 8px; font-size: 12px; font-weight: 700; background: var(--yellow); border: 2px solid var(--ink); padding: 6px 8px; }
+.erg-gesten-tipp { margin: 0 0 10px; font-size: 11.5px; line-height: 1.4; color: rgba(26,26,24,.65); }
+@media (orientation: portrait) and (max-width: 1023.98px) { .erg-quer-tipp { display: block; } }
+@media (hover: hover) and (pointer: fine) { .erg-gesten-tipp { display: none; } }
+.erg-zoom { will-change: transform; }
+.erg button:disabled { opacity: .45; cursor: default; }

@@ -198,7 +198,7 @@ ab welcher Fassung die Regel im Code gilt; „Schritt 3" heißt: kommt mit der K
 | Der **Richter** bestimmt bei jedem Paar den **Favoriten**. Uneinig oder gescheitert: K1 vorne, kein Rückfall auf die Heldenzählung. | `2026-09-21j` |
 | Besteht **nur einer**: nur diesen zeigen, kein Umschalter, kein dritter Kandidat. | `2026-09-21j` |
 | **Hinweistext** unter dem Bild, direkt über dem Stift-Knopf, ersetzt den gelben Warnkasten: „Die Bilder malt eine KI. Sie macht manchmal kleine Fehler — zum Beispiel ist eine Figur doppelt da. Mit dem Stift kannst du solche Stellen einfach korrigieren." | `2026-09-21j` |
-| **Stift** vorerst ohne Umschalter Malen/Verschieben; der kommt nur, wenn der Handytest des Nutzers ungewollte Striche zeigt. | Schritt 4 |
+| **Stift** vorerst ohne Umschalter Malen/Verschieben; der kommt nur, wenn der Handytest des Nutzers ungewollte Striche zeigt. | gebaut 22.09.2026 (nur Oberfläche, keine neue Fassung) — Handytest des Nutzers steht aus |
 
 Umsetzung (`2026-09-21j`):
 - Server (`finalizeJob()` in `scene-job-engine.js`) liefert `angebot`: nur bestandene Kandidaten,
@@ -215,6 +215,13 @@ Umsetzung (`2026-09-21j`):
   Zaubern-Screen zeigt „Das hat diesmal nicht geklappt" mit „Nochmal zaubern"; das nächste
   fertige Bild trägt `kostenlos`. **Abgerechnet wird heute noch nichts** — das Bezahlmodell
   (Phase 3) muss `freierDurchgang` beachten.
+- **Stift am Handy** (`setupFreehand()` in `szene.js`): ein Finger malt, zwei Finger zoomen
+  (bis 5-fach) und verschieben. Ein angefangener Strich wird verworfen, sobald ein zweiter Finger
+  aufsetzt; nach einer Zwei-Finger-Geste malt erst wieder, wer alle Finger abgehoben hat. Striche
+  liegen in Bildkoordinaten und werden beim Anwenden in voller Auflösung gezeichnet. Knöpfe
+  „Rückgängig" (letzter Strich) und „Ganzes Bild" (Zoom zurück); Querformat-Tipp nur hochkant am
+  Handy. Striche bleiben beim Moduswechsel „Weg damit / Neu zeichnen" erhalten. Kein Umschalter
+  Malen/Verschieben.
 
 ### GÜLTIG (Produktentscheidung des Nutzers, 21.09.2026): die Kundin entscheidet
 
