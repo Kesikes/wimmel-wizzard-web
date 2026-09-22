@@ -167,10 +167,24 @@ function renderSaveHint() {
   // GEAENDERT (22.09.2026): ehrlich. "gespeichert" nur, solange der letzte Server-Abgleich geklappt
   // hat (oder noch keiner lief); sonst "nur auf diesem Gerät" mit dem Grund als Tooltip. Vorher
   // stand hier immer "gespeichert" -- auch waehrend der Server seit Stunden jeden Stand ablehnte.
+  // GEAENDERT (22.09.2026, Nutzer-Befund: "gespeichert" stand da, der Server hatte aber nichts):
+  // "gespeichert" erst, wenn der Server den Stand WIRKLICH angenommen hat. Vorher zeigte die Zeile
+  // "gespeichert" auch dann, wenn noch gar kein Server-Abgleich gelaufen war -- und ein
+  // Bildschirmwechsel loest keinen aus (er aendert den AppState nicht). Bis zur ersten Antwort
+  // steht jetzt "speichert …". Der Tooltip nennt Uhrzeit und Sitzungs-Kennung (die muss zu der
+  // passen, die man beim Holen der Sitzung eingibt).
   const letzter = Pipeline.saveSessionRemote && Pipeline.saveSessionRemote.letzter;
-  const nurLokal = !!(letzter && !letzter.ok);
-  btn.textContent = nurLokal ? "nur auf diesem Gerät" : "gespeichert";
-  btn.title = nurLokal ? "Auf diesem Gerät gespeichert, aber nicht auf dem Server (" + letzter.grund + ")." : "";
+  const id = (AppState.data.sessionId || "").slice(0, 8);
+  if (!letzter) {
+    btn.textContent = "speichert …";
+    btn.title = "Noch kein Abgleich mit dem Server (Sitzung " + id + "…).";
+  } else if (letzter.ok) {
+    btn.textContent = "gespeichert";
+    btn.title = "Auf dem Server gespeichert um " + new Date(letzter.am).toLocaleTimeString("de-DE") + " (Sitzung " + id + "…).";
+  } else {
+    btn.textContent = "nur auf diesem Gerät";
+    btn.title = "Auf diesem Gerät gespeichert, aber nicht auf dem Server (" + letzter.grund + ", Sitzung " + id + "…).";
+  }
   btn.classList.remove("flash");
   // kurzer, dezenter Hinweis-Flash nach echtem Auto-Save (kein eigener Button-Zweck in der Referenz)
   void btn.offsetWidth;
@@ -325,6 +339,11 @@ AppState.onChange(scheduleRemoteSync);
 
 document.addEventListener("DOMContentLoaded", () => {
   handleTestParams();
-  handleResumeParam().finally(() => Router.resolve());
+  handleResumeParam().finally(() => {
+    Router.resolve();
+    // NEU (22.09.2026): einmal beim Start mit dem Server abgleichen. Vorher lief der Abgleich nur
+    // nach einer Aenderung am Stand -- wer die App nur oeffnet und herumklickt, speicherte nie.
+    scheduleRemoteSync();
+  });
 });
 window.addEventListener("resize", syncHeaderSpacing);

@@ -371,9 +371,12 @@ async function saveSessionRemote(sessionId, data) {
     const parsed = await parseJsonResponse(resp);
     const ok = !!(resp.ok && parsed && parsed.ok);
     saveSessionRemote.letzter = { ok, grund: ok ? null : ((parsed && parsed.error) || ("Server " + resp.status)), am: Date.now() };
+    // Fuer die Fehlersuche in der Browser-Konsole: jede Ablehnung mit Grund und Sitzung.
+    if (!ok) console.warn("[Sitzung] Server hat NICHT gespeichert:", resp.status, saveSessionRemote.letzter.grund, "Sitzung", sessionId);
     return ok;
   } catch (e) {
     saveSessionRemote.letzter = { ok: false, grund: "keine Verbindung", am: Date.now() };
+    console.warn("[Sitzung] Server nicht erreichbar:", e && e.message ? e.message : e);
     return false;
   }
 }

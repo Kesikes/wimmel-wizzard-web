@@ -557,8 +557,11 @@ und die Kopfzeile zeigte trotzdem „gespeichert". Jetzt gilt:
   trägt dafür `promptTextNurLokal: true`. Reicht das nicht, verlieren zuerst die Fehlversuche und
   dann die ältesten Bilder ihre `instruction` (`instructionNurLokal: true`). Kandidaten, Prüfwerte
   und Fassungen bleiben immer erhalten.
-- Die Kopfzeile sagt „nur auf diesem Gerät", wenn der Server nicht gespeichert hat. Den Grund zeigt
-  der Tooltip.
+- Die Kopfzeile sagt „gespeichert" erst, wenn der Server den Stand angenommen hat. Vorher steht dort
+  „speichert …", bei einer Ablehnung „nur auf diesem Gerät". Der Tooltip nennt Uhrzeit, Grund und
+  die ersten 8 Zeichen der Sitzungs-Kennung.
+- Beim Öffnen der App gleicht sie sich einmal mit dem Server ab. Vorher geschah das nur nach einer
+  Änderung am Stand, ein Bildschirmwechsel reichte nicht (Befund des Nutzers vom 22.09.).
 - Im Browser bleibt alles vollständig.
 
 ### GÜLTIG seit 20.09.2026
