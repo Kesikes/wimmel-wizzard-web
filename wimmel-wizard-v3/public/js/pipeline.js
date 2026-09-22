@@ -655,6 +655,12 @@ async function describePhotoTraits(photoDataUri) {
 // Stift-Werkzeug: zwei Modi, Wortlaut exakt aus der Spezifikation Abschnitt 4.
 const PEN_INSTRUCTION_REMOVE = "The user has marked an object in the image using a rough freehand mark – this could be a circle, an X/cross, a scribble, or any other loose annotation. Regardless of its exact shape, treat this mark only as a rough pointer indicating which nearby object to target, not as a precise mask or boundary. Identify the complete, whole object that the mark is pointing to or overlapping, including all of its parts even if they extend beyond the marked area, and remove that entire object completely. Do not leave any remnants, edges, or partial fragments of the marked object behind. Fill the now-empty space naturally with elements consistent with the surrounding area, and remove the annotation mark itself from the final result.";
 const PEN_INSTRUCTION_REDO = "The user has marked an object in the image using a rough freehand mark (circle, cross, or scribble) – treat this only as a rough pointer, not a precise mask. Identify the complete, whole object that the mark is pointing to or overlapping. Generate a new, different version of just that object – a different pose, a different small activity, but in the exact same art style – while keeping everything else in the image (all other characters, objects, composition, lighting) exactly unchanged, pixel-identical where not marked. Remove the annotation mark itself from the final result.";
+// NEU (22.09.2026, Nutzer-Befund: "Der Kreis ist im korrigierten Bild mit drin"). Bis dahin ging an
+// fal EIN Bild: das Szenenbild MIT dem roten Kringel eingezeichnet. Das Modell sollte den Kringel
+// "wieder entfernen" -- tat es nicht immer, und dann war die Markierung Teil des Ergebnisses. Jetzt
+// gehen ZWEI Bilder: Bild 1 ist das unveraenderte Original (das, was bearbeitet wird), Bild 2 eine
+// Kopie mit Markierung, nur als Zeiger. Die Markierung ist damit nie in dem Bild, das bearbeitet wird.
+const PEN_ZWEI_BILDER = "Two images are given. Image 1 is the illustration to edit. Image 2 is an exact copy of image 1 on which the user drew a red freehand mark only to show WHERE the change should happen. The red mark is not part of the illustration: never copy it, never draw any red line, circle or scribble. Edit image 1 and return image 1 with its full size and framing. ";
 
 /* ==========================================================================
    Szenen-Komposition (scenePrompt / sceneComposeInstruction / composeSceneImage)
@@ -4071,7 +4077,7 @@ window.Pipeline = {
   charSheetViewPrompt, charSheetViewPromptFromChips, threeQuarterEditInstruction,
   sideViewEditInstruction, backViewEditInstruction,
   kontextInstruction, photoStyleInstruction, traitBitFromPhotoDescription, describePhotoTraits,
-  PEN_INSTRUCTION_REMOVE, PEN_INSTRUCTION_REDO,
+  PEN_INSTRUCTION_REMOVE, PEN_INSTRUCTION_REDO, PEN_ZWEI_BILDER,
   resizeImageToDataUri, generateImage, generateImageWithRetry, verifyImage, countViolations,
   richterReferenzUrl, SCENE_PHASES, ACTIVE_SCENE_PHASE, DEPTH_MIN_RATIO, SCALE_MIN_FIT, PROMPT_VERSION, PROMPT_LABEL, promptFingerprint, BILD_FASSUNG, PRUEF_FASSUNG, bildFingerprint, pruefFingerprint, heroRef, HERO_REF_START, lichtBlock, lichtKeywords, VERIFY_MAX_VERSUCHE, PRUEF_VERHALTEN, severityOf, compareSeverity, isGoodEnough,
   COMPOSITION_TYPES, pickComposition, querschnittVerboten, chatOrtTyp, layerSizeText,

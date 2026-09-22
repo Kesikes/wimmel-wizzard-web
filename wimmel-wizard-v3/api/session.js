@@ -83,7 +83,10 @@ module.exports = async (req, res) => {
     // Stille nach der letzten Eingabe), nicht bei jedem Tastendruck — 20/h ist grosszuegig fuer
     // eine einzelne echte Sitzung, begrenzt aber Missbrauch (beliebig grosse/viele Schreibvorgaenge
     // unter einer Quelle).
-    if (!(await checkRateLimit(req, res, { keyPrefix: "sessionsave", limit: 20, windowSeconds: 3600 }))) return;
+    // GEAENDERT (22.09.2026): 240 statt 20 je Stunde. Der Client buendelt jetzt (hoechstens ein
+    // Aufruf je 30 s, siehe scheduleRemoteSync() in app-shell.js); 20 riss schon ein Chat mit 15
+    // Zuegen, danach blieb der Stand bis zur naechsten Stunde nur im Browser.
+    if (!(await checkRateLimit(req, res, { keyPrefix: "sessionsave", limit: 240, windowSeconds: 3600 }))) return;
     if (!isValidSessionId(body.sessionId)) {
       res.status(400).json({ error: "Ungültige oder fehlende sessionId." });
       return;

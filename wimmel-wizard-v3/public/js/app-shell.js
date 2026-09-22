@@ -29,7 +29,9 @@ const NEXT = [
   { l: "Mini-Wimmelbuch nehmen", s: "aufhören ist auch eine gute Wahl" },
   { l: "Weiter zur Bestellung", s: "Widmung ist freiwillig" },
   { l: "Jetzt bestellen · 49 €", s: "Endpreis inkl. Versand, keine Extras" },
-  { l: "Zurück zum Dashboard", s: "wir haben alles gespeichert" }
+  // GEAENDERT (22.09.2026): der Satz kommt aus dem echten Speicherstand (speicherSatz()), siehe
+  // renderBottomBar(). Vorher stand hier fest "wir haben alles gespeichert".
+  { l: "Zurück zum Dashboard", s: null }
 ];
 
 // Screens-Registry wird bereits in router.js angelegt (muss vor den
@@ -129,7 +131,9 @@ function renderBottomBar() {
   // <br>-Zeilenumbruch ("Ich speichere..." / "Wichtig: ..."). textContent wuerde das <br> als
   // Text anzeigen statt als Umbruch zu wirken -- innerHTML statt textContent, unbedenklich, da
   // n.s ausschliesslich fest im Code stehende, keine Nutzer-Eingaben enthaltende Strings sind.
-  document.getElementById("soft-line").innerHTML = n.s;
+  const softLine = document.getElementById("soft-line");
+  if (n.s == null) { softLine.textContent = speicherSatz(); softLine.dataset.speicher = "1"; }
+  else { softLine.innerHTML = n.s; delete softLine.dataset.speicher; }
 
   const defaultGoNext = () => {
     if (idx >= SCREEN_ORDER.length - 1) { Router.goScreen("dashboard"); return; }
@@ -162,33 +166,50 @@ function renderBottomBar() {
   };
 }
 
+// GEAENDERT (22.09.2026, Nutzer: feste "alles gespeichert"-Anzeigen nur nach echter Bestaetigung).
+// EIN Zustand fuer alle Speicher-Anzeigen: Kopfzeile (#save-hint), Desktop-Kopfzeile
+// (#app-saved-label), Satz in der letzten Leiste (soft-line) und Laufband im Dashboard
+// ([data-speicher-laufband]). "gespeichert" nur, wenn der Server den LETZTEN Stand angenommen hat
+// und seitdem nichts Neues wartet.
+function speicherZustand() {
+  const letzter = Pipeline.saveSessionRemote && Pipeline.saveSessionRemote.letzter;
+  if (letzter && !letzter.ok) return "lokal";
+  if (syncAusstehend || !letzter) return "ausstehend";
+  return "ok";
+}
+function speicherSatz() {
+  const z = speicherZustand();
+  return z === "ok" ? "wir haben alles gespeichert" : z === "lokal" ? "gerade nur auf diesem Gerät gespeichert" : "wird gerade gespeichert …";
+}
 function renderSaveHint() {
   const btn = document.getElementById("save-hint");
-  // GEAENDERT (22.09.2026): ehrlich. "gespeichert" nur, solange der letzte Server-Abgleich geklappt
-  // hat (oder noch keiner lief); sonst "nur auf diesem Gerät" mit dem Grund als Tooltip. Vorher
-  // stand hier immer "gespeichert" -- auch waehrend der Server seit Stunden jeden Stand ablehnte.
-  // GEAENDERT (22.09.2026, Nutzer-Befund: "gespeichert" stand da, der Server hatte aber nichts):
-  // "gespeichert" erst, wenn der Server den Stand WIRKLICH angenommen hat. Vorher zeigte die Zeile
-  // "gespeichert" auch dann, wenn noch gar kein Server-Abgleich gelaufen war -- und ein
-  // Bildschirmwechsel loest keinen aus (er aendert den AppState nicht). Bis zur ersten Antwort
-  // steht jetzt "speichert …". Der Tooltip nennt Uhrzeit und Sitzungs-Kennung (die muss zu der
-  // passen, die man beim Holen der Sitzung eingibt).
   const letzter = Pipeline.saveSessionRemote && Pipeline.saveSessionRemote.letzter;
   const id = (AppState.data.sessionId || "").slice(0, 8);
-  if (!letzter) {
-    btn.textContent = "speichert …";
-    btn.title = "Noch kein Abgleich mit dem Server (Sitzung " + id + "…).";
-  } else if (letzter.ok) {
+  const z = speicherZustand();
+  if (z === "ok") {
     btn.textContent = "gespeichert";
     btn.title = "Auf dem Server gespeichert um " + new Date(letzter.am).toLocaleTimeString("de-DE") + " (Sitzung " + id + "…).";
-  } else {
+  } else if (z === "lokal") {
     btn.textContent = "nur auf diesem Gerät";
-    btn.title = "Auf diesem Gerät gespeichert, aber nicht auf dem Server (" + letzter.grund + ", Sitzung " + id + "…).";
+    btn.title = "Auf diesem Gerät gespeichert, aber nicht auf dem Server (" + letzter.grund + ", Sitzung " + id + "…). Ich versuche es gleich noch einmal.";
+  } else {
+    btn.textContent = "speichert …";
+    btn.title = "Der neueste Stand ist noch nicht auf dem Server (Sitzung " + id + "…).";
   }
+  const desk = document.getElementById("app-saved-label");
+  if (desk) desk.textContent = z === "ok" ? "alles gespeichert" : z === "lokal" ? "nur auf diesem Gerät" : "speichert …";
+  const soft = document.getElementById("soft-line");
+  if (soft && soft.dataset.speicher) soft.textContent = speicherSatz();
+  document.querySelectorAll("[data-speicher-laufband]").forEach((el) => { el.textContent = laufbandText(); });
   btn.classList.remove("flash");
-  // kurzer, dezenter Hinweis-Flash nach echtem Auto-Save (kein eigener Button-Zweck in der Referenz)
   void btn.offsetWidth;
-  btn.classList.add("flash");
+  if (z === "ok") btn.classList.add("flash");
+}
+function laufbandText() {
+  const z = speicherZustand();
+  const erst = z === "ok" ? "alles gespeichert" : z === "lokal" ? "gerade nur auf diesem Gerät gespeichert" : "wird gespeichert";
+  const teil = erst + " ✦ nichts entschieden ✦ jederzeit pausieren ✦ ";
+  return teil + teil;
 }
 
 function renderScreen() {
@@ -215,13 +236,51 @@ function renderScreen() {
 // bei jedem Tastendruck waere unnoetig teuer/langsam, 2s Stille nach der letzten Aenderung reicht.
 // Pipeline ist hier sicher verfuegbar (Skript-Ladereihenfolge: pipeline.js laedt vor app-shell.js,
 // siehe app.html).
-let remoteSyncTimer = null;
-function scheduleRemoteSync() {
+// GEAENDERT (22.09.2026, Nutzer: "Speichergrenze reisst schon bei einem Chat mit 15 Zuegen").
+// Vorher: 2 s nach JEDER Aenderung ein Speicheraufruf, Server-Grenze 20 je Stunde -- ein Chat mit
+// 15 Zuegen (je Zug mehrere Aenderungen) riss sie, und danach wurde bis zur naechsten Aenderung
+// nie wieder versucht. Jetzt gebuendelt:
+//   - 3 s Ruhe nach der letzten Aenderung, aber hoechstens ein Aufruf je 30 s (hoechstens 120 je
+//     Stunde; die Server-Grenze liegt jetzt bei 240, Luft fuer einen zweiten Tab).
+//   - Aenderungen waehrend eines laufenden Aufrufs werden danach nachgeschickt.
+//   - Nach einer Ablehnung (429, 5xx, keine Verbindung) ein neuer Versuch nach 60 s.
+//   - Beim Verlassen/Verstecken des Tabs sofort, wenn etwas aussteht.
+const SYNC_RUHE_MS = 3000, SYNC_ABSTAND_MS = 30000, SYNC_WIEDERHOLEN_MS = 60000;
+let remoteSyncTimer = null, syncLetzterStart = 0, syncLaeuft = false, syncNochmal = false, syncAusstehend = false;
+let syncAusstehendSeit = 0;
+function scheduleRemoteSync(sofort) {
+  const jetzt = Date.now();
+  if (!syncAusstehend) syncAusstehendSeit = jetzt;
+  syncAusstehend = true;
   if (remoteSyncTimer) clearTimeout(remoteSyncTimer);
-  remoteSyncTimer = setTimeout(() => {
-    Pipeline.saveSessionRemote(AppState.data.sessionId, AppState.data).then(() => renderSaveHint());
-  }, 2000);
+  // Frueheste Zeit: 30 s nach dem letzten Aufruf. Gewuenscht: 3 s Ruhe. Spaetestens aber 30 s nach
+  // der ersten noch nicht gespeicherten Aenderung -- sonst schiebt ein Dauertippen (Chat) das
+  // Speichern immer weiter hinaus (im Test am 22.09. gefunden).
+  const frueh = syncLetzterStart + SYNC_ABSTAND_MS;
+  const gewuenscht = jetzt + (sofort === true ? 0 : SYNC_RUHE_MS);
+  const spaet = Math.max(frueh, syncAusstehendSeit + SYNC_ABSTAND_MS);
+  const wann = Math.max(frueh, Math.min(gewuenscht, spaet));
+  remoteSyncTimer = setTimeout(syncJetzt, Math.max(0, wann - jetzt));
 }
+async function syncJetzt() {
+  remoteSyncTimer = null;
+  if (syncLaeuft) { syncNochmal = true; return; }
+  syncLaeuft = true;
+  syncNochmal = false;
+  syncLetzterStart = Date.now();
+  const ok = await Pipeline.saveSessionRemote(AppState.data.sessionId, AppState.data);
+  syncLaeuft = false;
+  if (syncNochmal) { syncNochmal = false; scheduleRemoteSync(); }
+  else if (ok) { syncAusstehend = false; }
+  else { if (remoteSyncTimer) clearTimeout(remoteSyncTimer); remoteSyncTimer = setTimeout(syncJetzt, SYNC_WIEDERHOLEN_MS); }
+  renderSaveHint();
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden" && syncAusstehend && !syncLaeuft) {
+    if (remoteSyncTimer) clearTimeout(remoteSyncTimer);
+    syncJetzt();
+  }
+});
 
 // NEU (Sammel-Runde 16.09.2026): Wiedereinstieg ueber einen per E-Mail verschickten Link
 // (/app?resume=<sessionId>, siehe api/session.js mode:"email-link"/dashboard.js). router.js wertet
@@ -337,7 +396,7 @@ AppState.onChange(() => {
   renderRail();
   renderSaveHint();
 });
-AppState.onChange(scheduleRemoteSync);
+AppState.onChange(() => scheduleRemoteSync());
 
 document.addEventListener("DOMContentLoaded", () => {
   handleTestParams();
@@ -345,7 +404,7 @@ document.addEventListener("DOMContentLoaded", () => {
     Router.resolve();
     // NEU (22.09.2026): einmal beim Start mit dem Server abgleichen. Vorher lief der Abgleich nur
     // nach einer Aenderung am Stand -- wer die App nur oeffnet und herumklickt, speicherte nie.
-    scheduleRemoteSync();
+    scheduleRemoteSync(true);
   });
 });
 window.addEventListener("resize", syncHeaderSpacing);

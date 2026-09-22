@@ -139,8 +139,11 @@ Screens.dashboard = {
 
     const ticker = h("div", { class: "mobile-only", style: { marginTop: "26px", background: "var(--blue)", borderTop: "4px solid var(--ink)", borderBottom: "4px solid var(--ink)", overflow: "hidden", padding: "7px 0", transform: "rotate(-1.4deg) scale(1.07)" } });
     const track = h("div", { class: "ticker-track ticker-red", style: { fontSize: "12px", letterSpacing: ".05em" } });
-    track.appendChild(h("span", {}, "alles gespeichert ✦ nichts entschieden ✦ jederzeit pausieren ✦ alles gespeichert ✦ nichts entschieden ✦ jederzeit pausieren ✦ "));
-    track.appendChild(h("span", {}, "alles gespeichert ✦ nichts entschieden ✦ jederzeit pausieren ✦ alles gespeichert ✦ nichts entschieden ✦ jederzeit pausieren ✦ "));
+    // GEAENDERT (22.09.2026): "alles gespeichert" nur nach echter Server-Bestaetigung; der Text kommt
+    // aus laufbandText() in app-shell.js und wird bei jedem Speicherstand nachgezogen.
+    const lauf = typeof laufbandText === "function" ? laufbandText() : "nichts entschieden ✦ jederzeit pausieren ✦ ";
+    track.appendChild(h("span", { "data-speicher-laufband": "1" }, lauf));
+    track.appendChild(h("span", { "data-speicher-laufband": "1" }, lauf));
     ticker.appendChild(track);
     root.appendChild(ticker);
 

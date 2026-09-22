@@ -221,7 +221,24 @@ Umsetzung (`2026-09-21j`):
   liegen in Bildkoordinaten und werden beim Anwenden in voller Auflösung gezeichnet. Knöpfe
   „Rückgängig" (letzter Strich) und „Ganzes Bild" (Zoom zurück); Querformat-Tipp nur hochkant am
   Handy. Striche bleiben beim Moduswechsel „Weg damit / Neu zeichnen" erhalten. Kein Umschalter
-  Malen/Verschieben.
+  Malen/Verschieben. **Handytest des Nutzers am 22.09.2026: Zoomen und Verschieben funktionieren.**
+- **Markierung nie im Bild (behoben 22.09.2026).** Befund des Nutzers: Ein mit der Maus gezogener
+  Kreis war im korrigierten Bild mit drin. Ursache: An fal ging EIN Bild — das Szenenbild mit
+  eingezeichnetem Kreis — mit der Bitte, den Kreis wieder zu entfernen. Gilt für Maus und Finger
+  gleich. Jetzt gehen zwei Bilder: Bild 1 ist das unveränderte Original und wird bearbeitet, Bild 2
+  ist eine markierte Kopie, nur als Zeiger (`PEN_ZWEI_BILDER`). Ohne Markierung (nur Text) geht nur
+  das Original. Das Modell könnte die Markierung theoretisch trotzdem abmalen; das Original enthält
+  sie aber nicht mehr, und die Anweisung verbietet es ausdrücklich.
+- **Stift-Korrektur an einem Helden — Diagnose (22.09.2026), nicht gebaut.** Befund: Heldin
+  eingekreist, „jünger" geschrieben, heraus kam eine andere Figur in anderem Stil. Ursache: Die
+  Korrektur bekommt weder das Figurenblatt noch die Stilreferenz — nur das Bild (und seit heute die
+  markierte Kopie). Das Modell erfindet die Figur neu. Vorschlag: bei jeder Stift-Korrektur die
+  Figurenblätter aller Helden des Buchs (heute höchstens 5) und die Stilreferenz mitschicken, mit
+  dem Satz „Ist die markierte Figur eine der Figuren auf den Figurenblättern, zeichne sie genau wie
+  auf ihrem Blatt — Alter, Größe, Haare, Kleidung, Stil." Kein Mehrpreis (dieselbe eine Anfrage,
+  nur mehr Bilder). Offene Frage: Welcher Held gemeint ist, kann der Code nicht erkennen; das
+  Modell muss es aus den Blättern ableiten. Alternative: vor dem Anwenden fragen „Ist das eine
+  eurer Figuren?" mit den Figuren zur Auswahl — dann geht nur deren Blatt mit.
 
 ### GÜLTIG (Produktentscheidung des Nutzers, 21.09.2026): die Kundin entscheidet
 
@@ -727,20 +744,38 @@ Nutzer, 21.09.2026: jetzt nicht bauen, beim Prompt-Aufräumen angehen.
   24.000). Muss **vor dem Launch** gelöst sein — zusammen mit der Frage, wo fal wirklich abschneidet.
 - Weiter Meldungen aufräumen, die einen falschen Grund nennen.
 - Bauernhof mit `overview_cutaway` testen (Abschnitt 13).
+- **Heldentreue, Alter und Größe** (Befund des Nutzers, 22.09.2026): Die 4-jährige Heldin wird oft
+  als älteres Mädchen gezeichnet; Haare und Kleidung stimmen, das Alter nicht. Nutzer: „Die Helden
+  müssen eins zu eins wie auf dem Figurenblatt sein, auch in Alter und Größe." Heute steht im Prompt
+  nur „toddler girl, age 4, chibi proportions, large round head, short small body" (`ageRole()`),
+  und das Figurenblatt zeigt die Figur allein auf Weiß — ohne Maßstab. Zwei Regeln im Prompt
+  arbeiten eher dagegen: Köpfe sollen in jeder Tiefe ungefähr gleich groß sein
+  (`HEAD_SCALE_CONSISTENCY_RULE`), und seit 22.09. haben alle große Köpfe (`GROSSE_KOEPFE_SATZ`) —
+  damit trägt nur noch die Körpergröße das Alter. Vorschlag: Größe relativ zu Erwachsenen angeben
+  statt nur „age 4", z. B. „reaches only to an adult's hip, about half an adult's height" für 3–5
+  Jahre, „reaches an adult's chest" für 6–9; in den Einmal-Satz des Helden aufnehmen und das
+  Stil-Tor bzw. die Heldenprüfung um „passt das Alter/die Größe?" ergänzen (erst messen, 90-%-Regel).
 
 ---
 
 ## 15. Offen — noch nicht entschieden
 
-### OFFEN: Welche Bilder kommen ins Buch? (Befund 22.09.2026)
+### PLATZHALTER: das ganze Produktangebot (Nutzer, 22.09.2026)
 
-Nichts begrenzt die Zahl der Bilder in einem Projekt, das Buch fasst höchstens 5. Das Dashboard
-zeigt seit 22.09. die echte Zahl („34 (ins Buch passen höchstens 5)") statt „34 von 5". Offen: Wählt
-die Kundin vor der Bestellung aus, und wird die Zahl der Durchgänge begrenzt?
-Außerdem widersprechen sich die Produkttexte: `entscheidung.js` sagt „ab 2 Wimmelbildern" und „ab 5",
-das Konzeptpapier (Abschnitt 3) sagt 1, 3 oder 5 Bilder.
+> Das genaue Produktangebot legen wir ganz am Schluss fest. Bis dahin gilt alles dazu als
+> Platzhalter.
 
-### OFFEN: Produktleiter (Idee des Nutzers, 21.09.2026)
+Nichts davon wird bis dahin gebaut, angeglichen oder umformuliert. Dazu gehören:
+
+- **Bildzahlen — widersprechen sich, beide bleiben vorerst stehen:** Das Konzeptpapier
+  (Abschnitt 3) sagt 1, 3 oder 5 Bilder. Die App (`entscheidung.js`, Produktwahl) sagt „ab 2
+  Wimmelbildern" und „ab 5". Das Dashboard rechnet mit höchstens 5 (`IMAGE_TARGET`).
+- **Welche Bilder ins Buch kommen**, wenn es mehr gibt als der Umfang, und **ob die Durchgänge
+  begrenzt werden.** Heute begrenzt nichts die Zahl der Bilder. Das Dashboard zeigt seit 22.09. die
+  echte Zahl („34 (ins Buch passen höchstens 5)") statt „34 von 5".
+- **Die Produktleiter** (unten).
+
+### OFFEN (Teil des Produktangebots): Produktleiter (Idee des Nutzers, 21.09.2026)
 
 Nur festgehalten, nichts entschieden, nichts gebaut. Quelle und Einzelheiten:
 `konzept-konto-layout-druck.md`, Abschnitt 9 (Produktthemen führt diese Datei nicht doppelt).
@@ -773,13 +808,18 @@ Durchsicht des ganzen Codes am 22.09.2026 (`api/`, `public/js/`; `dev-tools/` ni
 3. Bestellabschluss (`checkout.js`, Screen „fertig"): zeigt „Euer Buch ist unterwegs", eine feste
    Bestellnummer, ein festes Lieferdatum und bei leerer Widmung „Für Mia, die alles findet." —
    ohne dass irgendetwas bestellt wird. Vor dem Launch sperren oder als Vorschau kennzeichnen.
-4. Fest verdrahtete Speicher-Zusagen: „alles gespeichert" (Dashboard-Laufband, letzte Leiste),
-   „Ich speichere nach jeder Eingabe." — unabhängig vom tatsächlichen Server-Stand.
+4. ~~Fest verdrahtete Speicher-Zusagen: „alles gespeichert" (Dashboard-Laufband, letzte Leiste,
+   Desktop-Kopfzeile) — unabhängig vom tatsächlichen Server-Stand.~~ **Behoben 22.09.2026:** alle
+   Anzeigen kommen aus einem Zustand (`speicherZustand()` in `app-shell.js`); „gespeichert" nur,
+   wenn der Server den neuesten Stand angenommen hat. „Ich speichere nach jeder Eingabe." bleibt —
+   das stimmt (lokal) und verspricht keinen Server-Stand.
 
 **Mittel**
-5. Speichern: Grenze 20 Speicherungen je Stunde, der Client speichert 2 s nach jeder Änderung —
-   ein Chat mit 15 Zügen reißt die Grenze. Kein erneuter Versuch nach 429/Netzfehler, kein
-   Speichern beim Verlassen der Seite.
+5. ~~Speichern: Grenze 20 je Stunde, der Client speicherte 2 s nach jeder Änderung.~~ **Behoben
+   22.09.2026:** gebündelt (3 s Ruhe, höchstens ein Aufruf je 30 s, spätestens 30 s nach der ersten
+   ungespeicherten Änderung), Server-Grenze 240 je Stunde, neuer Versuch 60 s nach einer
+   Ablehnung, sofortiges Speichern beim Verstecken des Tabs. Getestet: 30 Änderungen in 60 s → 2
+   Aufrufe.
 6. Schutz „älterer und ärmerer Stand": ein alter Tab bekommt bei jeder Änderung einen frischen
    Zeitstempel und überschreibt dann einen reicheren Server-Stand. Besser: Versionsnummer vom Server.
 7. Status-Endpunkte schlucken Fehler aus dem Job-Fortschritt ohne Log. Ein dauerhafter Fehler lässt
@@ -797,8 +837,9 @@ Durchsicht des ganzen Codes am 22.09.2026 (`api/`, `public/js/`; `dev-tools/` ni
     englischen Bildprompt landen (auch das ganze Aufnahme-Transkript und Stift-Wünsche).
 
 **Niedrig**
-13. Kopfzeile zeigt direkt nach einer Änderung noch das vorige „gespeichert"; ein volles
-    `localStorage` wird geschluckt.
+13. ~~Kopfzeile zeigt direkt nach einer Änderung noch das vorige „gespeichert"~~ (behoben
+    22.09.2026, zeigt „speichert …", bis der Server bestätigt); ein volles `localStorage` wird
+    weiterhin geschluckt.
 14. Warn-Mails: die Sperrfrist wird vor dem Versand gesetzt; scheitert der Versand, sind 15 Minuten
     lang keine Warnungen möglich.
 15. `kvGetJson`: ein beschädigter Eintrag sieht aus wie „nicht vorhanden" (dann auch keine

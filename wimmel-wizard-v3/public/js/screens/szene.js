@@ -925,9 +925,9 @@ function pickJoke(locId, used) {
 function zauberSteps() {
   return [
     { key: "refs", label: "Figuren aus euren Figurenblättern als Referenz geladen" },
-    { key: "gen", label: "Drei Varianten der Szene werden gezeichnet" },
-    { key: "verify", label: "Qualitätsprüfung: Alle Figuren da?" },
-    { key: "done", label: "Beste Variante ausgewählt" }
+    { key: "gen", label: "Zwei Varianten der Szene werden gezeichnet" },
+    { key: "verify", label: "Qualitätsprüfung: Alle Figuren da?" }
+    // ENTFERNT (22.09.2026, Nutzer): "Beste Variante ausgewählt" -- die Kundin waehlt selbst.
   ];
 }
 let zauberBusy = false;
@@ -990,7 +990,7 @@ Screens.zaubern = {
       document.createTextNode("Ich mache"), h("br"), document.createTextNode("das nicht"), h("br"),
       h("span", { style: { color: "var(--yellow)" } }, "schnell.")
     ]));
-    wrap.appendChild(h("p", { class: "caveat", style: { margin: "8px 0 0", fontSize: "20px", lineHeight: "1.12", color: "var(--paper-a90)" } }, "ich zeichne mehrere Varianten und prüfe sie. die gelungenen zeige ich dir. das dauert – dafür sitzt es dann."));
+    wrap.appendChild(h("p", { class: "caveat", style: { margin: "8px 0 0", fontSize: "20px", lineHeight: "1.12", color: "var(--paper-a90)" } }, "Ich mache zwei Varianten, und du suchst dir die beste aus."));
     // NEU (Sammel-Runde 11.09.2026, Punkt 7: "Load-Failed beim Zaubern, vermutlich iOS-Hintergrund-
     // Drosselung"). Live-Verdacht: mobile Browser (v.a. iOS Safari) drosseln/pausieren offene
     // Netzwerkverbindungen und Timer aggressiv, sobald der Bildschirm gesperrt wird oder der Tab in
@@ -1030,8 +1030,10 @@ Screens.zaubern = {
     wrap.appendChild(stepsWrap);
 
     function setPhase(key) {
-      const order = ["refs", "gen", "verify", "done"];
-      const idx = order.indexOf(key);
+      // "done" steht nicht mehr in der Liste (siehe zauberSteps()); es markiert alle Schritte als
+      // erledigt, weil sein Index hinter dem letzten liegt.
+      const order = ["refs", "gen", "verify"];
+      const idx = key === "done" ? order.length : order.indexOf(key);
       order.forEach((k, i) => {
         const { row, mark } = stepRows[k];
         if (i < idx) { mark.textContent = "✓"; row.style.color = "var(--paper)"; }
@@ -2015,7 +2017,7 @@ async function applyPenEdit({ image, canvas, img, mark, mode, errorId, applyBtn,
     // GEAENDERT (Punkt 12): captureAnnotatedImage() ist jetzt async (laedt das Ausgangsbild ueber
     // api/image-proxy.js nach, siehe dortiger Kommentar) -- await ergaenzt. Faellt bei fehlender
     // Markierung auf ein unveraendertes Composite zurueck (leeres Canvas-Overlay), unproblematisch.
-    const composite = await captureAnnotatedImage(canvas, img, mark);
+    const composite = hasMark ? await captureAnnotatedImage(canvas, img, mark) : null;
     // NEU (Punkt 13): drei Faelle je nachdem, was vorliegt -- Markierung allein (bisheriges
     // Verhalten, PEN_INSTRUCTION_REMOVE/REDO unveraendert), Freitext allein (neue generische
     // Editier-Anweisung aus dem uebersetzten Freitext), oder beides kombiniert (PEN_INSTRUCTION_*
@@ -2031,7 +2033,14 @@ async function applyPenEdit({ image, canvas, img, mark, mode, errorId, applyBtn,
       const changeEn = await Pipeline.translateFreeText(changeText);
       instruction = "Apply exactly this change to the image: \"" + changeEn + "\" — keep everything else (all other characters, objects, composition, lighting) exactly unchanged, pixel-identical where not affected by this change.";
     }
-    const result = await Pipeline.generateImage(instruction, "scene", { editImageUrl: composite });
+    // GEAENDERT (22.09.2026, Nutzer-Befund: Kringel im korrigierten Bild): bearbeitet wird immer das
+    // UNVERAENDERTE Bild (img.src); die markierte Kopie geht nur als zweites Bild mit, als Zeiger
+    // (siehe PEN_ZWEI_BILDER in pipeline.js). Ohne Markierung (nur Text) geht nur das Original.
+    // Gilt fuer Maus und Finger gleich -- beide Wege landen hier.
+    if (hasMark) instruction = Pipeline.PEN_ZWEI_BILDER + instruction;
+    const result = await Pipeline.generateImage(instruction, "scene", hasMark
+      ? { editImageUrl: img.src, styleRefUrls: [composite] }
+      : { editImageUrl: img.src });
     // GEAENDERT (21.09.2026, Kandidatenwahl): die Korrektur gehoert zum GEWAEHLTEN Kandidaten und
     // bleibt ihm beim Umschalten erhalten.
     const aktuell = (AppState.data.images || []).find((b) => b.id === image.id) || image;
