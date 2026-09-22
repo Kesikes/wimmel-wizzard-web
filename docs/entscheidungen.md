@@ -744,6 +744,27 @@ Einzelheiten in `prompt-inventar-2026-09-22.md`, Abschnitt „Umsetzung". Umgesc
 dem Vergleich (`dev-tools/prompt-vergleich.js`, bester Kandidat alt gegen bester neu, dazu
 Stil-Tor-Ausfälle je Fassung). Echte fal-Grenze laut Schema: 50.000 Zeichen.
 
+**Ergebnis des Vergleichs (22.09.2026, Urteil des Nutzers, blind, bester gegen besten):** Der
+**alte Prompt gewinnt 4 von 5 Szenen** (T1 Bauernhof, T2 Stadt, T3 Weihnachten, T6 Café im
+Gesamteindruck). Der neue gewinnt nur T4 (Berg). Je Kriterium ist der alte ebenfalls vorn: Größe und
+Zoom, Dichte und Fehler je 4:1, Helden 3:1 (1 gleich), Stil 3:2, Falz 3:1 (1 gleich). Nach der
+vereinbarten Regel („mindestens 4 von 5 gleich gut oder besser") ist der neue Aufbau
+**durchgefallen und wird nicht eingeschaltet**; `PROMPT_AUFBAU` bleibt „alt".
+- Messwerte (gemini/Stil-Tor, je 2 Kandidaten): Stil-Tor gescheitert alt 1 von 10, neu 1 von 12
+  Kandidaten — kein Unterschied. Text im Bild: alt 3 von 10, neu 6 von 12 (in der ganzen Sitzung
+  31 von 67, also im üblichen Rahmen). Münder laut Prüfung beim neuen seltener.
+- Vorbehalt: 5 Paare mit je einem Bild sind eine kleine Stichprobe (4:1 kann auch Zufall sein,
+  etwa 1 zu 5). Die Richtung ist aber eindeutig genug, um nicht umzuschalten.
+- Deutung (Claude, nicht belegt): Die Wiederholungen und ausführlichen Blöcke des alten Prompts
+  waren offenbar nicht wirkungslos — vor allem Größe/Zoom und Dichte, genau die Blöcke, die am
+  stärksten gekürzt wurden. Kürzer ist bei diesem Modell nicht automatisch besser.
+- Bauernhof als `overview_cutaway` (T5, nur neu): Nutzer „taugt: ja".
+- Anmerkungen des Nutzers: fehlende Heldin (T1) und doppelter Held (T3) ließen sich per Stift
+  korrigieren.
+- Befund nebenbei: Im Café-Bild (T6 neu) stand „wmlstil" auf einem Schild. Das Wort steht am
+  Anfang jedes Szenenprompts, ist aber für das Szenenmodell (nano-banana-pro/edit, ohne LoRA) kein
+  Stilwort. Nur vorgemerkt.
+
 Nutzer, 21.09.2026: jetzt nicht bauen, beim Prompt-Aufräumen angehen.
 
 - In Phase 1 laufen alle Außenthemen über „open". Offene Szenen enger führen, z. B. mit benannten
