@@ -939,6 +939,18 @@ let zauberBusy = false;
 // Schleife haengen (zurueck -> weiter -> zurueck).
 function renderZauberRuhe(root) {
   const wrap = h("section", { class: "scr-pad" });
+  // NEU (21.09.2026, Kandidatenwahl): der letzte Durchgang hat kein Bild ergeben (kein Kandidat hat
+  // das Stil-Tor bestanden). Die Kundin bekommt einen kostenlosen neuen Durchgang angeboten; der
+  // Hinweis bleibt stehen, bis ein neues Bild fertig ist (freierDurchgang wird dann geleert).
+  const frei = AppState.data.freierDurchgang;
+  if (frei) {
+    wrap.appendChild(h("p", { class: "kicker kicker-red" }, "Kein Bild diesmal"));
+    wrap.appendChild(h("h1", { class: "h1-scr", style: { fontSize: "28px" } }, "Das hat diesmal nicht geklappt."));
+    wrap.appendChild(h("p", { class: "caveat-sub" }, "keiner meiner Versuche hat unseren Zeichenstil getroffen. ich probiere es gern noch einmal — dieser Durchgang kostet dich nichts."));
+    wrap.appendChild(h("button", { type: "button", class: "h-black", style: { marginTop: "14px", minHeight: "48px", width: "100%", fontSize: "13px", cursor: "pointer", background: "var(--yellow)", color: "var(--ink)", border: "3px solid var(--ink)" }, onClick: () => goZaubernFresh() }, "Nochmal zaubern"));
+    root.appendChild(wrap);
+    return;
+  }
   wrap.appendChild(h("p", { class: "kicker kicker-yellow" }, "Gerade wird nichts gezaubert"));
   const bild = AppState.currentImage();
   wrap.appendChild(h("h1", { class: "h1-scr", style: { fontSize: "28px" } }, bild ? "Dein Bild ist fertig." : "Noch kein Bild in Arbeit."));
@@ -978,7 +990,7 @@ Screens.zaubern = {
       document.createTextNode("Ich mache"), h("br"), document.createTextNode("das nicht"), h("br"),
       h("span", { style: { color: "var(--yellow)" } }, "schnell.")
     ]));
-    wrap.appendChild(h("p", { class: "caveat", style: { margin: "8px 0 0", fontSize: "20px", lineHeight: "1.12", color: "var(--paper-a90)" } }, "ich zeichne mehrere Varianten, prüfe sie und behalte die beste. das dauert – dafür sitzt es dann."));
+    wrap.appendChild(h("p", { class: "caveat", style: { margin: "8px 0 0", fontSize: "20px", lineHeight: "1.12", color: "var(--paper-a90)" } }, "ich zeichne mehrere Varianten und prüfe sie. die gelungenen zeige ich dir. das dauert – dafür sitzt es dann."));
     // NEU (Sammel-Runde 11.09.2026, Punkt 7: "Load-Failed beim Zaubern, vermutlich iOS-Hintergrund-
     // Drosselung"). Live-Verdacht: mobile Browser (v.a. iOS Safari) drosseln/pausieren offene
     // Netzwerkverbindungen und Timer aggressiv, sobald der Bildschirm gesperrt wird oder der Tab in
@@ -1116,6 +1128,19 @@ Screens.zaubern = {
       // zurueckgesetzt. Wer den Stift einmal benutzt hat, kam ab da bei jedem frisch gezauberten
       // Bild sofort wieder im Editiermodus heraus -- ohne etwas angetippt zu haben. Ein frisches
       // Bild will man zuerst ansehen, nicht bemalen.
+      // NEU (21.09.2026, Kandidatenwahl): kein Kandidat hat das Stil-Tor bestanden, auch der
+      // dritte nicht -> KEIN Bild. Die Situationen werden nicht verbraucht, die Kandidaten bleiben
+      // fuer die Auswertung liegen, und der naechste Durchgang ist fuer die Kundin kostenlos
+      // (Produktentscheidung). Der Zaubern-Screen zeigt dann "Das hat diesmal nicht geklappt".
+      if (result && result.keinBild) {
+        AppState.update({ pendingSceneJob: null });
+        AppState.addFehlversuch({ title: title || null, candidates: result.candidates, richter: result.richter || null,
+          instruction: result.instruction, heldenInfo: result.heldenInfo || null,
+          bildFassung: Pipeline.BILD_FASSUNG || null, pruefFassung: Pipeline.PRUEF_FASSUNG || null });
+        zauberBusy = false;
+        Router.goScreen("zaubern");
+        return;
+      }
       AppState.update({
         pendingSceneJob: null, usedSituations: neu,
         penOn: false, penMode: null, penChangeText: "",
@@ -1125,7 +1150,7 @@ Screens.zaubern = {
         promptText: result.promptText, instruction: result.instruction,
         violations: result.best.violations, verify: result.best.verify, candidates: result.candidates,
         richter: result.richter || null, quelle: result.quelle || null, heldenInfo: result.heldenInfo || null,
-        abgelehnt: result.abgelehnt || null
+        abgelehnt: result.abgelehnt || null, angebot: result.angebot || null
       });
       zauberBusy = false;
       Router.goScreen("ergebnis");
@@ -1484,7 +1509,14 @@ function buildDebugDetails(image) {
     if (r.tokenEin || r.tokenAus) {
       zeilen.push("  Verbrauch: " + r.tokenEin + " Eingabe-, " + r.tokenAus + " Ausgabe-Token");
     }
-    zeilen.push("Entschieden hat: " + (bild.quelle === "richter" ? "der RICHTER" : "die Prüfung"));
+    // GEAENDERT (21.09.2026, Kandidatenwahl): quelle "richter" = einiges Richter-Urteil, "k1" = der
+    // zuerst angelegte bestandene Kandidat (Richter uneinig, gescheitert, aus oder nur einer
+    // bestanden), "pruefung" = Bilder vor 2026-09-21i.
+    zeilen.push("Favorit bestimmt: " + (bild.quelle === "richter" ? "der RICHTER" : bild.quelle === "k1" ? "K1 vorn (kein einiges Richter-Urteil)" : "die Prüfung (vor 2026-09-21i)"));
+    if (Array.isArray(bild.angebot)) {
+      zeilen.push("Angebot an die Kundin: " + bild.angebot.map((a, i) => "Bild " + (i + 1) + " = K" + (a.nr || "?") + (a.korrigiert ? " (mit Stift korrigiert)" : "")).join(", ") +
+        " · gewählt: Bild " + ((bild.gewaehlt || 0) + 1) + (bild.gekauftAm ? " · gekauft " + bild.gekauftAm : ""));
+    }
     return zeilen.join("\n");
   }
   const richterBlock = richterText(image);
@@ -1590,11 +1622,10 @@ function buildDebugDetails(image) {
 //   - "schau erst mal in Ruhe." und der Knopf "Wimmelbild ist fertig!" bleiben Desktop-only: am
 //     Handy uebernimmt die feste Leiste unten diese Aufgabe (siehe app-shell.js).
 //
-// Warnkasten: Anlass und Geschichte siehe Register. Er erscheint bei "abgelehnt" (kein Kandidat hat
-// das Stil-Tor bestanden), bei gescheiterter Pruefung und bei SCHWEREN Verstoessen (nicht bei jeder
-// Kleinigkeit -- sonst stuende er ueber jedem Bild). severity wird aus image.verify abgeleitet,
-// damit es auch fuer aeltere Bilder im AppState funktioniert. Wird in Schritt 3 durch den festen
-// Hinweistext ueber dem Stift ersetzt.
+// ENTFERNT (21.09.2026, Schritt 3): der gelbe Warnkasten ("Bitte einmal gegenchecken", bei
+// gescheiterter Pruefung oder schwerem Verstoss; "Nicht bestanden", wenn kein Kandidat das Stil-Tor
+// bestand). Ersetzt durch den festen KI-Hinweis ueber dem Stift. Ein Bild ohne bestandenen
+// Kandidaten entsteht gar nicht mehr (siehe finishSceneResult()/renderZauberRuhe()).
 function buildErgebnisAnsicht(s, image) {
   const erg = h("section", { class: "erg" });
 
@@ -1625,18 +1656,30 @@ function buildErgebnisAnsicht(s, image) {
   kopf.appendChild(h("p", { class: "kicker kicker-yellow", style: { transform: "rotate(-2deg)" } }, "Bild " + s.images.length + " · " + (image.title || "Wimmelbild")));
   kopf.appendChild(h("h1", { class: "h1-scr erg-titel" }, "Da ist es."));
   kopf.appendChild(h("p", { class: "caveat desktop-only", style: { margin: "8px 0 0", fontSize: "23px", lineHeight: "1.1" } }, "schau erst mal in Ruhe."));
-  const sevBand = (Pipeline.SCENE_PHASES[Pipeline.ACTIVE_SCENE_PHASE] || {}).figuresBand;
-  const sev = image.verify ? Pipeline.severityOf(image.verify, sevBand) : null;
-  if (image.abgelehnt || !image.verify || (sev && sev.heavy > 0)) {
-    const box = h("div", { class: "erg-warnung", style: { background: "var(--yellow)", border: "4px solid var(--ink)", padding: "13px 14px", boxShadow: "5px 6px 0 var(--ink)" } });
-    box.appendChild(h("p", { class: "h-black", style: { margin: "0 0 5px", fontSize: "12px", letterSpacing: ".04em" } }, image.abgelehnt ? "✕ Nicht bestanden" : "⚠ Bitte einmal gegenchecken"));
-    box.appendChild(h("p", { style: { margin: "0", fontSize: "13px", lineHeight: "1.45" } },
-      image.abgelehnt ? "Keiner der Versuche hat unseren Zeichenstil getroffen (automatische Stilprüfung). Dieses Bild ist deshalb nicht als Ergebnis gedacht und wird dir nur zur Kontrolle gezeigt — bitte zaubere die Szene neu." : !image.verify
-        ? "Unsere automatische Qualitätsprüfung konnte dieses Bild nicht auswerten (technischer Fehler beim Prüf-Schritt) — wir wissen nicht sicher, ob alles passt. Bitte einmal selbst durchschauen, bevor du weitermachst."
-        : "Unsere automatische Qualitätsprüfung hat bei diesem Bild etwas Grundlegendes gefunden — beim Zeichenstil, bei einer eurer Figuren oder bei der räumlichen Tiefe. Der beste von mehreren Versuchen wurde trotzdem gewählt. Bitte einmal selbst durchschauen, bevor du weitermachst."));
-    kopf.appendChild(box);
-  }
   seite.appendChild(kopf);
+
+  // NEU (21.09.2026, Kandidatenwahl): "Die automatische Auswahl bestimmt nur noch den Favoriten. Die
+  // Entscheidung trifft die Kundin." Bestehen zwei Kandidaten das Stil-Tor, schaltet die Kundin
+  // zwischen ihnen um -- Favorit vorn, unbeschriftet (kein "empfohlen"), bis zum Kauf.
+  const angebot = Array.isArray(image.angebot) ? image.angebot : [];
+  if (angebot.length > 1 && !image.gekauftAm) {
+    const wahl = h("div", { class: "erg-wahl" });
+    wahl.appendChild(h("p", { class: "caveat", style: { margin: "0 0 8px", fontSize: "20px", lineHeight: "1.1" } }, "ich hab dir " + angebot.length + " Varianten gezaubert — such dir eine aus."));
+    const reihe = h("div", { style: { display: "flex", gap: "8px" } });
+    angebot.forEach((a, i) => {
+      const an = (image.gewaehlt || 0) === i;
+      reihe.appendChild(h("button", { type: "button", class: "h-black", "aria-pressed": an ? "true" : "false",
+        style: { flex: "1", minHeight: "46px", fontSize: "12.5px", cursor: "pointer", border: "3px solid var(--ink)", background: an ? "var(--ink)" : "var(--paper)", color: an ? "var(--paper)" : "var(--ink)" },
+        onClick: () => { if (an) return; AppState.waehleKandidat(image.id, i); Router.goScreen("ergebnis"); } }, "Bild " + (i + 1)));
+    });
+    wahl.appendChild(reihe);
+    seite.appendChild(wahl);
+  }
+
+  // NEU (21.09.2026, Produktentscheidung, Wortlaut vom Nutzer): ersetzt den gelben Warnkasten
+  // ("Bitte einmal gegenchecken" / "Nicht bestanden"). Steht einmal, direkt ueber dem Stift-Knopf --
+  // dort, wo die Kundin den Fehler sieht und die Loesung gleich daneben hat.
+  seite.appendChild(h("p", { class: "erg-ki-hinweis" }, "Die Bilder malt eine KI. Sie macht manchmal kleine Fehler — zum Beispiel ist eine Figur doppelt da. Mit dem Stift kannst du solche Stellen einfach korrigieren."));
 
   // Werkzeuge. "Detail antippen" und "Nochmal zaubern" sind seit 19.09.2026 (Phase 0.2) entfernt
   // bzw. ausgeblendet -- sie hatten keinen Klick-Handler. "Nochmal zaubern" kommt mit der
@@ -1877,7 +1920,14 @@ async function applyPenEdit({ image, canvas, img, mark, mode, errorId, applyBtn,
       instruction = "Apply exactly this change to the image: \"" + changeEn + "\" — keep everything else (all other characters, objects, composition, lighting) exactly unchanged, pixel-identical where not affected by this change.";
     }
     const result = await Pipeline.generateImage(instruction, "scene", { editImageUrl: composite });
-    AppState.updateImage(image.id, { src: result.url, violations: null, verify: null });
+    // GEAENDERT (21.09.2026, Kandidatenwahl): die Korrektur gehoert zum GEWAEHLTEN Kandidaten und
+    // bleibt ihm beim Umschalten erhalten.
+    const aktuell = (AppState.data.images || []).find((b) => b.id === image.id) || image;
+    const patch = { src: result.url, violations: null, verify: null };
+    if (Array.isArray(aktuell.angebot) && aktuell.angebot[aktuell.gewaehlt || 0]) {
+      patch.angebot = aktuell.angebot.map((a, i) => (i === (aktuell.gewaehlt || 0) ? Object.assign({}, a, { src: result.url, violations: null, verify: null, korrigiert: true }) : a));
+    }
+    AppState.updateImage(image.id, patch);
     mark.clear();
     penApplyBusy = false;
     AppState.update({ penOn: false, penMode: null, penChangeText: "" });

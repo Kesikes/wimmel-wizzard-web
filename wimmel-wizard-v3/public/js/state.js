@@ -47,6 +47,13 @@ const DEFAULT_STATE = {
   // Wimmelbilder: leer, bis die Nutzerin selbst eines anlegt (ueber Szene -> Zaubern)
   images: [],
   currentImageId: null,
+  // NEU (21.09.2026, Kandidatenwahl): Durchgaenge, in denen KEIN Kandidat das Stil-Tor bestanden hat
+  // (auch der dritte nicht). Die Kundin bekommt dafuer kein Bild; die Kandidaten bleiben hier fuer
+  // die Auswertung liegen (die letzten 20). freierDurchgang merkt sich, dass der naechste Durchgang
+  // fuer die Kundin kostenlos ist (Produktentscheidung) -- das Bezahlmodell (Phase 3) muss ihn
+  // beachten; er wird am naechsten fertigen Bild als image.kostenlos vermerkt und dann geleert.
+  fehlversuche: [],
+  freierDurchgang: null,
   sceneWay: null, // Index in WAYS (szene.js): 0 "Thema wählen", 1 "Geschichte aufnehmen", 2 "Selbst eintippen"
   sceneTheme: null,
   sceneText: "", // ungenutzt seit dem Chat-Interview-Umbau (06.09.2026), bleibt für alte
@@ -430,10 +437,20 @@ const AppState = {
   // GEAENDERT (19.09.2026): bildFassung/pruefFassung werden AM BILD gespeichert. Vorher las das
   // Test-Details-Panel die Fassung des gerade geladenen Codes -- ein drei Tage altes Bild zeigte
   // also den heutigen Stand und damit eine Unwahrheit. Genau darauf stuetzt sich die Messreihe.
-  addImage({ title, src, promptText, instruction, violations, verify, candidates, richter, quelle, heldenInfo, abgelehnt }) {
+  // GEAENDERT (21.09.2026, Kandidatenwahl): angebot = die Kandidaten, zwischen denen die Kundin
+  // waehlt (nur Stil-Tor bestanden, Favorit zuerst). Je Eintrag: url (Original), src (aktuell,
+  // nach Stift-Korrekturen), nr (K1/K2/K3). gewaehlt = Index im angebot; gewaehltAm und
+  // wahlProtokoll halten jede Wahl fest. Wechseln geht bis zum Kauf (gekauftAm), danach fest.
+  addImage({ title, src, promptText, instruction, violations, verify, candidates, richter, quelle, heldenInfo, abgelehnt, angebot }) {
     const id = "img-" + (this.data.images.length + 1) + "-" + Date.now().toString(36);
     const P = window.Pipeline || {};
-    const image = { id, title: title || "", src, status: "done", promptText, instruction, violations, verify, candidates,
+    const jetzt = new Date().toISOString();
+    const liste = (angebot && angebot.length ? angebot : [{ url: src, nr: null, violations, verify }])
+      .map((a) => ({ url: a.url, src: a.url, nr: a.nr == null ? null : a.nr, violations: a.violations == null ? null : a.violations, verify: a.verify || null }));
+    const image = { id, title: title || "", src: liste[0].src, status: "done", promptText, instruction, violations, verify, candidates,
+      angebot: liste, gewaehlt: 0, gewaehltAm: jetzt, wahlProtokoll: [{ nr: liste[0].nr, url: liste[0].url, am: jetzt, durch: "favorit" }],
+      gekauftAm: null,
+      kostenlos: this.data.freierDurchgang || null,
       // NEU (20.09.2026): das vollstaendige Richter-Ergebnis am Bild, damit das Test-Details-Panel
       // beide Urteile, "einig"/"knapp" und den Token-Verbrauch zeigen kann -- auch spaeter noch.
       richter: richter || null, quelle: quelle || null,
@@ -451,8 +468,24 @@ const AppState = {
         (this.data.testKoepfe === "gross" ? " \u00b7 Köpfe GROSS" : "")),
       pruefFassung: (P.PRUEF_FASSUNG || null) && (P.PRUEF_FASSUNG + (this.data.testStilTor === "aus" ? " \u00b7 Stil-Tor AUS" : "") + (this.data.testRichter === "aus" ? " \u00b7 Richter AUS" : "")) };
     const images = this.data.images.concat([image]);
-    this.update({ images, currentImageId: id });
+    this.update({ images, currentImageId: id, freierDurchgang: null });
     return image;
+  },
+  // NEU (21.09.2026, Kandidatenwahl): die Kundin schaltet auf einen anderen Kandidaten um. Nach dem
+  // Kauf (gekauftAm) nicht mehr moeglich. Stift-Korrekturen bleiben je Kandidat erhalten (src).
+  waehleKandidat(id, index) {
+    const img = this.data.images.find((i) => i.id === id);
+    if (!img || img.gekauftAm || !img.angebot || !img.angebot[index] || img.gewaehlt === index) return img;
+    const a = img.angebot[index];
+    const am = new Date().toISOString();
+    return this.updateImage(id, { gewaehlt: index, gewaehltAm: am, src: a.src || a.url,
+      violations: a.violations, verify: a.verify,
+      wahlProtokoll: (img.wahlProtokoll || []).concat([{ nr: a.nr, url: a.url, am, durch: "kundin" }]) });
+  },
+  // NEU (21.09.2026, Kandidatenwahl): ein Durchgang ohne bestandenen Kandidaten.
+  addFehlversuch(eintrag) {
+    const liste = (this.data.fehlversuche || []).concat([Object.assign({ am: new Date().toISOString() }, eintrag)]).slice(-20);
+    this.update({ fehlversuche: liste, freierDurchgang: { grund: "stil-tor", am: new Date().toISOString() } });
   },
   currentImage() {
     return this.data.images.find((i) => i.id === this.data.currentImageId) || this.data.images[this.data.images.length - 1] || null;

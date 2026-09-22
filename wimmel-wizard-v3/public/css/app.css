@@ -139,3 +139,9 @@ textarea.field { min-height: 108px; resize: none; padding: 11px; line-height: 1.
   .erg-unten { margin-top: auto; border-top: 4px solid var(--ink); padding-top: 18px; }
   .erg-stift-etikett { left: 20%; top: 30%; margin: -34px 0 0 160px; font-size: 12px; padding: 7px 10px; }
 }
+.erg-wahl { order: 2; padding: 12px 14px 0; }
+.erg-ki-hinweis { order: 2; margin: 12px 14px 0; font-size: 13px; line-height: 1.45; }
+@media (min-width: 1024px) {
+  .erg-wahl { padding: 0; }
+  .erg-ki-hinweis { margin: 0; }
+}

@@ -1372,7 +1372,7 @@ var ACTIVE_SCENE_PHASE = "phase1";
 // in den Kompositionstypen, aendert sich die Pruefsumme -- ohne dass jemand daran denken muss.
 // Das von Hand gepflegte Datum bleibt als lesbare Ergaenzung daneben stehen; verlassen tun wir uns
 // auf die Pruefsumme.
-var PROMPT_LABEL = "2026-09-21i";
+var PROMPT_LABEL = "2026-09-21j";
 
 // FNV-1a, 32 Bit. Bewusst kein crypto.subtle: das ist asynchron, und diese Kennung soll ohne
 // Umstand synchron beim Laden feststehen. Kollisionen sind hier belanglos -- es geht nicht um
@@ -1493,7 +1493,7 @@ var VERIFY_MAX_VERSUCHE = 2;
 // Kandidat --, bleibt die Pruefsumme sonst gleich, obwohl die Pruefung sich anders verhaelt.
 // Diese Zeichenkette ist der Platz, an dem so eine Aenderung sichtbar wird. Sie gehoert bei jeder
 // Aenderung an der Pruef-LOGIK hochgezaehlt, auch wenn der Prompt gleich bleibt.
-var PRUEF_VERHALTEN = "2026-09-21i: Grundstand -- Richter, Stil-Tor (nur Teil A, Teil B abgeschaltet) und Heldenbeschreibung aus dem Figurenblatt sind Vorgabe (aus nur per richter=aus, stiltor=aus, helden=alt); dritter Kandidat NUR, wenn kein Kandidat das Stil-Tor besteht (technisch gescheitertes Stil-Tor zaehlt als bestanden), Tiefe/Figurengroesse loesen ihn nicht mehr aus; Berg/Stadt nie Querschnitt, Chat-Weg Querschnitt nur bei eindeutigem Innenraum; 2026-09-21h: Stil-Tor Teil A wieder woertlich die erste Fassung (21e) als eigener Aufruf, entscheidet allein; Teil B Kopfanteil als zweiter Aufruf nur Messwert; 2026-09-21g: Stil-Tor in zwei Teilen (A Stil ja/nein ohne Kopfgroesse, B Kopfanteil als Zahl gegen die Referenz; B entscheidet erst ab kalibrierter Grenze); 2026-09-21f: Stil-Tor fragt zusaetzlich nach den Proportionen (grosse runde Koepfe bei allen, normale Comic-Proportionen = passt nicht); 2026-09-21e: Stil-Tor (claude-sonnet-5, absolute Stilpruefung gegen die Referenz je Kandidat, nein = SCHWER, kein Kandidat bestanden = abgelehnt) hinter /app?stiltor=an; Richter nennt den tatsaechlichen Grund, wenn er nicht gefragt wird; 2026-09-21d: heroes_ok mittel statt schwer (Kleidungspruefung 64 %, Regel: schwer erst ab 90 %); 2026-09-21a: Heldenfehler entscheiden bei der Auswahl direkt nach den schweren Verstoessen, vor den uebrigen mittleren (loesen aber keinen dritten Kandidaten aus); ein Wiederholungsversuch bei unlesbarer Antwort, danach ungeprueft statt schlechtester Kandidat; D-Richter (claude-sonnet-5, zwei Aufrufe mit getauschter Reihenfolge) entscheidet bei Gleichstand der schweren Verstoesse, hinter /app?richter=an";
+var PRUEF_VERHALTEN = "2026-09-21j: Kandidatenwahl -- gezeigt werden nur Kandidaten, die das Stil-Tor bestehen; Favorit bestimmt der Richter bei jedem bestandenen Paar, sonst K1 (kein Rueckfall auf Heldenzaehlung oder Schwere); besteht keiner (auch der dritte nicht), gibt es kein Bild und einen kostenlosen neuen Durchgang; 2026-09-21i: Grundstand -- Richter, Stil-Tor (nur Teil A, Teil B abgeschaltet) und Heldenbeschreibung aus dem Figurenblatt sind Vorgabe (aus nur per richter=aus, stiltor=aus, helden=alt); dritter Kandidat NUR, wenn kein Kandidat das Stil-Tor besteht (technisch gescheitertes Stil-Tor zaehlt als bestanden), Tiefe/Figurengroesse loesen ihn nicht mehr aus; Berg/Stadt nie Querschnitt, Chat-Weg Querschnitt nur bei eindeutigem Innenraum; 2026-09-21h: Stil-Tor Teil A wieder woertlich die erste Fassung (21e) als eigener Aufruf, entscheidet allein; Teil B Kopfanteil als zweiter Aufruf nur Messwert; 2026-09-21g: Stil-Tor in zwei Teilen (A Stil ja/nein ohne Kopfgroesse, B Kopfanteil als Zahl gegen die Referenz; B entscheidet erst ab kalibrierter Grenze); 2026-09-21f: Stil-Tor fragt zusaetzlich nach den Proportionen (grosse runde Koepfe bei allen, normale Comic-Proportionen = passt nicht); 2026-09-21e: Stil-Tor (claude-sonnet-5, absolute Stilpruefung gegen die Referenz je Kandidat, nein = SCHWER, kein Kandidat bestanden = abgelehnt) hinter /app?stiltor=an; Richter nennt den tatsaechlichen Grund, wenn er nicht gefragt wird; 2026-09-21d: heroes_ok mittel statt schwer (Kleidungspruefung 64 %, Regel: schwer erst ab 90 %); 2026-09-21a: Heldenfehler entscheiden bei der Auswahl direkt nach den schweren Verstoessen, vor den uebrigen mittleren (loesen aber keinen dritten Kandidaten aus); ein Wiederholungsversuch bei unlesbarer Antwort, danach ungeprueft statt schlechtester Kandidat; D-Richter (claude-sonnet-5, zwei Aufrufe mit getauschter Reihenfolge) entscheidet bei Gleichstand der schweren Verstoesse, hinter /app?richter=an";
 
 // SHADED_MAX_OF_TEN: wie viele der zehn groessten Gesichter plastisch gezeichnet sein duerfen.
 // EINS, nicht zwei oder drei -- Nutzer-Entscheidung nach folgender Ueberlegung: der gewuenschte
@@ -3872,8 +3872,13 @@ async function runSceneJobPolling(sceneInputs, opts) {
         quelle: job.resultQuelle || null,
         // NEU (21.09.2026): nur beim frischen Start bekannt, beim Fortsetzen null (wie promptText).
         heldenInfo: built ? built.heldenInfo : null,
-        // NEU (21.09.2026): kein Kandidat hat das Stil-Tor bestanden (siehe markiereAbgelehnt()).
-        abgelehnt: job.resultAbgelehnt || null,
+        // GEAENDERT (21.09.2026, Kandidatenwahl): das ANGEBOT fuer die Kundin -- nur Kandidaten, die
+        // das Stil-Tor bestanden haben, Favorit zuerst (siehe finalizeJob() in scene-job-engine.js).
+        // Aeltere Job-Datensaetze ohne angebot: der eine gewaehlte Kandidat.
+        angebot: Array.isArray(job.angebot) ? job.angebot
+          : (job.resultUrl ? [{ url: job.resultUrl, seed: job.resultSeed, nr: null, violations: job.resultViolations, verify: job.resultVerify }] : []),
+        // Kein Kandidat hat das Stil-Tor bestanden, auch der dritte nicht: KEIN Bild.
+        keinBild: !!job.resultKeinBild,
       };
     }
     if (job.status === "error") {

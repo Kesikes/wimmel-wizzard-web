@@ -193,12 +193,28 @@ ab welcher Fassung die Regel im Code gilt; „Schritt 3" heißt: kommt mit der K
 | Regel | gebaut |
 |---|---|
 | Der **dritte Kandidat** kommt **nur**, wenn **kein** Kandidat das Stil-Tor besteht. Tiefe, Figurengröße und die übrigen Prüfbefunde lösen keinen bezahlten dritten Lauf mehr aus. Ohne Stil-Tor (Kontrollschalter `stiltor=aus`) gibt es keinen dritten Kandidaten. | `2026-09-21i` |
-| Ein **technisch gescheitertes** Stil-Tor zählt als **bestanden**. | `2026-09-21i` (dritter Kandidat), Anzeige Schritt 3 |
-| Besteht auch der dritte das Stil-Tor nicht: **kein Bild**, „Das hat diesmal nicht geklappt" + „Nochmal zaubern"; der neue Durchgang ist für die Kundin **kostenlos**. | Schritt 3 |
-| Der **Richter** bestimmt bei jedem Paar den **Favoriten**. Uneinig oder gescheitert: K1 vorne, kein Rückfall auf die Heldenzählung. | Schritt 3 |
-| Besteht **nur einer**: nur diesen zeigen, kein Umschalter, kein dritter Kandidat. | Schritt 3 |
-| **Hinweistext** unter dem Bild, direkt über dem Stift-Knopf, ersetzt den gelben Warnkasten: „Die Bilder malt eine KI. Sie macht manchmal kleine Fehler — zum Beispiel ist eine Figur doppelt da. Mit dem Stift kannst du solche Stellen einfach korrigieren." | Schritt 3 |
+| Ein **technisch gescheitertes** Stil-Tor zählt als **bestanden**. | `2026-09-21i` (dritter Kandidat), `2026-09-21j` (Anzeige) |
+| Besteht auch der dritte das Stil-Tor nicht: **kein Bild**, „Das hat diesmal nicht geklappt" + „Nochmal zaubern"; der neue Durchgang ist für die Kundin **kostenlos**. | `2026-09-21j` — siehe unten |
+| Der **Richter** bestimmt bei jedem Paar den **Favoriten**. Uneinig oder gescheitert: K1 vorne, kein Rückfall auf die Heldenzählung. | `2026-09-21j` |
+| Besteht **nur einer**: nur diesen zeigen, kein Umschalter, kein dritter Kandidat. | `2026-09-21j` |
+| **Hinweistext** unter dem Bild, direkt über dem Stift-Knopf, ersetzt den gelben Warnkasten: „Die Bilder malt eine KI. Sie macht manchmal kleine Fehler — zum Beispiel ist eine Figur doppelt da. Mit dem Stift kannst du solche Stellen einfach korrigieren." | `2026-09-21j` |
 | **Stift** vorerst ohne Umschalter Malen/Verschieben; der kommt nur, wenn der Handytest des Nutzers ungewollte Striche zeigt. | Schritt 4 |
+
+Umsetzung (`2026-09-21j`):
+- Server (`finalizeJob()` in `scene-job-engine.js`) liefert `angebot`: nur bestandene Kandidaten,
+  Favorit zuerst; `resultQuelle` ist `richter` (einiges Urteil) oder `k1`. Die Schwere-Stufen und
+  die drei Gruppen (Einträge weiter unten) bestimmen die Reihenfolge **nicht mehr**; sie bleiben
+  als Messwerte im Panel.
+- Ergebnis-Screen: bei zwei bestandenen Kandidaten die Knöpfe „Bild 1 / Bild 2", Favorit als
+  „Bild 1", ohne Beschriftung wie „empfohlen". Jede Wahl steht am Bild (`gewaehlt`, `gewaehltAm`,
+  `wahlProtokoll`). Stift-Korrekturen bleiben je Kandidat erhalten.
+- **Nach dem Kauf fest:** Das Feld `gekauftAm` am Bild sperrt den Umschalter. Heute setzt es noch
+  niemand — es gibt noch keinen Kauf. Das Bezahlmodell (Phase 3) muss es setzen.
+- **Kostenloser neuer Durchgang:** Besteht keiner, entsteht kein Bild. Der Durchgang landet in
+  `fehlversuche` (die letzten 20, für die Auswertung), und `freierDurchgang` wird gesetzt. Der
+  Zaubern-Screen zeigt „Das hat diesmal nicht geklappt" mit „Nochmal zaubern"; das nächste
+  fertige Bild trägt `kostenlos`. **Abgerechnet wird heute noch nichts** — das Bezahlmodell
+  (Phase 3) muss `freierDurchgang` beachten.
 
 ### GÜLTIG (Produktentscheidung des Nutzers, 21.09.2026): die Kundin entscheidet
 
@@ -208,8 +224,8 @@ Anlass: In fast jeder Szene gibt es einen guten Kandidaten, aber die automatisch
 oft nicht (Heldenzählung rund 70 %, gemini-Stilprüfung blind, Stil-Tor nur grobe Brüche, Richter
 rund 4 von 5). Die Verfeinerung der Auswahl ist damit beendet; keine neuen Messreihen und keine
 neuen Testschalter, bis die Kandidatenwahl steht. Plan: `plan-kandidatenwahl-2026-09-21.md`.
-Die Einträge darunter beschreiben, wie der **Favorit** heute zustande kommt; sie werden mit dem
-Bau der Kandidatenwahl angepasst (Favorit künftig nur noch durch den Richter).
+Die Einträge darunter beschreiben, wie bis Fassung `2026-09-21i` **ein** Bild ausgewählt wurde.
+Seit `2026-09-21j` gilt die Tabelle oben („Regeln der Kandidatenwahl"); die Schwere-Reihenfolge entscheidet nichts mehr.
 
 ### GÜLTIG seit 21.09.2026 (Prüf-Fassung `2026-09-21d`): `heroes_ok` mittel statt schwer
 

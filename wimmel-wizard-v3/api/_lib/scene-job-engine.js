@@ -33,9 +33,9 @@
 // in pipeline.js (dessen Verhalten diese Datei ersetzt, sobald live bestaetigt).
 const {
   submitFalQueue, falQueueStatus, falQueueResult, callFalVerifySync, countViolations,
-  compareSeverity, isGoodEnough, logFalError, VERIFY_MAX_VERSUCHE,
+  logFalError, VERIFY_MAX_VERSUCHE,
 } = require("./fal-queue");
-const { richterUrteil, richterGreift, richterWarum, stilTorUrteil, RICHTER_MODELL } = require("./richter");
+const { richterUrteil, stilTorUrteil, RICHTER_MODELL } = require("./richter");
 
 // SCENE_MODEL: identisch zum Default-Endpoint in api/fal-proxy.js fuer kind==="scene" mit gesetztem
 // imageUrl (useProModel default true fuer Szenen, siehe dortiger Kommentar "nano-banana-pro/edit ...
@@ -293,8 +293,7 @@ async function advanceSceneJob(job, { FAL_KEY, ANTHROPIC_KEY }) {
     // dritten Kandidaten -- es gibt dann nichts, was ihn ausloesen duerfte.
     // "geprueft" bleibt fuer die Auswertung stehen, entscheidet hier aber nichts mehr.
     void geprueft;
-    const stilBestanden = (c) => !c.stilTor || c.stilTor.urteil !== "nein";
-    const hasGoodEnough = !next.stilTor || !usable.length || usable.some(stilBestanden);
+    const hasGoodEnough = !next.stilTor || !usable.length || usable.some(stilTorBestanden);
     // GEAENDERT (19.09.2026): Deckel auf genCount statt auf candidates.length -- siehe
     // MAX_GENERATIONS oben. Alte Job-Datensaetze ohne genCount fallen auf die Listenlaenge
     // zurueck, damit ein zum Zeitpunkt des Deploys laufender Job nicht ploetzlich weiterzaehlt.
@@ -311,32 +310,31 @@ async function advanceSceneJob(job, { FAL_KEY, ANTHROPIC_KEY }) {
         finalizeJob(next, usable);
       }
     } else {
-      // NEU (20.09.2026): der D-Richter, bevor entschieden wird. Er greift NUR bei Gleichstand der
-      // schweren Verstoesse (siehe richterGreift()) und nur, wenn der Schalter gesetzt ist.
-      // GEAENDERT (20.09.2026): der Eintrag entsteht IMMER, auch wenn der Richter gar nicht
-      // gefragt wurde. Vorher fehlte der Abschnitt im Panel dann einfach -- und ein fehlender
-      // Abschnitt sagt nicht, WARUM er fehlt. Genau daran ist der Body-Fehler oben eine Stunde
-      // lang unentdeckt geblieben. Ein ausdrueckliches "aus" ist eine Auskunft, ein Loch nicht.
+      // GEAENDERT (21.09.2026, Kandidatenwahl, Produktentscheidung): der D-Richter bestimmt bei
+      // JEDEM Paar, das das Stil-Tor besteht, den FAVORITEN -- nicht mehr nur bei Gleichstand der
+      // schweren Verstoesse. Heldenzaehlung und uebrige gemini-Felder entscheiden die Reihenfolge
+      // nicht mehr. Der Eintrag entsteht IMMER (auch "nicht gefragt", mit dem tatsaechlichen Grund):
+      // ein fehlender Abschnitt im Panel sagt nicht, warum er fehlt.
       if (!next.richterErgebnis) {
         const grund = { modell: RICHTER_MODELL, urteile: [], gewaehlteUrl: null,
           tokenEin: 0, tokenAus: 0, schluesselVorhanden: !!ANTHROPIC_KEY };
+        const bestanden = usable.filter(stilTorBestanden);
         if (!next.richter) {
           next.richterErgebnis = Object.assign(grund, { ergebnis: "aus",
-            fehler: "Der Richter war abgeschaltet (Kontrollschalter /app?richter=aus) — die Pruefung entscheidet." });
+            fehler: "Der Richter war abgeschaltet (Kontrollschalter /app?richter=aus) — K1 steht vorn." });
+        } else if (bestanden.length !== 2) {
+          next.richterErgebnis = Object.assign(grund, { ergebnis: "nicht_gefragt",
+            fehler: bestanden.length === 0 ? "Kein Kandidat hat das Stil-Tor bestanden — nichts zu vergleichen."
+              : bestanden.length === 1 ? "Nur ein Kandidat hat das Stil-Tor bestanden — er wird allein gezeigt, nichts zu vergleichen."
+              : bestanden.length + " Kandidaten bestanden — der Richter vergleicht nur genau zwei, K1 steht vorn." });
         } else if (!ANTHROPIC_KEY) {
           next.richterErgebnis = Object.assign(grund, { ergebnis: "kein_urteil",
-            fehler: "ANTHROPIC_API_KEY ist in der Vercel-Umgebung NICHT gesetzt — der Richter konnte nicht gefragt werden." });
+            fehler: "ANTHROPIC_API_KEY ist in der Vercel-Umgebung NICHT gesetzt — der Richter konnte nicht gefragt werden, K1 steht vorn." });
           await logFalError("richter", "ANTHROPIC_API_KEY fehlt in der Vercel-Umgebung.");
         } else {
-          const paar = richterGreift(usable);
-          if (paar) {
-            next.richterErgebnis = Object.assign(
-              await richterUrteil(next.richterRefUrl, paar[0], paar[1], ANTHROPIC_KEY),
-              { schluesselVorhanden: true });
-          } else {
-            // GEAENDERT (21.09.2026): der tatsaechliche Grund statt eines festen Satzes.
-            next.richterErgebnis = Object.assign(grund, { ergebnis: "nicht_gefragt", fehler: richterWarum(next.candidates) });
-          }
+          next.richterErgebnis = Object.assign(
+            await richterUrteil(next.richterRefUrl, bestanden[0], bestanden[1], ANTHROPIC_KEY),
+            { schluesselVorhanden: true });
         }
       }
       finalizeJob(next, usable);
@@ -347,90 +345,62 @@ async function advanceSceneJob(job, { FAL_KEY, ANTHROPIC_KEY }) {
   return next;
 }
 
-// finalizeJob(): siehe identischer Kommentar in char-job-engine.js -- gleiches "besten waehlen, nur
-// bei technischem Totalausfall Fehler" Prinzip.
+// NEU (21.09.2026, Kandidatenwahl): hat ein Kandidat das Stil-Tor bestanden? Ein technisch
+// gescheitertes Stil-Tor (urteil null) und ein abgeschaltetes (kein Eintrag) zaehlen als bestanden
+// -- ein technischer Fehler darf der Kundin kein Bild wegnehmen (Produktentscheidung).
+function stilTorBestanden(c) {
+  return !c.stilTor || c.stilTor.urteil !== "nein";
+}
+
+// finalizeJob(): stellt das ANGEBOT fuer die Kundin zusammen.
+// GEAENDERT (21.09.2026, Kandidatenwahl, Produktentscheidung "Die automatische Auswahl bestimmt nur
+// noch den Favoriten. Die Entscheidung trifft die Kundin."):
+//   - Gezeigt werden nur Kandidaten, die das Stil-Tor bestanden haben (job.angebot, Favorit zuerst).
+//   - Favorit: das EINIGE Urteil des Richters; sonst (uneinig, gescheitert, aus, nur einer) K1 --
+//     der zuerst angelegte bestandene Kandidat. Kein Rueckfall auf Heldenzaehlung oder Schwere.
+//   - Keiner bestanden (auch nicht der dritte): job.resultKeinBild = true, kein Bild. Der Client
+//     zeigt "Das hat diesmal nicht geklappt" und bietet einen kostenlosen neuen Durchgang an.
+//   - Nur bei technischem Totalausfall (kein Kandidat ueberhaupt fertig) bleibt es ein Fehler.
+// HISTORISCH (bis 21.09.2026): drei Gruppen (geprueft ohne schweren Verstoss / ungeprueft /
+// geprueft mit schwerem Verstoss), darin compareSeverity(); der Richter nur bei Gleichstand.
 function finalizeJob(job, usableCandidates) {
   if (!usableCandidates.length) {
+    // Rohe fal-Meldungen gehen nie an die Kundin; sie stehen je Kandidat in den Vercel-Logs
+    // (logFalError() beim Scheitern). Siehe Sammel-Runde 16.09.2026 ("TOP_UP").
     job.status = "error";
-    // GEAENDERT (Sammel-Runde 16.09.2026, live gefunden: "fal.ai 403 User is locked. Reason:
-    // TOP_UP" direkt bei der Nutzerin sichtbar). Der Live-Test-Fund vom 15.09.2026 (siehe vorherige
-    // Version dieses Kommentars) haengte hier bewusst die erste konkrete Rohfehlermeldung an die
-    // CLIENT-sichtbare job.error an, um die Fehlersuche zu erleichtern -- genau DAS hat aber dazu
-    // gefuehrt, dass ein technischer Fehler wie "TOP_UP" (oder jeder andere rohe fal.ai-Fehlertext)
-    // unveraendert vor der Nutzerin landete. Der urspruengliche Zweck (Fehlersuche) bleibt erhalten,
-    // nur eine Ebene tiefer: jeder Kandidat, der scheitert, wird bereits beim Scheitern selbst ueber
-    // logFalError() geloggt (siehe advanceSceneJob() oben) -- die Rohmeldung ist damit weiterhin in
-    // den Vercel-Funktionslogs vollstaendig nachvollziehbar, ohne dass sie zusaetzlich hier nochmal
-    // an die Nutzerin durchgereicht werden muss.
     job.error = "Keiner der Generierungsversuche war erfolgreich — bitte nochmal versuchen.";
     return;
   }
-  // GEAENDERT (17.09.2026, D1): Auswahl stufenweise nach Schwere statt nach der reinen Anzahl --
-  // ein Kandidat mit falschem Stil darf nicht gewinnen, nur weil er weniger Kleinigkeiten hat
-  // (Nutzer-Vorgabe). compareSeverity() vergleicht erst schwer, dann mittel, dann leicht.
-  // GEAENDERT (20.09.2026): ein Kandidat, dessen PRUEFUNG gescheitert ist, darf nicht automatisch
-  // verlieren -- aber auch nicht automatisch gewinnen. "Ungeprueft" heisst unbekannt, nicht gut.
-  // Drei Gruppen, in dieser Reihenfolge:
-  //   1. geprueft und ohne schweren Verstoss  -- nachweislich brauchbar
-  //   2. ungeprueft                           -- unbekannt, aber nichts spricht dagegen
-  //   3. geprueft mit schwerem Verstoss       -- nachweislich mangelhaft
-  // Innerhalb Gruppe 1 und 3 entscheidet wie bisher compareSeverity() stufenweise.
-  function gruppe(c) {
-    // NEU (21.09.2026): ein Stil-Tor-"nein" landet immer in Gruppe 3, auch wenn die gemini-Pruefung
-    // gescheitert ist -- ein Kandidat mit nachgewiesenem Stilbruch ist nicht "unbekannt".
-    if (c.stilTor && c.stilTor.urteil === "nein") return 3;
-    if (c.verifyStatus === "ungeprueft") return 2;
-    return isGoodEnough(c.severity) ? 1 : 3;
-  }
-  // NEU (20.09.2026): hat der Richter ein EINIGES Urteil gefaellt, gilt es -- aber nur, wenn der
-  // gewaehlte Kandidat auch wirklich in der Auswahl steht. "knapp", "kein_urteil" und
-  // "nicht_gefragt" aendern nichts; dann laeuft alles wie bisher weiter.
-  const rr = job.richterErgebnis;
-  if (rr && rr.ergebnis === "einig" && rr.gewaehlteUrl) {
-    const vomRichter = usableCandidates.find((c) => c.url === rr.gewaehlteUrl);
-    if (vomRichter) {
-      job.status = "done";
-      job.resultUrl = vomRichter.url;
-      job.resultSeed = vomRichter.seed;
-      job.resultViolations = vomRichter.violations;
-      job.resultSeverity = vomRichter.severity || null;
-      job.resultVerify = vomRichter.verify;
-      job.resultVerifyStatus = vomRichter.verifyStatus || null;
-      job.resultQuelle = "richter";
-      markiereAbgelehnt(job, vomRichter);
-      return;
-    }
-  }
-  job.resultQuelle = "pruefung";
-  const best = usableCandidates.reduce((a, b) => {
-    const ga = gruppe(a), gb = gruppe(b);
-    if (ga !== gb) return gb < ga ? b : a;
-    if (ga === 2) return a; // beide ungeprueft: der erste bleibt, es gibt nichts zu vergleichen
-    return compareSeverity(b.severity, a.severity) < 0 ? b : a;
-  });
+  const bestanden = usableCandidates.filter(stilTorBestanden);
   job.status = "done";
-  job.resultUrl = best.url;
-  job.resultSeed = best.seed;
-  job.resultViolations = best.violations;
-  job.resultSeverity = best.severity || null;
-  job.resultVerify = best.verify;
-  job.resultVerifyStatus = best.verifyStatus || null;
-  markiereAbgelehnt(job, best);
-}
-
-// NEU (21.09.2026, Produktentscheidung): "Ein Bild, das eines der beiden Ausschlusskriterien
-// verfehlt, wird nicht gewaehlt und nicht als Alternative gezeigt." Hat auch der BESTE Kandidat ein
-// Stil-Tor-"nein", dann hat keiner bestanden. Der Job wird trotzdem abgeschlossen (sonst waeren die
-// Kandidaten fuer die Auswertung verloren), traegt aber resultAbgelehnt -- der Ergebnis-Screen
-// zeigt das Bild dann ausdruecklich als abgelehnt statt als Ergebnis.
-function markiereAbgelehnt(job, best) {
-  job.resultAbgelehnt = (best && best.stilTor && best.stilTor.urteil === "nein")
-    ? "Kein Kandidat hat das Stil-Tor bestanden. Begruendung zu diesem: " + (best.stilTor.begruendung || "—")
-    : null;
+  if (!bestanden.length) {
+    job.resultKeinBild = true;
+    job.angebot = [];
+    job.resultUrl = null;
+    job.resultQuelle = "keiner_bestanden";
+    return;
+  }
+  const rr = job.richterErgebnis;
+  const vomRichter = (rr && rr.ergebnis === "einig" && rr.gewaehlteUrl)
+    ? bestanden.find((c) => c.url === rr.gewaehlteUrl) : null;
+  const favorit = vomRichter || bestanden[0];
+  job.resultQuelle = vomRichter ? "richter" : "k1";
+  const reihe = [favorit].concat(bestanden.filter((c) => c !== favorit));
+  job.angebot = reihe.map((c) => ({
+    url: c.url, seed: c.seed, nr: job.candidates.indexOf(c) + 1,
+    violations: c.violations, severity: c.severity || null, verify: c.verify, verifyStatus: c.verifyStatus || null,
+  }));
+  job.resultKeinBild = false;
+  job.resultUrl = favorit.url;
+  job.resultSeed = favorit.seed;
+  job.resultViolations = favorit.violations;
+  job.resultSeverity = favorit.severity || null;
+  job.resultVerify = favorit.verify;
+  job.resultVerifyStatus = favorit.verifyStatus || null;
 }
 
 module.exports = {
   SCENE_MODEL,
   createSceneJob, advanceSceneJob,
-  finalizeJob, // fuer dev-tools (Nachrechnen ohne Aufrufe)
+  finalizeJob, stilTorBestanden, // fuer dev-tools (Nachrechnen ohne Aufrufe)
 };
