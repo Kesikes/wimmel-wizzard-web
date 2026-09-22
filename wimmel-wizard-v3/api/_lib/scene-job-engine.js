@@ -349,7 +349,25 @@ async function advanceSceneJob(job, { FAL_KEY, ANTHROPIC_KEY }) {
 // gescheitertes Stil-Tor (urteil null) und ein abgeschaltetes (kein Eintrag) zaehlen als bestanden
 // -- ein technischer Fehler darf der Kundin kein Bild wegnehmen (Produktentscheidung).
 function stilTorBestanden(c) {
+  if (stilbruchMessung(c)) return false;
   return !c.stilTor || c.stilTor.urteil !== "nein";
+}
+
+// NEU (22.09.2026, Produktentscheidung Matthias: "Muender/Schattierung ab 8 von 10 als zusaetzlicher
+// Stilbruch: JA"). Befund aus dem Alter-Vergleich A2: das Stil-Tor liess einen Kandidaten mit
+// mouths_of_ten 10 und shaded_of_ten 10 durch und lehnte den sauberen ab. Nachgerechnet an den
+// Vergleichsdaten: 0 Fehlalarme bei 8 guten Kandidaten, faengt 1 von 4 Bruechen, die das Stil-Tor
+// durchlaesst. Die Regel wirkt ZUSAETZLICH zum Stil-Tor, sie kann also nur Kandidaten wegnehmen,
+// nie welche hinzufuegen. Fehlt die Messung (Pruefung aus oder gescheitert), greift sie nicht --
+// nicht gemessen ist kein Messwert.
+function stilbruchMessung(c) {
+  const v = (c && c.verify) || null;
+  if (!v) return null;
+  const m = Number(v.mouths_of_ten), sh = Number(v.shaded_of_ten);
+  const gruende = [];
+  if (isFinite(m) && m >= 8) gruende.push("Muender " + m + " von 10");
+  if (isFinite(sh) && sh >= 8) gruende.push("plastische Gesichter " + sh + " von 10");
+  return gruende.length ? gruende.join(", ") : null;
 }
 
 // finalizeJob(): stellt das ANGEBOT fuer die Kundin zusammen.
@@ -402,5 +420,5 @@ function finalizeJob(job, usableCandidates) {
 module.exports = {
   SCENE_MODEL,
   createSceneJob, advanceSceneJob,
-  finalizeJob, stilTorBestanden, // fuer dev-tools (Nachrechnen ohne Aufrufe)
+  finalizeJob, stilTorBestanden, stilbruchMessung, // fuer dev-tools (Nachrechnen ohne Aufrufe)
 };

@@ -1445,7 +1445,7 @@ var ACTIVE_SCENE_PHASE = "phase1";
 // in den Kompositionstypen, aendert sich die Pruefsumme -- ohne dass jemand daran denken muss.
 // Das von Hand gepflegte Datum bleibt als lesbare Ergaenzung daneben stehen; verlassen tun wir uns
 // auf die Pruefsumme.
-var PROMPT_LABEL = "2026-09-22d";
+var PROMPT_LABEL = "2026-09-22e";
 
 // FNV-1a, 32 Bit. Bewusst kein crypto.subtle: das ist asynchron, und diese Kennung soll ohne
 // Umstand synchron beim Laden feststehen. Kollisionen sind hier belanglos -- es geht nicht um
@@ -1573,7 +1573,7 @@ var VERIFY_MAX_VERSUCHE = 2;
 // Kandidat --, bleibt die Pruefsumme sonst gleich, obwohl die Pruefung sich anders verhaelt.
 // Diese Zeichenkette ist der Platz, an dem so eine Aenderung sichtbar wird. Sie gehoert bei jeder
 // Aenderung an der Pruef-LOGIK hochgezaehlt, auch wenn der Prompt gleich bleibt.
-var PRUEF_VERHALTEN = "2026-09-22c: Pruefung meldet heroes_x (waagerechte Lage je Held, 0-100) als reine Messung fuer den Falzstreifen 46,5-53,5, ungewertet; 2026-09-21j: Kandidatenwahl -- gezeigt werden nur Kandidaten, die das Stil-Tor bestehen; Favorit bestimmt der Richter bei jedem bestandenen Paar, sonst K1 (kein Rueckfall auf Heldenzaehlung oder Schwere); besteht keiner (auch der dritte nicht), gibt es kein Bild und einen kostenlosen neuen Durchgang; 2026-09-21i: Grundstand -- Richter, Stil-Tor (nur Teil A, Teil B abgeschaltet) und Heldenbeschreibung aus dem Figurenblatt sind Vorgabe (aus nur per richter=aus, stiltor=aus, helden=alt); dritter Kandidat NUR, wenn kein Kandidat das Stil-Tor besteht (technisch gescheitertes Stil-Tor zaehlt als bestanden), Tiefe/Figurengroesse loesen ihn nicht mehr aus; Berg/Stadt nie Querschnitt, Chat-Weg Querschnitt nur bei eindeutigem Innenraum; 2026-09-21h: Stil-Tor Teil A wieder woertlich die erste Fassung (21e) als eigener Aufruf, entscheidet allein; Teil B Kopfanteil als zweiter Aufruf nur Messwert; 2026-09-21g: Stil-Tor in zwei Teilen (A Stil ja/nein ohne Kopfgroesse, B Kopfanteil als Zahl gegen die Referenz; B entscheidet erst ab kalibrierter Grenze); 2026-09-21f: Stil-Tor fragt zusaetzlich nach den Proportionen (grosse runde Koepfe bei allen, normale Comic-Proportionen = passt nicht); 2026-09-21e: Stil-Tor (claude-sonnet-5, absolute Stilpruefung gegen die Referenz je Kandidat, nein = SCHWER, kein Kandidat bestanden = abgelehnt) hinter /app?stiltor=an; Richter nennt den tatsaechlichen Grund, wenn er nicht gefragt wird; 2026-09-21d: heroes_ok mittel statt schwer (Kleidungspruefung 64 %, Regel: schwer erst ab 90 %); 2026-09-21a: Heldenfehler entscheiden bei der Auswahl direkt nach den schweren Verstoessen, vor den uebrigen mittleren (loesen aber keinen dritten Kandidaten aus); ein Wiederholungsversuch bei unlesbarer Antwort, danach ungeprueft statt schlechtester Kandidat; D-Richter (claude-sonnet-5, zwei Aufrufe mit getauschter Reihenfolge) entscheidet bei Gleichstand der schweren Verstoesse, hinter /app?richter=an";
+var PRUEF_VERHALTEN = "2026-09-22e: zusaetzliches Ausschlusskriterium Stil (Produktentscheidung): mouths_of_ten >= 8 ODER shaded_of_ten >= 8 zaehlt wie ein Stil-Tor-nein -- der Kandidat wird nicht angeboten (in den Vergleichsdaten 0 Fehlalarme bei 8 guten Kandidaten, faengt Faelle, die das Stil-Tor durchlaesst); Falzregel neu formuliert: keine Erwaehnung von Falz, Buch, Druck oder Seiten mehr im Prompt, nur noch eine Platzierungsregel plus das Verbot, in der Mitte eine Kante zu zeichnen; 2026-09-22c: Pruefung meldet heroes_x (waagerechte Lage je Held, 0-100) als reine Messung fuer den Falzstreifen 46,5-53,5, ungewertet; 2026-09-21j: Kandidatenwahl -- gezeigt werden nur Kandidaten, die das Stil-Tor bestehen; Favorit bestimmt der Richter bei jedem bestandenen Paar, sonst K1 (kein Rueckfall auf Heldenzaehlung oder Schwere); besteht keiner (auch der dritte nicht), gibt es kein Bild und einen kostenlosen neuen Durchgang; 2026-09-21i: Grundstand -- Richter, Stil-Tor (nur Teil A, Teil B abgeschaltet) und Heldenbeschreibung aus dem Figurenblatt sind Vorgabe (aus nur per richter=aus, stiltor=aus, helden=alt); dritter Kandidat NUR, wenn kein Kandidat das Stil-Tor besteht (technisch gescheitertes Stil-Tor zaehlt als bestanden), Tiefe/Figurengroesse loesen ihn nicht mehr aus; Berg/Stadt nie Querschnitt, Chat-Weg Querschnitt nur bei eindeutigem Innenraum; 2026-09-21h: Stil-Tor Teil A wieder woertlich die erste Fassung (21e) als eigener Aufruf, entscheidet allein; Teil B Kopfanteil als zweiter Aufruf nur Messwert; 2026-09-21g: Stil-Tor in zwei Teilen (A Stil ja/nein ohne Kopfgroesse, B Kopfanteil als Zahl gegen die Referenz; B entscheidet erst ab kalibrierter Grenze); 2026-09-21f: Stil-Tor fragt zusaetzlich nach den Proportionen (grosse runde Koepfe bei allen, normale Comic-Proportionen = passt nicht); 2026-09-21e: Stil-Tor (claude-sonnet-5, absolute Stilpruefung gegen die Referenz je Kandidat, nein = SCHWER, kein Kandidat bestanden = abgelehnt) hinter /app?stiltor=an; Richter nennt den tatsaechlichen Grund, wenn er nicht gefragt wird; 2026-09-21d: heroes_ok mittel statt schwer (Kleidungspruefung 64 %, Regel: schwer erst ab 90 %); 2026-09-21a: Heldenfehler entscheiden bei der Auswahl direkt nach den schweren Verstoessen, vor den uebrigen mittleren (loesen aber keinen dritten Kandidaten aus); ein Wiederholungsversuch bei unlesbarer Antwort, danach ungeprueft statt schlechtester Kandidat; D-Richter (claude-sonnet-5, zwei Aufrufe mit getauschter Reihenfolge) entscheidet bei Gleichstand der schweren Verstoesse, hinter /app?richter=an";
 
 // SHADED_MAX_OF_TEN: wie viele der zehn groessten Gesichter plastisch gezeichnet sein duerfen.
 // EINS, nicht zwei oder drei -- Nutzer-Entscheidung nach folgender Ueberlegung: der gewuenschte
@@ -2150,7 +2150,7 @@ function richterReferenzUrl() {
 
 // Der begleitende Satz im Prompt. Ohne ihn zaehlt das Modell die leere Flaeche als "Referenzbild 1"
 // mit und sucht darin nach etwas -- die Nummerierung der Helden waere dann um eins verschoben.
-const BASE_CANVAS_NOTE = "Reference image 1 is an empty sheet in the paper colour of this book. It shows nothing and means nothing — it is only the blank surface to draw the scene on. Do not look for anything in it, do not copy anything from it, and do not leave any part of the finished picture empty because of it. Everything that matters is in the reference images after it.";
+const BASE_CANVAS_NOTE = "Reference image 1 is an empty sheet in a plain paper colour. It shows nothing and means nothing — it is only the blank surface to draw the scene on. Do not look for anything in it, do not copy anything from it, and do not leave any part of the finished picture empty because of it. Everything that matters is in the reference images after it.";
 
 // pickBackgroundCharacterSheets(n): zufaellige, doppelfreie Auswahl von n Blaettern aus der
 // Bibliothek. Math.random() bewusst wie an anderer Stelle in dieser Datei (seedA/seedB/seedC in
@@ -2468,7 +2468,7 @@ const EMOTION_WORDS_RULE = "Do not use any emotion or facial-expression words fo
 // fuer Druck klaeren") nichts Wichtiges kappt. Ergaenzt, nicht ersetzt FILL_EMPTY_SPACE_RULE oben --
 // der Rand darf weiterhin mit Hintergrund-Fuellung (Himmel/Boden/Wasser) belegt werden, nur eben
 // nichts, das wichtig ist.
-const SAFE_MARGIN_RULE = "Keep the outer 6% of the image at the very top and the outer 6% at the very bottom as a low-priority safety margin: fine for sky, ground, water, a ceiling, a bare floor or incidental background filler, but never place a named hero's vignette or an important, eye-catching gag there — it may be cropped for print. Everything important belongs in the vertical band between those two margins.";
+const SAFE_MARGIN_RULE = "Keep the outer 6% of the image at the very top and the outer 6% at the very bottom as a low-priority safety margin: fine for sky, ground, water, a ceiling, a bare floor or incidental background filler, but never place a named hero's vignette or an important, eye-catching gag there. Everything important belongs in the vertical band between those two margins.";
 
 // NEU: explizite Bild-zu-Name-Zuordnung (Spezifikation Abschnitt 2: "Reference image 1 shows
 // [Name]: [Merkmale]... für jedes Bild einzeln, nicht nur eine allgemeine Liste"). heroSpecs[i]
@@ -2980,7 +2980,12 @@ const HERO_SIDE_TEXT = {
 };
 // Streifen in der Bildmitte, der im Buchfalz verschwindet: 1 cm links und rechts der Mittelachse
 // bei 296 mm Doppelseite = rund 7 % der Bildbreite (Produktentscheidung 22.09.2026).
-const FALZ_RULE = "The picture spans a book's double page: a narrow strip down the exact middle, about a fourteenth of its width, vanishes into the fold. Keep every character from the reference images and their little scene clearly left or right of that strip; it shows only surroundings or unnamed background characters.";
+// GEAENDERT (22.09.2026, Nutzer-Befund: "in mehreren Bildern ist ein Falz GEMALT -- ein Farbverlauf
+// in der Mitte, in einem Fall ein aufgeschlagenes Buch"). Ursache: Die Regel erklaerte dem Modell
+// das ENDPRODUKT (Doppelseite, Falz), und das Modell zeichnet, was im Prompt steht. Jetzt nur noch
+// eine Platzierungsregel fuer die Helden, ohne Falz, Buch, Druck oder Seiten -- plus das
+// ausdrueckliche Verbot, in der Mitte irgendetwas zu zeichnen, was wie eine Kante aussieht.
+const FALZ_RULE = "Keep a narrow vertical strip down the exact middle of the image, about a fourteenth of the image width, free of the named characters and their little scenes: each of them stands clearly to the left or clearly to the right of that strip. The strip itself is drawn exactly like the rest of the picture — ordinary surroundings, or unnamed background characters. The image is one single continuous scene: never draw a seam, a line, a border, a darker band, a colour gradient or an edge down the middle of it.";
 function shuffledCopy(arr) {
   const a = arr.slice();
   for (let i = a.length - 1; i > 0; i--) {
@@ -4340,7 +4345,7 @@ function scenePromptNeu({ heroSpecs, theme, situations, bgCharacterCount, phase,
   // B27 Innen/Aussen nur mit Haus
   if (mitHaus || blockAlt("B27")) S.push(INDOOR_OUTDOOR_RULE);
   // B28 Sicherheitsrand
-  S.push(blockAlt("B28") ? SAFE_MARGIN_RULE : "Keep the outer 6% at the top and bottom free of named characters and important gags — it may be cropped for print.");
+  S.push(blockAlt("B28") ? SAFE_MARGIN_RULE : "Keep the outer 6% at the top and bottom free of named characters and important gags.");
   // B29 Gefuehlswoerter: EIN Satz (Nutzer: nur streichen, wenn stripEmotionWords() ALLES filtert --
   // tut es nicht: nur eine Wortliste, und Ortsnamen aus dem Chat laufen nicht hindurch)
   S.push(blockAlt("B29") ? EMOTION_WORDS_RULE : "Describe no character with emotion or facial-expression words; show feelings only through pose and gesture.");

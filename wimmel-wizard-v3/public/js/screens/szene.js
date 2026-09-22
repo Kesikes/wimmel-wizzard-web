@@ -1576,10 +1576,23 @@ function buildDebugDetails(image) {
   }
   // NEU (21.09.2026): Stil-Tor je Kandidat. Kein Eintrag heisst: Schalter war aus (oder aeltere
   // Fassung) -- das steht dann ausdruecklich da.
+  // NEU (22.09.2026, Produktentscheidung): zusaetzliches Ausschlusskriterium neben dem Stil-Tor --
+  // mouths_of_ten >= 8 ODER shaded_of_ten >= 8 gilt als Stilbruch, der Kandidat wird nicht
+  // angeboten. Spiegelt stilbruchMessung() aus api/_lib/scene-job-engine.js; steht hier nur, damit
+  // im Panel sichtbar ist, WARUM ein Kandidat fehlt.
+  function stilbruchMessText(k) {
+    const v = k && k.verify;
+    if (!v) return "";
+    const m = Number(v.mouths_of_ten), sh = Number(v.shaded_of_ten);
+    const g = [];
+    if (isFinite(m) && m >= 8) g.push("Münder " + m + " von 10");
+    if (isFinite(sh) && sh >= 8) g.push("plastische Gesichter " + sh + " von 10");
+    return g.length ? "\n    Zusätzlicher Stilbruch (ab 8 von 10, seit 2026-09-22e): " + g.join(", ") + " → NICHT ANGEBOTEN" : "";
+  }
   function stilTorText(k) {
     const t = k && k.stilTor;
-    if (!t) return "Stil-Tor: nicht gelaufen (/app?stiltor=aus gesetzt, vor 2026-09-21i nicht eingeschaltet, oder Bild vor 2026-09-21e)";
-    if (!t.urteil) return "Stil-Tor: NICHT GEPRÜFT — " + (t.fehler || "unbekannter Fehler") + " (zählt als bestanden)";
+    if (!t) return "Stil-Tor: nicht gelaufen (/app?stiltor=aus gesetzt, vor 2026-09-21i nicht eingeschaltet, oder Bild vor 2026-09-21e)" + stilbruchMessText(k);
+    if (!t.urteil) return "Stil-Tor: NICHT GEPRÜFT — " + (t.fehler || "unbekannter Fehler") + " (zählt als bestanden)" + stilbruchMessText(k);
     // GEAENDERT (2026-09-21g): zwei Teile -- A Stil ja/nein, B Kopfanteil als Zahl gegen die
     // Referenz. Aeltere Eintraege (21e/21f) haben nur urteil + begruendung.
     const kw = t.kopf;
@@ -1590,7 +1603,7 @@ function buildDebugDetails(image) {
       : (t.fehlerB ? "\n    Teil B Kopfanteil: nicht gemessen — " + t.fehlerB : "");
     return "Stil-Tor (" + (t.modell || "?") + "): " + (t.urteil === "nein" ? "NEIN — SCHWER" : "ja") +
       (t.grund ? " — " + t.grund : "") + (t.stil ? "\n    Teil A Stil: " + t.stil : "") + " — " + (t.begruendung || "") + teilB +
-      (t.tokenEin ? "\n    [" + t.tokenEin + "/" + t.tokenAus + " Token]" : "");
+      (t.tokenEin ? "\n    [" + t.tokenEin + "/" + t.tokenAus + " Token]" : "") + stilbruchMessText(k);
   }
 
   box.textContent =

@@ -781,7 +781,7 @@ Größe/Zoom und in der Dichte; Stadt überall gleich. Kein Nachteil, aber auch 
   nachweislich wirken — in den Größenblock und in die Platzierungszeile („her head reaches only to
   the hip of the grown-ups next to her"), statt in die Figurenbeschreibung.
 
-### OFFEN (Produktentscheidung): Münder und Schattierung als Stilbruch zählen
+### GEBAUT 22.09.2026 (Produktentscheidung des Nutzers): Münder und Schattierung als Stilbruch zählen
 
 Befund aus demselben Lauf (A2 Stadt, alter Prompt): Das Stil-Tor hat den Kandidaten mit **10 von 10
 Gesichtern mit Mund und 10 von 10 plastisch schattiert** als „bestanden" durchgelassen und den
@@ -800,8 +800,35 @@ deinem Stil-Urteil (Register Abschnitt 10):
 | erkannte Brüche | 1 von 4 (plus der Fall oben) |
 
 Die 90-%-Regel ist damit nicht erfüllt (75 %). Die Regel schlägt aber **nie** bei einem guten Bild
-an und fängt genau die Fälle, die das Stil-Tor übersieht. Als *zusätzliches* Ausschlusskriterium,
-das nur bei Extremwerten greift, halte ich sie für vertretbar — entschieden ist das nicht.
+an und fängt genau die Fälle, die das Stil-Tor übersieht.
+
+**Entscheidung des Nutzers, 22.09.2026: „JA, bitte bauen. Begründung: 0 Fehlalarme, und sie kommt
+zusätzlich zum Stil-Tor, kann also nur Brüche fangen, keine guten Bilder wegnehmen."**
+
+Gebaut am 22.09.2026, Prüf-Fassung `2026-09-22e`:
+
+- `stilbruchMessung()` in `api/_lib/scene-job-engine.js`: `mouths_of_ten >= 8` **oder**
+  `shaded_of_ten >= 8` → der Kandidat gilt als nicht bestanden und kommt nicht ins Angebot.
+  `stilTorBestanden()` fragt sie als Erstes ab.
+- **Nicht gemessen greift nicht.** Fehlt `verify` ganz (Prüfung aus oder gescheitert), bleibt es
+  beim alten Verhalten — ein technischer Fehler darf der Kundin kein Bild wegnehmen.
+- Sichtbar im Panel: unter dem Stil-Tor steht je Kandidat „Zusätzlicher Stilbruch (ab 8 von 10,
+  seit 2026-09-22e): Münder 10 von 10 → NICHT ANGEBOTEN".
+**RÜCKSCHRITT-WARNUNG (Claude, 22.09.2026, gemeldet statt still entschieden):** Die Regel nimmt je
+Kandidat nur Brüche weg — aber sie kann **alle** Kandidaten eines Laufs wegnehmen, und dann gibt es
+kein Bild und einen kostenlosen neuen Durchgang (Abschnitt 4). An den 16 Läufen der Vergleichsdaten
+nachgerechnet:
+
+| Lauf | vorher im Angebot | mit der neuen Regel | |
+|---|---|---|---|
+| T3-alt | 2 | **0** | beide Kandidaten `mouths_of_ten` = 8 → kein Bild |
+| T4-alt | 2 | 1 | K2 (Münder 10, plastisch 10) fällt weg, K1 bleibt |
+| A2-alt | 1 | **0** | K1 (Münder 10, plastisch 10) fällt weg, K2 war schon am Stil-Tor raus → kein Bild |
+
+Das sind **2 von 16 Läufen ohne Bild (12,5 %)**, jeder davon ein kostenloser neuer Durchgang zu
+0,30 $ Bildkosten. Alle drei Fälle betreffen den alten Prompt; im neuen Aufbau trat kein einziger
+auf. Die Regel ist gebaut und aktiv, wie entschieden. Zu entscheiden bleibt, ob das so bleiben
+soll oder ob bei „keiner bestanden" der am wenigsten schlechte Kandidat doch angeboten wird.
 - Anmerkungen des Nutzers: fehlende Heldin (T1) und doppelter Held (T3) ließen sich per Stift
   korrigieren.
 - Befund nebenbei: Im Café-Bild (T6 neu) stand „wmlstil" auf einem Schild. Das Wort steht am
@@ -989,6 +1016,98 @@ Bei der Doppelseite 296 mm entspricht das einem Streifen von rund 7 % der Bildbr
     (90-%-Regel). Das ist eine Erweiterung der Prüffrage, keine neue Messreihe; die Werte sammeln
     sich bei normalen Szenen. Genauigkeit der Schätzung vorab unbekannt, ein Abgleich mit dem
     Urteil des Nutzers an ein paar Bildern entscheidet, ob sie taugt.
+
+### KORRIGIERT 22.09.2026 (Fehlerbefund des Nutzers, dringend): Der Falz darf im Prompt nicht vorkommen
+
+> „In mehreren Bildern ist ein Falz GEMALT: ein Farbverlauf in der Mitte, in einem Fall sogar ein
+> aufgeschlagenes Buch." (Nutzer, 22.09.2026)
+
+**Ursache:** Die alte `FALZ_RULE` hat dem Modell das **Endprodukt** erklärt („the image runs across
+a double page, a narrow strip in the middle disappears into the fold"). Das Bildmodell zeichnet,
+was im Prompt steht — also hat es den Falz gemalt. Grundsatz daraus: *Der Prompt beschreibt das
+Bild, nie das gedruckte Buch.*
+
+**Neue Fassung (`FALZ_RULE`, Bild-Fassung `2026-09-22e`)** — reine Platzierungsregel, ohne Falz,
+Buch, Druck oder Seiten, plus ein ausdrückliches Verbot:
+
+> Keep a narrow vertical strip down the exact middle of the image, about a fourteenth of the image
+> width, free of the named characters and their little scenes: each of them stands clearly to the
+> left or clearly to the right of that strip. The strip itself is drawn exactly like the rest of the
+> picture — ordinary surroundings, or unnamed background characters. The image is one single
+> continuous scene: never draw a seam, a line, a border, a darker band, a colour gradient or an edge
+> down the middle of it.
+
+**Andere Stellen, die das Endprodukt erklärt haben** (mitgeprüft und geändert):
+
+| Stelle | vorher | jetzt |
+|---|---|---|
+| `SAFE_MARGIN_RULE` (6-%-Rand) | „… — it may be cropped for print." | Satz gestrichen, der Rand bleibt als reine Bildregel |
+| `BASE_CANVAS_NOTE` | „an empty sheet in the paper colour **of this book**" | „an empty sheet in a plain paper colour" |
+| B28 im neuen (abgeschalteten) Aufbau | „… free of named characters — may be cropped for print" | ohne den Zusatz |
+
+**Noch vorhanden, nicht geändert (Einschätzung, Entscheidung offen):**
+
+- Der Figurenprompt (`charPrompt()`) sagt „the flat, minimal, hand-drawn wmlstil illustration style
+  used **throughout this book**". Das ist eine Stilaussage, keine Anweisung zum Zeichnen eines
+  Buchs, und das Figurenblatt zeigt eine Person auf Weiß — ein gemaltes Buch ist dort bisher nie
+  aufgetreten. Ich würde es beim nächsten Anfassen des Figurenprompts mit streichen, nicht eigens.
+- Die Dichteregeln sagen „true busy seek-and-find **picture-book** density". Auch das ist eine
+  Stilaussage ohne Zeichenauftrag. Gleiche Empfehlung: bei Gelegenheit mitnehmen.
+
+**Prüfen ohne neue Messreihe:** Die vorhandene `heroes_x`-Messung sagt nur, wo die Helden stehen,
+nicht ob eine Mittellinie gemalt wurde. Ob die neue Fassung wirkt, sieht man an den nächsten
+regulären Szenen mit bloßem Auge — bitte melden, wenn wieder ein Verlauf oder eine Kante in der
+Mitte auftaucht.
+
+### BEFUND 22.09.2026 (nur berichtet, nichts geändert): welche Kriterien Kandidaten aussortiert haben
+
+Frage des Nutzers: „Mir sind bei fal mehrere Bilder aufgefallen, die in der Prüfung durchgefallen
+sind, obwohl sie gut waren." Nachgesehen in `docs/ref/vergleich/lauf.json` und
+`docs/ref/vergleich-alter/lauf.json` (16 Läufe, 32 Kandidaten).
+
+**Ausgeschlossen wurde ein Kandidat nur durch eines: das Stil-Tor.** 4 von 32 Kandidaten kamen nicht
+ins Angebot (T2-alt K2, T2-neu K1, A1-neu K1, A2-alt K2), alle vier wegen „Teil A: Stilbruch".
+Kein einziger Kandidat fiel an einer gemini-Zahl (`scale_est`, `depth_ratio`, `heroes_ok`,
+`no_text_ok`, `figures_est`, `mouths_of_ten`, `shaded_of_ten`) durch — diese Zahlen erzeugen seit
+der Kandidatenwahl nur noch die Verstoßzählung und entscheiden nichts.
+
+In **drei der vier** Fälle widerspricht die Begründung des Stil-Tors der Messung im selben Bild:
+
+| Kandidat | Begründung des Stil-Tors | gemessen |
+|---|---|---|
+| A1-neu K1 | „haben sichtbare Münder und detailliertere Gesichtszüge" | `mouths_of_ten` = 0, `shaded_of_ten` = 0 |
+| A2-alt K2 | „sichtbare Münder/Lächeln und leichte Schattierungen" | `mouths_of_ten` = 1, `shaded_of_ten` = 0 |
+| T2-neu K1 | „viele Gesichter zeigen sichtbare Münder" | `mouths_of_ten` = 3 (dazu `no_text_ok` = false) |
+| T2-alt K2 | „dünnere Konturen, gedeckte Sepia-/Brauntöne, Schraffuren" | `shaded_of_ten` = 3 — hier passt die Begründung |
+
+Das ist derselbe Fehler wie im Fall A2, nur andersherum: Das Stil-Tor nennt Münder, wo die Zählung
+keine findet, und findet keine, wo zehn von zehn gezählt wurden. **Verantwortlich für die
+durchgefallenen guten Bilder ist also nicht die Prüfung mit den Zahlen, sondern die Stilfrage an
+claude-sonnet-5 — konkret der Punkt „Münder", den sie offenbar rät statt zählt.**
+
+**Zweiter Befund, betrifft die Anzeige, nicht die Auswahl:** Fast jeder Kandidat trägt Verstöße im
+Panel, obwohl er angeboten wird. Häufigkeit über alle 32:
+
+| Kriterium | Kandidaten mit Verstoß |
+|---|---|
+| `figures_est` (zu wenige Menschen geschätzt) | 28 von 32 |
+| `heroes_found` (Held mehrfach oder fehlend) | 16 |
+| `no_text_ok` (Text im Bild) | 10 |
+| `mouths_of_ten` | 5 |
+| `shaded_of_ten` | 4 |
+| Stil-Tor NEIN | 4 |
+| `scale_est` | 1 |
+
+`figures_est` schlägt praktisch immer an: gefordert sind 100–130 Menschen, geschätzt werden 25–75.
+Ob die Schätzung oder die Forderung falsch ist, ist nicht gemessen. Solange das so bleibt, sieht im
+Panel jedes gute Bild nach „durchgefallen" aus, obwohl die Zahl nichts entscheidet.
+
+**Mögliche Schritte, nicht entschieden, nichts gebaut:**
+
+1. Die Mundfrage aus dem Stil-Tor herausnehmen und allein der Zählung überlassen (die neue
+   8-von-10-Regel deckt den Extremfall bereits ab).
+2. `figures_est` in der Anzeige als Messwert kennzeichnen statt als Verstoß, bis geklärt ist, wer
+   von beiden danebenliegt.
 
 ### VOR DEM LAUNCH: Start- und Speichergrenzen gelten je IP-Adresse (Befund 22.09.2026)
 
