@@ -1980,7 +1980,7 @@ let penApplyBusy = false;
 // gegengeprueft, und der bereits vorhandene "Bitte einmal gegenchecken"-Hinweis (Punkt C3+C4, siehe
 // Screens.ergebnis.render()) greift dadurch automatisch auch hier, statt eine ungeprüfte Korrektur
 // stillschweigend als endgueltig sauber darzustellen.
-async function applyPenEdit({ image, canvas, img, mark, mode, errorId, applyBtn, cancelBtn, exitBtn }) {
+async function applyPenEdit({ image, canvas, img, mark, mode, errorId, applyBtn, cancelBtn, exitBtn, figur }) {
   if (penApplyBusy) return;
   const errorEl = () => document.getElementById(errorId);
   const showError = (msg) => { const el = errorEl(); if (el) { el.textContent = msg; el.style.display = "block"; } };
@@ -2037,10 +2037,16 @@ async function applyPenEdit({ image, canvas, img, mark, mode, errorId, applyBtn,
     // UNVERAENDERTE Bild (img.src); die markierte Kopie geht nur als zweites Bild mit, als Zeiger
     // (siehe PEN_ZWEI_BILDER in pipeline.js). Ohne Markierung (nur Text) geht nur das Original.
     // Gilt fuer Maus und Finger gleich -- beide Wege landen hier.
-    if (hasMark) instruction = Pipeline.PEN_ZWEI_BILDER + instruction;
-    const result = await Pipeline.generateImage(instruction, "scene", hasMark
-      ? { editImageUrl: img.src, styleRefUrls: [composite] }
-      : { editImageUrl: img.src });
+    // GEAENDERT (22.09.2026, Nutzer-Entscheidung "vorher fragen"): dazu das Figurenblatt der
+    // gewaehlten Figur (nur wenn die Kundin eine gewaehlt hat) und IMMER die Stilreferenz.
+    // Vorher bekam die Korrektur weder Blatt noch Stil -- eine eingekreiste Heldin mit "juenger"
+    // wurde zu einer ganz anderen Figur in anderem Stil.
+    const weitere = [];
+    if (hasMark) weitere.push(composite);
+    if (figur && figur.imageUrl) weitere.push(figur.imageUrl);
+    weitere.push(Pipeline.richterReferenzUrl());
+    instruction = Pipeline.penBildAnweisung({ mitMarkierung: hasMark, mitFigur: !!(figur && figur.imageUrl) }) + instruction;
+    const result = await Pipeline.generateImage(instruction, "scene", { editImageUrl: img.src, styleRefUrls: weitere });
     // GEAENDERT (21.09.2026, Kandidatenwahl): die Korrektur gehoert zum GEWAEHLTEN Kandidaten und
     // bleibt ihm beim Umschalten erhalten.
     const aktuell = (AppState.data.images || []).find((b) => b.id === image.id) || image;
@@ -2140,10 +2146,34 @@ function buildPenPanel({ image, canvas, img, mark, errorId }) {
     type: "button", class: "h-black",
     style: { flex: "1", minHeight: "44px", fontSize: "12px", border: "3px solid var(--ink)", background: "var(--yellow)", color: "var(--ink)", cursor: "pointer" }
   }, "Anwenden");
-  applyBtn.addEventListener("click", () => applyPenEdit({ image, canvas, img, mark, mode, errorId, applyBtn, cancelBtn, exitBtn }));
+  // NEU (22.09.2026, Nutzer-Entscheidung): vor dem Anwenden fragen, ob die Korrektur eine eurer
+  // Figuren betrifft. Figur gewaehlt -> nur ihr Figurenblatt geht mit; "Nein" -> keins. Die
+  // Stilreferenz geht immer mit (siehe applyPenEdit()). Ohne Markierung und ohne Text wird nicht
+  // gefragt -- dann meldet applyPenEdit() gleich, was fehlt.
+  const frage = h("div", { class: "stift-figurfrage", style: { display: "none", marginTop: "10px", padding: "10px", border: "3px solid var(--ink)", background: "var(--yellow)" } });
+  const anwenden = (figur) => { frage.style.display = "none"; applyPenEdit({ image, canvas, img, mark, mode, errorId, applyBtn, cancelBtn, exitBtn, figur }); };
+  applyBtn.addEventListener("click", () => {
+    if (penApplyBusy) return;
+    const figuren = (AppState.data.people || []).filter((p) => p.status === "done" && p.imageUrl);
+    const etwasDa = mark.hasMark() || String(AppState.data.penChangeText || "").trim();
+    if (!figuren.length || !etwasDa) { anwenden(null); return; }
+    frage.innerHTML = "";
+    frage.appendChild(h("p", { class: "h-black", style: { margin: "0 0 8px", fontSize: "12px" } }, "Ist das eine eurer Figuren?"));
+    const reihe = h("div", { style: { display: "flex", flexWrap: "wrap", gap: "8px" } });
+    figuren.forEach((p) => {
+      const b = h("button", { type: "button", class: "h-black", style: { display: "flex", alignItems: "center", gap: "6px", minHeight: "44px", padding: "4px 10px 4px 4px", fontSize: "12px", border: "3px solid var(--ink)", background: "var(--paper)", color: "var(--ink)", cursor: "pointer" }, onClick: () => anwenden(p) });
+      b.appendChild(h("img", { src: p.imageUrl, alt: "", style: { width: "34px", height: "34px", objectFit: "cover", border: "2px solid var(--ink)" } }));
+      b.appendChild(document.createTextNode(p.name || "Figur"));
+      reihe.appendChild(b);
+    });
+    reihe.appendChild(h("button", { type: "button", class: "h-black", style: { minHeight: "44px", padding: "0 12px", fontSize: "12px", border: "3px solid var(--ink)", background: "transparent", color: "var(--ink)", cursor: "pointer" }, onClick: () => anwenden(null) }, "Nein, keine davon"));
+    frage.appendChild(reihe);
+    frage.style.display = "block";
+  });
   btnRow.appendChild(cancelBtn);
   btnRow.appendChild(applyBtn);
   wrap.appendChild(btnRow);
+  wrap.appendChild(frage);
 
   // NEU (19.09.2026, Nutzer: "komme dort nicht mehr heraus"): ein ausdruecklicher Ausweg. Technisch
   // gab es ihn schon -- ein zweiter Druck auf "Stift" beendet den Modus --, aber dieser Knopf

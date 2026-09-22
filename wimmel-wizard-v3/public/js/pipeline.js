@@ -662,6 +662,28 @@ const PEN_INSTRUCTION_REDO = "The user has marked an object in the image using a
 // Kopie mit Markierung, nur als Zeiger. Die Markierung ist damit nie in dem Bild, das bearbeitet wird.
 const PEN_ZWEI_BILDER = "Two images are given. Image 1 is the illustration to edit. Image 2 is an exact copy of image 1 on which the user drew a red freehand mark only to show WHERE the change should happen. The red mark is not part of the illustration: never copy it, never draw any red line, circle or scribble. Edit image 1 and return image 1 with its full size and framing. ";
 
+// NEU (22.09.2026, Nutzer-Entscheidung "vorher fragen"): die Bilder einer Stift-Korrektur und der
+// Satz, der sie der Reihe nach erklaert. Reihenfolge: 1 Original (wird bearbeitet), dann ggf. die
+// markierte Kopie, dann ggf. das Figurenblatt der gewaehlten Figur, zuletzt IMMER die Stilreferenz.
+// Das Figurenblatt geht NUR mit, wenn die Kundin eine Figur gewaehlt hat -- beim haeufigsten Fall
+// (einen doppelten Helden entfernen) wuerde ein mitgeschicktes Blatt ihn sonst womoeglich wieder
+// hinmalen.
+function penBildAnweisung({ mitMarkierung, mitFigur }) {
+  const t = ["The images are given in this order. Image 1 is the illustration to edit; return image 1 edited, with its full size and framing, and leave everything that is not part of the change exactly as it is."];
+  let n = 1;
+  if (mitMarkierung) {
+    n++;
+    t.push("Image " + n + " is an exact copy of image 1 on which the user drew a red freehand mark only to show WHERE the change should happen. The red mark is not part of the illustration: never copy it, never draw any red line, circle or scribble.");
+  }
+  if (mitFigur) {
+    n++;
+    t.push("Image " + n + " is the character sheet of the character the change is about. Draw this character exactly as on its sheet: the same age, the same body size and proportions, the same hair, the same clothing, the same drawing style.");
+  }
+  n++;
+  t.push("Image " + n + " is a style reference only: match its drawing style (thick black outlines, flat colours, round heads, dot eyes, a single straight nose line, no mouths, no shading on faces). Take no characters, objects or scenery from it.");
+  return t.join(" ") + " ";
+}
+
 /* ==========================================================================
    Szenen-Komposition (scenePrompt / sceneComposeInstruction / composeSceneImage)
    NEU nach Spezifikation Abschnitt 2+3 synthetisiert, NICHT aus wimmel-wizzard-
@@ -1423,7 +1445,7 @@ var ACTIVE_SCENE_PHASE = "phase1";
 // in den Kompositionstypen, aendert sich die Pruefsumme -- ohne dass jemand daran denken muss.
 // Das von Hand gepflegte Datum bleibt als lesbare Ergaenzung daneben stehen; verlassen tun wir uns
 // auf die Pruefsumme.
-var PROMPT_LABEL = "2026-09-22a";
+var PROMPT_LABEL = "2026-09-22b";
 
 // FNV-1a, 32 Bit. Bewusst kein crypto.subtle: das ist asynchron, und diese Kennung soll ohne
 // Umstand synchron beim Laden feststehen. Kollisionen sind hier belanglos -- es geht nicht um
@@ -1460,7 +1482,7 @@ function bildFingerprint() {
    heldGruppe, heldExklusivMerkmal, heldEinmalSatz, allCharactersRuleKurz,
    pickBackgroundCharacterSheets,
    // NEU (21.09.2026, Grundstand): Thema-Tabelle als Code-Regel.
-   pickComposition, querschnittVerboten, chatOrtTyp].forEach(function (fn) {
+   pickComposition, querschnittVerboten, chatOrtTyp, pickHeroPlacements].forEach(function (fn) {
     teile.push(String(fn));
   });
   // Der Lichtblock steht nur bei gesetztem Schalter im Prompt, seine Formulierung gehoert aber zur
@@ -1476,7 +1498,7 @@ function bildFingerprint() {
     DEPTH_COHERENCE_RULE, HEAD_SCALE_CONSISTENCY_RULE, SAFE_MARGIN_RULE, EMOTION_WORDS_RULE,
     ZERO_TEXT_RULE, PHASE2_FOREGROUND_RULE, HERO_FINDABILITY_RULE].join("|"));
   teile.push(String(GROUP_SLOTS));
-  try { teile.push(JSON.stringify([QUERSCHNITT_TYPEN, CHAT_INNENRAUM, CHAT_OFFEN, CHAT_NIE_QUERSCHNITT])); } catch (e) { /* flach */ }
+  try { teile.push(JSON.stringify([QUERSCHNITT_TYPEN, CHAT_INNENRAUM, CHAT_OFFEN, CHAT_NIE_QUERSCHNITT, HERO_SIDES, HERO_SIDE_TEXT, FALZ_RULE])); } catch (e) { /* flach */ }
   try { teile.push(JSON.stringify([BGCHAR_MERKMALE, ALTER_NACHBARN, HAAR_NACHBARN, HAARFARBE_AUS_BLATT, FIGURENBLATT_PROMPT, GROSSE_KOEPFE_SATZ])); } catch (e) { /* flach */ }
   return fnv1a(teile.join("\u0000"));
 }
@@ -2923,7 +2945,19 @@ const INDOOR_OUTDOOR_RULE = "Keep inside and outside strictly separate. Weather 
 // Nutzer ausgeschlossen. "back" heisst hier: weiter hinten als der Mittelgrund, aber noch mit
 // lesbarem Gesicht und lesbarer Kleidung.
 const HERO_SPOTS = ["front", "middle", "back"];
-const HERO_SIDES = ["left", "centre", "right"];
+// GEAENDERT (22.09.2026, Produktentscheidung "Falz in der Buchmitte"): kein Held mehr "in the centre
+// of the image" -- das lag genau im Falz. Vier Plaetze, zwei je Bildhaelfte; pickHeroPlacements()
+// verteilt die Helden abwechselnd auf links und rechts.
+const HERO_SIDES = ["left", "left of centre", "right of centre", "right"];
+const HERO_SIDE_TEXT = {
+  "left": "on the left side of the image",
+  "left of centre": "in the left half, clearly left of the middle",
+  "right of centre": "in the right half, clearly right of the middle",
+  "right": "on the right side of the image",
+};
+// Streifen in der Bildmitte, der im Buchfalz verschwindet: 1 cm links und rechts der Mittelachse
+// bei 296 mm Doppelseite = rund 7 % der Bildbreite (Produktentscheidung 22.09.2026).
+const FALZ_RULE = "The picture spans a book's double page: a narrow strip down the exact middle, about a fourteenth of its width, vanishes into the fold. Keep every character from the reference images and their little scene clearly left or right of that strip; it shows only surroundings or unnamed background characters.";
 function shuffledCopy(arr) {
   const a = arr.slice();
   for (let i = a.length - 1; i > 0; i--) {
@@ -2949,9 +2983,16 @@ function heroSpotText(spot, phase, composition) {
 }
 function pickHeroPlacements(n) {
   const spots = shuffledCopy(HERO_SPOTS);
-  const sides = shuffledCopy(HERO_SIDES);
+  // GEAENDERT (22.09.2026, Falz): abwechselnd linke und rechte Bildhaelfte, damit die Helden sich
+  // verteilen; innerhalb der Haelfte zufaellig aussen oder zur Mitte hin (aber nie mittig).
+  const links = shuffledCopy(["left", "left of centre"]);
+  const rechts = shuffledCopy(["right", "right of centre"]);
+  const linksZuerst = Math.random() < 0.5;
   const out = [];
-  for (let i = 0; i < n; i++) out.push({ spot: spots[i % spots.length], side: sides[i % sides.length] });
+  for (let i = 0; i < n; i++) {
+    const haelfte = ((i % 2 === 0) === linksZuerst) ? links : rechts;
+    out.push({ spot: spots[i % spots.length], side: haelfte[Math.floor(i / 2) % 2] });
+  }
   return out;
 }
 const HERO_FINDABILITY_RULE = "Finding the named characters is meant to be a small game for the reader, so they are spread across the picture and never grouped together in one spot. But each of them must still be easy to identify once found: fully visible, never half hidden behind an object or another character, never cut off by the edge of the image, never turned away from the viewer, and always drawn with the same care as the figures at the very front, whatever their size.";
@@ -3044,8 +3085,8 @@ function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount, phase, co
     return a ? ", right now " + a.en : "";
   };
   const heroBits = heroSpecs.map((s, i) => {
-    const pl = placements[i] || { spot: "middle", side: "centre" };
-    const seite = pl.side === "centre" ? "in the centre of the image" : "on the " + pl.side + " of the image";
+    const pl = placements[i] || { spot: "middle", side: "left" };
+    const seite = HERO_SIDE_TEXT[pl.side] || "on the " + pl.side + " side of the image";
     // NEU (21.09.2026, helden=neu): die volle Beschreibung steht schon in der Zuordnung Bild ->
     // Held; hier reicht die Kurzform aus Haar und Oberteil. Sonst stuende die jetzt laengere
     // Beschreibung (mit Kleidung) zweimal im Prompt und sprengt bei vielen Helden die Laengengrenze.
@@ -3055,6 +3096,7 @@ function scenePrompt({ heroSpecs, theme, situations, bgCharacterCount, phase, co
   if (heroBits) {
     sentences.push("Where the characters from the reference images are in this particular scene — they are NOT all lined up at the front, each one stands exactly where it says here, each doing their own thing, never standing still and never posed neutrally: " + heroBits + ".");
     sentences.push(HERO_FINDABILITY_RULE);
+    sentences.push(FALZ_RULE);
   }
   // NEU (21.09.2026, 2026-09-21c, nur helden=neu): je Held ein eigener Einmal-Satz mit exklusivem
   // Merkmal, direkt hinter der Platzierung.
@@ -4077,7 +4119,7 @@ window.Pipeline = {
   charSheetViewPrompt, charSheetViewPromptFromChips, threeQuarterEditInstruction,
   sideViewEditInstruction, backViewEditInstruction,
   kontextInstruction, photoStyleInstruction, traitBitFromPhotoDescription, describePhotoTraits,
-  PEN_INSTRUCTION_REMOVE, PEN_INSTRUCTION_REDO, PEN_ZWEI_BILDER,
+  PEN_INSTRUCTION_REMOVE, PEN_INSTRUCTION_REDO, PEN_ZWEI_BILDER, penBildAnweisung,
   resizeImageToDataUri, generateImage, generateImageWithRetry, verifyImage, countViolations,
   richterReferenzUrl, SCENE_PHASES, ACTIVE_SCENE_PHASE, DEPTH_MIN_RATIO, SCALE_MIN_FIT, PROMPT_VERSION, PROMPT_LABEL, promptFingerprint, BILD_FASSUNG, PRUEF_FASSUNG, bildFingerprint, pruefFingerprint, heroRef, HERO_REF_START, lichtBlock, lichtKeywords, VERIFY_MAX_VERSUCHE, PRUEF_VERHALTEN, severityOf, compareSeverity, isGoodEnough,
   COMPOSITION_TYPES, pickComposition, querschnittVerboten, chatOrtTyp, layerSizeText,

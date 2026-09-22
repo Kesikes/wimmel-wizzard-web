@@ -229,16 +229,18 @@ Umsetzung (`2026-09-21j`):
   ist eine markierte Kopie, nur als Zeiger (`PEN_ZWEI_BILDER`). Ohne Markierung (nur Text) geht nur
   das Original. Das Modell könnte die Markierung theoretisch trotzdem abmalen; das Original enthält
   sie aber nicht mehr, und die Anweisung verbietet es ausdrücklich.
-- **Stift-Korrektur an einem Helden — Diagnose (22.09.2026), nicht gebaut.** Befund: Heldin
-  eingekreist, „jünger" geschrieben, heraus kam eine andere Figur in anderem Stil. Ursache: Die
-  Korrektur bekommt weder das Figurenblatt noch die Stilreferenz — nur das Bild (und seit heute die
-  markierte Kopie). Das Modell erfindet die Figur neu. Vorschlag: bei jeder Stift-Korrektur die
-  Figurenblätter aller Helden des Buchs (heute höchstens 5) und die Stilreferenz mitschicken, mit
-  dem Satz „Ist die markierte Figur eine der Figuren auf den Figurenblättern, zeichne sie genau wie
-  auf ihrem Blatt — Alter, Größe, Haare, Kleidung, Stil." Kein Mehrpreis (dieselbe eine Anfrage,
-  nur mehr Bilder). Offene Frage: Welcher Held gemeint ist, kann der Code nicht erkennen; das
-  Modell muss es aus den Blättern ableiten. Alternative: vor dem Anwenden fragen „Ist das eine
-  eurer Figuren?" mit den Figuren zur Auswahl — dann geht nur deren Blatt mit.
+- **Stift-Korrektur an einem Helden (Nutzer-Entscheidung 22.09.2026: „vorher fragen", gebaut).**
+  Befund: Heldin eingekreist, „jünger" geschrieben, heraus kam eine andere Figur in anderem Stil —
+  die Korrektur bekam weder Figurenblatt noch Stilreferenz. Jetzt fragt die App vor dem Anwenden
+  „Ist das eine eurer Figuren?" mit den fertigen Figuren und „Nein, keine davon".
+  - Figur gewählt → nur ihr Figurenblatt geht mit, dazu: „zeichne sie genau wie auf ihrem Blatt —
+    Alter, Größe, Haare, Kleidung, Stil".
+  - „Nein" → kein Figurenblatt. Begründung des Nutzers: Der häufigste Stift-Fall ist, einen
+    DOPPELTEN Helden zu entfernen; gingen alle Blätter mit, malte das Modell ihn womöglich wieder hin.
+  - Die Stilreferenz geht in beiden Fällen immer mit.
+  - Reihenfolge der Bilder an fal: Original (wird bearbeitet), markierte Kopie (falls markiert),
+    Figurenblatt (falls gewählt), Stilreferenz (`penBildAnweisung()` in `pipeline.js`).
+  - Ohne fertige Figuren oder ohne Markierung und Text wird nicht gefragt.
 
 ### GÜLTIG (Produktentscheidung des Nutzers, 21.09.2026): die Kundin entscheidet
 
@@ -744,7 +746,7 @@ Nutzer, 21.09.2026: jetzt nicht bauen, beim Prompt-Aufräumen angehen.
   24.000). Muss **vor dem Launch** gelöst sein — zusammen mit der Frage, wo fal wirklich abschneidet.
 - Weiter Meldungen aufräumen, die einen falschen Grund nennen.
 - Bauernhof mit `overview_cutaway` testen (Abschnitt 13).
-- **Heldentreue, Alter und Größe** (Befund des Nutzers, 22.09.2026): Die 4-jährige Heldin wird oft
+- **Heldentreue, Alter und Größe** (Befund des Nutzers, 22.09.2026; Vorschlag vom Nutzer bestätigt): Die 4-jährige Heldin wird oft
   als älteres Mädchen gezeichnet; Haare und Kleidung stimmen, das Alter nicht. Nutzer: „Die Helden
   müssen eins zu eins wie auf dem Figurenblatt sein, auch in Alter und Größe." Heute steht im Prompt
   nur „toddler girl, age 4, chibi proportions, large round head, short small body" (`ageRole()`),
@@ -773,7 +775,8 @@ Nichts davon wird bis dahin gebaut, angeglichen oder umformuliert. Dazu gehören
 - **Welche Bilder ins Buch kommen**, wenn es mehr gibt als der Umfang, und **ob die Durchgänge
   begrenzt werden.** Heute begrenzt nichts die Zahl der Bilder. Das Dashboard zeigt seit 22.09. die
   echte Zahl („34 (ins Buch passen höchstens 5)") statt „34 von 5".
-- **Die Produktleiter** (unten).
+- **Die Produktleiter** (unten). Beim gefalteten Poster liegen die Falze anders als beim Buch
+  (Abschnitt 17 gilt nur fürs Buch) — nur vorgemerkt.
 
 ### OFFEN (Teil des Produktangebots): Produktleiter (Idee des Nutzers, 21.09.2026)
 
@@ -869,4 +872,44 @@ Kopfzeile (22.09., Abschnitt 10). Nichts aus der Liste oben ist gebaut.
 
 Siehe Abschnitt 14. Mit großen Köpfen (Vorgabe seit `2026-09-22a`) liegt der Extremfall knapp über
 der eigenen Grenze von 24.000 Zeichen; der Start wird dann ohne Kosten abgelehnt.
+
+---
+
+## 17. Falz in der Buchmitte
+
+### GÜLTIG (Produktentscheidung des Nutzers, 22.09.2026; Code ab Fassung `2026-09-22b`)
+
+> Von der senkrechten Mittelachse des Bildes 1 cm nach links und 1 cm nach rechts steht kein Held.
+
+Bei der Doppelseite 296 mm entspricht das einem Streifen von rund 7 % der Bildbreite in der Mitte
+(gleich im 16:9-Bild und nach dem Beschnitt auf 2:1, weil nur oben und unten beschnitten wird).
+
+- **Platzierung:** Es gibt kein „in the centre of the image" mehr. Stattdessen vier Plätze, je zwei
+  pro Bildhälfte: links, links der Mitte, rechts der Mitte, rechts (`HERO_SIDES`, `HERO_SIDE_TEXT`).
+  `pickHeroPlacements()` verteilt die Helden abwechselnd auf beide Hälften (bei 5 Helden 3 zu 2).
+- **Positive Anweisung im Bildprompt** (`FALZ_RULE`, direkt nach der Heldenplatzierung): Das Bild
+  läuft über eine Doppelseite, ein schmaler Streifen in der Mitte (etwa ein Vierzehntel der Breite)
+  verschwindet im Falz. Jede Referenzfigur steht mit ihrer kleinen Szene klar links oder rechts
+  davon. Im Streifen ist nur Umgebung oder es sind unbenannte Nebenfiguren.
+- **Promptlänge:** Im Extremfall mit 5 Helden liegt die Instruktion jetzt bei rund 24.360–24.450
+  Zeichen, also bis zu 450 über der eigenen Grenze von 24.000 (vorher etwa 70 darüber). Mit bis zu
+  4 Helden bleiben rund 500 Zeichen Puffer, mit bis zu 3 Helden rund 1.240. Siehe Abschnitte 14
+  und 16.
+- **Einschätzung (Claude), nicht entschieden:**
+  - Gesichter und wichtige Gags: Ja, sinnvoll, aber als zweiter Schritt. Heute bekommen die
+    Hintergrund-Vignetten reihum die Seiten „left/center/right" (`SIDE_CYCLE`), ein Drittel landet
+    also ausdrücklich „in der Mitte" — genau die Suchaufgaben, um die es im Buch geht. Vorschlag:
+    `SIDE_CYCLE` auf links/rechts umstellen. Das kostet keine Promptlänge. Die Mitte bleibt dann für
+    Wege, Hauswände und Menschenmengen im Hintergrund, dort schadet ein Falz wenig. Große Gesichter
+    im Vordergrund der Mitte fallen im Buch am meisten auf; die Regel für Helden und Vignetten
+    deckt das zum großen Teil ab.
+  - Querschnitt: Beim aufgeschnittenen Haus liegt oft eine Wand oder ein Treppenhaus in der Mitte.
+    Das ist gut, sollte aber nicht erzwungen werden.
+  - Prüfen ohne neue Messreihe: gemini-Prüfung und Stil-Tor melden die Lage der Helden bisher
+    nicht. Vorschlag: In der ohnehin laufenden Prüfung zu jedem Helden ein Feld `position_x`
+    (0–100, Mittelpunkt des Helden von links) mitmelden lassen. Der Code rechnet aus, ob ein Held
+    im Streifen 46,5–53,5 steht, und zeigt es im Panel — nur als Messwert, ohne Gewichtung
+    (90-%-Regel). Das ist eine Erweiterung der Prüffrage, keine neue Messreihe; die Werte sammeln
+    sich bei normalen Szenen. Genauigkeit der Schätzung vorab unbekannt, ein Abgleich mit dem
+    Urteil des Nutzers an ein paar Bildern entscheidet, ob sie taugt.
 
