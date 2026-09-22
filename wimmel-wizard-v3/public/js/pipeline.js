@@ -1445,7 +1445,7 @@ var ACTIVE_SCENE_PHASE = "phase1";
 // in den Kompositionstypen, aendert sich die Pruefsumme -- ohne dass jemand daran denken muss.
 // Das von Hand gepflegte Datum bleibt als lesbare Ergaenzung daneben stehen; verlassen tun wir uns
 // auf die Pruefsumme.
-var PROMPT_LABEL = "2026-09-22c";
+var PROMPT_LABEL = "2026-09-22d";
 
 // FNV-1a, 32 Bit. Bewusst kein crypto.subtle: das ist asynchron, und diese Kennung soll ohne
 // Umstand synchron beim Laden feststehen. Kollisionen sind hier belanglos -- es geht nicht um
@@ -1498,6 +1498,7 @@ function bildFingerprint() {
     DEPTH_COHERENCE_RULE, HEAD_SCALE_CONSISTENCY_RULE, SAFE_MARGIN_RULE, EMOTION_WORDS_RULE,
     ZERO_TEXT_RULE, PHASE2_FOREGROUND_RULE, HERO_FINDABILITY_RULE].join("|"));
   teile.push(String(GROUP_SLOTS));
+  if (ALTER_ALS_GROESSE) teile.push(String(ageRoleNeu));
   // NEU (22.09.2026): der aufgeraeumte Aufbau zaehlt nur zur Fassung, wenn er laeuft -- solange die
   // App beim alten bleibt, bleibt auch ihre Pruefsumme unveraendert.
   if (PROMPT_AUFBAU === "neu") {
@@ -2007,6 +2008,8 @@ function stripEmotionWords(text) {
 const THEME_META = {
   "Bauernhof": {
     locId: "farm", type: "landscape", en: "farm in golden autumn light",
+    // NEU (22.09.2026): Hausfassung fuer overview_cutaway (siehe pickComposition()).
+    enHaus: "a farm around its farmhouse, the farmhouse cut open: kitchen, living room and bedrooms visible inside, with the barn, the yard, the orchard and the pasture around it",
     regions: ["in the farmyard", "near the barn", "in the orchard", "by the fields"], regionMin: 6
   },
   "Weihnachten": {
@@ -2351,8 +2354,14 @@ function heldEinmalSatz(spec, i, alle) {
 
 // heldBeschreibungAusBlatt(spec, b): ersetzt spec.sceneDescription (bisher aus dem Foto: Haare plus
 // EIN Merkmal, beim Mann gar keine Kleidung). Jetzt fuer ALLE Helden mit Kleidung.
+// NEU (22.09.2026, Baustein "Alter als Groesse", Nutzer: einzeln vergleichen): ist
+// ALTER_ALS_GROESSE an, beschreibt die Szene Kinder ueber ihre Groesse im Verhaeltnis zu
+// Erwachsenen ("reaching only to an adult's hip") statt "toddler, chibi proportions" (ageRoleNeu()).
+// Nur fuer den SZENENprompt -- die Figurenerzeugung (Flux) nutzt weiter ageRole(). Vorgabe: aus,
+// bis der Vergleich (dev-tools/prompt-vergleich.js alter) entschieden ist.
+var ALTER_ALS_GROESSE = false;
 function heldBeschreibungAusBlatt(spec, b) {
-  const teile = [ageRole(spec), haarPhrase(b)];
+  const teile = [ALTER_ALS_GROESSE ? ageRoleNeu(spec) : ageRole(spec), haarPhrase(b)];
   if (b.beard) teile.push("with a beard");
   const kleidung = [mitArtikel(b.top), b.bottom].filter(Boolean).join(" and ");
   if (kleidung) teile.push("wearing " + kleidung + (b.shoes ? " and " + b.shoes : ""));
@@ -2746,6 +2755,10 @@ function pickComposition(theme, phase, forced) {
     return true;
   });
   const liste = erlaubt.length ? erlaubt : ["open"];
+  // NEU (22.09.2026, Nutzer-Entscheidung nach dem Vergleich T5: "taugt, regulaer mitwuerfeln"): der
+  // Bauernhof bekommt zusaetzlich den Uebersichts-Querschnitt (aufgeschnittenes Bauernhaus mitten im
+  // Hof, THEME_META.Bauernhof.enHaus), in jeder Phase -- also etwa jedes zweite Bauernhof-Bild.
+  if (theme && theme.locId === "farm" && liste.indexOf("overview_cutaway") < 0) liste.push("overview_cutaway");
   // Gewichtung: der Setzkasten ist laut Nutzer der Ausnahmefall ("gelegentlich"), deshalb nur in
   // etwa einem Viertel der Faelle, wenn er ueberhaupt erlaubt ist.
   if (liste.length > 1 && liste.indexOf("gridhouse") >= 0 && Math.random() < 0.25) {
@@ -4351,6 +4364,7 @@ function sceneComposeInstructionNeu(promptText) {
 
 window.Pipeline = {
   scenePromptNeu, sceneComposeInstructionNeu, THEMA_ZONEN, ageRoleNeu,
+  get ALTER_ALS_GROESSE() { return ALTER_ALS_GROESSE; }, set ALTER_ALS_GROESSE(v) { ALTER_ALS_GROESSE = !!v; },
   get PROMPT_AUFBAU() { return PROMPT_AUFBAU; }, set PROMPT_AUFBAU(v) { PROMPT_AUFBAU = v; },
   get PROMPT_BLOECKE_ALT() { return PROMPT_BLOECKE_ALT; }, set PROMPT_BLOECKE_ALT(v) { PROMPT_BLOECKE_ALT = v; },
   translate, translateChip, ageRole, twoColorBoost, makeCharacterSpec,

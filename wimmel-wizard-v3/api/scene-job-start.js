@@ -82,7 +82,10 @@ module.exports = async (req, res) => {
   // Prompt-Ergaenzung haette den Aufruf mit "instruction zu lang" abgewiesen, und zwar erst beim
   // Generieren, nicht beim Entwickeln. Nachgemessen wird der laengste Fall mit
   // dev-tools/prompt-laenge.js.
-  if (instruction.length > 24000) {
+  // GEAENDERT (22.09.2026, Nutzer-Entscheidung): 30.000 statt 24.000. Die echte Grenze bei fal liegt
+  // laut Schema bei 50.000 (NanoBananaProEditInput.prompt.maxLength). Der bewaehrte Prompt erreicht
+  // mit 5 Helden im Extremfall rund 24.400 und wurde bisher an dieser eigenen Grenze abgelehnt.
+  if (instruction.length > 30000) {
     res.status(400).json({ error: "instruction zu lang." });
     return;
   }

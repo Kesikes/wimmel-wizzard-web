@@ -15,7 +15,7 @@ require("../wimmel-wizard-v3/public/js/pipeline.js");
 const P = global.window.Pipeline;
 
 // Muss zur Grenze in api/scene-job-start.js passen -- zwei Kopien, bei einer Aenderung beide.
-const GRENZE = 24000;
+const GRENZE = 30000; // seit 22.09.2026 (vorher 24.000), siehe api/scene-job-start.js
 
 function held(i) {
   const s = P.makeCharacterSpec({ id: "held" + i, name: "Maximiliane" + i, role: "girl", sourceType: "chips" });

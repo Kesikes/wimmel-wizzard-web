@@ -714,7 +714,7 @@ Eintrag erzeugt, steht im Code.
 
 | Thema | open | overview_open | cutaway | gridhouse | overview_cutaway |
 |---|---|---|---|---|---|
-| Bauernhof | ✓ | ✓ | — | — | erlaubt, **noch nicht gebaut** (beim Prompt-Aufräumen testen) |
+| Bauernhof | ✓ | ✓ | — | — | ✓ **seit 22.09.2026 regulär** (Vergleich T5: „taugt"), etwa jedes zweite Bauernhof-Bild, Hausfassung `enHaus` |
 | Weihnachten | — | — | ✓ | ✓ | ✓ |
 | Urlaub | ✓ | ✓ | — | — | — |
 | Berg | ✓ | ✓ | **nie** | **nie** | **nie** |
@@ -759,6 +759,15 @@ vereinbarten Regel („mindestens 4 von 5 gleich gut oder besser") ist der neue 
   waren offenbar nicht wirkungslos — vor allem Größe/Zoom und Dichte, genau die Blöcke, die am
   stärksten gekürzt wurden. Kürzer ist bei diesem Modell nicht automatisch besser.
 - Bauernhof als `overview_cutaway` (T5, nur neu): Nutzer „taugt: ja".
+- **Entscheidungen danach (Nutzer, 22.09.2026):**
+  1. Eigene Startgrenze von 24.000 auf **30.000 Zeichen** angehoben, sonst nichts geändert. Der
+     bewährte Prompt geht damit auch mit 5 Helden (Extremfall rund 24.400).
+  2. Die Bausteine kommen **einzeln** in den ALTEN Prompt, jeder mit eigenem kleinem Vergleich.
+     Zuerst nur „Alter als Größe" (`ALTER_ALS_GROESSE`, bis zum Vergleich aus; Vergleich
+     `node dev-tools/prompt-vergleich.js alter`, 2 Szenen, rund 1,60 $, freigegeben). Die Zonen
+     sind zurückgestellt: Sie gehörten zum Umbau, der bei Dichte und Größe verloren hat, und den
+     Falz hält die Falzregel schon frei. Der neue Aufbau bleibt ausgeschaltet im Code.
+  3. Bauernhof als `overview_cutaway`: regulär mitwürfeln (Abschnitt 13), Fassung `2026-09-22d`.
 - Anmerkungen des Nutzers: fehlende Heldin (T1) und doppelter Held (T3) ließen sich per Stift
   korrigieren.
 - Befund nebenbei: Im Café-Bild (T6 neu) stand „wmlstil" auf einem Schild. Das Wort steht am
@@ -946,4 +955,50 @@ Bei der Doppelseite 296 mm entspricht das einem Streifen von rund 7 % der Bildbr
     (90-%-Regel). Das ist eine Erweiterung der Prüffrage, keine neue Messreihe; die Werte sammeln
     sich bei normalen Szenen. Genauigkeit der Schätzung vorab unbekannt, ein Abgleich mit dem
     Urteil des Nutzers an ein paar Bildern entscheidet, ob sie taugt.
+
+### VOR DEM LAUNCH: Start- und Speichergrenzen gelten je IP-Adresse (Befund 22.09.2026)
+
+Frage des Nutzers: Gilt die Grenze von 10 Szenen je Stunde je Sitzung, je IP oder für die ganze App?
+**Antwort: je IP-Adresse** (`api/_lib/rate-limit.js`, `x-forwarded-for`, feste Stundenfenster).
+Die App als Ganzes hat keine Grenze. Am Launch-Tag sperrt sich also nicht die ganze Kundschaft
+gegenseitig aus. Es bleiben aber drei Risiken:
+
+| Endpunkt | Grenze je IP und Stunde |
+|---|---|
+| Szene starten | 10 |
+| Figur starten | 15 |
+| `fal-proxy` (Stift, Ansichten, Prüfung) | 40 |
+| Sitzung speichern | 240 |
+| Sitzung laden | 30 |
+| Wiedereinstiegs-Mail | 5 |
+
+1. **Geteilte IP-Adressen:** Mobilfunk (CGNAT), Firmen- oder WLAN-Netze mit vielen Geräten hinter
+   einer Adresse teilen sich eine Grenze. Zwei Familien im selben Mobilfunknetz können sich
+   gegenseitig die 10 Szenen nehmen. Die Meldung lautet dann „Zu viele Anfragen von dieser
+   Adresse" — für die Kundin unverständlich.
+2. **Schutz gegen Missbrauch ist schwach:** Wer mehrere Adressen hat, vervielfacht die Grenze. Es
+   gibt keine Obergrenze für die ganze App und keine Kostenbremse je Tag. Vorschlag:
+   - eine Grenze je Sitzung zusätzlich zur IP-Grenze
+   - eine Tagesobergrenze für die ganze App (Kostenbremse) mit Warn-Mail
+   - nach dem Konto (Phase 3) die Grenze je Konto statt je IP
+3. **Fällt die Datenbank (KV) aus, gilt gar keine Grenze** („fail-open", bewusst gewählt, damit
+   Kundinnen nicht ausgesperrt werden).
+
+Nichts davon ist gebaut.
+
+### VORGEMERKT: „wmlstil" im Szenenprompt (Befund 22.09.2026, Einschätzung, nicht geändert)
+
+- **Seit wann:** Seit dem ersten Stand des Codes (04.09.2026) beginnt jeder Szenenprompt mit
+  „wmlstil, …". Szenen laufen über `nano-banana-pro/edit`; das Wort ist das Auslösewort der
+  Flux-LoRA für die Figuren und dort nötig.
+- **Stilanker?** Für nano-banana-pro ist es ein unbekanntes Kunstwort ohne gelernte Bedeutung.
+  Als Stilanker kann es höchstens indirekt wirken, wenn das Modell es als „Stilname" liest. Den
+  Stil tragen die Referenzbilder und die Stilsätze. Eine Wirkung ist unwahrscheinlich, aber nicht
+  ausgeschlossen.
+- **Schaden:** In der Prüfung der ganzen Sitzung (68 Kandidaten) wurde es nie als Schrift gemeldet,
+  im Vergleich einmal (T6 neu, Schild im Café).
+- **Günstig klären ohne eigenen Test:** Die Prüfung meldet Schrift schon heute. Zählen, wie oft
+  „wmlstil" in den Notizen auftaucht, sobald weitere Szenen entstehen: kostenlos, aber
+  ungenau (die Prüfung nennt nicht jeden Text wörtlich). Der sichere Weg ist ein Baustein-Vergleich
+  wie beim Alter (2 Szenen, rund 1,60 $), erst nach dem Alter-Vergleich, einer nach dem anderen.
 

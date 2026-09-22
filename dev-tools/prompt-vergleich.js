@@ -9,6 +9,11 @@
 //   node dev-tools/prompt-vergleich.js seite      baut nur die Vergleichsseite neu (kein Aufruf)
 //   TROCKEN=1 node dev-tools/prompt-vergleich.js  baut nur die Instruktionen, schickt nichts los
 //
+// NEU (22.09.2026): Baustein-Vergleich "alter" -- alter Prompt gegen alten Prompt MIT einem
+// einzigen Baustein (Alter als Groesse, ALTER_ALS_GROESSE). 2 Szenen x 2 = 4 Auftraege, rund 1,60 $
+// (vom Nutzer freigegeben). Eigener Ordner docs/ref/vergleich-alter/.
+//   node dev-tools/prompt-vergleich.js alter        [seite]
+//
 // Fortsetzbar: jeder Auftrag steht mit seiner jobId in docs/ref/vergleich/lauf.json, BEVOR er
 // losgeschickt wird. Ein zweiter Aufruf startet nichts doppelt, er fragt die bekannten Auftraege
 // weiter ab (der Server lehnt eine bekannte jobId als "bereits gestartet" ab und berechnet nichts).
@@ -26,7 +31,9 @@ const APP = global.window.location.origin;
 const nodeFetch = global.fetch;
 require(path.join(__dirname, "../wimmel-wizard-v3/public/js/pipeline.js"));
 const P = global.window.Pipeline;
-const DIR = path.join(__dirname, "../docs/ref/vergleich");
+const MODUS = process.argv[2] === "alter" ? "alter" : "aufbau";
+const BEFEHL = MODUS === "alter" ? process.argv[3] : process.argv[2];
+const DIR = path.join(__dirname, MODUS === "alter" ? "../docs/ref/vergleich-alter" : "../docs/ref/vergleich");
 const LAUF = path.join(DIR, "lauf.json");
 fs.mkdirSync(DIR, { recursive: true });
 
@@ -53,7 +60,10 @@ function helden() {
 
 const CAFE = { locId: "generic", type: "cutaway", en: "a cosy café with a long counter, small round tables, a kitchen behind and a room upstairs",
   regions: ["at the counter", "at the small tables", "in the kitchen", "upstairs"], regionMin: 5 };
-const SZENEN = [
+const SZENEN = MODUS === "alter" ? [
+  { id: "A1", titel: "Bauernhof, offen", thema: "Bauernhof", komp: "open", fassungen: ["alt", "neu"] },
+  { id: "A2", titel: "Stadt, offen", thema: "Stadt", komp: "open", fassungen: ["alt", "neu"] },
+] : [
   { id: "T1", titel: "Bauernhof, offen", thema: "Bauernhof", komp: "open", fassungen: ["alt", "neu"] },
   { id: "T2", titel: "Stadt, offen", thema: "Stadt", komp: "open", fassungen: ["alt", "neu"] },
   { id: "T3", titel: "Weihnachten, Querschnitt", thema: "Weihnachten", komp: "cutaway", fassungen: ["alt", "neu"] },
@@ -64,7 +74,13 @@ const SZENEN = [
 
 function baue(szene, fassung, heroSpecs, seed) {
   const theme = szene.thema ? P.THEME_META[szene.thema] : CAFE;
-  const aufbau = fassung.startsWith("neu") ? "neu" : "alt";
+  let aufbau = fassung.startsWith("neu") ? "neu" : "alt";
+  if (MODUS === "alter") {
+    // Baustein-Vergleich: beide Seiten alter Prompt, "neu" nur mit dem einen Baustein.
+    aufbau = "alt";
+    P.ALTER_ALS_GROESSE = fassung.startsWith("neu");
+    heroSpecs = helden();
+  }
   return mitStartwert(seed, () => {
     const situations = P.autoSituations(theme, [], 20, []);
     return P.buildSceneComposeInputs({ heroSpecs, theme, situations, phase: P.ACTIVE_SCENE_PHASE, composition: szene.komp,
@@ -119,7 +135,7 @@ async function lauf() {
   l.auftraege.forEach((a) => console.log("  " + a.name.padEnd(8) + a.fassung.padEnd(5) + String(a.zeichen).padStart(6) + " Zeichen"));
   if (process.env.TROCKEN === "1") {
     l.auftraege.forEach((a) => fs.writeFileSync(path.join(DIR, a.name + ".txt"), a.body.instruction));
-    console.log("TROCKEN=1: nichts losgeschickt. Instruktionen stehen in docs/ref/vergleich/*.txt.");
+    console.log("TROCKEN=1: nichts losgeschickt. Instruktionen stehen in " + DIR + "/*.txt.");
     return;
   }
   // hoechstens 3 gleichzeitig; Fertige werden uebersprungen
@@ -167,7 +183,9 @@ function seite(l) {
   });
   speichere(l);
   const za = stilTorZahlen(l, "alt"), zn = stilTorZahlen(l, "neu");
-  const kriterien = ["Gesamteindruck", "Helden eins zu eins (inkl. Alter und Größe)", "Stil", "Größe und Zoom", "Dichte", "Falz (Mitte frei von Helden)", "Fehler (doppelt, Schrift, abgeschnitten)"];
+  const kriterien = MODUS === "alter"
+    ? ["Gesamteindruck", "Alter und Größe der Kinder (so alt wie auf dem Blatt?)", "Helden sonst eins zu eins", "Größe und Zoom", "Dichte", "Fehler (doppelt, Schrift, abgeschnitten)"]
+    : ["Gesamteindruck", "Helden eins zu eins (inkl. Alter und Größe)", "Stil", "Größe und Zoom", "Dichte", "Falz (Mitte frei von Helden)", "Fehler (doppelt, Schrift, abgeschnitten)"];
   const esc = (t) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
   const bild = (u) => u ? '<a href="' + esc(u) + '" target="_blank"><img src="' + esc(u) + '"></a>' : '<div class="leer">kein Bild<br>(keiner hat das Stil-Tor bestanden, oder Fehler)</div>';
   let html = '<!doctype html><meta charset="utf-8"><title>Prompt-Vergleich alt/neu</title><style>body{font:15px system-ui;margin:20px;max-width:1500px}h2{margin-top:40px}.paar{display:grid;grid-template-columns:1fr 1fr;gap:14px}img{width:100%;border:2px solid #222}.leer{border:2px dashed #999;padding:60px;text-align:center;color:#777}table{border-collapse:collapse;margin-top:10px}td,th{border:1px solid #ccc;padding:5px 8px;text-align:left}td.w{white-space:nowrap}.hinweis{background:#fff6cc;padding:10px 14px;border:1px solid #e6d27a}</style>';
@@ -195,5 +213,5 @@ function seite(l) {
   console.log("Stil-Tor alt: " + za.nein + " von " + za.k + " Kandidaten gescheitert, kein Bild " + za.keinBild + "; neu: " + zn.nein + " von " + zn.k + ", kein Bild " + zn.keinBild);
 }
 
-if (process.argv[2] === "seite") seite();
+if (BEFEHL === "seite") seite();
 else lauf().catch((e) => { console.error("ABBRUCH: " + (e && e.message ? e.message : e)); process.exit(1); });
