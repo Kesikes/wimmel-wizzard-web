@@ -1498,6 +1498,12 @@ function bildFingerprint() {
     DEPTH_COHERENCE_RULE, HEAD_SCALE_CONSISTENCY_RULE, SAFE_MARGIN_RULE, EMOTION_WORDS_RULE,
     ZERO_TEXT_RULE, PHASE2_FOREGROUND_RULE, HERO_FINDABILITY_RULE].join("|"));
   teile.push(String(GROUP_SLOTS));
+  // NEU (22.09.2026): der aufgeraeumte Aufbau zaehlt nur zur Fassung, wenn er laeuft -- solange die
+  // App beim alten bleibt, bleibt auch ihre Pruefsumme unveraendert.
+  if (PROMPT_AUFBAU === "neu") {
+    [scenePromptNeu, sceneComposeInstructionNeu, ageRoleNeu, heldBeschreibungNeu, spotKurz, zoneFuerSeite, zonenFuer].forEach(function (fn) { teile.push(String(fn)); });
+    try { teile.push(JSON.stringify([THEMA_ZONEN, BAUERNHOF_ENHAUS, PROMPT_BLOECKE_ALT])); } catch (e) { /* flach */ }
+  }
   try { teile.push(JSON.stringify([QUERSCHNITT_TYPEN, CHAT_INNENRAUM, CHAT_OFFEN, CHAT_NIE_QUERSCHNITT, HERO_SIDES, HERO_SIDE_TEXT, FALZ_RULE])); } catch (e) { /* flach */ }
   try { teile.push(JSON.stringify([BGCHAR_MERKMALE, ALTER_NACHBARN, HAAR_NACHBARN, HAARFARBE_AUS_BLATT, FIGURENBLATT_PROMPT, GROSSE_KOEPFE_SATZ])); } catch (e) { /* flach */ }
   return fnv1a(teile.join("\u0000"));
@@ -3508,7 +3514,9 @@ function buildVerifyPrompt(heroSpecs, phaseId, compositionId) {
 // damit spaeter nachvollziehbar ist, welcher Typ ein Bild erzeugt hat. opts.composition erlaubt,
 // den Typ fuer einen gezielten Testlauf festzulegen statt zu wuerfeln (D5: "verschiedene Themen und
 // Kompositionstypen").
-function buildSceneComposeInputs({ heroSpecs, theme, situations, phase, composition, usedTexts, licht, heldenNeu, blattfilter, koepfeGross }) {
+function buildSceneComposeInputs({ heroSpecs, theme, situations, phase, composition, usedTexts, licht, heldenNeu, blattfilter, koepfeGross, aufbau }) {
+  // NEU (22.09.2026): aufbau "neu"/"alt" -- ohne Angabe PROMPT_AUFBAU (siehe scenePromptNeu()).
+  const neuerAufbau = (aufbau || PROMPT_AUFBAU) === "neu";
   const phaseId = (phase && SCENE_PHASES[phase]) ? phase : ACTIVE_SCENE_PHASE;
   const phaseObj = SCENE_PHASES[phaseId];
   const comp = pickComposition(theme, phaseObj, composition);
@@ -3532,8 +3540,10 @@ function buildSceneComposeInputs({ heroSpecs, theme, situations, phase, composit
   const styleRefUrls = heroRefUrls.concat(bgUrls);
   // D3: eigene Handlung je Held, buchweite Sperrliste beachtet.
   const heroActions = pickHeroActions(refHeroes, theme && theme.locId, usedTexts);
-  const promptText = scenePrompt({ heroSpecs: refHeroes, theme, situations, bgCharacterCount: bgUrls.length, phase: phaseObj, composition: comp, heroActions, licht: licht !== false, heldenNeu: !!heldenNeu, koepfeGross: !!koepfeGross });
-  const instruction = sceneComposeInstruction(promptText);
+  const promptText = neuerAufbau
+    ? scenePromptNeu({ heroSpecs: refHeroes, theme, situations, bgCharacterCount: bgUrls.length, phase: phaseObj, composition: comp, heroActions, licht: licht !== false, koepfeGross: !!koepfeGross })
+    : scenePrompt({ heroSpecs: refHeroes, theme, situations, bgCharacterCount: bgUrls.length, phase: phaseObj, composition: comp, heroActions, licht: licht !== false, heldenNeu: !!heldenNeu, koepfeGross: !!koepfeGross });
+  const instruction = neuerAufbau ? sceneComposeInstructionNeu(promptText) : sceneComposeInstruction(promptText);
   const verifyPrompt = buildVerifyPrompt(refHeroes, phaseId, comp.id);
   // figuresBand reist mit zum Server: dort wird figures_est dagegen geprueft (siehe
   // advanceSceneJob() in api/_lib/scene-job-engine.js). Die Spanne selbst steht in SCENE_PHASES.
@@ -3559,7 +3569,7 @@ function buildSceneComposeInputs({ heroSpecs, theme, situations, phase, composit
     unterscheidung: kinderUnterscheidung(refHeroes) || null,
     einmal: refHeroes.map((s, i) => heldEinmalSatz(s, i, refHeroes)),
   } : null;
-  return { refHeroes, editImageUrl, styleRefUrls, heroRefUrls, promptText, instruction, verifyPrompt, phaseId, figuresBand, compositionId: comp.id, heroActions, usedNow, heldenInfo };
+  return { refHeroes, editImageUrl, styleRefUrls, heroRefUrls, promptText, instruction, verifyPrompt, phaseId, figuresBand, compositionId: comp.id, heroActions, usedNow, heldenInfo, aufbau: neuerAufbau ? "neu" : "alt" };
 }
 
 async function composeSceneImage({ heroSpecs, theme, situations, phase, composition, licht }) {
@@ -4120,7 +4130,229 @@ BILD_FASSUNG = PROMPT_LABEL + " \u00b7 Bild " + bildFingerprint();
 PRUEF_FASSUNG = PROMPT_LABEL + " \u00b7 Pr\u00fcfung " + pruefFingerprint();
 PROMPT_VERSION = PROMPT_LABEL + " \u00b7 " + promptFingerprint();
 
+/* ==========================================================================
+   NEU (22.09.2026, Plan Prompt-Aufraeumen Schritt 4): der AUFGERAEUMTE Bildprompt.
+   Grundlage: docs/prompt-inventar-2026-09-22.md, vom Nutzer freigegeben ("ja fuer alle Bloecke"
+   mit Abweichungen zu 13, 29, 32). Jede Regel steht genau einmal, in fester Reihenfolge.
+
+   ZURUECKNEHMBAR JE BLOCK (Nutzer-Vorgabe): jeder Block hat eine Kennung (B2, B3_4, ... wie in der
+   Inventar-Tabelle). Steht die Kennung in PROMPT_BLOECKE_ALT, liefert der Block wieder den ALTEN
+   Text -- an seiner neuen Stelle. So laesst sich ein einzelner Punkt zuruecknehmen, falls der
+   Vergleich dort schlechter ausfaellt, ohne den Rest aufzugeben.
+
+   WELCHER AUFBAU LAEUFT: PROMPT_AUFBAU. Bis der Vergleich (dev-tools/prompt-vergleich.js)
+   entschieden ist, bleibt die App beim alten Aufbau ("alt"); das Vergleichswerkzeug baut beide.
+   ========================================================================== */
+var PROMPT_AUFBAU = "alt";
+var PROMPT_BLOECKE_ALT = [];
+
+// Block 33: benannte Zonen je Thema (Plan 3a). Die Mitte ist bewusst ein Weg, Zaun oder Bach --
+// genau das, was im Falz liegen darf (Register Abschnitt 17). Themen ohne Eintrag (Chat-Weg,
+// Weihnachten im Haus) fallen auf die Seiten links/rechts zurueck.
+const THEMA_ZONEN = {
+  farm: { links: ["the orchard", "the pasture with the cows"], rechts: ["the barn and the farmyard", "the duck pond"], mitte: "the dirt track leading up to the farm" },
+  beach: { links: ["the boardwalk with its kiosks", "the dunes"], rechts: ["the beach umbrellas", "the water's edge"], mitte: "a wooden walkway down to the sea" },
+  mountains: { links: ["the alpine meadow", "the mountain stream"], rechts: ["the mountain hut and its terrace", "the rocky slope"], mitte: "the hiking trail winding up the valley" },
+  city: { links: ["the market stalls", "the café terraces"], rechts: ["the shop fronts", "the bus stop and the fountain"], mitte: "the street running into the distance" },
+  park: { links: ["the swings and the slide", "the sandbox"], rechts: ["the climbing frame", "the lawn with picnic blankets"], mitte: "the footpath through the playground" },
+};
+// Block 35: Bauernhof als overview_cutaway (Plan 3c) -- Hausfassung fuer den Bauernhof.
+const BAUERNHOF_ENHAUS = "a farm around its farmhouse, the farmhouse cut open: kitchen, living room and bedrooms visible inside, with the barn, the yard, the orchard and the pasture around it";
+
+function blockAlt(id) { return PROMPT_BLOECKE_ALT.indexOf(id) >= 0; }
+function zonenFuer(theme, composition) {
+  const id = composition && composition.id;
+  if (id === "cutaway" || id === "gridhouse") return null;
+  return (theme && THEMA_ZONEN[theme.locId]) || null;
+}
+// Block 8: Alter als Groesse im Verhaeltnis zu Erwachsenen (Plan 3b, Nutzer bestaetigt).
+function ageRoleNeu(spec) {
+  const role = spec.role, age = spec.identityCore && spec.identityCore.age;
+  if ((role === "girl" || role === "boy") && age) {
+    if (age <= 5) return "small " + role + ", age " + age + ", reaching only to an adult's hip, about half an adult's height";
+    if (age <= 9) return role + ", age " + age + ", reaching an adult's chest";
+    if (age <= 13) return role + ", age " + age + ", reaching an adult's shoulder";
+    return role + ", age " + age;
+  }
+  return role;
+}
+function heldBeschreibungNeu(spec) {
+  const b = spec.blatt;
+  if (!b) return stripEmotionWords(describeHero(spec));
+  const teile = [ageRoleNeu(spec), haarPhrase(b)];
+  if (b.beard) teile.push("with a beard");
+  const kleidung = [mitArtikel(b.top), b.bottom].filter(Boolean).join(" and ");
+  if (kleidung) teile.push("wearing " + kleidung + (b.shoes ? " and " + b.shoes : ""));
+  if (b.extras) teile.push(b.extras);
+  return teile.filter(Boolean).join(", ");
+}
+function spotKurz(spot, composition) {
+  const imHaus = composition && (composition.id === "cutaway" || composition.id === "gridhouse");
+  if (imHaus) return spot === "front" ? "in a room at the front of the house" : spot === "middle" ? "in one of the middle rooms" : "in a room towards the back or the top";
+  return spot === "front" ? "at the front" : spot === "middle" ? "in the middle distance" : "further back, still clearly readable";
+}
+function zoneFuerSeite(zonen, seite, i) {
+  if (!zonen) return null;
+  const links = /^left/.test(seite);
+  const liste = links ? zonen.links : zonen.rechts;
+  const innen = /centre|center/.test(seite);
+  return liste[innen ? 1 % liste.length : (i || 0) % liste.length];
+}
+// Alter Heldenplatz-Satz (Block 13 alt), unveraendert aus scenePrompt() uebernommen.
+function heldenPlatzAlt(heroSpecs, placements, heroActions, phase, composition) {
+  const aktion = (i) => { const a = (heroActions || [])[i]; return a ? ", right now " + a.en : ""; };
+  const bits = heroSpecs.map((s, i) => {
+    const pl = placements[i] || { spot: "middle", side: "left" };
+    const seite = HERO_SIDE_TEXT[pl.side] || "on the " + pl.side + " side of the image";
+    const kennzeichen = s.blatt ? heldKurzform(s.blatt) : stripEmotionWords(describeHero(s));
+    return heroRef(s, i) + " (" + kennzeichen + ")" + aktion(i) + ", " + heroSpotText(pl.spot, phase, composition) + ", " + seite;
+  }).join("; ");
+  return "Where the characters from the reference images are in this particular scene — they are NOT all lined up at the front, each one stands exactly where it says here, each doing their own thing, never standing still and never posed neutrally: " + bits + ".";
+}
+
+function scenePromptNeu({ heroSpecs, theme, situations, bgCharacterCount, phase, composition, heroActions, licht, koepfeGross }) {
+  const imHaus = composition.id === "cutaway" || composition.id === "gridhouse";
+  const mitHaus = imHaus || composition.id === "overview_cutaway";
+  let ortText = theme.en;
+  if (mitHaus && theme.enHaus) ortText = theme.enHaus;
+  else if (composition.id === "overview_cutaway" && theme.locId === "farm") ortText = BAUERNHOF_ENHAUS; // Block 35
+  const zonen = zonenFuer(theme, composition);
+  const n = heroSpecs.length;
+  const bands = phase.figureFitCount;
+  const S = [];
+
+  // B2 Mund vorn (Sandwich, Nutzer-Vorgabe)
+  S.push(blockAlt("B2") ? NO_MOUTH_EMPHASIS : "CRITICAL, above every other style rule: no human character anywhere — named hero or background, however small — has a visible mouth, lips, teeth or any mouth-shaped line; if in doubt, leave the lower half of the face blank. Animals are exempt and keep their natural mouths, snouts and beaks.");
+  // B3_4 Kamera und Groesse, die einzige Stelle fuer die Groesse
+  if (blockAlt("B3_4")) S.push(ZOOM_OUT_RULE, sizeRule(phase, composition));
+  else if (imHaus) S.push("Camera: pull back far enough to show the whole cut-open building with room to spare. Size is the most important constraint: the tallest person anywhere, in any room on any floor, fits into the image height " + bands + " times over — picture the height divided into " + bands + " equal bands; nobody is taller than one band, and nobody stands in front of the house.");
+  else S.push("Camera: pull back much further than feels natural — a wide establishing shot of the whole place, as if seen from an upper window across the street; the place is the subject and the people fill it. Size is the most important constraint: the tallest person at the very front fits into the image height " + bands + " times over — picture the height divided into " + bands + " equal bands, and no front figure is taller than one band. People in the middle distance are about half that height, people further back smaller still. If any figure would read as the subject of a portrait, pull the camera back.");
+  // B5 Licht, ohne den Gesichtersatz (der steht im Stilblock)
+  if (licht !== false) S.push(blockAlt("B5") ? lichtBlock(composition) : lichtBlock(composition).replace(/\s*Faces stay simple[^.]*\./, ""));
+  // B6 Rand und Gesichter
+  S.push(blockAlt("B6") ? EDGE_AND_FACE_RULE : "Nobody is cut off by the edge of the picture: every person stands fully inside the frame, head to foot, with no oversized head or shoulder pushed in from the bottom edge. Every face is actually drawn with its two dot eyes and single nose line — never a blank oval.");
+  // B11 Komposition (+ B33 Zonen)
+  if (blockAlt("B11") || composition.id !== "open") S.push(composition.text);
+  else S.push("Composition: one open, continuous place seen from a slightly elevated angle, with a foreground edge, a broad middle distance and a far distance receding to the horizon. It is NOT a cross-section: every building is seen from outside with its front wall intact, no rooms are laid open and no dividing lines run across the picture.");
+  if (zonen && !blockAlt("B33")) S.push("The place is laid out like this: on the left " + zonen.links.join(" and ") + "; on the right " + zonen.rechts.join(" and ") + "; down the middle runs " + zonen.mitte + ".");
+  // B12 Querschnitt-Massstab
+  if (mitHaus) {
+    if (blockAlt("B12")) {
+      S.push(CUTAWAY_SCALE_RULE);
+      if (composition.id === "overview_cutaway") S.push("That one-size rule covers ONLY the rooms inside the cut-open building. Outside it, on the street and in the surroundings, the ordinary rules of depth apply as everywhere else: people nearer the front are larger, people further away smaller, shrinking towards the horizon.");
+    } else {
+      S.push("Because the building is cut open for the viewer, every room is the same distance away, so everyone inside is drawn at ONE single size — people downstairs are not larger than people upstairs. That size is small: a standing grown-up reaches only a quarter to a third of the height of their room, and nobody comes near the ceiling." +
+        (composition.id === "overview_cutaway" ? " Outside the building the ordinary depth rules apply: nearer is larger, further away smaller." : ""));
+    }
+  }
+  // B7 leeres Blatt (Nutzer: ein Satz statt vier)
+  S.push(blockAlt("B7") ? BASE_CANVAS_NOTE : "Reference image 1 is only the blank paper-coloured surface to draw on; take nothing from it.");
+  // B8 Helden (mit Alter als Groesse)
+  S.push(blockAlt("B8") ? imageRefMapping(heroSpecs, HERO_REF_START)
+    : heroSpecs.map((s, i) => { const t = heldBeschreibungNeu(s); return "Reference image " + (HERO_REF_START + i) + " shows " + (/^[aeiou]/i.test(t) ? "an " : "a ") + t + "."; }).join(" "));
+  // B13 Heldenplatz (Nutzer: Groesse je Held als kurzer Halbsatz, nicht ganz streichen)
+  const placements = pickHeroPlacements(n);
+  if (n) {
+    if (blockAlt("B13")) S.push(heldenPlatzAlt(heroSpecs, placements, heroActions, phase, composition));
+    else {
+      const bits = heroSpecs.map((s, i) => {
+        const pl = placements[i] || { spot: "middle", side: "left" };
+        const zone = zoneFuerSeite(zonen, pl.side, i);
+        const wo = zone ? "near " + zone + " (" + (/^left/.test(pl.side) ? "left" : "right") + " half)" : (HERO_SIDE_TEXT[pl.side] || "on the " + pl.side + " side");
+        const a = (heroActions || [])[i];
+        const kennzeichen = s.blatt ? heldKurzform(s.blatt) : stripEmotionWords(describeHero(s));
+        return heroRef(s, i) + " (" + kennzeichen + ")" + (a ? ", " + a.en : "") + ", " + spotKurz(pl.spot, composition) + ", " + wo + ", the same size as the people around them, not bigger";
+      }).join("; ");
+      S.push("Where the named characters are, each busy with their own activity, never posed: " + bits + ".");
+    }
+    // B14 Auffindbarkeit
+    S.push(blockAlt("B14") ? HERO_FINDABILITY_RULE : "They are spread across the picture, never grouped together, and each is fully visible — never hidden behind something or turned away.");
+    // B15 Falz
+    S.push(FALZ_RULE);
+    // B16 genau einmal (+ B9 nicht vertauschen)
+    S.push(heroSpecs.map((s, i) => heldEinmalSatz(s, i, heroSpecs)).join(" "));
+    if (blockAlt("B9")) { const u = kinderUnterscheidung(heroSpecs); if (u) S.push(u); }
+    else if (heroSpecs.length >= 2) S.push("Named characters never swap or mix their hair or clothes.");
+    // B17 Handlung
+    S.push(blockAlt("B17") ? "The characters from the reference images above do exactly the activity given for each of them and nothing else. The little scenes and running gags listed further below belong to the unnamed background characters — never hand one of them to a character from the reference images instead of their own activity."
+      : "They do only their own activity; the little scenes listed below belong to unnamed background characters.");
+  }
+  // B10 Hintergrundblaetter
+  if (blockAlt("B10")) S.push(backgroundLibraryInstruction(n + 2, bgCharacterCount || 0));
+  else if (bgCharacterCount) {
+    const start = n + 2, ende = start + bgCharacterCount - 1;
+    const range = bgCharacterCount === 1 ? "Reference image " + start + " shows" : "Reference images " + start + " to " + ende + " show";
+    S.push(range + " additional background-character designs, not named characters. Pick four to six of these people and draw them in the middle distance at the normal midground size, recognisable by silhouette, hair and colours, but dressed for this place and season — no coats, scarves or woolly hats unless the scene calls for them. The sheets also set the standard for everyone else: every unnamed person has their own hairstyle, clothes and colour combination — no repeated silhouettes, no grey filler, even far back.");
+  }
+  // B18 Figurenzahl (Zahl bleibt, Nutzer-Vorgabe)
+  S.push(blockAlt("B18") ? "Populate the whole scene with " + phase.totalCharacters + " individual HUMAN figures — people, and only people count towards this number. Animals do not count towards it at all: a place full of animals with only a couple of dozen people in it is a failed image. Draw plenty of animals as well, but on top of the people, never instead of them."
+    : "Populate the whole scene with " + phase.totalCharacters + " individual HUMAN figures — only people count; draw plenty of animals too, but on top of the people, never instead of them.");
+  // B19_24 Tiefe und Dichte (inkl. B23: Kopfgroessen-Widerspruch aufgeloest)
+  const verteilung = imHaus && phase.humanSplitHaus ? phase.humanSplitHaus : phase.humanSplit;
+  if (blockAlt("B19_24")) {
+    if (verteilung) S.push(verteilung);
+    if (!imHaus) S.push(THREE_LAYER_RULE);
+    S.push(densityInstruction(theme, phase, composition));
+    S.push(imHaus ? FILL_EMPTY_SPACE_RULE_HAUS : FILL_EMPTY_SPACE_RULE, COHERENCE_RULE);
+    if (!imHaus) S.push(DEPTH_COHERENCE_RULE);
+    S.push(HEAD_SCALE_CONSISTENCY_RULE);
+  } else {
+    if (verteilung) S.push(verteilung);
+    const orte = zonen ? zonen.links.concat(zonen.rechts).join(", ") : ((theme.regions || []).join(", ") || "across the scene");
+    if (imHaus) {
+      S.push("Throughout the house there are people absolutely everywhere — in every room, on the stairs, in every doorway and corner, some alone, many in twos and threes, each with their own tiny activity; no room is half empty and no wall is blank. The house is one continuous building, with no collage look.");
+    } else {
+      S.push("Three clearly different sizes — front, a noticeably smaller midground and a much smaller background — so every figure's layer reads at a glance; everyone, animals included, shrinks smoothly with distance along the receding ground, and a foreground-sized figure never stands right next to a background-sized one. The scene is one continuous space, with no gaps, floating patches or collage look.");
+      S.push("Far back there are people absolutely everywhere — " + orte + " — along every path and edge, alone, in twos and threes and in clusters, all the way to the horizon, each with their own tiny activity or visual joke; no stretch of ground, no building and no sky, ground or water is left empty." +
+        (composition.id === "overview_cutaway" ? " Inside the cut-open house every room holds people too." : ""));
+    }
+  }
+  // B25 Vignetten, knapper (die Zonen stehen in Block 33, siehe unten)
+  if (situations && situations.length) {
+    if (blockAlt("B25")) S.push(stripEmotionWords(situations.map((s) => sceneLayerText(s)).join(" ")));
+    else {
+      const ebene = { foreground: "Front", midground: "Middle distance", background: "Far back" };
+      // Nur Ebene und Seite, KEINE Zone: viele Vignetten nennen ihren Ort selbst ("in the orchard")
+      // -- eine zugeteilte Zone wuerde dem widersprechen (im ersten Entwurf am Beispiel gesehen).
+      const zeilen = situations.map((s) => (ebene[s.layer] || "Middle distance") + ", " + (s.side === "right" ? "right" : "left") + ": " + s.text + ".");
+      S.push(stripEmotionWords("Little scenes for the background characters: " + zeilen.join(" ")));
+    }
+  }
+  if (phase.id === "phase2") S.push(PHASE2_FOREGROUND_RULE);
+  // B26 Stil (+ B23: grosse Koepfe fuer alle, Alter ueber die Koerpergroesse)
+  if (blockAlt("B26")) { S.push(SCENE_STYLE_BLOCK); if (koepfeGross) S.push(GROSSE_KOEPFE_SATZ); S.push(FLAT_FACE_RULE); }
+  else S.push("Every human character, named or not, is drawn in the same flat, minimal style: thick black marker outline, flat colours, " +
+    (koepfeGross ? "a large round head on a small simple body (about a quarter of the height for grown-ups, a third for children — age shows in body height, not in head size), " : "a round head, ") +
+    "two dot eyes, one straight vertical nose line, no mouth, no ears, no visible neck, thin limbs. Faces stay completely flat, most strictly for the biggest figures at the front: never a modelled nose, nostrils, stubble, shading or a sculpted three-quarter face. Animals share the flat colours and thick outline but keep their natural features.");
+  // B27 Innen/Aussen nur mit Haus
+  if (mitHaus || blockAlt("B27")) S.push(INDOOR_OUTDOOR_RULE);
+  // B28 Sicherheitsrand
+  S.push(blockAlt("B28") ? SAFE_MARGIN_RULE : "Keep the outer 6% at the top and bottom free of named characters and important gags — it may be cropped for print.");
+  // B29 Gefuehlswoerter: EIN Satz (Nutzer: nur streichen, wenn stripEmotionWords() ALLES filtert --
+  // tut es nicht: nur eine Wortliste, und Ortsnamen aus dem Chat laufen nicht hindurch)
+  S.push(blockAlt("B29") ? EMOTION_WORDS_RULE : "Describe no character with emotion or facial-expression words; show feelings only through pose and gesture.");
+  // B30_31 Schlusscheck
+  if (blockAlt("B30_31")) S.push(allCharactersRuleKurz(heroSpecs), sizeRuleReminder(phase, composition), EDGE_AND_FACE_REMINDER, ZERO_TEXT_RULE);
+  else S.push("Final check before drawing: no person is taller than one of the " + bands + " bands" + (imHaus ? ", and everyone in the house is the same size" : "") +
+    "; nobody is cut off at any edge, least of all the bottom; every face has its dot eyes and nose line" +
+    (n ? "; all " + n + " named characters appear, each exactly once" : "") +
+    "; absolutely no text, letters, numbers or signs anywhere, not even labels on rooms.");
+  const kw = "wmlstil, " + ortText + ", " + composition.kw + (licht !== false ? ", " + lichtKeywords(composition) : "");
+  return kw + ". " + S.filter(Boolean).join(" ");
+}
+
+// B32 Schlussabsatz (Nutzer: "same proportions" raus, Identitaet bleibt ausdruecklich: gleiches
+// Gesicht, gleiche Frisur, gleiche Kleidung; nur Proportionen und Groesse kommen nicht vom Blatt).
+function sceneComposeInstructionNeu(promptText) {
+  if (blockAlt("B32")) return sceneComposeInstruction(promptText);
+  return promptText + " The reference sheets fix each named character's identity: draw the same face, the same hairstyle and hair colour, the same clothing and colours as on their sheet, only in a new, lively pose. Proportions and size do NOT come from the sheet — each of them is one small figure among many, at the size given above. Everyone else is drawn in exactly the same flat style; this rule is about the people and animals, not the scenery." +
+    " One rule overrides every other style consideration: no mouth, ever, on any human character — not open, not closed, not even a line. Animals keep theirs.";
+}
+
 window.Pipeline = {
+  scenePromptNeu, sceneComposeInstructionNeu, THEMA_ZONEN, ageRoleNeu,
+  get PROMPT_AUFBAU() { return PROMPT_AUFBAU; }, set PROMPT_AUFBAU(v) { PROMPT_AUFBAU = v; },
+  get PROMPT_BLOECKE_ALT() { return PROMPT_BLOECKE_ALT; }, set PROMPT_BLOECKE_ALT(v) { PROMPT_BLOECKE_ALT = v; },
   translate, translateChip, ageRole, twoColorBoost, makeCharacterSpec,
   charPrompt, charInScene, charPromptFromChips, charInSceneFromChips, describeHero, translateFreeText,
   transcribeAudio, moderateText, sceneChat,

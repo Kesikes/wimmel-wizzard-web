@@ -738,7 +738,11 @@ Eintrag erzeugt, steht im Code.
 
 ## 14. Vorgemerkt für das Prompt-Aufräumen — nicht gebaut
 
-**Plan dazu (22.09.2026, nicht gebaut): `plan-prompt-aufraeumen-2026-09-22.md`.**
+**Plan dazu: `plan-prompt-aufraeumen-2026-09-22.md`.** Stand 22.09.2026: Liste freigegeben,
+neuer Aufbau gebaut, aber NICHT aktiv (`PROMPT_AUFBAU = "alt"`). Je Block zurücknehmbar,
+Einzelheiten in `prompt-inventar-2026-09-22.md`, Abschnitt „Umsetzung". Umgeschaltet wird erst nach
+dem Vergleich (`dev-tools/prompt-vergleich.js`, bester Kandidat alt gegen bester neu, dazu
+Stil-Tor-Ausfälle je Fassung). Echte fal-Grenze laut Schema: 50.000 Zeichen.
 
 Nutzer, 21.09.2026: jetzt nicht bauen, beim Prompt-Aufräumen angehen.
 

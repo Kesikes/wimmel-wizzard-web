@@ -114,3 +114,47 @@ Bitte je Zeile **ja** oder **anders**. Besonders:
 Alles andere ist Kürzen ohne Inhaltsverlust. Wenn du die Liste freigibst, baue ich neu auf
 (Plan Schritt 4). Dann sehen wir, ob der neue Prompt besser ist: in den 6 Test-Szenen, jeweils
 bester Kandidat alt gegen besten Kandidaten neu, dazu die Zahl der Stil-Tor-Ausfälle je Fassung.
+
+---
+
+## Umsetzung (22.09.2026, Plan-Schritt 4) — gebaut, noch NICHT aktiv
+
+Freigabe des Nutzers: ja für alle Blöcke, mit drei Abweichungen:
+- **Block 13:** Die Größe je Held bleibt als kurzer Halbsatz stehen: „the same size as the people
+  around them, not bigger". Grund: Helden waren in Tests oft doppelt so groß wie die Nebenfiguren.
+- **Block 29:** Nicht gestrichen, sondern auf einen Satz gekürzt. `stripEmotionWords()` filtert
+  nicht alles: Es arbeitet nur mit einer Wortliste, und der Ortsname aus dem Chat läuft gar nicht
+  hindurch.
+- **Block 32:** „same proportions" ist raus. Die Identität bleibt ausdrücklich: gleiches Gesicht,
+  gleiche Frisur und Haarfarbe, gleiche Kleidung und Farben wie auf dem Blatt. Nur Proportionen
+  und Größe kommen nicht vom Blatt.
+
+**Code:** `scenePromptNeu()` und `sceneComposeInstructionNeu()` in `pipeline.js`. Neu sind außerdem
+`THEMA_ZONEN` (Block 33), `ageRoleNeu()` (Block 8) und `BAUERNHOF_ENHAUS` (Block 35).
+- `PROMPT_AUFBAU = "alt"`: Die App läuft weiter mit dem alten Prompt, ihre Fassung
+  (`2026-09-22c · Bild 60c05038`) ist unverändert. Umgeschaltet wird erst nach dem Vergleich.
+- **Einzelne Blöcke zurücknehmen:** Die Kennung in `PROMPT_BLOECKE_ALT` eintragen, z. B.
+  `["B13", "B29"]`. Der Block liefert dann wieder den alten Text, an seiner neuen Stelle. Kennungen:
+  B2, B3_4, B5, B6, B7, B8, B9, B10, B11, B12, B13, B14, B17, B18, B19_24 (enthält B23), B25, B26,
+  B27, B28, B29, B30_31, B32, B33.
+- Mit **allen** Blöcken auf „alt" hat der Prompt wieder rund 20.100 Zeichen (Kontrolle, ob das
+  Zurücknehmen greift).
+
+**Länge des neuen Prompts:**
+
+| Fall | Zeichen |
+|---|---|
+| eure 3 Helden | 9.200–9.600 |
+| längster Fall mit 5 Helden, realistisch | 11.900 |
+| künstlicher Extremfall (`prompt-laenge.js`) | 12.900 |
+
+Das liegt unter dem Ziel von 15.000. Beispiel: `docs/ref/prompt-beispiel-neu.txt`.
+
+**Korrektur gegenüber dem Vorschlag, im ersten Entwurf gefunden:** Die Vignetten bekommen **keine
+Zonen**, nur Ebene und Seite. Viele Vignetten nennen ihren Ort selbst („in the orchard"); eine
+zugeteilte Zone hätte dem widersprochen. Die Zonen stehen einmal im Aufbau-Satz (Block 33) und
+beim Heldenplatz („near the duck pond").
+
+**Vergleich (Plan-Schritt 5):** `dev-tools/prompt-vergleich.js`, siehe Kopf der Datei. Es gibt nur
+3 fertige Figuren; T4 (Berg) läuft daher mit 3 statt 4 Helden.
+

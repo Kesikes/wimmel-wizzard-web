@@ -86,6 +86,30 @@ console.log("  instruction  " + schlimmsterNeu + " Zeichen   Puffer " + (GRENZE 
 console.log("");
 if (schlimmsterNeu > schlimmster) { schlimmster = schlimmsterNeu; schlimmsterFall = "helden=neu: " + fallNeu; }
 
+// NEU (22.09.2026): derselbe Extremfall mit dem AUFGERAEUMTEN Aufbau (scenePromptNeu, siehe
+// docs/prompt-inventar-2026-09-22.md). Nur Anzeige -- die App laeuft noch mit dem alten, deshalb
+// zaehlt fuer die Grenze unten weiter der alte Wert.
+let schlimmsterAufbauNeu = 0, fallAufbauNeu = "";
+Object.keys(P.THEME_META).forEach((themaName) => {
+  const theme = P.THEME_META[themaName];
+  Object.keys(P.SCENE_PHASES).forEach((phaseId) => {
+    const phase = P.SCENE_PHASES[phaseId];
+    phase.compositions.forEach((compId) => {
+      for (let n = 1; n <= 5; n++) {
+        const heroSpecs = []; for (let i = 1; i <= n; i++) heroSpecs.push(heldNeu(i));
+        const comp = P.pickComposition(theme, phase, compId);
+        const txt = P.scenePromptNeu({ heroSpecs, theme, situations: P.autoSituations(theme, [], 20, []),
+          bgCharacterCount: 4, phase, composition: comp, heroActions: P.pickHeroActions(heroSpecs, theme.locId, []), licht: true, koepfeGross: true });
+        const laenge = P.sceneComposeInstructionNeu(txt).length;
+        if (laenge > schlimmsterAufbauNeu) { schlimmsterAufbauNeu = laenge; fallAufbauNeu = themaName + " / " + phaseId + " / " + compId + " / " + n + " Helden"; }
+      }
+    });
+  });
+});
+console.log("AUFGERAEUMTER Aufbau, laengster Fall: " + fallAufbauNeu);
+console.log("  instruction  " + schlimmsterAufbauNeu + " Zeichen   Puffer " + (GRENZE - schlimmsterAufbauNeu));
+console.log("");
+
 const rest = GRENZE - schlimmster;
 console.log("Laengster Fall: " + schlimmsterFall);
 console.log("  instruction  " + schlimmster + " Zeichen");
