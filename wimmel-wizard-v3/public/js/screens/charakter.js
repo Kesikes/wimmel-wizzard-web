@@ -962,8 +962,8 @@ Screens.charakterblatt = {
       if (extraViews.some((v) => !v.url)) {
         wrap.appendChild(h("p", { style: { margin: "6px 2px 0", fontSize: "11px", lineHeight: "1.4", color: "rgba(26,26,24,.6)" } },
           availableViews.length
-            ? "eine oder mehrere Zusatz-Ansichten sind diesmal nicht geglückt — beim Nachschärfen nochmal versuchen."
-            : "die Zusatz-Ansichten (Seite/Rücken/3-4) sind diesmal nicht geglückt — beim Nachschärfen nochmal versuchen."));
+            ? "eine oder mehrere Zusatz-Ansichten sind diesmal nicht geglückt — mit «Detail ändern» nochmal versuchen."
+            : "die Zusatz-Ansichten (Seite/Rücken/3-4) sind diesmal nicht geglückt — mit «Detail ändern» nochmal versuchen."));
       }
     }
 
@@ -1010,7 +1010,11 @@ Screens.charakterblatt = {
       type: "button", class: "h-black",
       style: { flex: "1", minHeight: "50px", background: s.charEditOpen ? "var(--yellow)" : "var(--paper)", border: "3px solid var(--ink)", fontSize: "13px", color: "inherit" },
       onClick: () => { AppState.update({ charEditOpen: !s.charEditOpen }); rerender(); }
-    }, s.charEditOpen ? "Nachschärfen schließen" : "Nachschärfen"));
+      // GEAENDERT (23.09.2026, Nutzer-Entscheidung 3c): hiess "Nachschaerfen" und sah damit nach
+      // dem aus, was die Kundin bei einer misslungenen Zeichnung will -- tut aber das Gegenteil:
+      // Der Edit-Pfad nimmt das vorhandene Blatt als Vorlage (und laeuft ohne wmlstil-LoRA), kann
+      // einen Stilbruch also nicht heilen, eher festigen. Zwei Wuensche, zwei Knoepfe, zwei Namen.
+    }, s.charEditOpen ? "Detail ändern schließen" : "Detail ändern"));
     // NEU (23.09.2026, Nutzer-Entscheidung 3a): "Noch einmal zeichnen" -- derselbe Text-zu-Bild-Weg,
     // der die Figur erzeugt hat, mit neuem Zufallswert und EINEM Kandidaten. Bewusst NEBEN
     // "Nachschärfen" und nicht statt dessen: Nachschärfen aendert ein Detail am vorhandenen Blatt,
@@ -1022,6 +1026,14 @@ Screens.charakterblatt = {
       style: { flex: "1", minHeight: "50px", background: "var(--paper)", border: "3px solid var(--ink)", fontSize: "13px", color: "inherit" },
       onClick: (ev) => neuZeichnen(person, [ev.currentTarget]),
     }, "Noch einmal zeichnen"));
+    // Zusatztexte unter der Knopfreihe: sie sagen, WANN welcher Knopf der richtige ist. Das ist der
+    // eigentliche Fix -- ein besserer Name allein raeumt die Verwechslung nicht aus.
+    const btnHinweis = h("div", { style: { display: "flex", gap: "10px", marginTop: "6px" } });
+    btnHinweis.appendChild(h("p", { style: { flex: "1", margin: "0", fontSize: "11px", lineHeight: "1.35", color: "rgba(26,26,24,.65)" } },
+      "T-Shirt-Farbe, Brille, Frisur — alles andere bleibt genau so."));
+    btnHinweis.appendChild(h("p", { style: { flex: "1", margin: "0", fontSize: "11px", lineHeight: "1.35", color: "rgba(26,26,24,.65)" } },
+      "ganz neu würfeln, wenn die Zeichnung selbst nicht passt."));
+    btnHinweis.appendChild(h("p", { style: { flex: "1", margin: "0" } }, ""));
     btnRow.appendChild(h("button", {
       type: "button", class: "h-black", style: { flex: "1", minHeight: "50px", background: "var(--ink)", color: "var(--paper)", border: "3px solid var(--ink)", fontSize: "13px" },
       onClick: () => {
@@ -1046,6 +1058,7 @@ Screens.charakterblatt = {
       }
     }, "Passt so"));
     wrap.appendChild(btnRow);
+    wrap.appendChild(btnHinweis);
     wrap.appendChild(h("p", { id: "char-neu-error", style: { margin: "8px 0 0", fontSize: "12px", color: "var(--red)", display: "none" } }, ""));
 
     // NEU (Sammel-Runde 11.09.2026, Punkt 4: "Lösch-Funktion für Figuren auf dem Charakterblatt
@@ -1123,6 +1136,11 @@ function buildCharEditPanel(person) {
   const wrap = h("div", { style: { marginTop: "12px", padding: "14px", border: "3px solid var(--ink)", background: "var(--paper)" } });
   wrap.appendChild(h("p", { style: { margin: "0 0 10px", fontSize: "11.5px", lineHeight: "1.4", color: "rgba(26,26,24,.65)" } },
     "beschreibe genau, was sich ändern soll — der Rest von " + person.name + " bleibt gleich."));
+  // NEU (23.09.2026, Nutzer-Entscheidung 3c): der ehrliche Satz dazu, warum dieser Weg bei einer
+  // grundsaetzlich misslungenen Zeichnung der falsche ist. Bewusst ohne Technik ("LoRA",
+  // "Edit-Pfad") -- was die Kundin braucht, ist die Entscheidungshilfe, nicht die Bauweise.
+  wrap.appendChild(h("p", { style: { margin: "0 0 10px", padding: "8px", border: "2px solid var(--ink)", background: "var(--yellow)", fontSize: "11.5px", lineHeight: "1.4" } },
+    "wenn die Zeichnung grundsätzlich nicht passt, nimm lieber «Noch einmal zeichnen» — hier male ich über das vorhandene Bild, der Grundcharakter bleibt."));
   const ta = h("textarea", {
     class: "field", id: "char-edit-text", style: { minHeight: "64px", fontSize: "13px" },
     placeholder: "z. B. T-Shirt blau statt gelb"
@@ -1172,7 +1190,7 @@ async function neuZeichnen(person, buttons) {
     // Ehrlich statt still: diese Figur ist vor dem 23.09.2026 entstanden, ihr Prompt wurde damals
     // nicht gespeichert. Nichts zu raten -- ein aus der Beschreibung zurueckgebauter Prompt waere
     // nicht derselbe, und das Ergebnis saehe nur zufaellig nach derselben Figur aus.
-    zeig("Diese Figur ist entstanden, bevor ich mir den Zeichenauftrag gemerkt habe — ich kann sie leider nicht einfach neu zeichnen. Mit «Nachschärfen» lässt sich einzelnes ändern; sonst hilft nur löschen und neu anlegen.");
+    zeig("Diese Figur ist entstanden, bevor ich mir den Zeichenauftrag gemerkt habe — ich kann sie leider nicht einfach neu zeichnen. Mit «Detail ändern» lässt sich einzelnes ändern; sonst hilft nur löschen und neu anlegen.");
     return;
   }
   charGenBusy = true;
@@ -1187,7 +1205,7 @@ async function neuZeichnen(person, buttons) {
     // Das alte Stilurteil und die alte Blattbeschreibung gehoeren zum alten Bild und muessen weg,
     // BEVOR das neue Bild gesetzt wird -- sonst stuende kurz ein Urteil an einem Bild, zu dem es
     // nicht gehoert, und die Rueckfrage unten haenge am falschen Blatt.
-    AppState.updatePerson(person.id, { stilPruefung: null, blatt: null });
+    AppState.updatePerson(person.id, { stilPruefung: null, stilPruefungVorher: person.stilPruefung || null, blatt: null });
     await generateExtraViewsAndFinish(person, result, person.sceneDescription || "");
   } catch (e) {
     charGenBusy = false;
@@ -1223,6 +1241,16 @@ async function applyCharEdit(person, buttons) {
     const result = await Pipeline.generateImage(instruction, "char", { editImageUrl: person.imageUrl });
     charGenBusy = false;
     AppState.update({ charEditOpen: false, charEditText: "" });
+    // NEU (23.09.2026, Nutzer: "pruefeBlattStil() auch nach einem Nachschaerfen laufen lassen,
+    // damit wir nebenbei messen, ob der Edit-Pfad den Stil verschiebt"). Die Pruefung selbst steckt
+    // schon in generateExtraViewsAndFinish() -- hier muss nur das Urteil zum ALTEN Bild weg, sonst
+    // haengt es kurz am neuen. Gemessen wird damit bei jedem Nachschaerfen; wandern die Urteile mit
+    // den Edits, sieht man es ohne eigene Messreihe (vorher/nachher am selben Blatt).
+    // Das alte Urteil wird NICHT weggeworfen, sondern als stilPruefungVorher aufgehoben -- sonst
+    // waere die Frage "verschiebt der Edit-Pfad den Stil?" nach dem ersten Nachschaerfen nicht mehr
+    // zu beantworten. Genau dieses Vorher/Nachher am SELBEN Blatt ist die Messung.
+    const vorher = person.stilPruefung || null;
+    AppState.updatePerson(person.id, { stilPruefung: null, stilPruefungVorher: vorher, blatt: null });
     await generateExtraViewsAndFinish(person, result, person.sceneDescription);
   } catch (e) {
     charGenBusy = false;

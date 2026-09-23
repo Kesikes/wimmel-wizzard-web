@@ -480,6 +480,74 @@ zwei verschiedene Blätter — die Auffälligkeit von 8 und 9 war bei je 6 Kandi
 Zufall, und die Messung am Blatt selbst ist die belastbarere Quelle. Die Zahlen je Blatt aus
 Durchgang 2 stehen noch aus.
 
+### DURCHGANG 2, ERGEBNIS und ein Zuordnungsfehler (23.09.2026)
+
+Der Nutzer hat Durchgang 2 laufen lassen. Die Zahlen (0–10, höher ist näher an der Referenz):
+
+| Blatt | Kontur | flächig | Haare | Gesicht schattiert |
+|---|---|---|---|---|
+| **A**, **Max** | 8 | 8 | 8 | 0 |
+| B | 7 | 6 | **4** | **1** |
+| C | 6 | 5 | 6 | **1** |
+| Moritz | 7 | 6 | 5 | **1** |
+| erste Bibliothekshälfte | 7 | 7–8 | 6–7 | 0 |
+| zweite Bibliothekshälfte | **5** | 5–6 | 3–5 | **1** |
+
+B passt zum „nein" aus Durchgang 1 — Strähnen im Haar plus Schattierung. Die immer gleiche
+Begründung in der schwachen Hälfte: Strähnen im Haar, Faltenschatten, realistischere Proportionen.
+
+**ABER — ein Fehler im Werkzeug, der die Zuordnung in zwei von drei Häppchen unsicher macht.** Das
+Modell hat in Häppchen 2 und 3 je **sieben** Einträge für **sechs** Blätter geliefert (Häppchen 1
+war korrekt). Mein Code hat stur nach Position zugeordnet; der überzählige Eintrag blieb namenlos —
+daher die zwei „undefined" in der Ausgabe. Schlimmer als die Kosmetik: **Es ist nicht bekannt,
+welcher Eintrag überzählig ist** (vorne, hinten, mittendrin). Eine Zuordnung nach Position ist dann
+geraten und sieht trotzdem aus wie eine Messung — genau das Muster, das hier nicht vorkommen soll.
+
+**Was daraus sicher ist und was nicht:**
+
+- **Sicher:** Häppchen 1 (A, B, C, Max, Moritz, bgchars-1) ist korrekt zugeordnet. Die Aussagen über
+  die fünf Figurenblätter stehen.
+- **Sicher:** Die **zweite Hälfte der Bibliothek als Gruppe** ist deutlich schwächer als die erste —
+  alle Werte dieses Häppchens liegen zusammen, egal wie man sie zuordnet.
+- **Nicht sicher:** die Zuordnung zu den **einzelnen** Blattnummern 8 bis 13. „9, 11, 12 und 13"
+  kann um eine Position verschoben sein.
+
+**Behoben (23.09.2026):** Die Messfrage sagt jetzt ausdrücklich, dass Bild 1 die Referenz ist und
+**keinen** Eintrag bekommt, dass `nr` die Blätter zählt und nicht die Bilder, und verlangt
+Nachzählen vor der Antwort. Wichtiger noch: Stimmt die Anzahl trotzdem nicht, ordnet der Code
+**gar nicht mehr zu** — der Happen wird als „Zuordnung UNBEKANNT" ausgewiesen, seine Werte färben
+keinen Mittelwert, und die Ausgabe nennt den sauberen Nachweg. Sauber nachholen:
+
+    STUECK=1 NUR_MESSUNG=1 BIBLIOTHEK=1 ANTHROPIC_API_KEY=... node dev-tools/blatt-stiltor.js
+
+Ein Blatt je Aufruf, 18 statt 3 Aufrufe, immer noch Cent-Beträge — und die Zuordnung ist dann
+konstruktionsbedingt eindeutig.
+
+### OFFEN (Einschätzung 23.09.2026, nichts geändert): Untergrenze für Bibliotheksblätter?
+
+Frage des Nutzers: Kontur ≥ 6 als Untergrenze statt nur 5 und 10 auszusortieren? Das träfe
+zusätzlich 9, 11, 12 und 13.
+
+**Drei Gründe, das jetzt NICHT zu tun:**
+
+1. **Die Zuordnung dieser Nummern ist nicht gesichert** (siehe oben). Eine Grenze, die einzelne
+   Blätter aussortiert, braucht sichere Nummern. Erst der Lauf mit `STUECK=1`, dann die Grenze.
+2. **Die Zahl ist eine Modellschätzung, kein Messgerät**, und sie ist bisher **einmal** erhoben.
+   Die 90-%-Regel gilt hier genauso: Bevor eine Zahl etwas aussortiert, muss sie gegen dein Urteil
+   gehalten worden sein. Bei 5 und 10 war das anders — dort hat das **Stil-Tor** ein klares „nein"
+   gesagt, dieselbe Frage, die live entscheidet, und du hast die Begründungen gelesen.
+3. **Die Bibliothek würde zu klein.** Von 11 blieben 7. Bei 3–4 Blättern je Szene taucht ein
+   einzelnes dann in gut der Hälfte aller Bilder auf — die Nebenfiguren würden sich über ein Buch
+   hinweg sichtbar wiederholen. Das ist ein anderer, ebenso sichtbarer Schaden.
+
+**Mein Vorschlag stattdessen:** Die Zahlen aus Durchgang 2 als **Reihenfolge** nutzen, nicht als
+Beil. Die Blattwahl würfelt heute gleichverteilt; sie könnte die schwachen Blätter **seltener**
+ziehen, statt sie ganz zu streichen — ein Blatt mit Kontur 5 etwa halb so oft wie eines mit 8. Das
+nimmt den Stilbrüchen Gewicht, ohne die Vielfalt zu halbieren, und ist eine Zeile in
+`pickBackgroundCharacterSheets()`. Hinzu kommt: Die Jahreszeiten-Sets stehen ohnehin an, und dabei
+werden die schwachen Blätter **ersetzt** statt nur entfernt — das ist die eigentliche Lösung.
+Entschieden ist nichts, gebaut ist nichts.
+
 **Durchgang 2 brach am Antwortlimit ab (behoben 23.09.2026).** Das Limit stand fest auf 4.000
 Token; 18 Blätter mit je einem Begründungssatz passen da nicht hinein. Jetzt läuft die Messung in
 **Häppchen zu 6 Blättern** (die Referenz geht jedes Mal mit), das Limit rechnet sich aus der Zahl
@@ -1257,6 +1325,42 @@ Mini-Heft (eventuell eigenes Profil mit weniger, größeren Figuren), Kalkulatio
 
 ## 16. Vor dem Launch
 
+### VOR DEM LAUNCH, PUNKT 1 (Nutzer, 23.09.2026): die offene Kostenflanke
+
+> „Das ist die offenste Kostenflanke und betrifft den Weg, den eine Kundin am häufigsten nutzt."
+
+**a) `api/claude-proxy.js` hat überhaupt keine Anfragegrenze.** Weder für den Chat noch für
+`translate` oder `moderate` — und alle drei kosten Geld. Jeder andere kostenpflichtige Endpunkt hat
+eine:
+
+| Endpunkt | Grenze je IP | kostet |
+|---|---|---|
+| `scene-job-start` | 10/h | 0,30 $ je Aufruf (2 Bilder) |
+| `char-job-start` | 15/h | 2 Figurenbilder je Aufruf |
+| `fal-proxy` | 40/h | ein Bild- oder Prüfaufruf |
+| `session` speichern/laden/mailen | 240 / 30 / 5 je h | Speicher |
+| `claude-proxy` **Chat, translate, moderate** | **keine** | je Aufruf ein Modellaufruf |
+| `claude-proxy` `blatt_stil` (neu, 23.09.) | 30/h | ein Modellaufruf mit zwei Bildern |
+
+Der Chat ist der Weg, den eine Kundin **am häufigsten** benutzt — und der einzige ohne Bremse.
+
+Nicht im Vorbeigehen repariert, und zwar bewusst: Eine Grenze für die ganze Datei beträfe auch den
+Chat-Pfad, und der ist an dieser Änderung ungetestet. Ein zu enger Wert würde mitten im Gespräch
+abriegeln, ein zu weiter nützt nichts. Zu entscheiden ist also ein **Wert**, nicht nur ein Schalter:
+Wie viele Nachrichten braucht ein normales Gespräch bis zur fertigen Szene? Das steht nirgends —
+und es ist an den gespeicherten Sitzungen (`sceneChatMessages`) **ohne einen einzigen neuen Aufruf**
+auszuzählen. Das wäre der erste Schritt.
+
+**b) Es gibt bis heute keine Gesamtkosten-Obergrenze.** Alle Grenzen oben gelten **je IP-Adresse**
+(Befund 22.09., siehe Abschnitt 17). Sie bremsen eine einzelne Kundin, aber nicht die Summe: Zehn
+Adressen sind zehnmal so viel, und hinter einem CGNAT-Anschluss teilen sich umgekehrt viele echte
+Kundinnen dieselbe Grenze. Es gibt keine Stelle im Code, die sagt „für heute ist Schluss".
+
+Das ist die eine Lücke, die nicht nur teuer werden kann, sondern **unbegrenzt** teuer. Sie gehört
+vor den Launch, und zwar als Tagesdeckel über alle bezahlten Endpunkte zusammen (fal **und**
+Anthropic), mit einer ehrlichen Meldung an die Kundin statt eines stillen Fehlers — nach derselben
+Regel wie unten.
+
 ### VOR DEM LAUNCH: stille Fehler systematisch beseitigen (Auftrag des Nutzers, 22.09.2026)
 
 Anlass: Zum vierten Mal sah ein Fehler wie ein Erfolg aus (`violations: 99`, Nullwerte statt
@@ -1331,6 +1435,43 @@ Durchsicht des ganzen Codes am 22.09.2026 (`api/`, `public/js/`; `dev-tools/` ni
 
 Bereits behoben: `violations: 99` im Szenen-Pfad (20.09.), Richter-Body (20.09.), Speichern und
 Kopfzeile (22.09., Abschnitt 10). Nichts aus der Liste oben ist gebaut.
+
+### BEFUND (23.09.2026): Zwei-Kringel-Versuch DURCHGEFALLEN — und warum das die Falz-Lektion wiederholt
+
+Ergebnis des Nutzers: Der **grüne** Kringel steht im Ergebnisbild noch da, sogar um die neue Figur
+herum gemalt. Die rote Stelle ist leer, an der grünen steht eine fremde Figur (erwartbar, es ging
+kein Figurenblatt mit).
+
+**Sein Verdacht trifft, und er hat einen Namen: Es ist derselbe Fehler wie beim gemalten Falz.**
+Die Anweisung benennt „the RED mark" und „the GREEN mark" — sie macht die Markierung damit zu einem
+Ding, über das im Bild gesprochen wird. Das Bildmodell zeichnet, was im Prompt steht. Bei **einem**
+Kringel steht seit dem 22.09. kein Farbwort im Prompt: Dort heißt es nur „a red freehand mark …
+never copy it", ein einziges Verbot, kein Unterscheidungsmerkmal. Sobald zwei Farben
+**auseinandergehalten** werden müssen, muss der Prompt sie benennen — und damit werden sie Inhalt.
+
+Das ist kein Formulierungsdetail, sondern ein struktureller Widerspruch: **Eine Markierung kann
+nicht gleichzeitig unsichtbar sein und als Unterscheidungsmerkmal benannt werden.**
+
+**Einschätzung zur Frage des Nutzers (zweiter Versuch vs. zwei Aufrufe):**
+
+Ein zweiter Versuch mit anderer Formulierung — die Farben nicht benennen, sondern etwa „die
+Markierung links/rechts", „die erste/zweite", „die durchgezogene/gestrichelte" — löst das Problem
+nicht, sondern verschiebt es. Jede dieser Fassungen muss die beiden Markierungen unterscheidbar
+machen und redet damit wieder über sie. Ich halte die Erfolgsaussicht für **gering** und würde die
+0,15 $ nicht dafür ausgeben.
+
+**Empfehlung: zwei getrennte Aufrufe.** Erst wegnehmen, dann setzen — beides ist der Weg, der
+nachweislich funktioniert (ein Kringel, ein Verbot, kein Farbwort). Preis: 0,30 $ statt 0,15 $ und
+zwei Wartezeiten statt einer, dafür kein neues Risiko. Die Bedienung kann das verbergen: Die Kundin
+setzt zwei Kringel wie geplant, die App macht daraus zwei Aufrufe hintereinander und zeigt einen
+Fortschritt („erst nehme ich sie weg, dann setze ich sie hin"). Sie merkt nur die längere Wartezeit.
+
+**Ein Rest bleibt ehrlich offen:** Beim zweiten Aufruf ist das Bild schon verändert, die Koordinaten
+des zweiten Kringels beziehen sich aber auf das **erste** Bild. Solange die Änderung lokal bleibt,
+passt das; entfernt der erste Aufruf etwas Großes und ordnet die Umgebung neu, kann die zweite
+Markierung danebenzeigen. Das ist am ersten echten Versuch zu sehen und nicht vorher zu wissen.
+
+**Nicht gebaut.** Die Testseite bleibt stehen, bis entschieden ist.
 
 ### GEPRÜFT und GEBAUT (23.09.2026): der 413 im Kontrollversuch — und warum das Produkt NICHT betroffen war
 
@@ -1470,7 +1611,7 @@ dafür, dass er als **Alarm** taugt (wenige Fehlalarme). Wie viele echte Brüche
 sperren), gehört die 90-%-Regel erfüllt: erst an einer Handvoll Blätter gegen dein Urteil messen,
 dann entscheiden. Bis dahin bleibt es bei der Rückfrage.
 
-### OFFEN (Einschätzung 23.09.2026, nichts gebaut): „Nachschärfen" ist irreführend
+### GEBAUT (Produktentscheidung des Nutzers, 23.09.2026): „Nachschärfen" heißt jetzt „Detail ändern"
 
 Befund des Nutzers: „Nachschärfen läuft ohne wmlstil-LoRA und kann einen Stilbruch festigen. Das
 ist für die Kundin irreführend, weil der Knopf genau danach aussieht, was sie will."
@@ -1504,11 +1645,26 @@ falsch.** Zwei Wunschsorten stecken hinter „Nachschärfen":
 
    Kosten: reine Beschriftung, kein neuer Aufruf, kein neuer Pfad.
 
-**Ehrliche Einschränkung:** Auch das löst den technischen Kern nicht — der Edit-Pfad läuft weiter
-ohne LoRA, und selbst ein harmloses „T-Shirt blau" kann den Stil einer Figur leicht verschieben.
-Gemessen ist das **nicht**. Wer es wissen will, hat jetzt das Werkzeug dafür: `pruefeBlattStil()`
-läuft nach jedem Neuzeichnen — sie **nach einem Nachschärfen** ebenfalls laufen zu lassen wäre ein
-Dreizeiler und würde die Frage nebenbei beantworten, ohne eine eigene Messreihe.
+**Gebaut am 23.09.2026, alle drei Teile:**
+
+- Knopf **„Detail ändern"** statt „Nachschärfen", darunter der Zusatztext „T-Shirt-Farbe, Brille,
+  Frisur — alles andere bleibt genau so."
+- „Noch einmal zeichnen" bekommt daneben „ganz neu würfeln, wenn die Zeichnung selbst nicht passt."
+- **Im Panel** ein gelb abgesetzter Satz: „wenn die Zeichnung grundsätzlich nicht passt, nimm lieber
+  «Noch einmal zeichnen» — hier male ich über das vorhandene Bild, der Grundcharakter bleibt."
+  Bewusst ohne Technik („LoRA", „Edit-Pfad"): Die Kundin braucht die Entscheidungshilfe, nicht die
+  Bauweise.
+- Die alten Nebentexte, die noch „beim Nachschärfen nochmal versuchen" sagten, sind nachgezogen.
+
+**Und die Messung nebenbei** (Nutzer: „damit wir nebenbei messen, ob der Edit-Pfad den Stil
+verschiebt"): `pruefeBlattStil()` läuft jetzt **auch nach einem Detail-Änderung**. Das alte Urteil
+wird dabei **nicht weggeworfen**, sondern als `stilPruefungVorher` aufgehoben — sonst wäre die Frage
+nach dem ersten Edit nicht mehr zu beantworten. Genau dieses Vorher/Nachher am **selben** Blatt ist
+die Messung: Kippen Blätter nach einem Edit von „ja" auf „nein", ist der Verdacht belegt; bleiben
+sie, ist er ausgeräumt. Kostet einen Prüfaufruf je Edit und keine eigene Messreihe.
+
+**Ehrliche Einschränkung bleibt:** Der Edit-Pfad läuft weiter ohne LoRA. Die Beschriftung führt die
+Kundin nur zum richtigen Knopf, sie repariert den Pfad nicht.
 
 ### VOR DEM LAUNCH (Auftrag des Nutzers, 23.09.2026): keine rohen Server-Meldungen in der App
 
@@ -1527,18 +1683,6 @@ Matthias sie im Support braucht.
 
 Vorlage ist `penFehlerText()` in `szene.js`: Die drei Fälle, die die Kundin selbst lösen kann,
 bekommen einen eigenen Satz, alles andere behält den allgemeinen Satz samt technischem Anhang.
-
-### VOR DEM LAUNCH (Befund 23.09.2026): `api/claude-proxy.js` hat keine Anfragegrenze
-
-Beim Einbau der Blatt-Stilprüfung aufgefallen: `api/claude-proxy.js` hat **überhaupt keine**
-Anfragegrenze — weder für den Chat noch für `translate` oder `moderate`, und alle drei kosten Geld.
-Jeder andere kostenpflichtige Endpunkt hat eine (`falproxy` 40/h, `charjob` 15/h, `scenejob` 10/h,
-Sitzung 240/30/5 — alle je IP, siehe unten).
-
-Nicht im Vorbeigehen repariert: Eine Grenze für die ganze Datei beträfe auch den Chat-Pfad, und der
-ist an dieser Änderung ungetestet. Der neue Modus `blatt_stil` hat eine eigene bekommen (30/h je
-IP). Der Rest gehört vor dem Launch entschieden — zusammen mit der Frage nach einer
-**Gesamtkosten-Obergrenze**, die bis heute nirgends existiert.
 
 ### VOR DEM LAUNCH: Promptlänge mit 5 Helden
 

@@ -69,7 +69,7 @@ if (process.env.BIBLIOTHEK) {
 if (!blaetter.length) { console.error("Keine Blaetter gefunden."); process.exit(1); }
 
 // Durchgang 2: die Messfrage. Zahlen, keine Urteile -- gewertet wird hinterher hier im Code.
-const MESSFRAGE = "Bild 1 ist die STILREFERENZ. Die Bilder danach sind Figurenblaetter mit je einer einzelnen Figur, in der Reihenfolge, in der sie kommen. Das ist eine MESSUNG, kein Urteil: vergleiche jedes Blatt einzeln mit der Referenz und antworte mit Zahlen. Je Blatt: kontur (0-10, wie dick und gleichmaessig die schwarze Aussenkontur im Vergleich zur Referenz ist, 10 = genau wie die Referenz), flaechig (0-10, wie flach und ungeschattet die Farbflaechen sind, 10 = voellig flach wie die Referenz), haare_flaechig (0-10, Haare als wenige flache Flaechen statt einzelner Straehnen oder Glanzlichter), mund (0 oder 1, ist ein Mund zu sehen), nase_strich (0 oder 1, ist die Nase ein einzelner Strich statt einer modellierten Form), gesicht_schattiert (0 oder 1, Schattierung, Bartstoppeln oder modellierte Wangen im Gesicht), abweichung (ein kurzer Satz: was weicht an DIESEM Blatt am staerksten von der Referenz ab; passt alles, schreibe \"nichts\"). Antworte NUR als JSON: {\"blaetter\": [{\"nr\": 1, \"kontur\": Zahl, \"flaechig\": Zahl, \"haare_flaechig\": Zahl, \"mund\": 0/1, \"nase_strich\": 0/1, \"gesicht_schattiert\": 0/1, \"abweichung\": \"...\"}, ...]} -- genau ein Eintrag je Blatt, in derselben Reihenfolge.";
+const MESSFRAGE = "Bild 1 ist die STILREFERENZ und wird NICHT bewertet -- gib fuer Bild 1 KEINEN Eintrag. Die Bilder DANACH sind die zu bewertenden Blaetter: Bild 2 ist Blatt 1, Bild 3 ist Blatt 2 und so weiter. Das ist eine MESSUNG, kein Urteil: vergleiche jedes Blatt einzeln mit der Referenz und antworte mit Zahlen. Je Blatt: kontur (0-10, wie dick und gleichmaessig die schwarze Aussenkontur im Vergleich zur Referenz ist, 10 = genau wie die Referenz), flaechig (0-10, wie flach und ungeschattet die Farbflaechen sind, 10 = voellig flach wie die Referenz), haare_flaechig (0-10, Haare als wenige flache Flaechen statt einzelner Straehnen oder Glanzlichter), mund (0 oder 1, ist ein Mund zu sehen), nase_strich (0 oder 1, ist die Nase ein einzelner Strich statt einer modellierten Form), gesicht_schattiert (0 oder 1, Schattierung, Bartstoppeln oder modellierte Wangen im Gesicht), abweichung (ein kurzer Satz: was weicht an DIESEM Blatt am staerksten von der Referenz ab; passt alles, schreibe \"nichts\"). Antworte NUR als JSON: {\"blaetter\": [{\"nr\": 1, \"kontur\": Zahl, \"flaechig\": Zahl, \"haare_flaechig\": Zahl, \"mund\": 0/1, \"nase_strich\": 0/1, \"gesicht_schattiert\": 0/1, \"abweichung\": \"...\"}, ...]} -- GENAU ein Eintrag je Blatt und kein einziger mehr, nr faengt bei 1 an und zaehlt die Blaetter, nicht die Bilder. Zaehle vor dem Antworten nach: es muessen exakt so viele Eintraege sein, wie es Blaetter gibt.";
 
 function bild(url) { return { type: "image", source: { type: "url", url } }; }
 // GEAENDERT (23.09.2026, Nutzer-Befund: "Durchgang 2 ist am Antwortlimit abgebrochen"). Das Limit
@@ -130,8 +130,20 @@ async function claude(bilder, frage, maxTokens) {
       const r = await claude([REF].concat(teil.map((b) => b.url)), MESSFRAGE, limit);
       ein += r.ein; aus += r.aus;
       const t = (r.p && r.p.blaetter) || [];
-      if (t.length !== teil.length) console.log("ACHTUNG: " + t.length + " Eintraege fuer " + teil.length + " Blaetter in diesem Happen -- Zuordnung unsicher.");
-      // Die Nummerierung des Modells gilt nur im Happen; hier haengt der echte Name dran.
+      // GEAENDERT (23.09.2026, Nutzer-Befund: "zweimal undefined und die Warnung 7 Eintraege fuer
+      // 6 Blaetter"). Vorher wurden die Eintraege stur nach Position zugeordnet und die ueberzaehligen
+      // bekamen keinen Namen -- daher das "undefined". Schlimmer: Bei einer abweichenden Anzahl ist
+      // NICHT bekannt, WELCHER Eintrag ueberzaehlig ist (vorne, hinten, in der Mitte). Eine
+      // Zuordnung nach Position waere dann geraten und saehe trotzdem wie eine Messung aus.
+      // Jetzt: Bei abweichender Anzahl bekommt der ganze Happen KEINE Namen, sondern den Vermerk
+      // "Zuordnung unsicher" -- und die Ausgabe sagt, wie man ihn sauber nachholt (STUECK=1).
+      if (t.length !== teil.length) {
+        console.log("ACHTUNG: " + t.length + " Eintraege fuer " + teil.length + " Blaetter (" +
+          teil.map((b) => b.name).join(", ") + ") -- die Zuordnung ist damit UNBEKANNT, nicht nur unsicher.");
+        console.log("         Dieser Happen wird NICHT zugeordnet. Sauber nachholen mit: STUECK=1 NUR_MESSUNG=1 ...");
+        t.forEach((m) => liste.push(Object.assign({}, m, { _name: null, _gruppe: teil[0] ? teil[0].gruppe : null, _unsicher: teil.map((b) => b.name).join("/") })));
+        continue;
+      }
       t.forEach((m, j) => liste.push(Object.assign({}, m, { _name: (teil[j] || {}).name, _gruppe: (teil[j] || {}).gruppe })));
     } catch (e) {
       messFehler = String(e.message || e);
@@ -143,14 +155,16 @@ async function claude(bilder, frage, maxTokens) {
     roh.messung = { blaetter: liste, fehler: messFehler };
     console.log("Blatt        Gruppe      Kontur Flaech Haare Mund Nase Schatt  Abweichung");
     liste.forEach((m) => {
-      if (m.fehler) { console.log(String(m._name).padEnd(12) + String(m._gruppe).padEnd(12) + "  -- nicht gemessen: " + m.fehler.slice(0, 60)); return; }
-      console.log(String(m._name).padEnd(12) + String(m._gruppe).padEnd(12) +
+      const name = m._name || (m._unsicher ? "? (" + m._unsicher + ")" : "?");
+      if (m.fehler) { console.log(name.padEnd(12) + String(m._gruppe || "-").padEnd(12) + "  -- nicht gemessen: " + m.fehler.slice(0, 60)); return; }
+      console.log(name.padEnd(12) + String(m._gruppe || "-").padEnd(12) +
         String(m.kontur).padStart(6) + String(m.flaechig).padStart(7) + String(m.haare_flaechig).padStart(6) +
         String(m.mund).padStart(5) + String(m.nase_strich).padStart(5) + String(m.gesicht_schattiert).padStart(7) + "  " + String(m.abweichung || "").slice(0, 60));
     });
     // Der Code stellt gegenueber, nicht das Modell.
     const mittel = (g, k) => {
-      const w = liste.filter((m) => m._gruppe === g && !m.fehler).map((m) => Number(m[k])).filter((v) => isFinite(v));
+      // Nur Zeilen mit sicherer Zuordnung -- ein unsicherer Happen darf keinen Mittelwert faerben.
+      const w = liste.filter((m) => m._gruppe === g && m._name && !m.fehler).map((m) => Number(m[k])).filter((v) => isFinite(v));
       return w.length ? (w.reduce((a, b2) => a + b2, 0) / w.length).toFixed(2) : "-";
     };
     console.log("\nGruppen-Mittel (nur wo es beide Gruppen gibt, sonst \"-\"):");
