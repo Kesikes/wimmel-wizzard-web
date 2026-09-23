@@ -13,6 +13,9 @@
 //     TROCKEN=1 node dev-tools/blatt-stiltor.js          nur zeigen, was liefe (keine Aufrufe)
 //     BIBLIOTHEK=1 ANTHROPIC_API_KEY=... node dev-tools/blatt-stiltor.js
 //                                                        zusaetzlich die 13 Hintergrund-Blaetter
+//     NUR_MESSUNG=1 ...                                  Durchgang 1 ueberspringen (schon gelaufen)
+//     STUECK=4 ...                                       weniger Blaetter je Messaufruf
+//     LIMIT=20000 ...                                    Antwortlimit je Messaufruf fest setzen
 //     APP=https://... aendert die Adresse, unter der Referenz und Bibliothek liegen
 //
 // Die Blaetter werden aus docs/ref/sitzung.json (A/B/C) und docs/ref/sitzung-neu.json (die neuen)
@@ -38,6 +41,11 @@ const REF = APP + "/assets/referenz-bauernhof-2026-09-18.jpg";
 const KEY = process.env.ANTHROPIC_API_KEY;
 const TROCKEN = !!process.env.TROCKEN;
 const ROH = "docs/ref/blatt-stiltor-roh.json";
+// Blaetter je Messaufruf. Ein abgeschnittenes JSON ist ein Totalausfall, deshalb lieber mehrere
+// kleine Aufrufe: sie kosten zusammen kaum mehr (die Referenz geht jedes Mal mit) und koennen
+// einzeln scheitern, ohne alles mitzureissen.
+const STUECK = Number(process.env.STUECK || 6);
+const LIMIT = Number(process.env.LIMIT || 0);
 
 function sitzung(datei) {
   try { const j = JSON.parse(fs.readFileSync(datei, "utf8")); return j.data || j; }
@@ -64,16 +72,21 @@ if (!blaetter.length) { console.error("Keine Blaetter gefunden."); process.exit(
 const MESSFRAGE = "Bild 1 ist die STILREFERENZ. Die Bilder danach sind Figurenblaetter mit je einer einzelnen Figur, in der Reihenfolge, in der sie kommen. Das ist eine MESSUNG, kein Urteil: vergleiche jedes Blatt einzeln mit der Referenz und antworte mit Zahlen. Je Blatt: kontur (0-10, wie dick und gleichmaessig die schwarze Aussenkontur im Vergleich zur Referenz ist, 10 = genau wie die Referenz), flaechig (0-10, wie flach und ungeschattet die Farbflaechen sind, 10 = voellig flach wie die Referenz), haare_flaechig (0-10, Haare als wenige flache Flaechen statt einzelner Straehnen oder Glanzlichter), mund (0 oder 1, ist ein Mund zu sehen), nase_strich (0 oder 1, ist die Nase ein einzelner Strich statt einer modellierten Form), gesicht_schattiert (0 oder 1, Schattierung, Bartstoppeln oder modellierte Wangen im Gesicht), abweichung (ein kurzer Satz: was weicht an DIESEM Blatt am staerksten von der Referenz ab; passt alles, schreibe \"nichts\"). Antworte NUR als JSON: {\"blaetter\": [{\"nr\": 1, \"kontur\": Zahl, \"flaechig\": Zahl, \"haare_flaechig\": Zahl, \"mund\": 0/1, \"nase_strich\": 0/1, \"gesicht_schattiert\": 0/1, \"abweichung\": \"...\"}, ...]} -- genau ein Eintrag je Blatt, in derselben Reihenfolge.";
 
 function bild(url) { return { type: "image", source: { type: "url", url } }; }
-async function claude(bilder, frage) {
+// GEAENDERT (23.09.2026, Nutzer-Befund: "Durchgang 2 ist am Antwortlimit abgebrochen"). Das Limit
+// war fest auf 4.000 -- bei 18 Blaettern mit je einem Begruendungssatz reicht das nicht. Jetzt
+// rechnet der Aufrufer sein Budget aus, und Durchgang 2 laeuft zusaetzlich in Haeppchen (siehe
+// STUECK unten): ein abgeschnittenes JSON ist ein Totalausfall, ein zu grosser Happen also nicht
+// nur teuer, sondern wertlos.
+async function claude(bilder, frage, maxTokens) {
   const resp = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "x-api-key": KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify({ model: RICHTER_MODELL, max_tokens: 4000,
+    body: JSON.stringify({ model: RICHTER_MODELL, max_tokens: maxTokens || 4000,
       messages: [{ role: "user", content: bilder.map(bild).concat([{ type: "text", text: frage }]) }] }),
   });
   if (!resp.ok) throw new Error("Anthropic " + resp.status + ": " + (await resp.text()).slice(0, 200));
   const d = await resp.json();
-  if (d.stop_reason === "max_tokens") throw new Error("Antwort bei max_tokens abgeschnitten.");
+  if (d.stop_reason === "max_tokens") throw new Error("Antwort bei max_tokens=" + (maxTokens || 4000) + " abgeschnitten -- weniger Blaetter je Aufruf (STUECK=...) oder LIMIT=... hoeher setzen.");
   const text = (d.content || []).map((t) => t.text || "").join("");
   const m = String(text).match(/\{[\s\S]*\}/);
   if (!m) throw new Error("Antwort ohne lesbares JSON: " + String(text).slice(0, 150));
@@ -84,7 +97,8 @@ async function claude(bilder, frage) {
   console.log("Referenz: " + REF);
   console.log("Blaetter (" + blaetter.length + "):");
   blaetter.forEach((b, i) => console.log("  " + (i + 1) + ". [" + b.gruppe + "] " + b.name + "  " + b.url));
-  console.log("\nAufrufe: " + blaetter.length + " x Stil-Tor-Frage (je 2 Bilder) + 1 x Messfrage (" + (blaetter.length + 1) + " Bilder). Modell " + RICHTER_MODELL + ". Keine Bildaufrufe, keine fal-Kosten.");
+  const happen = Math.ceil(blaetter.length / STUECK);
+  console.log("\nAufrufe: " + blaetter.length + " x Stil-Tor-Frage (je 2 Bilder) + " + happen + " x Messfrage (je bis zu " + STUECK + " Blaetter + Referenz). Modell " + RICHTER_MODELL + ". Keine Bildaufrufe, keine fal-Kosten.");
   if (TROCKEN) { console.log("\nTROCKEN=1 -- nichts aufgerufen."); return; }
   if (!KEY) { console.error("\nANTHROPIC_API_KEY fehlt."); process.exit(1); }
 
@@ -92,9 +106,10 @@ async function claude(bilder, frage) {
   let ein = 0, aus = 0;
 
   console.log("\n--- 1) Stil-Tor-Frage je Blatt (Wortlaut wie live) ---");
-  for (const b of blaetter) {
+  if (process.env.NUR_MESSUNG) console.log("NUR_MESSUNG=1 -- Durchgang 1 uebersprungen (schon gelaufen, nicht noch einmal bezahlen).");
+  for (const b of (process.env.NUR_MESSUNG ? [] : blaetter)) {
     try {
-      const r = await claude([REF, b.url], STIL_TOR_FRAGE);
+      const r = await claude([REF, b.url], STIL_TOR_FRAGE, 1500);
       ein += r.ein; aus += r.aus;
       const e = { name: b.name, gruppe: b.gruppe, passt: r.p.passt, begruendung: String(r.p.begruendung || "").replace(/\s+/g, " ").slice(0, 300) };
       roh.teilA.push(e);
@@ -105,23 +120,37 @@ async function claude(bilder, frage) {
     }
   }
 
-  console.log("\n--- 2) Messung, ein Aufruf mit allen Blaettern ---");
+  console.log("\n--- 2) Messung, in Haeppchen zu je " + STUECK + " Blaettern ---");
+  const liste = [];
+  let messFehler = null;
+  for (let i = 0; i < blaetter.length; i += STUECK) {
+    const teil = blaetter.slice(i, i + STUECK);
+    const limit = LIMIT || Math.min(32000, 1200 + teil.length * 500);
+    try {
+      const r = await claude([REF].concat(teil.map((b) => b.url)), MESSFRAGE, limit);
+      ein += r.ein; aus += r.aus;
+      const t = (r.p && r.p.blaetter) || [];
+      if (t.length !== teil.length) console.log("ACHTUNG: " + t.length + " Eintraege fuer " + teil.length + " Blaetter in diesem Happen -- Zuordnung unsicher.");
+      // Die Nummerierung des Modells gilt nur im Happen; hier haengt der echte Name dran.
+      t.forEach((m, j) => liste.push(Object.assign({}, m, { _name: (teil[j] || {}).name, _gruppe: (teil[j] || {}).gruppe })));
+    } catch (e) {
+      messFehler = String(e.message || e);
+      console.log("FEHLER im Happen " + (i / STUECK + 1) + ": " + messFehler);
+      teil.forEach((b) => liste.push({ _name: b.name, _gruppe: b.gruppe, fehler: messFehler }));
+    }
+  }
   try {
-    const r = await claude([REF].concat(blaetter.map((b) => b.url)), MESSFRAGE);
-    ein += r.ein; aus += r.aus;
-    roh.messung = r.p;
-    const liste = (r.p && r.p.blaetter) || [];
+    roh.messung = { blaetter: liste, fehler: messFehler };
     console.log("Blatt        Gruppe      Kontur Flaech Haare Mund Nase Schatt  Abweichung");
-    liste.forEach((m, i) => {
-      const b = blaetter[i] || { name: "?", gruppe: "?" };
-      console.log(b.name.padEnd(12) + String(b.gruppe).padEnd(12) +
+    liste.forEach((m) => {
+      if (m.fehler) { console.log(String(m._name).padEnd(12) + String(m._gruppe).padEnd(12) + "  -- nicht gemessen: " + m.fehler.slice(0, 60)); return; }
+      console.log(String(m._name).padEnd(12) + String(m._gruppe).padEnd(12) +
         String(m.kontur).padStart(6) + String(m.flaechig).padStart(7) + String(m.haare_flaechig).padStart(6) +
         String(m.mund).padStart(5) + String(m.nase_strich).padStart(5) + String(m.gesicht_schattiert).padStart(7) + "  " + String(m.abweichung || "").slice(0, 60));
     });
-    if (liste.length !== blaetter.length) console.log("\nACHTUNG: " + liste.length + " Eintraege fuer " + blaetter.length + " Blaetter -- die Zuordnung oben stimmt dann nicht.");
     // Der Code stellt gegenueber, nicht das Modell.
     const mittel = (g, k) => {
-      const w = liste.map((m, i) => ({ m, g: (blaetter[i] || {}).gruppe })).filter((x) => x.g === g).map((x) => Number(x.m[k])).filter((v) => isFinite(v));
+      const w = liste.filter((m) => m._gruppe === g && !m.fehler).map((m) => Number(m[k])).filter((v) => isFinite(v));
       return w.length ? (w.reduce((a, b2) => a + b2, 0) / w.length).toFixed(2) : "-";
     };
     console.log("\nGruppen-Mittel (nur wo es beide Gruppen gibt, sonst \"-\"):");
@@ -129,8 +158,7 @@ async function claude(bilder, frage) {
       console.log("  " + k.padEnd(18) + " alt " + mittel("alt", k) + "   neu " + mittel("neu", k) + "   bibliothek " + mittel("bibliothek", k));
     });
   } catch (e) {
-    roh.messung = { fehler: String(e.message || e) };
-    console.log("FEHLER bei der Messung: " + e.message);
+    console.log("FEHLER beim Auswerten der Messung: " + e.message);
   }
 
   fs.mkdirSync(path.dirname(ROH), { recursive: true });

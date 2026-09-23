@@ -64,6 +64,9 @@ const ANWEISUNG_VORGABE =
   "Image 3 is a style reference only: match its drawing style (thick black outlines, flat colours, round heads, dot eyes, a single straight nose line, no mouths, no shading on faces). Take no characters, objects or scenery from it.";
 document.getElementById("anweisung").value = ANWEISUNG_VORGABE;
 
+// Kantenlaenge der Zeiger-Kopie. Sie zeigt nur, WO etwas passieren soll -- bearbeitet wird das
+// Original ueber seine URL. 1200 px reichen dafuer reichlich und halten die Anfrage klein.
+const ZEIGER_MAX = 1200;
 const cv = document.getElementById("leinwand"), ctx = cv.getContext("2d");
 const meldung = document.getElementById("meldung");
 let bild = null, originalUrl = "", striche = [], farbe = "#e2483d", malend = null;
@@ -87,7 +90,20 @@ document.getElementById("laden").addEventListener("click", () => {
   const im = new Image();
   // Ueber den eigenen Proxy, sonst ist das Canvas "tainted" und toDataURL() wirft (siehe
   // api/image-proxy.js).
-  im.onload = () => { bild = im; originalUrl = u; striche = []; cv.width = im.naturalWidth; cv.height = im.naturalHeight; cv.style.width = "100%"; zeichne(); sag("geladen: " + im.naturalWidth + "×" + im.naturalHeight); };
+  im.onload = () => {
+    bild = im; originalUrl = u; striche = [];
+    // BUGFIX (23.09.2026, Nutzer: "FEHLER 413 (zu gross)"): Diese Seite hat die markierte Kopie in
+    // voller Aufloesung (4K, q0.92) geschickt -- als data-URI deutlich ueber dem 4,5-MB-Limit einer
+    // Vercel-Funktion. Der LIVE-Stift macht das NICHT (captureAnnotatedImage() verkleinert auf
+    // 1800 px und drueckt notfalls die Qualitaet). Jetzt hier dieselbe Regel, sogar strenger: die
+    // Kopie ist nur ein ZEIGER auf die Stelle, bearbeitet wird das Original ueber seine URL.
+    const roh = im.naturalWidth, rohH = im.naturalHeight;
+    const skal = Math.min(1, ZEIGER_MAX / Math.max(roh, rohH));
+    cv.width = Math.max(1, Math.round(roh * skal));
+    cv.height = Math.max(1, Math.round(rohH * skal));
+    cv.style.width = "100%"; zeichne();
+    sag("geladen: " + roh + "×" + rohH + " — als Zeiger verkleinert auf " + cv.width + "×" + cv.height);
+  };
   im.onerror = () => sag("Bild konnte nicht geladen werden. Nur fal.media/fal.run-Adressen gehen durch den Proxy.");
   im.src = "/api/image-proxy?url=" + encodeURIComponent(u);
 });
@@ -109,7 +125,10 @@ document.getElementById("senden").addEventListener("click", async () => {
   const knopf = document.getElementById("senden");
   knopf.disabled = true; sag("Aufruf läuft … das dauert eine halbe bis eine Minute.");
   try {
-    const kopie = cv.toDataURL("image/jpeg", 0.92);
+    let q = 0.85;
+    let kopie = cv.toDataURL("image/jpeg", q);
+    while (kopie.length > 3.5 * 1024 * 1024 && q > 0.35) { q -= 0.15; kopie = cv.toDataURL("image/jpeg", q); }
+    if (kopie.length > 3.5 * 1024 * 1024) { sag("Die Zeiger-Kopie bleibt zu groß (" + Math.round(kopie.length / 1024) + " KB). Abgebrochen, bevor es Geld kostet."); knopf.disabled = false; return; }
     const resp = await fetch("/api/fal-proxy", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -123,7 +142,7 @@ document.getElementById("senden").addEventListener("click", async () => {
     if (!resp.ok || d.error || !d.url) throw new Error(d.error || ("Fehler " + resp.status));
     const im = document.getElementById("ergebnis");
     im.src = d.url; im.style.display = "block";
-    sag("fertig: " + d.url + "\n\nPrüfen: Ist die Figur an der ROTEN Stelle weg und an der GRÜNEN da? Sind die Kringel selbst verschwunden?");
+    sag("fertig (Zeiger-Kopie " + Math.round(kopie.length / 1024) + " KB): " + d.url + "\n\nPrüfen: Ist die Figur an der ROTEN Stelle weg und an der GRÜNEN da? Sind die Kringel selbst verschwunden?");
   } catch (e) {
     sag("hat nicht geklappt: " + (e && e.message ? e.message : e));
   } finally { knopf.disabled = false; }

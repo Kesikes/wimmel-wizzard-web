@@ -2022,11 +2022,36 @@ function penSafeImageUrl(url) {
 // Sicherheitsnetz, das die JPEG-Qualitaet in Schritten weiter absenkt, falls das Ergebnis trotzdem
 // noch zu gross waere (deutlich seltener Fall, aber besser ein etwas komprimierteres Bild als ein
 // erneuter 413-Fehler).
+// NEU (23.09.2026, Nutzer-Frage "Wie sieht die Kundin diesen Fehler heute? 'Fehler 413' versteht
+// niemand"). Rohe Server-Meldungen gehoeren nie in die App. Drei Faelle, die die Kundin selbst
+// loesen kann, bekommen einen Satz, der sagt, WAS SIE TUN KANN; alles andere bleibt der bisherige
+// allgemeine Satz -- inklusive der technischen Meldung, denn die braucht Matthias im Support.
+function penFehlerText(e) {
+  const roh = (e && e.message) ? String(e.message) : String(e);
+  const status = (e && e.httpStatus) || (roh.match(/\b(4\d\d|5\d\d)\b/) || [])[1];
+  if (String(status) === "413" || /too large|entity too large|payload/i.test(roh)) {
+    return "Die Markierung war zu groß zum Verschicken. Probier es mit einem kleineren Kringel noch einmal — und sag Matthias Bescheid, das sollte nicht passieren.";
+  }
+  if (String(status) === "429" || /rate limit|zu viele/i.test(roh)) {
+    return "Gerade waren es zu viele Korrekturen hintereinander. Warte einen Moment und probier es dann noch einmal.";
+  }
+  if (/load failed|failed to fetch|networkerror/i.test(roh)) {
+    return "Die Verbindung ist kurz abgerissen. Dein Bild ist unverändert da — probier es gleich noch einmal.";
+  }
+  return "Bearbeiten hat nicht geklappt: " + roh + " — nochmal versuchen?";
+}
+
 async function captureAnnotatedImage(canvas, img, mark) {
   const proxied = await loadImage(penSafeImageUrl(img.src));
   const srcW = proxied.naturalWidth || proxied.width || canvas.width;
   const srcH = proxied.naturalHeight || proxied.height || canvas.height;
-  const MAX_DIM = 1800;
+  // GEAENDERT (23.09.2026, nach dem 413 im Kontrollversuch). Seit dem 22.09. ist diese Kopie NUR
+  // NOCH EIN ZEIGER: bearbeitet wird das Original ueber seine URL (siehe PEN_ZWEI_BILDER), die
+  // Kopie sagt dem Modell nur, WO. Dafuer braucht sie keine 1800 px -- 1200 reichen reichlich und
+  // machen die Anfrage rund halb so gross. Die 1800 stammten noch aus der Zeit, als DIESE Kopie
+  // das bearbeitete Bild war; seitdem war der hohe Wert nur noch Ballast vor dem 4,5-MB-Limit
+  // einer Vercel-Funktion.
+  const MAX_DIM = 1200;
   const scale = Math.min(1, MAX_DIM / Math.max(srcW, srcH));
   const off = document.createElement("canvas");
   off.width = Math.max(1, Math.round(srcW * scale));
@@ -2216,7 +2241,7 @@ async function applyPenEdit({ image, canvas, img, mark, mode, errorId, applyBtn,
     penApplyBusy = false;
     buttons.forEach((b) => { b.disabled = false; });
     if (applyBtn) applyBtn.textContent = applyBtn.dataset.prevText || "Anwenden";
-    showError("Bearbeiten hat nicht geklappt: " + (e && e.message ? e.message : String(e)) + " — nochmal versuchen?");
+    showError(penFehlerText(e));
   }
 }
 

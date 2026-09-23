@@ -2123,7 +2123,21 @@ function densityInstruction(theme, phase, composition) {
 // Qualitaet 90 visuell gegengeprueft (Live-Test-Bild), keine sichtbaren Kompressionsartefakte an den
 // schwarzen Umrisslinien. Originale (PNG, 1800px) liegen unveraendert in asset-originals-v3/ ausserhalb
 // von public/ (siehe Repo-Root), falls je eine verlustfreie Version wieder gebraucht wird.
-const BACKGROUND_CHARACTER_LIBRARY = Array.from({ length: 13 }, (_, i) => "bgchars/bgchars-" + (i + 1) + ".jpg");
+// GEAENDERT (23.09.2026, Messung des Nutzers mit dev-tools/blatt-stiltor.js): Von 18 gepruefften
+// Blaettern sind DREI durchgefallen, zwei davon aus dieser Bibliothek -- bgchars-5 ("Anime-/
+// Manga-Stil, feinere Linienfuehrung") und bgchars-10 ("Anime-Stil, realistischere Proportionen,
+// plastisch"). Ein Bibliotheksblatt ist genauso ein Stilanker wie ein Figurenblatt: Es geht bei
+// 3-4 von 13 Szenen mit und sagt dem Modell, wie Nebenfiguren auszusehen haben. Ein Blatt im
+// falschen Stil zieht also das ganze Bild mit. Beide sind deshalb DRAUSSEN.
+// Die Dateien bleiben liegen (public/assets/bgchars/bgchars-5.jpg, -10.jpg) -- rueckgaengig ist
+// das eine Zeile hier. Ersatz kommt mit den Jahreszeiten-Sets (docs/konzept-massstab-2026-09-23.md).
+// Folge fuer die Wiederholungs-Mathematik: 3-4 Blaetter aus jetzt 11 statt 13 -- ein einzelnes
+// Blatt taucht damit etwas haeufiger auf (rund 27-36 % statt 23-31 % je Szene). Hinnehmbar; die
+// Alternative waere, den Stilbruch weiter mitzuschicken.
+const BGCHARS_AUSSORTIERT = [5, 10];
+const BACKGROUND_CHARACTER_LIBRARY = Array.from({ length: 13 }, (_, i) => i + 1)
+  .filter((n) => BGCHARS_AUSSORTIERT.indexOf(n) < 0)
+  .map((n) => "bgchars/bgchars-" + n + ".jpg");
 
 // backgroundCharAssetUrl(): fal-proxy.js' isImageRef() verlangt eine ABSOLUTE http(s)-URL oder eine
 // data:-URI (siehe dortiger Kommentar) -- assetPath() liefert bewusst nur einen root-relativen Pfad

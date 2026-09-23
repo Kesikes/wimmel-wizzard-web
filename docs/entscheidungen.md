@@ -448,6 +448,48 @@ Die Zahlen sind klein und die Blätter überlappen sich (3–4 je Bild), das ist
 die Blätter 8 und 9 stehen bei beiden Stilzahlen oben — und ein Bibliotheksblatt ist genauso ein
 Stilanker wie ein Figurenblatt. Das gehört mitgeprüft.
 
+### ERGEBNIS des Blatt-Tests (Messung des Nutzers, 23.09.2026)
+
+Durchgang 1 ist über alle 18 Blätter gelaufen (5 Figurenblätter + 13 Bibliotheksblätter).
+**3 von 18 fallen durch:**
+
+| Blatt | Befund des Stil-Tors |
+|---|---|
+| **B** (Heldin, alter Satz) | anime-artige Schattierung, weiche Farbverläufe an den Haaren |
+| **bgchars-5** | Anime-/Manga-Stil, feinere Linienführung |
+| **bgchars-10** | Anime-Stil, realistischere Proportionen, plastisch |
+
+Alle übrigen bestehen, **auch die neuen Max und Moritz**. Das deckt sich mit der Beobachtung des
+Nutzers: Bauernhof mit A/B/C stilistisch falsch, Urlaub mit Max/Moritz richtig. Damit ist die Frage
+vom 23.09. beantwortet: **Ja, es kann an den Blättern liegen — und hier lag es daran.** Ein „nein"
+wiegt bei dieser Frage besonders schwer, weil sie auf Szenen zugeschnitten und auf Einzelblättern
+ausgesprochen milde ist.
+
+**Gebaut am 23.09.2026: bgchars-5 und bgchars-10 sind aus der Bibliothek.** Ein Bibliotheksblatt
+ist genauso ein Stilanker wie ein Figurenblatt — es geht bei 3–4 von 13 Szenen mit und sagt dem
+Modell, wie Nebenfiguren auszusehen haben. Ein Blatt im falschen Stil zieht das ganze Bild mit.
+`BGCHARS_AUSSORTIERT = [5, 10]` in `pipeline.js`; die Dateien bleiben liegen, rückgängig ist es
+eine Zeile. Ersatz kommt mit den Jahreszeiten-Sets (`docs/konzept-massstab-2026-09-23.md`).
+Preis: 3–4 Blätter aus jetzt **11** statt 13, ein einzelnes Blatt taucht also etwas häufiger auf
+(rund 27–36 % statt 23–31 % je Szene). Hinnehmbar — die Alternative wäre, den Stilbruch weiter
+mitzuschicken.
+
+**Wichtig für die Bewertung der eigenen Zahlen:** Statistisch auffällig waren am 23.09. die Blätter
+**8 und 9** (Ø plastische Gesichter 2,2 / 2,8). Durchgefallen sind aber **5 und 10**. Zwei Signale,
+zwei verschiedene Blätter — die Auffälligkeit von 8 und 9 war bei je 6 Kandidaten vermutlich
+Zufall, und die Messung am Blatt selbst ist die belastbarere Quelle. Die Zahlen je Blatt aus
+Durchgang 2 stehen noch aus.
+
+**Durchgang 2 brach am Antwortlimit ab (behoben 23.09.2026).** Das Limit stand fest auf 4.000
+Token; 18 Blätter mit je einem Begründungssatz passen da nicht hinein. Jetzt läuft die Messung in
+**Häppchen zu 6 Blättern** (die Referenz geht jedes Mal mit), das Limit rechnet sich aus der Zahl
+der Blätter, und ein gescheitertes Häppchen reißt die übrigen nicht mit — es steht dann „nicht
+gemessen" mit Grund, nie eine Zahl. Neuer Aufruf, **ohne Durchgang 1 noch einmal zu bezahlen**:
+
+    NUR_MESSUNG=1 BIBLIOTHEK=1 ANTHROPIC_API_KEY=... node dev-tools/blatt-stiltor.js
+
+`STUECK=4` macht die Häppchen kleiner, `LIMIT=20000` setzt das Antwortlimit fest.
+
 **GEBAUT am 23.09.2026 (Nutzer: „ja, bauen und laufen lassen"): `dev-tools/blatt-stiltor.js`**
 
 Misst den Stil der **Blätter selbst** gegen die Stilreferenz. **Kein Bildaufruf**, nur Textaufrufe
@@ -1289,6 +1331,104 @@ Durchsicht des ganzen Codes am 22.09.2026 (`api/`, `public/js/`; `dev-tools/` ni
 
 Bereits behoben: `violations: 99` im Szenen-Pfad (20.09.), Richter-Body (20.09.), Speichern und
 Kopfzeile (22.09., Abschnitt 10). Nichts aus der Liste oben ist gebaut.
+
+### GEPRÜFT und GEBAUT (23.09.2026): der 413 im Kontrollversuch — und warum das Produkt NICHT betroffen war
+
+Befund des Nutzers: Der Zwei-Kringel-Versuch brach mit **Fehler 413 (zu groß)** ab, ohne Bildaufruf
+und ohne Kosten. Seine Frage: Trifft das auch den Stift im Produkt? Das wäre ein stiller Fehler.
+
+**Nein — und die Ursache lag bei mir.** Die Testseite hat die markierte Kopie in voller Auflösung
+geschickt (4K, Qualität 0,92); eine Vercel-Funktion nimmt höchstens 4,5 MB Anfragekörper. Der
+**Stift im Produkt macht das nicht**: `captureAnnotatedImage()` verkleinert seit jeher auf 1800 px
+und drückt die JPEG-Qualität schrittweise, bis der Bild-String unter 3,5 MB liegt. Nachgemessen an
+einem vergleichbaren Wimmelbild:
+
+| Kopie | Datei | als data-URI | Grenze |
+|---|---|---|---|
+| 1800 px, q 0,85 (bisher live) | 495 KB | **660 KB** | 4.608 KB |
+| 1200 px, q 0,85 (jetzt live) | 282 KB | **377 KB** | 4.608 KB |
+| 4K, q 0,92 (nur die Testseite) | ≥ 1,6 MB | ≥ 2,2 MB, real mehr | überschritten |
+
+Ich hatte im Register geschrieben, die Testseite laufe „über denselben Weg wie der Stift live".
+Genau an dieser einen Stelle tat sie es nicht. Das ist korrigiert.
+
+**Trotzdem geändert, weil es sachlich falsch stand:** Die Markierungskopie ist seit dem 22.09. nur
+noch ein **Zeiger** — bearbeitet wird das Original über seine URL (`PEN_ZWEI_BILDER`). Dafür braucht
+sie keine 1800 px. `MAX_DIM` steht jetzt auf **1200**: halb so große Anfrage, schneller, und kein
+Qualitätsverlust, weil an dieser Kopie nichts gezeichnet wird. Die 1800 stammten noch aus der Zeit,
+als diese Kopie das bearbeitete Bild war.
+
+**Was die Kundin sieht (Nutzer: „‚Fehler 413' versteht niemand"):** Bisher stand da
+„Bearbeiten hat nicht geklappt: Antwort war kein gültiges JSON (Status 413): … — nochmal
+versuchen?". Jetzt übersetzt `penFehlerText()` die drei Fälle, die sie selbst lösen kann:
+
+| Fall | Text |
+|---|---|
+| 413 / zu groß | „Die Markierung war zu groß zum Verschicken. Probier es mit einem kleineren Kringel noch einmal — und sag Matthias Bescheid, das sollte nicht passieren." |
+| 429 / Grenze erreicht | „Gerade waren es zu viele Korrekturen hintereinander. Warte einen Moment und probier es dann noch einmal." |
+| Verbindung weg | „Die Verbindung ist kurz abgerissen. Dein Bild ist unverändert da — probier es gleich noch einmal." |
+
+Alles andere behält den allgemeinen Satz **samt** technischer Meldung — die braucht Matthias im
+Support. **Regel daraus, gehört auf die Launch-Liste:** Eine rohe Server- oder HTTP-Meldung darf
+nie unübersetzt in der App stehen. Die Stift-Korrektur ist jetzt die erste Stelle, die das
+einhält; die übrigen Fehlerpfade (Zaubern, Figuren zeichnen, Nachschärfen, Speichern) sind noch
+nicht durchgegangen.
+
+### OFFEN (Einschätzung 23.09.2026, nichts gebaut): ein misslungenes Figurenblatt neu zeichnen lassen
+
+Frage des Nutzers nach dem Befund zu Blatt B: Gibt es dafür heute einen Weg?
+
+**Heute gibt es ihn nicht — und der Knopf, der so aussieht, macht es schlimmer.**
+
+| Was es gibt | Was es tut | Taugt es gegen einen Stilbruch? |
+|---|---|---|
+| **„Nachschärfen"** | schickt das **bestehende** Blatt als Eingangsbild an `nano-banana-2/edit` mit einem Freitextwunsch | **Nein.** Dieser Pfad läuft **ohne** unser wmlstil-LoRA (`generateImage(..., "char", { editImageUrl })`). Ein Blatt im falschen Stil bleibt im falschen Stil — der Edit kann ihn sogar festigen. |
+| **„… löschen"** + Figur neu anlegen | erzeugt ein neues Blatt über den richtigen Text-zu-Bild-Pfad (`flux-lora` + LoRA) | Ja, aber teuer bedient: Name und Merkmale müssen neu eingegeben werden — und bei einer **Foto-Figur** muss das Foto erneut hochgeladen werden, denn es wird (Datenschutzversprechen) nie gespeichert. |
+
+**Vorschlag (klein, ein Knopf):** „Noch einmal zeichnen" neben „Nachschärfen". Er ruft denselben
+Text-zu-Bild-Pfad auf, der die Figur erzeugt hat, mit **neuem Zufallswert** — dieselbe Figur, neu
+gewürfelt, ohne Eingaben und ohne Foto.
+
+- Dafür muss **eine Kleinigkeit gespeichert werden**, die heute fehlt: der Figuren-Prompt
+  (`charPromptFromChips(...)`) am Personendatensatz. Rund 1,5 KB je Figur, bei fünf Figuren also
+  etwa 7 KB — gegenüber der 1-Million-Zeichen-Grenze des gespeicherten Standes (Abschnitt 10)
+  unerheblich. Das Foto bleibt ungespeichert: Der Prompt enthält nur die daraus gezogene
+  Textbeschreibung, wie `sceneDescription` heute auch.
+- Kosten: ein Figurenlauf, also so viel wie die erste Erzeugung. Für den Wiederholungsfall würde
+  ich **einen** Kandidaten statt zweier vorschlagen — die Kundin sieht ihn sofort und kann nochmal
+  drücken.
+- Zusatznutzen weit über den Stilbruch hinaus: „gefällt mir nicht, bitte nochmal" ist der
+  natürlichste Wunsch überhaupt und hat heute keine Antwort.
+
+### OFFEN (Einschätzung 23.09.2026, nichts gebaut): Stil des Blattes direkt nach dem Erzeugen prüfen
+
+Frage des Nutzers: Wäre ein Aufruf je Figur, einmalig, besser als Ärger bei jedem Bild?
+
+**Ja, und das Verhältnis ist deutlich.** Ein Figurenblatt geht in **jede** Szene dieses Buches ein.
+Blatt B hat nach heutigem Stand vermutlich alle Bauernhof-Bilder der Sitzung mitgezogen — bei
+0,30 $ Bildkosten je Szene plus Zeit und Ärger. Ein einmaliger Prüfaufruf je Figur kostet
+Cent-Beträge.
+
+**Was es heute schon gibt und warum es nicht reicht:** Nach jeder Figurenerzeugung läuft bereits
+eine Prüfung (`buildCharacterVerifyPrompt()`, gemini über fal) mit vier Feldern — `single_ok`,
+`complete_ok`, `mouth_ok`, `style_ok`. Sie hat Blatt B durchgelassen, und das ist kein Zufall: Ihr
+`style_ok` ist **absichtlich** milde formuliert („im Zweifel … gilt style_ok als true"), weil sie
+einmal wegen Fehlalarmen entschärft wurde (Vorfall 12.09.2026). Sie prüft außerdem gegen eine
+**Beschreibung**, nicht gegen die Referenz.
+
+**Vorschlag:** Nach der Erzeugung zusätzlich **das Stil-Tor** auf das Blatt — derselbe Aufruf, den
+`dev-tools/blatt-stiltor.js` macht: claude-sonnet-5, Blatt gegen die Stilreferenz, ein Aufruf je
+Figur. Bei „nein" kein stilles Verwerfen, sondern ein ehrlicher Satz plus der „Noch einmal
+zeichnen"-Knopf von oben: *„Diese Zeichnung ist stilistisch daneben geraten — soll ich sie noch
+einmal zeichnen?"* Die Entscheidung bleibt bei der Kundin; ein automatischer Neulauf würde bei
+einem Fehlalarm ungefragt Geld ausgeben.
+
+**Vorbehalt, ehrlich:** Der Wortlaut des Stil-Tors ist auf **Szenen** zugeschnitten („wenn VIELE
+Figuren anders gezeichnet sind … einzelne Abweichungen sind noch ein ja") und auf einem Blatt mit
+einer Figur entsprechend milde. Er hat B, bgchars-5 und bgchars-10 trotzdem gefunden — das spricht
+dafür, dass er als **Alarm** taugt (wenige Fehlalarme). Wie viele echte Brüche er übersieht, ist
+**nicht gemessen**. Vor dem Einbau als verbindliche Hürde gehört deshalb die 90-%-Regel erfüllt:
+erst an einer Handvoll Blätter gegen dein Urteil messen, dann entscheiden.
 
 ### VOR DEM LAUNCH: Promptlänge mit 5 Helden
 
