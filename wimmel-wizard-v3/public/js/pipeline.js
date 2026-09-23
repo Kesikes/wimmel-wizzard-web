@@ -3368,6 +3368,34 @@ function sceneComposeInstruction(promptText) {
 // Die Loesung braucht keine neue Verkabelung: severityOf() ueberspringt depth_ratio, wenn der Wert
 // keine positive Zahl ist (siehe dort) -- fuer cutaway/gridhouse fordert der Prompt deshalb
 // ausdruecklich null an.
+// NEU (23.09.2026, Nutzer-Entscheidung zu D: "Kurze eigene Prueffrage nur fuer heroes_found und
+// heroes_x: ja, bauen. Nicht den ganzen Pruef-Prompt am Bild mitspeichern."):
+// Nach einer Stift-Korrektur ist die volle Pruefung des Kandidaten hinfaellig -- applyPenEdit()
+// setzt verify auf null, weil nichts Gemessenes wie ein Messwert aussehen darf. Gerade beim
+// VERSETZEN einer Figur ist aber genau eine Frage wichtig: kommt jetzt jede benannte Figur genau
+// einmal vor, und wo steht sie? Diese kurze Frage stellt nur das -- zwei Felder statt zwoelf.
+// Sie wird aus dem am Bild gespeicherten heldenInfo neu gebaut (Namen, Beschreibungen,
+// Blatt-URLs), damit der lange Pruef-Prompt NICHT je Bild mitgespeichert werden muss; genau daran
+// ist das Speichern am 22.09.2026 schon einmal gescheitert (Grenze 1.000.000 Zeichen).
+// Wortlaut bewusst so nah wie moeglich an den Punkten 1 und 11 von buildVerifyPrompt() -- eine
+// andere Formulierung waere eine andere Frage und damit nicht mit den frueheren Zahlen vergleichbar.
+function buildHeldenPruefPrompt(helden) {
+  const n = (helden || []).length;
+  const names = (helden || []).map((h) => h.name).join(", ");
+  const refMapping = n
+    ? " Die danach folgenden " + n + " Bild(er) zeigen zum Vergleich das bereits festgelegte Design der benannten Charaktere, in dieser Reihenfolge: " +
+      helden.map((h, i) => "Bild " + (i + 2) + " = " + h.name).join(", ") + "."
+    : "";
+  return [
+    "Du prüfst ein Wimmelbild für ein Kinderbuch. Das ERSTE Bild ist die zu prüfende Szene." + refMapping,
+    "Beantworte NUR diese zwei Punkte, sonst nichts.",
+    "1. HELDEN, ZÄHLUNG: Geh das Bild Raum für Raum beziehungsweise Bereich für Bereich systematisch durch und zähle für JEDE der " + n + " benannten Figuren (" + names + ") EINZELN, wie oft sie im Bild vorkommt. Eine Figur gilt als dieselbe, wenn Frisur, Haarfarbe und das wichtigste Kleidungsstück übereinstimmen -- auch wenn sie etwas anderes tut oder in einem anderen Raum steht. Antworte im Feld heroes_found mit einer Liste von " + n + " ganzen Zahlen, in genau der Reihenfolge der Referenzbilder (" + names + "): 0 heißt, die Figur fehlt, 1 heißt genau einmal vorhanden, 2 oder mehr heißt mehrfach. Rate nicht -- wenn du unsicher bist, zähle lieber ein zweites Mal.",
+    "Wo die Figuren im Bild stehen, ist ausdrücklich FREI: vorne groß, im Mittelgrund oder klein im Hintergrund, auch abseits vom Zentrum. Das ist so gewollt und kein Fehler.",
+    "2. LAGE (nur Messung): Gib für JEDE der " + n + " Figuren, in derselben Reihenfolge, an, wo ihre Körpermitte waagerecht im Bild steht: 0 ist der linke Bildrand, 100 der rechte, 50 die genaue Mitte. Kommt eine Figur mehrmals vor, nimm die Stelle, an der sie am deutlichsten zu sehen ist; fehlt sie, schreib -1. Antworte im Feld heroes_x mit einer Liste von " + n + " ganzen Zahlen.",
+    "Antworte NUR als JSON-Objekt mit genau diesen drei Feldern, notiz als LETZTES: {\"heroes_found\": [Zahlen], \"heroes_x\": [Zahlen], \"notiz\": \"kurzer Text\"}. In notiz steht bei einer Zahl ungleich 1, welche Figur betroffen ist und was du gesehen hast.",
+  ].join(" ");
+}
+
 function buildVerifyPrompt(heroSpecs, phaseId, compositionId) {
   const phase = SCENE_PHASES[phaseId] || SCENE_PHASES[ACTIVE_SCENE_PHASE];
   const querschnitt = compositionId === "cutaway" || compositionId === "gridhouse";
@@ -4390,6 +4418,7 @@ window.Pipeline = {
   sideViewEditInstruction, backViewEditInstruction,
   kontextInstruction, photoStyleInstruction, traitBitFromPhotoDescription, describePhotoTraits,
   PEN_INSTRUCTION_REMOVE, PEN_INSTRUCTION_REDO, PEN_INSTRUCTION_FIGUR, PEN_INSTRUCTION_FIGUR_OHNE_MARKE, PEN_ZWEI_BILDER, penBildAnweisung,
+  buildHeldenPruefPrompt,
   resizeImageToDataUri, generateImage, generateImageWithRetry, verifyImage, countViolations,
   richterReferenzUrl, SCENE_PHASES, ACTIVE_SCENE_PHASE, DEPTH_MIN_RATIO, SCALE_MIN_FIT, PROMPT_VERSION, PROMPT_LABEL, promptFingerprint, BILD_FASSUNG, PRUEF_FASSUNG, bildFingerprint, pruefFingerprint, heroRef, HERO_REF_START, lichtBlock, lichtKeywords, VERIFY_MAX_VERSUCHE, PRUEF_VERHALTEN, severityOf, compareSeverity, isGoodEnough,
   COMPOSITION_TYPES, pickComposition, querschnittVerboten, chatOrtTyp, layerSizeText,

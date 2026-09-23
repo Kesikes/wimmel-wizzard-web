@@ -327,8 +327,28 @@ optional. Ohne zweiten Kringel bleibt es beim Satz — und die App sagt ehrlich 
 dann doppelt sein kann.
 
 Die Alternative — zweimal nacheinander („Weg damit", dann „Hierher") — braucht keine neue Technik,
-kostet aber zwei Aufrufe (0,30 $) und zwei Wartezeiten. Der Zwei-Farben-Weg ist **nicht getestet**;
-ein einziges Kontrollbild (0,15 $) zeigt, ob das Modell die Farben auseinanderhält.
+kostet aber zwei Aufrufe (0,30 $) und zwei Wartezeiten.
+
+**Entscheidung des Nutzers, 23.09.2026:** „Zwei Kringel, rot = weg, grün = hierher: ja, bauen. ABER
+zuerst der Kontrollversuch für 0,15 $, ob das Modell die Farben auseinanderhält. Erst danach die
+Bedienung."
+
+**Gebaut: `wimmel-wizard-v3/public/zwei-kringel-test.html`** — eine eigenständige Seite, die genau
+diesen einen Versuch macht und sonst nichts. Bildadresse eines fertigen Wimmelbilds einsetzen, einen
+roten und einen grünen Kringel malen, abschicken. Sie läuft über **denselben Weg wie der Stift
+live**: Das Originalbild geht unverändert als zu bearbeitendes Bild an fal, die markierte Kopie nur
+als Zeiger (data-URI), dazu die Stilreferenz — ein Aufruf, rund 0,15 $. Dadurch überträgt sich das
+Ergebnis unmittelbar auf das Produkt.
+
+- Adresse nach dem Deploy: `/zwei-kringel-test.html`. Die Seite trägt `noindex` und schickt erst auf
+  Knopfdruck etwas ab.
+- **Nach dem Versuch löschen** — sie liegt nur deshalb in `public/`, weil `/api/fal-proxy` und
+  `/api/image-proxy` gleicher Herkunft erreichbar sein müssen.
+- Zu prüfen ist dreierlei: Ist die Figur an der **roten** Stelle weg? Ist sie an der **grünen** da?
+  Sind **beide Kringel** aus dem Ergebnis verschwunden?
+- Erst wenn das sitzt, kommt die Bedienung ins Stift-Panel (zweiter Kringel, Farbumschalter,
+  Hinweistext). Bis dahin ist das Versetzen weiter zweistufig möglich: erst „Weg damit", dann
+  „Hierher".
 
 ### GEPRÜFT (23.09.2026): Läuft die Prüfung nach einer Stift-Korrektur neu?
 
@@ -353,6 +373,24 @@ Was es kosten würde, sie nur für `heroes_found` erneut laufen zu lassen:
      Stand wächst um mehrere Kilobyte je Bild, und genau daran ist das Speichern am 22.09. schon
      einmal gescheitert (Grenze 1.000.000 Zeichen, Abschnitt 10).
 
+**Entscheidung des Nutzers, 23.09.2026: Weg 1, gebaut.** „Kurze eigene Prüffrage nur für
+heroes_found und heroes_x: ja, bauen. Nicht den ganzen Prüf-Prompt am Bild mitspeichern."
+
+- `buildHeldenPruefPrompt(helden)` in `pipeline.js`: drei Felder statt zwölf
+  (`heroes_found`, `heroes_x`, `notiz`). Wortlaut bewusst **so nah wie möglich** an den Punkten 1
+  und 11 der großen Prüfung — eine andere Formulierung wäre eine andere Frage und mit den früheren
+  Zahlen nicht mehr vergleichbar.
+- `heldenNachpruefen()` in `szene.js` läuft nach jeder erfolgreichen Stift-Korrektur, **ein**
+  Prüfaufruf. Die Helden und ihre Blätter kommen aus dem am Bild gespeicherten `heldenInfo`
+  (der Stand, mit dem dieses Bild entstanden ist), ersatzweise aus den Figuren der Sitzung — und
+  dann steht diese Quelle ausdrücklich im Panel.
+- Das Ergebnis liegt als eigenes Feld `heldenPruefung` am gewählten Kandidaten, **nicht** als
+  `verify`: Sonst sähe eine halbe Prüfung aus wie eine ganze. Die volle Wertung bleibt leer.
+- Scheitert der Aufruf, scheitert die Korrektur **nicht** — das Bild ist da, die Zählung ist eine
+  Zugabe. Im Panel steht dann der Grund, nie eine Zahl.
+- Das Panel zeigt: „Nach der Stift-Korrektur (nur Heldenzählung, nicht die volle Prüfung)" mit der
+  Zahl je Figur und der Lage 0–100.
+
 ### BEFUND (23.09.2026, ohne neue Aufrufe): Liegt der Stilbruch an den Figurenblättern?
 
 Frage des Nutzers zum Bauernhof-Bild mit A/B/C im falschen Stil, während ein Urlaubsbild mit zwei
@@ -363,15 +401,22 @@ Sitzung (`docs/ref/sitzung.json`, 34 Bilder, 68 Kandidaten) und alle Vergleichsl
 **denselben** Figurensatz A/B/C. Es gibt keine Vergleichsgruppe. Eine Korrelation zu behaupten wäre
 erfunden.
 
-**2. Was die Daten sagen, spricht eher GEGEN die Blätter.** In diesen 68 Kandidaten mit A/B/C:
+**2. Was die Daten sagen, spricht eher gegen die Blätter — aber schwächer, als ich am 23.09. zuerst
+geschrieben hatte.** Korrektur derselben Zahlen, nachgezählt auf dem aktuellen Stand der Sicherung
+(35 Bilder, 70 Kandidaten): **Nur 14 Kandidaten haben überhaupt ein Stil-Tor-Urteil** — bei den
+übrigen 56 lief das Stil-Tor nicht (Schalter aus oder ältere Fassung). Eine Quote aus 68 zu bilden,
+von denen 56 nie geprüft wurden, war falsch.
 
 | | |
 |---|---|
-| Stil-Tor „nein" | **1 von 68** |
-| `shaded_of_ten` ≥ 3 | 2 von 68 |
-| `mouths_of_ten` ≥ 3 | 8 von 68 |
+| Stil-Tor „nein" | **2 von 14 mit Urteil** (die anderen 56 ohne Urteil) |
+| `shaded_of_ten` ≥ 3 | 3 von 59 mit Prüfung |
+| `mouths_of_ten` ≥ 3 | 9 von 59 |
+| `shaded_of_ten` ≥ 8 (neue Regel) | 2 von 59 |
+| `mouths_of_ten` ≥ 8 (neue Regel) | 4 von 59 |
 
-Ein Figurensatz, der den Stil systematisch kippt, sähe anders aus.
+Ein Figurensatz, der den Stil **systematisch** kippt, sähe anders aus — aber 2 von 14 ist kein
+Freispruch, sondern nur eine zu kleine Zahl für eine Aussage.
 
 **3. Der Verdacht „Foto-Figuren sind weniger wmlstil" trifft nicht mehr zu.** Seit dem 15.09.2026
 läuft **auch** der Foto-Weg über `flux-lora` mit unserem wmlstil-LoRA; das Foto liefert nur noch
@@ -385,15 +430,47 @@ Gesicht." Figur C ist der bärtige Erwachsene, und `shaded_of_ten` zählt ausdr�
 Bartstoppeln oder Schattierung auf Wangen, Kinn oder Hals". Ein Bart ist damit der plausibelste
 einzelne Auslöser — bei 2 von 68 Fällen aber kein Beleg, sondern eine Spur.
 
-**Wie es sich ohne Bildaufruf klären lässt (Vorschlag, nicht gebaut):** Das Stil-Tor vergleicht
-jedes Bild gegen die Stilreferenz. Es lässt sich genauso auf die **Figurenblätter selbst** loslassen
-— die drei alten und die zwei neuen. Das sind fünf Aufrufe an claude-sonnet-5, **kein einziger
-Bildaufruf**, Kosten im Cent-Bereich. `dev-tools/stiltor-messen.js` macht das für Kandidaten schon;
-eine kleine Variante für beliebige Blatt-URLs ist schnell gebaut. Vorbehalt: Die Blätter liegen auf
-`fal.media`; ob die URLs noch abrufbar sind, zeigt der erste Aufruf.
+**5. Eine zweite Spur, die in denselben Daten steckt: die BIBLIOTHEKS-Blätter.** Bei 14 Bildern ist
+gespeichert, welche der 13 Hintergrund-Blätter mitgeschickt wurden (`heldenInfo.gewaehlt`). Über die
+28 zugehörigen Kandidaten gemittelt:
 
-**Was dafür gebraucht wird:** die gesicherte Sitzung mit den **neuen** Figuren (TROCKEN). Erst
-damit gibt es zwei Gruppen und die Frage ist überhaupt beantwortbar.
+| Blatt | Kandidaten | Ø plastische Gesichter | Ø Münder |
+|---|---|---|---|
+| 8 | 6 | **2,17** | **2,50** |
+| 9 | 6 | **2,83** | **2,83** |
+| 11 | 18 | 1,44 | 1,72 |
+| 10 | 8 | 1,50 | 1,63 |
+| 3 | 20 | 0,70 | 1,10 |
+| 2 | 12 | 0,33 | 0,75 |
+| 1, 7 | je 2 | 0,00 | 0,00 |
+
+Die Zahlen sind klein und die Blätter überlappen sich (3–4 je Bild), das ist **kein Beweis**. Aber
+die Blätter 8 und 9 stehen bei beiden Stilzahlen oben — und ein Bibliotheksblatt ist genauso ein
+Stilanker wie ein Figurenblatt. Das gehört mitgeprüft.
+
+**GEBAUT am 23.09.2026 (Nutzer: „ja, bauen und laufen lassen"): `dev-tools/blatt-stiltor.js`**
+
+Misst den Stil der **Blätter selbst** gegen die Stilreferenz. **Kein Bildaufruf**, nur Textaufrufe
+an claude-sonnet-5, Cent-Bereich. Zwei Durchgänge, absichtlich getrennt:
+
+1. Die **Live-Frage des Stil-Tors** (`STIL_TOR_FRAGE_A`), Blatt für Blatt. Vorbehalt, der auch in
+   der Ausgabe steht: Diese Frage ist auf **Szenen** zugeschnitten („wenn VIELE Figuren anders
+   gezeichnet sind … einzelne Abweichungen sind noch ein ja"). Auf einem Blatt mit EINER Figur ist
+   sie milde — ein „ja" beweist wenig, ein „nein" dagegen viel.
+2. **Ein** Aufruf mit Referenz und allen Blättern zusammen, der je Blatt **Zahlen** meldet (Kontur,
+   Flächigkeit, Haare, Mund, Nasenstrich, Gesichtsschattierung). Das Modell misst, der Code stellt
+   die Gruppen gegenüber. Erst das beantwortet „unterscheiden sich alt und neu?".
+
+Aufruf (braucht den Anthropic-Schlüssel, liegt bei Matthias — **Claude kann es nicht selbst
+laufen lassen**):
+
+    TROCKEN=1 node dev-tools/blatt-stiltor.js                      zeigt nur, was liefe
+    ANTHROPIC_API_KEY=… node dev-tools/blatt-stiltor.js            die fünf Figurenblätter
+    BIBLIOTHEK=1 ANTHROPIC_API_KEY=… node dev-tools/blatt-stiltor.js   dazu die 13 Bibliotheksblätter
+
+Rohdaten landen in `docs/ref/blatt-stiltor-roh.json`. Die Blätter gehen als **URL** an Anthropic,
+das Bild wird also dort geladen — dass `fal.media` aus Claudes Umgebungen nicht erreichbar ist,
+spielt keine Rolle.
 
 ### GÜLTIG (Produktentscheidung des Nutzers, 21.09.2026): die Kundin entscheidet
 
@@ -566,6 +643,55 @@ Bibliotheksfigur.
 
 `heroes_found` steht bis zur Klärung auf **mittel** statt schwer, damit ein Kriterium, das derzeit
 fast immer anschlägt, kein Geld ausgibt. Zurück auf schwer, sobald die Ursache behoben ist.
+
+---
+
+### VOR DEM LAUNCH (Befund des Nutzers, 23.09.2026): fast jedes zweite Bild hat einen doppelten Helden
+
+> „29 von 61 Kandidaten und 21 von 34 Bildern haben einen doppelten Helden, meist Figur C. Fast
+> jedes zweite Bild, trotz der Einmal-Sätze und des exklusiven Merkmals." (Nutzer)
+
+Nachgezählt auf dem aktuellen Stand der Sicherung (`docs/ref/sitzung.json`, 35 Bilder):
+
+| | |
+|---|---|
+| Kandidaten mit mindestens einem doppelten oder fehlenden Helden | **29 von 63 geprüften** |
+| betroffene Bilder | **21 von 35** |
+| meistbetroffen | Figur C (bärtiger Erwachsener) |
+
+Das ist der **größte offene Qualitätsmangel** im Produkt, und er besteht **trotz** aller bisherigen
+Gegenmittel: `allCharactersRule()` am Prompt-Ende, der Einmal-Satz je Held, das exklusive Merkmal
+aus dem Figurenblatt (`helden=neu`, Grundstand) und der Blattfilter, der Bibliotheks-Doppelgänger
+aussortiert. Die Zählung `heroes_found` **findet** die Dopplung zuverlässig — sie verhindert sie nur
+nicht, und sie löst auch keinen dritten Kandidaten mehr aus (Produktentscheidung 21.09.).
+
+**Wie es vorerst gelöst wird (Entscheidung des Nutzers, 23.09.2026):** über den Stift. Eine doppelte
+Figur ist mit „Weg damit" schon heute in einem Zug zu entfernen; steht sie an der falschen Stelle,
+kommt das Versetzen mit zwei Kringeln dazu, sobald der Kontrollversuch sitzt (Abschnitt 4). Das ist
+die **praktische** Antwort, nicht die Ursache.
+
+**Die Ursachensuche in der Erzeugung ist ausdrücklich vertagt** (Nutzer: „heben wir uns auf"). Was
+für sie bereitliegt, ohne dass jemand danach suchen muss:
+
+- Die Zahlen oben sind eine **Grundlinie**. Jede spätere Prompt-Änderung lässt sich daran messen,
+  ohne neue Bilder: `heroes_found` steht an jedem gespeicherten Kandidaten.
+- Figur C ist überproportional betroffen. C ist der einzige Erwachsene **mit Bart** — dasselbe
+  Merkmal, das auch bei den Stilbefunden immer wieder auftaucht (Abschnitt 17).
+- Ein naheliegender Verdacht: Die Bibliotheks-Blätter enthalten selbst erwachsene Männer mit
+  grauem Haar und Bart. Der Blattfilter erkennt das (`haetteEntfernt` nennt genau solche Fälle),
+  ist aber im Grundstand **aus** (Abschnitt 9) — abgeschaltet, weil mit nur 3–4 von 13 Blättern der
+  Stil-Anker schwächer wurde. **Am 23.09. nachgerechnet, ohne einen einzigen neuen Aufruf:** In den
+  14 Bildern mit gespeicherter Blattwahl steht `filterAn` **immer** auf false, ein Vorher/Nachher
+  gibt es also nicht. Vergleichbar ist nur, ob ein Blatt dabei war, das der Filter entfernt *hätte*:
+
+  | | Kandidaten mit Dopplung |
+  |---|---|
+  | mindestens ein Doppelgänger-Blatt dabei | 6 von 14 (43 %) |
+  | kein solches Blatt | 10 von 14 (71 %) |
+
+  Die Richtung ist die **entgegengesetzte** der Vermutung, und bei 14 gegen 14 Kandidaten ist das
+  Zufall, kein Befund. Festzuhalten bleibt: Die Bibliotheks-Doppelgänger sind nach dieser Zahl
+  **nicht** die Erklärung. Wer die Ursache sucht, fängt woanders an.
 
 ---
 

@@ -1493,6 +1493,22 @@ function buildDebugDetails(image) {
       (Array.isArray(gruendeBand) ? (drin ? " → im Bereich" : " → außerhalb") : "") +
       "\n    (zählt in den Zahlen oben WEITER als mittlerer Verstoß mit — nicht gemessen ist, ob die Schätzung oder die Forderung danebenliegt)";
   }
+  // NEU (23.09.2026): nach einer Stift-Korrektur steht die volle Wertung auf null (nichts Gemessenes
+  // soll wie ein Messwert aussehen). Stattdessen laeuft die KURZE Heldenfrage -- ihr Ergebnis steht
+  // hier, klar als das gekennzeichnet, was es ist: zwei Felder, nicht die ganze Pruefung.
+  function nachKorrekturText(bild) {
+    const a = Array.isArray(bild.angebot) ? bild.angebot[bild.gewaehlt || 0] : null;
+    if (!a || (!a.korrigiert && !a.heldenPruefung)) return "";
+    const h = a.heldenPruefung;
+    if (!h) return "Nach der Stift-Korrektur: keine Nachprüfung gespeichert (Bild vor 2026-09-23a korrigiert).\n";
+    if (h.fehler) return "Nach der Stift-Korrektur: Heldenzählung NICHT GEMESSEN — " + h.fehler + "\n";
+    const namen = h.namen || [];
+    const teile = (h.heroes_found || []).map((z, i) => (namen[i] || ("Held " + (i + 1))) + " " + z + (Number(z) === 1 ? "" : " ← "));
+    const lage = (h.heroes_x || []).map((x, i) => (namen[i] || ("Held " + (i + 1))) + " " + x).join(", ");
+    return "Nach der Stift-Korrektur (nur Heldenzählung, nicht die volle Prüfung; Quelle " + (h.quelle || "?") + "):\n" +
+      "    gefunden: " + teile.join(", ") + "\n" +
+      "    Lage (0 links, 100 rechts): " + lage + (h.notiz ? "\n    Notiz: " + h.notiz : "") + "\n";
+  }
   function gruendeText(v) {
     if (!v || !window.Pipeline || !Pipeline.severityOf) return "(keine Wertung)";
     const s = Pipeline.severityOf(v, gruendeBand);
@@ -1642,6 +1658,7 @@ function buildDebugDetails(image) {
     "Prüf-Fassung:   " + fassung(image.pruefFassung, "PRUEF_FASSUNG") + "\n" +
     "Verstöße im gewählten Kandidaten: " + (image.violations != null ? image.violations : "?") + "\n" +
     "Wertung: " + (ungeprueftText(gewaehlterKandidat(image)) || gruendeText(image.verify)) + "\n" +
+    nachKorrekturText(image) +
     "Verify-JSON: " + verifyText + "\n" +
     (richterBlock ? "\n" + richterBlock + "\n" : "") + "\n" +
     heldenBlock + "\n\n" +
@@ -2048,6 +2065,56 @@ let penApplyBusy = false;
 // gegengeprueft, und der bereits vorhandene "Bitte einmal gegenchecken"-Hinweis (Punkt C3+C4, siehe
 // Screens.ergebnis.render()) greift dadurch automatisch auch hier, statt eine ungeprüfte Korrektur
 // stillschweigend als endgueltig sauber darzustellen.
+// NEU (23.09.2026, Nutzer-Entscheidung D): die kurze Heldenpruefung nach einer Stift-Korrektur.
+// EIN Pruefaufruf (dieselbe Sorte, die nach jeder Generierung ohnehin laeuft), zwei Felder statt
+// zwoelf. Der Prompt wird aus dem am Bild gespeicherten heldenInfo neu gebaut -- der lange
+// Pruef-Prompt wird ausdruecklich NICHT je Bild mitgespeichert (der gespeicherte Stand ist
+// gedeckelt, siehe standFuerServer() in pipeline.js).
+// Das Ergebnis landet als eigenes Feld heldenPruefung am Kandidaten, NICHT als verify: sonst saehe
+// eine halbe Pruefung wie eine ganze aus. Scheitert sie, steht der Grund drin, nie eine Zahl.
+async function heldenNachpruefen(imageId, neueUrl) {
+  const bild = (AppState.data.images || []).find((b) => b.id === imageId);
+  if (!bild) return;
+  const idx = bild.gewaehlt || 0;
+  const setze = (wert) => {
+    const akt = (AppState.data.images || []).find((b) => b.id === imageId);
+    if (!akt || !Array.isArray(akt.angebot) || !akt.angebot[idx]) return;
+    AppState.updateImage(imageId, { angebot: akt.angebot.map((a, i) => (i === idx ? Object.assign({}, a, { heldenPruefung: wert }) : a)) });
+  };
+  // Helden und ihre Blaetter: bevorzugt aus heldenInfo (das ist der Stand, mit dem DIESES Bild
+  // entstanden ist), sonst aus den heutigen Figuren der Sitzung -- dann steht das auch dabei.
+  const info = bild.heldenInfo && Array.isArray(bild.heldenInfo.helden) ? bild.heldenInfo.helden : null;
+  const leute = (AppState.data.people || []).filter((p) => p.status === "done" && p.imageUrl);
+  let helden, blaetter, quelle;
+  if (info && info.length) {
+    helden = info.map((h) => ({ name: h.name }));
+    blaetter = info.map((h) => { const p = leute.find((x) => (x.name || "") === h.name); return p ? p.imageUrl : null; });
+    quelle = "heldenInfo";
+  } else if (leute.length) {
+    helden = leute.map((p) => ({ name: p.name || "Figur" }));
+    blaetter = leute.map((p) => p.imageUrl);
+    quelle = "Figuren der Sitzung (heldenInfo fehlt an diesem Bild)";
+  } else {
+    setze({ fehler: "Keine Figuren gefunden — die Heldenzählung konnte nicht gestellt werden.", am: new Date().toISOString() });
+    return;
+  }
+  if (blaetter.some((u) => !u)) {
+    setze({ fehler: "Zu mindestens einer Figur fehlt das Blatt — ohne Referenzbilder wäre die Zählung geraten.", am: new Date().toISOString() });
+    return;
+  }
+  try {
+    const prompt = Pipeline.buildHeldenPruefPrompt(helden);
+    const roh = await Pipeline.verifyImage([neueUrl].concat(blaetter), prompt);
+    const m = String(roh || "").match(/\{[\s\S]*\}/);
+    if (!m) throw new Error("Antwort ohne lesbares JSON");
+    const p = JSON.parse(m[0]);
+    setze({ heroes_found: p.heroes_found, heroes_x: p.heroes_x, notiz: p.notiz || "",
+      namen: helden.map((h) => h.name), quelle, am: new Date().toISOString() });
+  } catch (e) {
+    setze({ fehler: String((e && e.message) || e), quelle, am: new Date().toISOString() });
+  }
+}
+
 async function applyPenEdit({ image, canvas, img, mark, mode, errorId, applyBtn, cancelBtn, exitBtn, figur }) {
   if (penApplyBusy) return;
   const errorEl = () => document.getElementById(errorId);
@@ -2135,6 +2202,13 @@ async function applyPenEdit({ image, canvas, img, mark, mode, errorId, applyBtn,
     }
     AppState.updateImage(image.id, patch);
     mark.clear();
+    // NEU (23.09.2026, Nutzer-Entscheidung D): nach der Korrektur die KURZE Heldenfrage stellen --
+    // nur heroes_found und heroes_x, nicht die volle Pruefung. Gerade beim Versetzen einer Figur
+    // ist "kommt jetzt jede genau einmal vor?" die Frage, die zaehlt. Der Rest der Wertung bleibt
+    // bewusst leer: nach einem Eingriff ins Bild waeren die alten Zahlen erfunden.
+    // Ein Fehler hier darf die Korrektur NICHT scheitern lassen -- das Bild ist da, die Pruefung
+    // ist eine Zugabe. Er landet als "nicht gemessen" am Kandidaten, nie als Zahl.
+    await heldenNachpruefen(image.id, result.url);
     penApplyBusy = false;
     AppState.update({ penOn: false, penMode: null, penChangeText: "", penFigurId: null });
     Router.goScreen("ergebnis");
