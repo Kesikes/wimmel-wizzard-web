@@ -17,25 +17,26 @@
 //     fal-Dashboard und die Anthropic-Konsole.
 // Wer diese Zahl je als Abrechnung benutzt, benutzt sie falsch.
 //
-// PREISE: NUR EINER IST BELEGT.
-//   - Szenenbild 0,15 $ -- belegt aus dem fal-Dashboard (499 Bildaufrufe = 74,85 $), vom Nutzer
-//     bestaetigt. Szenen laufen immer in 4K.
-//   - Alles andere ist NICHT BELEGT (Register, Abschnitt 16). Solange das so ist, stehen hier
-//     PLATZHALTER, und zwar bewusst NICHT niedrig: Eine Notbremse, die zu wenig zaehlt, greift zu
-//     spaet. Ein Platzhalter darf ueberschaetzen, nie unterschaetzen.
-//   - Sobald die echten Werte aus dem fal-Dashboard/der Anthropic-Konsole abgelesen sind, gehoeren
-//     sie hier eingetragen UND im Register vermerkt -- dann verschwindet das Wort "Platzhalter".
-const CENT_BELEGT = { szene: 15 };
-const CENT_PLATZHALTER = {
-  figur: 15,      // flux-lora, Preis nicht belegt
-  charedit: 15,   // nano-banana-Edit (Zusatz-Ansichten, Detail aendern), nicht belegt
-  stift: 15,      // nano-banana-pro-Edit, gleiche Groessenordnung wie ein Szenenbild
-  verify: 2,      // openrouter/router/vision, nicht belegt
-  claude: 2,      // claude-sonnet-5 (Chat, Richter, Stil-Tor, Blattpruefung), nicht belegt
-};
-const CENT = Object.assign({}, CENT_PLATZHALTER, CENT_BELEGT);
-// true = der Preis dieser Art ist belegt. Steht in der Warn-Mail mit drin, damit niemand die
-// Gesamtsumme fuer eine Rechnung haelt.
+// PREISE: seit 23.09.2026 ALLE BELEGT (vom Nutzer aus dem fal-Dashboard abgelesen).
+//   nano-banana-pro/edit  0,15 $ je Bild   -> Szenenbild und Stift-Korrektur
+//   nano-banana-2/edit    0,08 $ je Bild   -> "Detail aendern" UND die drei Zusatz-Ansichten je Figur
+//   flux-lora             0,035 $ je Megapixel -> Figurenblatt 768x1024 = 0,786 MP = 0,0275 $,
+//                                            hier auf 3 Cent aufgerundet (eine Notbremse rundet auf)
+//   openrouter/router/vision 0,01 $ je Aufruf -> jede Pruefung. ACHTUNG: Bis zum 23.09.2026 war
+//                                            hier und im Register faelschlich mit 0,02 $ gerechnet.
+//   claude-sonnet-5       nach Token        -> Chat, Richter, Stil-Tor, Blattpruefung. Laeuft NICHT
+//                                            ueber fal, steht in der Anthropic-Konsole und ist
+//                                            deshalb der einzige Posten, der hier geschaetzt bleibt.
+// Gesamtstand fal am 23.09.2026: 150,84 $, davon 114,75 $ fuer 765 Szenenbilder (765 x 0,15 -- die
+// Zahl geht genau auf und bestaetigt den Bildpreis).
+const CENT_BELEGT = { szene: 15, stift: 15, charedit: 8, figur: 3, verify: 1 };
+// Nur noch EIN Schaetzwert: claude-sonnet-5 wird nach Token abgerechnet, nicht je Aufruf. 2 Cent je
+// Aufruf ist ein Mittelwert ueber die vorkommenden Aufrufe (Stil-Tor mit zwei Bildern, Richter mit
+// drei, kurze Textaufrufe) -- bewusst eher zu hoch. Eine Notbremse darf ueberschaetzen.
+const CENT_GESCHAETZT = { claude: 2 };
+const CENT = Object.assign({}, CENT_GESCHAETZT, CENT_BELEGT);
+// Welche Arten einen belegten Preis haben. Steht in der Warn-Mail, damit klar bleibt, was Messung
+// ist und was Schaetzung.
 const BELEGT = Object.keys(CENT_BELEGT);
 
 // Schwellen in Cent (Produktentscheidung des Nutzers, 23.09.2026).
@@ -123,8 +124,9 @@ async function meldeEinmal(name, grenze, stand) {
           ? "<p>Es gehen ab jetzt <b>keine bezahlten Aufrufe</b> mehr raus, bis der Tag umschlägt (UTC). Kundinnen sehen „Heute ist bei mir gerade Zauberpause“; ihr Fortschritt ist gespeichert.</p>"
           : "<p>Die Aufrufe laufen weiter. Harter Stopp liegt bei " + d(STOPP) + ".</p>") +
         "<p><b>Achtung: Das ist eine Notbremse, keine Buchhaltung.</b> Gezählt werden Aufrufe mal " +
-        "hinterlegtem Stückpreis. Belegt ist nur der Szenenbildpreis (0,15 $), alle anderen Preise " +
-        "sind Platzhalter (siehe <code>api/_lib/kosten-deckel.js</code>). Was wirklich abgerechnet " +
+        "hinterlegtem Stückpreis. Die fal-Preise sind seit 23.09.2026 belegt; nur claude-sonnet-5 " +
+        "wird nach Token abgerechnet und ist hier pauschal geschätzt " +
+        "(siehe <code>api/_lib/kosten-deckel.js</code>). Was wirklich abgerechnet " +
         "wird, steht im <a href=\"https://fal.ai/dashboard/usage-billing\">fal-Dashboard</a> und in " +
         "der Anthropic-Konsole.</p>",
     });

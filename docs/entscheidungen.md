@@ -523,6 +523,86 @@ keinen Mittelwert, und die Ausgabe nennt den sauberen Nachweg. Sauber nachholen:
 Ein Blatt je Aufruf, 18 statt 3 Aufrufe, immer noch Cent-Beträge — und die Zuordnung ist dann
 konstruktionsbedingt eindeutig.
 
+### BEFUND (23.09.2026): Die Blattzahlen sind nicht stabil — Gewichtung vorerst gestoppt
+
+Befund des Nutzers nach dem Lauf mit `STUECK=1`: „Die Zahlen schwanken stark … Das Modell schätzt,
+und die Schätzung ist nicht stabil."
+
+**Nachgerechnet an zwei vollständigen Läufen** (13:01 Uhr in Häppchen, 18:32 Uhr einzeln — beide mit
+gesicherter Zuordnung, 18 Blätter, je 6 Felder):
+
+| | |
+|---|---|
+| mittlere Abweichung zwischen den Läufen | **0,56 Punkte** je Feld |
+| größte Abweichung | **5 Punkte** (bgchars-6, `flaechig` 3 → 8) |
+| Rauschen einer Einzelmessung (Gesamtnote aus Kontur + flächig + Haare) | SD **3,03** |
+| echte Unterschiede zwischen den Blättern | SD **2,15** |
+| **Verlässlichkeit einer Einzelmessung** | **0,33** |
+| **Rangkorrelation der Gesamtnote zwischen beiden Läufen** | **0,20** |
+
+Die letzte Zahl ist die entscheidende: **Die Reihenfolge der Blätter ist zwischen zwei Läufen
+praktisch nicht reproduzierbar.** Das Rauschen ist größer als das, was gemessen werden soll. Eine
+Gewichtung auf dieser Grundlage wäre eine Gewichtung nach Zufall — sie sähe nur wie eine Messung
+aus. **Gewichtung ist damit gestoppt, bis mehrfach gemessen ist** (Entscheidung des Nutzers).
+
+**Ein Teil der beobachteten Schwankung ist allerdings mein Fehler, nicht das Modell.** Die Werte
+für `bgchars-6` (7 → 8) und `bgchars-9` (5 → 6), die der Nutzer nennt, stammen aus dem
+**Vormittagslauf mit der kaputten Zuordnung** — dort kann die Differenz auch eine Verschiebung um
+eine Position sein. Echte, sauber belegte Schwankung zeigen die Blätter aus Häppchen 1 und der
+Vergleich der beiden **späteren** Läufe: Moritz Kontur 6 → 5 und Haare 5 → 3, Max `flaechig` 6 → 8.
+
+**Wie viele Läufe es braucht** (aus dem gemessenen Rauschen hochgerechnet):
+
+| Läufe je Blatt | Verlässlichkeit | Standardfehler der Gesamtnote |
+|---|---|---|
+| 1 | 0,33 | 3,03 |
+| 2 | 0,50 | 2,14 |
+| 3 | 0,60 | 1,75 |
+| 5 | 0,72 | 1,35 |
+| **8** | **0,80** | **1,07** |
+| 12 | 0,86 | 0,87 |
+
+**Empfehlung: 8 Läufe je Blatt.** 0,80 ist die übliche Schwelle, ab der eine Messung zum Sortieren
+taugt; darunter sortiert man Rauschen. Mehr als 12 lohnt nicht — die Kurve wird flach, und der
+verbleibende Fehler liegt dann unter einem halben Punkt.
+
+**Was das kostet:** Diese Messung läuft über den **Anthropic**-Schlüssel, nicht über fal — also
+kein Bildaufruf und kein fal-Posten. 18 Blätter × 8 Läufe = **144 Aufrufe** mit je zwei Bildern
+(Referenz + Blatt), rund 3–4 k Eingabe-Token je Aufruf, also grob **eine halbe Million
+Eingabe-Token** plus ein paar tausend Ausgabe-Token. Den Dollarbetrag schreibe ich hier nicht hin —
+er steht in deiner Anthropic-Konsole, und das Werkzeug druckt die tatsächlich verbrauchten Token am
+Ende jedes Laufs aus.
+
+**Gebaut am 23.09.2026:**
+
+- `LAEUFE=n` misst jedes Blatt n-mal und meldet **Median und Spanne** je Feld. Median statt
+  Mittelwert, weil einzelne Ausreißer (3 → 8) den Mittelwert ziehen würden. **Die Spanne steht
+  immer dabei** — ein Wert ohne seine Streuung wäre genau die Sorte Zahl, die hier nicht vorkommen
+  soll. Die Einzelwerte bleiben im JSON erhalten.
+- Bei `LAEUFE=1` druckt das Werkzeug jetzt eine Warnung mit genau diesen Zahlen und dem Hinweis,
+  dass die Werte nicht zum Sortieren taugen.
+- **Keine Datei wird mehr überschrieben.** Jeder Lauf schreibt `blatt-stiltor-<Datum>-<Zeit>-<Art>.json`.
+  Vorher hieß jede Datei gleich, und drei von vier Läufen dieses Tages waren nur noch in der
+  Git-Historie zu finden. Alle vier sind jetzt als eigene Dateien gesichert:
+
+| Datei | was |
+|---|---|
+| `blatt-stiltor-2026-09-23-0855-stiltor.json` | Durchgang 1, Stil-Tor je Blatt (3 von 18 durchgefallen) |
+| `blatt-stiltor-2026-09-23-0915-haeppchen-zuordnung-unsicher.json` | erster Messlauf, Zuordnung in zwei Häppchen unbekannt |
+| `blatt-stiltor-2026-09-23-1301-haeppchen.json` | zweiter Messlauf, Zuordnung gesichert |
+| `blatt-stiltor-2026-09-23-1832-einzeln.json` | dritter Messlauf, ein Blatt je Aufruf |
+
+**Was trotz allem stabil ist** (Befund des Nutzers, in den Daten bestätigt): `mund = 0` bei **allen**
+Figurenblättern und höher in der Bibliothek; `nase_strich = 1` durchgehend; und die immer gleichen
+Begründungstexte — Strähnen im Haar, Wangenschattierung, Faltenschatten. **Die Ja/Nein-Felder sind
+stabil, die 0–10-Schätzungen sind es nicht.** Das ist derselbe Befund wie bei Gesichtern und
+Mündern und deckt sich mit dem Grundsatz im Register: Das Modell soll zählen, nicht schätzen. Eine
+Zählung (`mouths_of_ten`, `heroes_found`) ist reproduzierbar, eine Note von 0 bis 10 nicht.
+
+**Daraus eine Regel, die über diesen Fall hinausgeht:** Bevor eine Modellzahl etwas entscheidet,
+muss sie **zweimal gemessen** worden sein. Eine Zahl, die beim zweiten Mal anders ausfällt, ist
+keine Messung, sondern eine Meinung.
+
 ### OFFEN (Einschätzung 23.09.2026, nichts geändert): Untergrenze für Bibliotheksblätter?
 
 Frage des Nutzers: Kontur ≥ 6 als Untergrenze statt nur 5 und 10 auszusortieren? Das träfe
@@ -677,9 +757,56 @@ besten, deren neun Aufrufe alle mit HTTP 400 gescheitert waren.
 Ein dritter, bezahlter Kandidat kommt nur bei einem **schweren** Verstoß — und seit 20.09. nur
 dann, wenn überhaupt ein Kandidat geprüft werden konnte.
 
-**Nicht bekannt:** der Preis eines Prüfaufrufs. Er steckt in den 29 $ Differenz zwischen 103,86 $
-Gesamtkosten und 74,85 $ Bildkosten, zusammen mit der Figuren-Generierung. Wer damit rechnet,
-rechnet mit einer Annahme — die Werkzeuge kennzeichnen das.
+### GÜLTIG seit 23.09.2026: alle fal-Preise belegt (aus dem Dashboard abgelesen)
+
+| Modell | Preis | wofür |
+|---|---|---|
+| `nano-banana-pro/edit` | **0,15 $ je Bild** | Szenenbild, Stift-Korrektur |
+| `nano-banana-2/edit` | **0,08 $ je Bild** | „Detail ändern" **und** die drei Zusatz-Ansichten je Figur |
+| `flux-lora` | **0,035 $ je Megapixel** | Figurenblatt |
+| `openrouter/router/vision` | **0,01 $ je Aufruf** | jede Prüfung |
+| `claude-sonnet-5` | nach Token | Chat, Richter, Stil-Tor, Blattprüfung — **nicht über fal**, steht in der Anthropic-Konsole |
+
+**Nachgerechnet, wie verlangt:** Wir erzeugen Figurenblätter in **768 × 1024** (`charGenerateBody()`
+in `char-job-engine.js`) = 0,786 Megapixel → **0,0275 $ je Figurenblatt**.
+
+**KORREKTUR:** Bis zum 23.09.2026 stand im Register und in den Werkzeugen **0,02 $ je Prüfaufruf**.
+Richtig ist **0,01 $** — die Hälfte. Alle Stellen sind nachgezogen.
+
+**Gesamtstand fal am 23.09.2026: 150,84 $**, davon 114,75 $ für 765 Szenenbilder. 765 × 0,15 $ geht
+genau auf und bestätigt den Bildpreis. Die restlichen **36,09 $** sind Figuren, Zusatz-Ansichten,
+Stift-Korrekturen und alle Prüfaufrufe zusammen.
+
+### Was eine Szene heute wirklich kostet (Stand 23.09.2026)
+
+| Posten | Anzahl | Preis | Summe |
+|---|---|---|---|
+| Szenenbilder (`nano-banana-pro/edit`) | 2 | 0,15 $ | 0,30 $ |
+| Prüfung je Kandidat (`openrouter/router/vision`) | 2 | 0,01 $ | 0,02 $ |
+| **fal-Kosten je Szene, Normalfall** | | | **0,32 $** |
+| dritter Kandidat, wenn keiner das Stil-Tor besteht | 1 | 0,15 $ + 0,01 $ | +0,16 $ |
+| **fal-Kosten je Szene, schlechtester Fall** | | | **0,48 $** |
+| jede Stift-Korrektur danach | 1 | 0,15 $ | +0,15 $ |
+| Versetzen einer Figur (zwei Aufrufe) | 2 | 0,15 $ | +0,30 $ |
+
+**Getrennt davon, über den Anthropic-Schlüssel** (Preise in der Anthropic-Konsole, hier bewusst
+keine Zahl): **Stil-Tor** ein Aufruf je Kandidat mit zwei Bildern (2 bei zwei Kandidaten),
+**Richter** zwei Aufrufe mit je drei Bildern (er urteilt zweimal mit getauschter Reihenfolge).
+Also rund **vier claude-Aufrufe je Szene**, dazu die kurze Heldenzählung nach einer Stift-Korrektur.
+
+**Und eine Figur** (zum Vergleich, weil sie teurer ist, als sie aussieht):
+
+| Posten | Anzahl | Preis | Summe |
+|---|---|---|---|
+| Figurenblatt (`flux-lora`, 0,786 MP) | 2 | 0,0275 $ | 0,055 $ |
+| Prüfung je Kandidat | 2 | 0,01 $ | 0,02 $ |
+| **Zusatz-Ansichten** (Seite, Rücken, 3/4 — `nano-banana-2/edit`) | 3 | 0,08 $ | **0,24 $** |
+| Blattbeschreibung (`beschreibeFigurenblatt()`) | 1 | 0,01 $ | 0,01 $ |
+| **fal-Kosten je Figur** | | | **rund 0,33 $** |
+
+Die drei Zusatz-Ansichten machen **drei Viertel** der Kosten einer Figur aus — mehr als die Figur
+selbst. Ob sie im Produkt überhaupt gebraucht werden, ist nirgends entschieden; das gehört auf die
+Launch-Liste.
 
 ### ÜBERHOLT (bis 19.09.2026): 0,30 $ je Bild
 
@@ -884,7 +1011,7 @@ meist als „einmal". Eine Doppelgängerin ist im fertigen Bild nicht entscheidb
    2, 3, 11, 13. Für den Mann fällt kein Blatt weg — in der Bibliothek gibt es keinen braunhaarigen
    Mann mit Bart.
 2. **Beschreibung aus dem Figurenblatt** (`beschreibeFigurenblatt()`): einmal je Figur ein
-   Prüfaufruf (gemini über fal, rund 2 Cent), gespeichert an der Person. Haar, Bart und Kleidung
+   Prüfaufruf (gemini über fal, 0,01 $ — bis 23.09. stand hier fälschlich 2 Cent), gespeichert an der Person. Haar, Bart und Kleidung
    für **alle** Helden. Die volle Beschreibung steht in der Zuordnung Bild → Held, an der
    Platzierung nur noch Haar und Oberteil (sonst reicht bei fünf Helden die Promptlänge nicht).
 3. **Unterscheidungssatz**, wenn mindestens zwei Kinder dabei sind, direkt hinter der Zuordnung.
@@ -908,7 +1035,7 @@ Die Bild-Fassung trägt dann den Zusatz „· Helden NEU".
   Verdacht des Nutzers: mit nur 3–4 von 13 Blättern wird der Stil-Anker schwächer. Das Panel
   zeigt bei ausgeschaltetem Filter, was er weggefiltert hätte. Filter und Beschreibung sind damit
   getrennt testbar.
-- **`/app?stiltor=an`** — Stil-Tor, siehe Abschnitt 0. Kosten je Kandidat höchstens etwa 2 Cent
+- **`/app?stiltor=an`** — Stil-Tor, siehe Abschnitt 0. Kosten je Kandidat: ein claude-sonnet-5-Aufruf (Anthropic-Konsole, nicht fal); die früher hier genannten „etwa 2 Cent“ waren geschätzt
   (zwei Bilder à höchstens 4.784 Token, Sonnet 5 zu 2 $ / 10 $ je Mio Token).
 - **`/app?koepfe=gross`** (Fassung `2026-09-21f`) — ein Satz nach dem Stilblock verlangt für ALLE
   Menschen große runde Köpfe auf kleinem Körper (Erwachsene etwa ein Viertel, Kinder ein Drittel
@@ -936,7 +1063,7 @@ Die Bild-Fassung trägt dann den Zusatz „· Helden NEU".
   (`2026-09-21e`)** — 0 Fehlalarme, erkannte 23 K2 und 26 K2 — und läuft als **eigener Aufruf**,
   genau wie damals gemessen. Er entscheidet allein. **Teil B** (Kopfanteil gegen die Referenz)
   läuft als zweiter Aufruf, steht im Panel und **entscheidet nichts** (`STIL_TOR_KOPF_GRENZE = null`;
-  abschaltbar mit `STIL_TOR_KOPF_MESSEN`). Kosten je Kandidat höchstens etwa 2 Cent je Teil.
+  abschaltbar mit `STIL_TOR_KOPF_MESSEN`). Kosten je Kandidat: ein claude-sonnet-5-Aufruf je Teil (Anthropic-Konsole).
 - **Grundsatz:** Das Stil-Tor fängt **grobe** Stilbrüche (fotoartig, plastisch, anderer
   Zeichenstil). **Feine Proportionsabweichungen** (kleine Köpfe, normale Comic-Proportionen) sollen
   über den Bildprompt verhindert werden (`/app?koepfe=gross`) und von der Kundin in der
@@ -1404,9 +1531,10 @@ Regel wie unten.
 | Posten | Preis | Quelle |
 |---|---|---|
 | Szenenbild | **0,15 $** | fal-Dashboard, 499 Aufrufe = 74,85 $ |
-| Figurenbild (`flux-lora`) | nicht belegt | steht im fal-Dashboard |
-| Zusatz-Ansichten, Stift-Korrekturen (`nano-banana`) | nicht belegt | dito |
-| Prüfaufruf (`openrouter/router/vision`) | nicht belegt | dito |
+| Figurenbild (`flux-lora`) | **0,0275 $** bei 768×1024 (belegt 23.09.) | fal-Dashboard |
+| Zusatz-Ansichten, „Detail ändern“ (`nano-banana-2/edit`) | **0,08 $** (belegt 23.09.) | fal-Dashboard |
+| Stift-Korrekturen (`nano-banana-pro/edit`) | **0,15 $** (belegt) | fal-Dashboard |
+| Prüfaufruf (`openrouter/router/vision`) | **0,01 $** (belegt 23.09.) | fal-Dashboard |
 | claude-sonnet-5 (Chat, Richter, Stil-Tor) | nicht belegt | Anthropic-Konsole |
 
 **Was ein verkauftes Produkt kostet, gerechnet nur mit dem belegten Preis:**
@@ -1417,16 +1545,27 @@ Regel wie unten.
 | Buch klein | 3 | 0,90 $ | ~1,60 $ |
 | Buch groß | 5 | 1,50 $ | ~2,50 $ |
 
-Dazu kommen Figuren, Zusatz-Ansichten und alle Prüfaufrufe, deren Preise nicht belegt sind. **Als
-Arbeitsannahme: rund 3 bis 4 $ je verkauftes großes Buch.** Zum Vergleich: Die gesamte Entwicklung
-bis heute hat 74,85 $ an Szenenbildern gekostet, verteilt auf gut eine Woche — also etwa 5 bis 7 $
-an einem starken Entwicklungstag.
+**NACHGERECHNET am 23.09.2026, jetzt mit belegten Preisen** (Herleitung in Abschnitt 5):
+
+| Stufe | Wimmelbilder | Szenen (je 0,32 $) | 5 Figuren (je 0,33 $) | Summe fal |
+|---|---|---|---|---|
+| Poster | 1 | 0,32 $ | 1,65 $ | **rund 2,00 $** |
+| Buch klein | 3 | 0,96 $ | 1,65 $ | **rund 2,60 $** |
+| Buch groß | 5 | 1,60 $ | 1,65 $ | **rund 3,25 $** |
+
+Mit ein paar Stift-Korrekturen und dem gelegentlichen dritten Kandidaten landet ein großes Buch bei
+**rund 4 $ fal-Kosten** — die alte Arbeitsannahme „3 bis 4 $" hat sich bestätigt, steht jetzt aber
+auf belegten Preisen statt auf einer Schätzung. Dazu kommen die claude-Aufrufe (Anthropic-Konsole).
+
+Die Figuren sind dabei der überraschende Posten: Bei einem **Poster** kosten sie mehr als das Bild.
+Zum Vergleich: Die gesamte Entwicklung bis heute hat **150,84 $** gekostet, davon 114,75 $ für 765
+Szenenbilder — über gut eine Woche also etwa **10 bis 15 $** an einem starken Entwicklungstag.
 
 **Vorschlag für die Schwellen:**
 
 | Schwelle | Betrag je Tag | Was passiert |
 |---|---|---|
-| **Warn-Mail** | **25 $** | entspricht rund 7 großen Büchern oder dem Vier- bis Fünffachen eines starken Entwicklungstags. An einem normalen Launch-Tag darf das nie anschlagen; schlägt es an, will man es wissen. |
+| **Warn-Mail** | **25 $** | mit den belegten Preisen rund **6 große Bücher** oder das Doppelte bis Zweieinhalbfache eines starken Entwicklungstags (10–15 $). An einem normalen Launch-Tag darf das nie anschlagen; schlägt es an, will man es wissen. |
 | **Zweite Mail** | 60 $ | „das ist kein normaler Tag mehr" |
 | **Harter Stopp** | **150 $** | keine bezahlten Aufrufe mehr bis Mitternacht, mit ehrlicher Meldung an die Kundin |
 

@@ -54,7 +54,7 @@ Vorschlag, gleich aufgebaut wie beim Stabilitätstest:
    Fehlalarme.
 
 Kosten: Die Prüfung läuft über fal (OpenRouter-Router), also **braucht das deine Freigabe**.
-12 Kandidaten × 3 Läufe = 36 Prüfaufrufe, bei den 0,02 $ je Aufruf, die das Werkzeug annimmt,
+12 Kandidaten × 3 Läufe = 36 Prüfaufrufe, bei 0,01 $ je Aufruf (belegt 23.09.2026; hier stand ursprünglich 0,02 $),
 rund 0,70 $ (geschätzt, nicht gemessen). Keine Bildaufrufe. Voraussetzung: die Kandidaten-URLs
 der letzten Szenen sind noch abrufbar.
 
@@ -95,14 +95,14 @@ Frage an die neuen Daten, keine Behauptung.
 ## d) Was kostet `heroes_found` auf „schwer"?
 
 Ein dritter Kandidat kommt, wenn **kein** geprüfter Kandidat ohne schweren Verstoß ist. Er kostet
-0,15 $ (Bild) plus eine Prüfung (~0,02 $, angenommen) und kommt höchstens einmal je Szene.
+0,15 $ (Bild) plus eine Prüfung (0,01 $, belegt 23.09.2026 — hier stand 0,02 $) und kommt höchstens einmal je Szene.
 
 Rechnung: p = Anteil Kandidaten mit Heldenfehler, dazu rund 10 % mit einem anderen schweren
 Verstoß (2 von 19 geprüften in den Daten).
 
 | p (Heldenfehler je Kandidat) | Anteil Szenen mit 3. Kandidat | Mehrkosten je Szene | je Buch (5 Bilder) | Szenen mit Held richtig: heute → mit schwer |
 |---|---|---|---|---|
-| 31 % (meine Daten) | 14 % | ~0,02 $ | ~0,12 $ | 90 % → 97 % |
+| 31 % (meine Daten) | 14 % | 0,01 $ | ~0,06 $ | 90 % → 97 % |
 | 50 % | 30 % | ~0,05 $ | ~0,26 $ | 75 % → 88 % |
 | 70 % („fast jedes Bild") | 53 % | ~0,09 $ | ~0,45 $ | 51 % → 66 % |
 
@@ -169,7 +169,7 @@ gar nicht erst mitgeschickt wird.
 eines Helden kommt aus der Fotobeschreibung (`describePhotoTraits()`: Haare plus **ein** Merkmal).
 Deshalb steht beim Mann nur „kurze braune Haare, Bart", **ohne Kleidung**, obwohl er auf seinem
 Figurenblatt eindeutig angezogen ist. Vorschlag: beim Fertigstellen einer Figur das **fertige
-Figurenblatt** einmal beschreiben lassen (Kleidung, Farben, Schuhe; ein Prüfaufruf, rund 0,02 $ je
+Figurenblatt** einmal beschreiben lassen (Kleidung, Farben, Schuhe; ein Prüfaufruf, 0,01 $ je
 Figur, einmalig). Für die Kinder zusätzlich ein Unterscheidungssatz im Szenenprompt, wenn zwei
 Helden in Altersstufe und Haarfarbe gleich sind: „the boy … and the girl … are two different
 children: [Unterschied 1], [Unterschied 2]". Hebt vor allem die Verwechslung A↔B und die Dopplung
@@ -201,7 +201,7 @@ Zwei Spielarten:
 | | F1: Szene ohne Helden, dann alle einsetzen | F2: nur reparieren |
 |---|---|---|
 | Ablauf | Szene ohne benannte Helden erzeugen, danach ein Aufruf, der alle Helden einsetzt | wie heute; nur wenn die Prüfung einen Helden vermisst, wird er eingesetzt |
-| Mehrkosten je Szene | 0,15 $ je bearbeitetem Kandidat + neue Prüfung (~0,02 $). Nur beim gewählten: **+0,17 $**, bei beiden: **+0,34 $** | nur im Fehlerfall **+0,17 $** |
+| Mehrkosten je Szene | 0,15 $ je bearbeitetem Kandidat + neue Prüfung (0,01 $, belegt 23.09.). Nur beim gewählten: **+0,16 $**, bei beiden: **+0,32 $** | nur im Fehlerfall **+0,16 $** |
 | heute je Szene zum Vergleich | 0,30 $ plus Prüfung | |
 | Dauer | +1–2 Minuten | +1–2 Minuten im Fehlerfall |
 | löst „fehlt" | ja | ja |
