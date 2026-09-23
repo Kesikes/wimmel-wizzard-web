@@ -1715,7 +1715,7 @@ function buildErgebnisAnsicht(s, image) {
   const canvas = h("canvas", { style: { position: "absolute", inset: "0", width: "100%", height: "100%", touchAction: "none" } });
   canvas.classList.toggle("hidden", !s.penOn);
   zoomEbene.appendChild(canvas);
-  const penTag = h("span", { class: "h-black erg-stift-etikett" }, (s.penMode === "redo") ? (s.penFigurId ? "die kommt hierher" : "das hier neu") : "das da weg");
+  const penTag = h("span", { class: "h-black erg-stift-etikett" }, (s.penMode === "redo") ? (s.penFigurId ? (penStriche.art === "weg" ? "hier stand sie" : "die kommt hierher") : "das hier neu") : "das da weg");
   penTag.classList.toggle("hidden", !s.penOn);
   zoomEbene.appendChild(penTag);
   // 16:9 -> 2:1-Druckbeschnitt-Vorschau, siehe buildCropViewport().
@@ -1817,17 +1817,24 @@ function buildErgebnisAnsicht(s, image) {
 //     Druckbeschnitt-Box (overflow:hidden) schneidet den Rest ab. Knopf "ganzes Bild" setzt zurueck.
 //   - Die Striche ueberleben ein Neuzeichnen des Screens (Moduswechsel "Weg damit"/"Neu zeichnen"
 //     loest eins aus) -- sie liegen in penStriche, gebunden an Bild und gewaehlten Kandidaten.
-let penStriche = { key: null, liste: [] };
+let penStriche = { key: null, liste: [], art: "weg" };
 const STIFT_FARBE = "#E4442A";
+// NEU (23.09.2026, Versetzen in zwei Aufrufen): Ein Strich gehoert entweder zur alten Stelle
+// ("weg") oder zur neuen ("hier"). Die Farben sind NUR fuer die Kundin -- an das Bildmodell geht
+// je Aufruf eine Kopie mit GENAU EINER Markierungsart. Der Kontrollversuch vom 23.09. hat gezeigt,
+// warum: Sobald die Anweisung zwei Farben benennen muss, um sie auseinanderzuhalten, wird die
+// Markierung zum Bildinhalt und landet im Ergebnis (dieselbe Mechanik wie der gemalte Falz).
+const STIFT_FARBE_HIER = "#1F9D55";
 const STIFT_BREITE_PX = 6;
 const ZOOM_MAX = 5;
 
 function zeichneStriche(ctx, w, h, liste) {
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
-  ctx.strokeStyle = STIFT_FARBE;
-  ctx.fillStyle = STIFT_FARBE;
   liste.forEach((s) => {
+    const farbe = s.art === "hier" ? STIFT_FARBE_HIER : STIFT_FARBE;
+    ctx.strokeStyle = farbe;
+    ctx.fillStyle = farbe;
     const lw = Math.max(1, s.breite * w);
     if (s.punkte.length === 1) {
       ctx.beginPath();
@@ -1844,7 +1851,7 @@ function zeichneStriche(ctx, w, h, liste) {
 
 function setupFreehand(canvas, img, zoomEbene, key) {
   const ctx = canvas.getContext("2d");
-  if (penStriche.key !== key) penStriche = { key, liste: [] };
+  if (penStriche.key !== key) penStriche = { key, liste: [], art: "weg" };
   const striche = penStriche.liste;
   let vorlaeufig = null; // der Strich unter dem Finger, erst beim Loslassen endgueltig
   let geste = null;      // Zwei-Finger-Geste: { d0, z0, p0: {x,y} } (p0 in Ebenen-Koordinaten)
@@ -1895,7 +1902,7 @@ function setupFreehand(canvas, img, zoomEbene, key) {
 
   function strichBeginnen(clientX, clientY) {
     const w = canvas.offsetWidth || 1;
-    vorlaeufig = { breite: STIFT_BREITE_PX / zoom.z / w, punkte: [bildPunkt(clientX, clientY)] };
+    vorlaeufig = { breite: STIFT_BREITE_PX / zoom.z / w, art: penStriche.art || "weg", punkte: [bildPunkt(clientX, clientY)] };
     neuZeichnen();
   }
   function strichWeiter(clientX, clientY) {
@@ -1964,13 +1971,19 @@ function setupFreehand(canvas, img, zoomEbene, key) {
   return {
     hasMark: () => striche.length > 0,
     anzahl: () => striche.length,
+    // NEU (23.09.2026): getrennt zaehlen und zeichnen -- "weg" (alte Stelle) und "hier" (neue).
+    anzahlArt: (art) => striche.filter((x) => (x.art || "weg") === art).length,
+    artWaehlen: (art) => { penStriche.art = art; },
+    aktuelleArt: () => penStriche.art || "weg",
     undo: () => { striche.pop(); neuZeichnen(); },
     clear: () => { striche.length = 0; vorlaeufig = null; neuZeichnen(); },
     zoomZurueck: () => { zoom.z = 1; zoom.tx = 0; zoom.ty = 0; zoomAnwenden(); },
     zoomStufe: () => zoom.z,
     beiZoom: (f) => { aenderung.push(f); },
     // Fuer captureAnnotatedImage(): zeichnet die Striche in beliebiger Aufloesung.
-    zeichneAuf: (zctx, w, h) => zeichneStriche(zctx, w, h, striche),
+    // nurArt: nur die Striche EINER Art zeichnen. Genau so bekommt das Modell je Aufruf eine
+    // Kopie mit einer einzigen Markierung -- nie zwei, die es unterscheiden muesste.
+    zeichneAuf: (zctx, w, h, nurArt) => zeichneStriche(zctx, w, h, nurArt ? striche.filter((x) => (x.art || "weg") === nurArt) : striche),
   };
 }
 
@@ -2041,8 +2054,11 @@ function penFehlerText(e) {
   return "Bearbeiten hat nicht geklappt: " + roh + " — nochmal versuchen?";
 }
 
-async function captureAnnotatedImage(canvas, img, mark) {
-  const proxied = await loadImage(penSafeImageUrl(img.src));
+// GEAENDERT (23.09.2026): nurArt waehlt, WELCHE Markierung auf die Zeigerkopie kommt. Ohne Angabe
+// wie bisher alle. quelle erlaubt, eine ANDERE Bildadresse als img.src zu nehmen -- beim Versetzen
+// ist das Bild des zweiten Aufrufs das Ergebnis des ersten.
+async function captureAnnotatedImage(canvas, img, mark, nurArt, quelle) {
+  const proxied = await loadImage(penSafeImageUrl(quelle || img.src));
   const srcW = proxied.naturalWidth || proxied.width || canvas.width;
   const srcH = proxied.naturalHeight || proxied.height || canvas.height;
   // GEAENDERT (23.09.2026, nach dem 413 im Kontrollversuch). Seit dem 22.09. ist diese Kopie NUR
@@ -2061,7 +2077,7 @@ async function captureAnnotatedImage(canvas, img, mark) {
   // GEAENDERT (21.09.2026, Schritt 4): die Striche liegen in Bildkoordinaten und werden direkt in
   // der Zielaufloesung gezeichnet (scharf, unabhaengig vom Zoom); das Bildschirm-Canvas nur noch
   // als Rueckfall fuer einen Aufrufer ohne mark.
-  if (mark && mark.zeichneAuf) mark.zeichneAuf(octx, off.width, off.height);
+  if (mark && mark.zeichneAuf) mark.zeichneAuf(octx, off.width, off.height, nurArt);
   else octx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, off.width, off.height);
   let quality = 0.85;
   let dataUri = off.toDataURL("image/jpeg", quality);
@@ -2177,7 +2193,32 @@ async function applyPenEdit({ image, canvas, img, mark, mode, errorId, applyBtn,
     // GEAENDERT (Punkt 12): captureAnnotatedImage() ist jetzt async (laedt das Ausgangsbild ueber
     // api/image-proxy.js nach, siehe dortiger Kommentar) -- await ergaenzt. Faellt bei fehlender
     // Markierung auf ein unveraendertes Composite zurueck (leeres Canvas-Overlay), unproblematisch.
-    const composite = hasMark ? await captureAnnotatedImage(canvas, img, mark) : null;
+    // NEU (23.09.2026, Nutzer-Entscheidung): VERSETZEN laeuft in ZWEI Aufrufen. Der
+    // Kontrollversuch mit zwei Farben in EINEM Aufruf ist durchgefallen -- der gruene Kringel stand
+    // im Ergebnis, weil die Anweisung ihn benennen musste, um ihn von dem roten zu unterscheiden
+    // (dieselbe Mechanik wie der gemalte Falz). Eine Markierung kann nicht zugleich unsichtbar sein
+    // und als Unterscheidungsmerkmal benannt werden. Also je Aufruf GENAU EINE Markierung, in
+    // genau der Form, die seit dem 22.09. funktioniert.
+    // Aufruf 1: die alte Stelle leeren (rote Striche, kein Figurenblatt -- sonst malt das Modell
+    // die Figur dort womoeglich wieder hin). Aufruf 2: die Figur an die neue Stelle (gruene
+    // Striche, mit Figurenblatt), auf dem ERGEBNIS des ersten Aufrufs.
+    const mitFigurVoraus = mode === "redo" && !!(figur && figur.imageUrl);
+    const versetzen = mitFigurVoraus && mark.anzahlArt && mark.anzahlArt("weg") > 0 && mark.anzahlArt("hier") > 0;
+    let quelle = img.src;
+    if (versetzen) {
+      if (applyBtn) applyBtn.textContent = "1 von 2: nehme sie weg …";
+      const zeigerWeg = await captureAnnotatedImage(canvas, img, mark, "weg", quelle);
+      const weg = await Pipeline.generateImage(
+        Pipeline.penBildAnweisung({ mitMarkierung: true, mitFigur: false }) + Pipeline.PEN_INSTRUCTION_REMOVE,
+        "scene", { editImageUrl: quelle, styleRefUrls: [zeigerWeg, Pipeline.richterReferenzUrl()] });
+      quelle = weg.url;
+      if (applyBtn) applyBtn.textContent = "2 von 2: setze sie hin …";
+      // VORBEHALT, ehrlich: Der zweite Kringel wurde auf dem URSPRUENGLICHEN Bild gezogen, das
+      // Zwischenbild ist aber schon veraendert. Solange der erste Aufruf nur lokal wirkt, passt
+      // die Stelle; ordnet er die Umgebung neu, kann die zweite Markierung danebenzeigen. Das ist
+      // nicht vorher zu wissen -- es steht so im Register.
+    }
+    const composite = hasMark ? await captureAnnotatedImage(canvas, img, mark, versetzen ? "hier" : null, quelle) : null;
     // NEU (Punkt 13): drei Faelle je nachdem, was vorliegt -- Markierung allein (bisheriges
     // Verhalten, PEN_INSTRUCTION_REMOVE/REDO unveraendert), Freitext allein (neue generische
     // Editier-Anweisung aus dem uebersetzten Freitext), oder beides kombiniert (PEN_INSTRUCTION_*
@@ -2185,7 +2226,7 @@ async function applyPenEdit({ image, canvas, img, mark, mode, errorId, applyBtn,
     // GEAENDERT (23.09.2026, Nutzer-Umbau): mitFigur gilt NUR bei "Neu zeichnen". Bei "Weg damit"
     // geht NIE ein Figurenblatt mit, auch wenn eines uebergeben wuerde -- sonst malt das Modell den
     // doppelten Helden womoeglich wieder hin, und genau das ist der haeufigste Loeschfall.
-    const mitFigur = mode === "redo" && !!(figur && figur.imageUrl);
+    const mitFigur = mitFigurVoraus;
     let instruction;
     const basis = mitFigur
       ? (hasMark ? Pipeline.PEN_INSTRUCTION_FIGUR : Pipeline.PEN_INSTRUCTION_FIGUR_OHNE_MARKE)
@@ -2217,7 +2258,7 @@ async function applyPenEdit({ image, canvas, img, mark, mode, errorId, applyBtn,
     if (mitFigur) weitere.push(figur.imageUrl);
     weitere.push(Pipeline.richterReferenzUrl());
     instruction = Pipeline.penBildAnweisung({ mitMarkierung: hasMark, mitFigur }) + instruction;
-    const result = await Pipeline.generateImage(instruction, "scene", { editImageUrl: img.src, styleRefUrls: weitere });
+    const result = await Pipeline.generateImage(instruction, "scene", { editImageUrl: quelle, styleRefUrls: weitere });
     // GEAENDERT (21.09.2026, Kandidatenwahl): die Korrektur gehoert zum GEWAEHLTEN Kandidaten und
     // bleibt ihm beim Umschalten erhalten.
     const aktuell = (AppState.data.images || []).find((b) => b.id === image.id) || image;
@@ -2258,7 +2299,7 @@ function buildPenPanel({ image, canvas, img, mark, errorId }) {
   const removeBtn = h("button", {
     type: "button", class: "h-black",
     style: { flex: "1", minHeight: "40px", fontSize: "11px", border: "3px solid var(--ink)", cursor: "pointer", background: mode === "remove" ? "var(--red)" : "var(--paper)", color: mode === "remove" ? "var(--paper)" : "var(--ink)" },
-    onClick: () => { AppState.update({ penMode: "remove" }); Router.goScreen("ergebnis"); }
+    onClick: () => { mark.artWaehlen("weg"); AppState.update({ penMode: "remove" }); Router.goScreen("ergebnis"); }
   }, "Weg damit");
   const redoBtn = h("button", {
     type: "button", class: "h-black",
@@ -2313,6 +2354,9 @@ function buildPenPanel({ image, canvas, img, mark, errorId }) {
     const figuren = (AppState.data.people || []).filter((p) => p.status === "done" && p.imageUrl);
     if (figuren.length) {
       gewaehlteFigur = figuren.find((p) => p.id === AppState.data.penFigurId) || null;
+      // Ohne gewaehlte Figur gibt es nichts zu versetzen -- dann ist jeder Strich ein "weg"-Strich,
+      // genau wie im Loeschmodus. Das haelt alte Striche aus einem abgebrochenen Versuch draussen.
+      if (!gewaehlteFigur) mark.artWaehlen("weg");
       const box = h("div", { style: { margin: "0 0 10px", padding: "10px", border: "3px solid var(--ink)", background: gewaehlteFigur ? "var(--yellow)" : "var(--paper)" } });
       box.appendChild(h("p", { class: "h-black", style: { margin: "0 0 8px", fontSize: "12px" } }, "Soll eine eurer Figuren hierher?"));
       const reihe = h("div", { style: { display: "flex", flexWrap: "wrap", gap: "8px" } });
@@ -2332,6 +2376,27 @@ function buildPenPanel({ image, canvas, img, mark, errorId }) {
       if (gewaehlteFigur) {
         box.appendChild(h("p", { style: { margin: "8px 0 0", fontSize: "11.5px", lineHeight: "1.4" } },
           "ich zeichne " + (gewaehlteFigur.name || "sie") + " genau wie auf ihrem Blatt an die markierte Stelle."));
+        // NEU (23.09.2026, Versetzen): Steht die Figur schon im Bild, muss sie dort weg -- sonst ist
+        // sie doppelt. Zwei Markierungen, zwei Farben, und daraus macht die App ZWEI Aufrufe
+        // nacheinander (siehe applyPenEdit): erst wegnehmen, dann hinsetzen. Das Bildmodell sieht
+        // nie zwei Markierungen gleichzeitig.
+        box.appendChild(h("p", { style: { margin: "10px 0 6px", fontSize: "11.5px", lineHeight: "1.4" } },
+          "steht " + (gewaehlteFigur.name || "sie") + " schon irgendwo im Bild? dann kringel sie dort auch ein — ich nehme sie erst weg und setze sie dann hierher."));
+        const artReihe = h("div", { style: { display: "flex", gap: "8px" } });
+        const artKnopf = (art, text, farbe) => {
+          const an = mark.aktuelleArt() === art;
+          return h("button", { type: "button", class: "h-black", "aria-pressed": an ? "true" : "false",
+            style: { flex: "1", minHeight: "42px", fontSize: "11.5px", cursor: "pointer", border: "3px solid var(--ink)", background: an ? farbe : "var(--paper)", color: an ? "var(--paper)" : "var(--ink)" },
+            onClick: () => { mark.artWaehlen(art); Router.goScreen("ergebnis"); } },
+            text + (mark.anzahlArt(art) ? " (" + mark.anzahlArt(art) + ")" : ""));
+        };
+        artReihe.appendChild(artKnopf("hier", "● hierher", "#1F9D55"));
+        artReihe.appendChild(artKnopf("weg", "● alte Stelle", "var(--red)"));
+        box.appendChild(artReihe);
+        if (mark.anzahlArt("weg") && mark.anzahlArt("hier")) {
+          box.appendChild(h("p", { style: { margin: "8px 0 0", fontSize: "11.5px", lineHeight: "1.4", fontWeight: "700" } },
+            "das dauert diesmal doppelt so lang — es sind zwei Schritte."));
+        }
       }
       wrap.appendChild(box);
     }

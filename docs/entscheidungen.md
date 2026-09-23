@@ -540,6 +540,12 @@ zusätzlich 9, 11, 12 und 13.
    einzelnes dann in gut der Hälfte aller Bilder auf — die Nebenfiguren würden sich über ein Buch
    hinweg sichtbar wiederholen. Das ist ein anderer, ebenso sichtbarer Schaden.
 
+**Entscheidung des Nutzers, 23.09.2026:** Untergrenze verworfen, stattdessen die **Gewichtung** —
+und zwar erst, wenn die Zahlen je Blatt sauber gemessen sind. Der Befehl dafür (ein Blatt je
+Aufruf, Zuordnung konstruktionsbedingt eindeutig, weiter Cent-Beträge):
+
+    STUECK=1 NUR_MESSUNG=1 BIBLIOTHEK=1 ANTHROPIC_API_KEY=... node dev-tools/blatt-stiltor.js
+
 **Mein Vorschlag stattdessen:** Die Zahlen aus Durchgang 2 als **Reihenfolge** nutzen, nicht als
 Beil. Die Blattwahl würfelt heute gleichverteilt; sie könnte die schwachen Blätter **seltener**
 ziehen, statt sie ganz zu streichen — ein Blatt mit Kontur 5 etwa halb so oft wie eines mit 8. Das
@@ -1344,12 +1350,38 @@ eine:
 
 Der Chat ist der Weg, den eine Kundin **am häufigsten** benutzt — und der einzige ohne Bremse.
 
-Nicht im Vorbeigehen repariert, und zwar bewusst: Eine Grenze für die ganze Datei beträfe auch den
-Chat-Pfad, und der ist an dieser Änderung ungetestet. Ein zu enger Wert würde mitten im Gespräch
-abriegeln, ein zu weiter nützt nichts. Zu entscheiden ist also ein **Wert**, nicht nur ein Schalter:
-Wie viele Nachrichten braucht ein normales Gespräch bis zur fertigen Szene? Das steht nirgends —
-und es ist an den gespeicherten Sitzungen (`sceneChatMessages`) **ohne einen einzigen neuen Aufruf**
-auszuzählen. Das wäre der erste Schritt.
+**Ausgezählt am 23.09.2026 (Auftrag des Nutzers), Ergebnis: Es gibt nichts zu zählen.**
+
+| Sitzung | `sceneChatMessages` | Weg |
+|---|---|---|
+| `sitzung.json` (35 Bilder) | **1** (nur die Begrüßung des Assistenten) | `sceneWay: 0` |
+| `sitzung-neu.json` | **0** | `sceneWay: 0` |
+| 4 Sicherungen vom 19.09. | Feld gar nicht vorhanden | — |
+
+**Der Chat-Weg ist in keiner gespeicherten Sitzung je benutzt worden.** Das deckt sich mit
+Abschnitt 12 („Freitext-Weg, Stand 20.09.2026: nie getestet"). Eine Zahl aus diesen Daten
+abzuleiten wäre eine erfundene Zahl.
+
+**Was sich stattdessen sagen lässt — aus dem Code, nicht aus Nutzung:**
+
+- Es gibt bereits eine **Längen**-Grenze: `messages.length > 40` wird mit 400 abgewiesen. Ein
+  Gespräch ist damit auf rund **20 Nutzer-Beiträge** gedeckelt. (Nebenbei: Was dann passiert, ist
+  eine rohe Server-Meldung — gehört auf die Liste unten.)
+- Jeder Nutzer-Beitrag löst **zwei** bezahlte Aufrufe aus: erst `moderate`, dann den Chat-Aufruf.
+- Ein Chat-Aufruf schickt **den ganzen bisherigen Verlauf** mit. Die Kosten eines Gesprächs wachsen
+  also nicht linear, sondern quadratisch. Fixanteil je Aufruf: rund 1.500 Token System-Prompt plus
+  Werkzeugbeschreibung, dazu der wachsende Verlauf.
+
+**Vorschlag, klar als Schätzung gekennzeichnet:**
+
+| Schlüssel | Grenze je IP und Stunde | Herleitung |
+|---|---|---|
+| `claudechat` (Chat, beide Modi) | **60** | ein volles Gespräch ist durch die 40-Nachrichten-Grenze auf ~20 Aufrufe gedeckelt → drei komplette Gespräche je Stunde |
+| `claudetext` (`translate`, `moderate`) | **120** | feuert auch außerhalb des Chats: je Figur, je Stift-Korrektur, je Notizfeld — großzügig, damit ein normales Buch nie anstößt |
+
+Beide Werte sind **nicht gemessen**, sondern aus den Deckeln im Code hergeleitet. Sobald der
+Chat-Weg echt benutzt wird, stehen die Zahlen in `sceneChatMessages` und die Grenze lässt sich
+nachziehen. Entschieden ist der Wert vom Nutzer, gebaut ist noch nichts.
 
 **b) Es gibt bis heute keine Gesamtkosten-Obergrenze.** Alle Grenzen oben gelten **je IP-Adresse**
 (Befund 22.09., siehe Abschnitt 17). Sie bremsen eine einzelne Kundin, aber nicht die Summe: Zehn
@@ -1360,6 +1392,48 @@ Das ist die eine Lücke, die nicht nur teuer werden kann, sondern **unbegrenzt**
 vor den Launch, und zwar als Tagesdeckel über alle bezahlten Endpunkte zusammen (fal **und**
 Anthropic), mit einer ehrlichen Meldung an die Kundin statt eines stillen Fehlers — nach derselben
 Regel wie unten.
+
+**Beziffert am 23.09.2026 (Auftrag des Nutzers). Was belegt ist und was nicht:**
+
+| Posten | Preis | Quelle |
+|---|---|---|
+| Szenenbild | **0,15 $** | fal-Dashboard, 499 Aufrufe = 74,85 $ |
+| Figurenbild (`flux-lora`) | nicht belegt | steht im fal-Dashboard |
+| Zusatz-Ansichten, Stift-Korrekturen (`nano-banana`) | nicht belegt | dito |
+| Prüfaufruf (`openrouter/router/vision`) | nicht belegt | dito |
+| claude-sonnet-5 (Chat, Richter, Stil-Tor) | nicht belegt | Anthropic-Konsole |
+
+**Was ein verkauftes Produkt kostet, gerechnet nur mit dem belegten Preis:**
+
+| Stufe | Wimmelbilder | Bildkosten (2 Kandidaten je Bild) | mit drittem Kandidaten und 2–3 Stift-Korrekturen |
+|---|---|---|---|
+| Poster | 1 | 0,30 $ | ~0,60 $ |
+| Buch klein | 3 | 0,90 $ | ~1,60 $ |
+| Buch groß | 5 | 1,50 $ | ~2,50 $ |
+
+Dazu kommen Figuren, Zusatz-Ansichten und alle Prüfaufrufe, deren Preise nicht belegt sind. **Als
+Arbeitsannahme: rund 3 bis 4 $ je verkauftes großes Buch.** Zum Vergleich: Die gesamte Entwicklung
+bis heute hat 74,85 $ an Szenenbildern gekostet, verteilt auf gut eine Woche — also etwa 5 bis 7 $
+an einem starken Entwicklungstag.
+
+**Vorschlag für die Schwellen:**
+
+| Schwelle | Betrag je Tag | Was passiert |
+|---|---|---|
+| **Warn-Mail** | **25 $** | entspricht rund 7 großen Büchern oder dem Vier- bis Fünffachen eines starken Entwicklungstags. An einem normalen Launch-Tag darf das nie anschlagen; schlägt es an, will man es wissen. |
+| **Zweite Mail** | 60 $ | „das ist kein normaler Tag mehr" |
+| **Harter Stopp** | **150 $** | keine bezahlten Aufrufe mehr bis Mitternacht, mit ehrlicher Meldung an die Kundin |
+
+Die Beträge sind **Vorschläge**, keine Rechnung: Sie stehen auf einem einzigen belegten Preis und
+einer angenommenen Verkaufszahl. Sobald die übrigen Preise einmal aus dem Dashboard abgelesen sind,
+gehören sie hier eingetragen und die Schwellen nachgezogen. Wichtiger als die genaue Höhe ist, dass
+es sie **überhaupt** gibt: Heute ist der Verlust nach oben offen.
+
+Zu klären ist außerdem, **wo** gezählt wird. In KV (Upstash) liegt bereits die Infrastruktur für
+Zähler (`rate-limit.js`); ein Tageszähler je Endpunkt mit fest hinterlegten Stückpreisen wäre die
+kleinste Lösung und käme ohne neue Abhängigkeit aus. Er zählt allerdings **Aufrufe**, nicht die
+echte Rechnung — bei einem Preisänderung liefe er auseinander. Das ist hinnehmbar, solange es als
+**Notbremse** verstanden wird und nicht als Buchhaltung.
 
 ### VOR DEM LAUNCH: stille Fehler systematisch beseitigen (Auftrag des Nutzers, 22.09.2026)
 
@@ -1471,7 +1545,33 @@ des zweiten Kringels beziehen sich aber auf das **erste** Bild. Solange die Änd
 passt das; entfernt der erste Aufruf etwas Großes und ordnet die Umgebung neu, kann die zweite
 Markierung danebenzeigen. Das ist am ersten echten Versuch zu sehen und nicht vorher zu wissen.
 
-**Nicht gebaut.** Die Testseite bleibt stehen, bis entschieden ist.
+**GEBAUT am 23.09.2026 (Nutzer: „zwei getrennte Aufrufe: ja, bitte bauen"):**
+
+- Die Striche tragen jetzt eine **Art**: `weg` (rot, alte Stelle) oder `hier` (grün, neue Stelle).
+  Die Farben sind **nur für die Kundin**. An das Bildmodell geht je Aufruf eine Zeigerkopie mit
+  **genau einer** Markierungsart — `captureAnnotatedImage(…, nurArt, quelle)` zeichnet nur die
+  gewählte Sorte. Das Modell sieht nie zwei Markierungen und muss nie eine benennen.
+- Bedienung: In „Hierher" mit gewählter Figur erscheint „steht sie schon irgendwo im Bild? dann
+  kringel sie dort auch ein — ich nehme sie erst weg und setze sie dann hierher", dazu ein
+  Umschalter „● hierher / ● alte Stelle" mit der Zahl der Striche je Sorte. Sind beide gesetzt,
+  steht darunter: „das dauert diesmal doppelt so lang — es sind zwei Schritte."
+- Ablauf: Aufruf 1 entfernt an der roten Stelle — **ohne** Figurenblatt, sonst malt das Modell die
+  Figur dort womöglich wieder hin. Aufruf 2 setzt die Figur an die grüne Stelle, **mit** Blatt, auf
+  dem **Ergebnis** des ersten Aufrufs. Der Knopf zeigt „1 von 2: nehme sie weg …" und „2 von 2:
+  setze sie hin …". Beide Aufrufe benutzen exakt die Anweisungen, die seit dem 22.09. funktionieren.
+- Kosten: zwei Bildaufrufe, rund 0,30 $ statt 0,15 $ — nur wenn beide Markierungen gesetzt sind.
+  Ein einzelner Kringel bleibt ein Aufruf.
+
+**VORBEHALT, ehrlich und bewusst nicht wegdiskutiert:** Der zweite Kringel wird auf dem
+**ursprünglichen** Bild gezogen, das Zwischenbild ist aber schon verändert. Solange der erste
+Aufruf nur lokal wirkt — und das ist der Normalfall beim Entfernen einer Figur —, trifft die zweite
+Markierung ihre Stelle. Ordnet der erste Aufruf die Umgebung neu (etwas Großes entfernt, Boden und
+Hintergrund neu gefüllt), kann sie danebenzeigen. Das ist **nicht vorher zu wissen** und zeigt sich
+am ersten echten Versuch. Falls es auftritt, wäre der nächste Schritt, der Kundin zwischen den
+beiden Schritten das Zwischenbild zu zeigen und den zweiten Kringel dort setzen zu lassen — mehr
+Bedienschritte, dafür immer die richtige Stelle.
+
+Die Testseite `zwei-kringel-test.html` ist entfernt; sie hat ihren Zweck erfüllt.
 
 ### GEPRÜFT und GEBAUT (23.09.2026): der 413 im Kontrollversuch — und warum das Produkt NICHT betroffen war
 
