@@ -17,6 +17,7 @@
 // strukturierten Merkmale übersetzt wie eine Text-Beschreibung – siehe Abschnitt 5 des Arbeitsauftrags.
 
 const MODEL = "claude-sonnet-5";
+const { checkRateLimit } = require("./_lib/rate-limit");
 
 // NEU (Sammel-Runde 11.09.2026, "Lastverhalten vor Launch": Nutzer fragt nach Verhalten bei
 // mehreren gleichzeitigen Nutzerinnen). Gleiches Prinzip wie fetchFalWithRetry() in fal-proxy.js --
@@ -283,6 +284,72 @@ module.exports = async (req, res) => {
       // falls das Modell doch minimal von der angeforderten Ein-Wort-Antwort abweicht).
       const flagged = answer.startsWith("ja");
       res.status(200).json({ flagged });
+    } catch (e) {
+      res.status(502).json({ error: "Verbindung zu Anthropic fehlgeschlagen: " + String(e) });
+    }
+    return;
+  }
+
+  // ---- Modus (NEU, 23.09.2026, Nutzer-Entscheidung 3b): Stilpruefung EINES Figurenblatts ----
+  // Dieselbe Frage, die das Stil-Tor bei jeder Szene stellt (STIL_TOR_FRAGE aus _lib/richter.js),
+  // nur auf ein Figurenblatt angewandt: Bild 1 ist die Stilreferenz, Bild 2 das Blatt. Ein Aufruf
+  // je Figur, einmalig -- gegenueber 0,30 $ Bildkosten je Szene, die ein schlechtes Blatt in JEDER
+  // Szene verdirbt, der mit Abstand billigste Ort fuer diese Frage.
+  // Beide Bilder gehen als URL: Anthropic laedt sie selbst, wir reichen keine Bytes durch.
+  // Nur unsere eigenen Bildquellen sind erlaubt -- ohne diese Schranke waere das ein offener
+  // Dienst, der im Auftrag Fremder beliebige URLs abruft und bezahlt (gleiche Ueberlegung wie in
+  // api/image-proxy.js).
+  if (body.mode === "blatt_stil") {
+    // BEFUND NEBENBEI (23.09.2026): api/claude-proxy.js hat bis heute UEBERHAUPT KEINE
+    // Anfragegrenze -- weder fuer den Chat noch fuer translate/moderate, und alle drei kosten Geld.
+    // Das gehoert vor den Launch als Ganzes geprueft (Register, Abschnitt 16). Hier wird nicht die
+    // ganze Datei umgestellt (das wuerde den Chat-Pfad mitbetreffen, ungetestet), sondern nur
+    // dieser neue, bildverarbeitende Modus begrenzt: 30/Stunde je IP deckt mehrere Figuren samt
+    // Wiederholungen grosszuegig ab.
+    if (!(await checkRateLimit(req, res, { keyPrefix: "blattstil", limit: 30, windowSeconds: 3600 }))) return;
+    const erlaubt = (u) => /^https:\/\/([a-z0-9-]+\.)*fal\.(media|run)\//i.test(u) || /^https:\/\/([a-z0-9-]+\.)*vercel\.app\//i.test(u) || (req.headers && req.headers.host && u.indexOf("https://" + req.headers.host + "/") === 0);
+    const imageUrl = String(body.imageUrl || "");
+    const referenzUrl = String(body.referenzUrl || "");
+    if (!erlaubt(imageUrl) || !erlaubt(referenzUrl)) {
+      res.status(400).json({ error: "Nur eigene Bildadressen erlaubt." });
+      return;
+    }
+    try {
+      const { STIL_TOR_FRAGE } = require("./_lib/richter.js");
+      const resp = await fetchAnthropicWithRetry("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+        body: JSON.stringify({
+          model: MODEL, max_tokens: 1000,
+          messages: [{ role: "user", content: [
+            { type: "image", source: { type: "url", url: referenzUrl } },
+            { type: "image", source: { type: "url", url: imageUrl } },
+            { type: "text", text: STIL_TOR_FRAGE },
+          ] }],
+        }),
+      });
+      if (!resp.ok) {
+        const txt = await resp.text().catch(() => "");
+        res.status(502).json({ error: "Anthropic-Fehler " + resp.status + ": " + txt.slice(0, 200) });
+        return;
+      }
+      const data = await resp.json();
+      if (data.stop_reason === "max_tokens") {
+        res.status(502).json({ error: "Antwort der Stilpruefung war abgeschnitten." });
+        return;
+      }
+      const text = (data.content || []).map((t) => t.text || "").join("");
+      const m = String(text).match(/\{[\s\S]*\}/);
+      if (!m) {
+        res.status(502).json({ error: "Stilpruefung ohne lesbare Antwort." });
+        return;
+      }
+      const p = JSON.parse(m[0]);
+      if (p.passt !== "ja" && p.passt !== "nein") {
+        res.status(502).json({ error: "Stilpruefung mit unerwartetem Wert: " + JSON.stringify(p.passt) });
+        return;
+      }
+      res.status(200).json({ urteil: p.passt, begruendung: String(p.begruendung || "").replace(/\s+/g, " ").slice(0, 300), modell: MODEL });
     } catch (e) {
       res.status(502).json({ error: "Verbindung zu Anthropic fehlgeschlagen: " + String(e) });
     }

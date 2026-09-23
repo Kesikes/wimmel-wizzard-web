@@ -393,7 +393,11 @@ async function generateCharacterImage(person, buttons) {
     // eine gesetzte pendingJobId und setzt das Polling automatisch fort, statt einen Fehler zu
     // zeigen oder (schlimmer) eine zweite, parallele Generierung zu starten.
     const result = await Pipeline.runCharacterJobPolling(prompt, {
-      onJobId: (jobId) => AppState.updatePerson(person.id, { pendingJobId: jobId, pendingSceneDescription: sceneDescription }),
+      // NEU (23.09.2026): der Figuren-Prompt wird an der Person gespeichert -- das ist alles, was
+      // "Noch einmal zeichnen" spaeter braucht (rund 1,5 KB je Figur). Das FOTO wird weiterhin
+      // NICHT gespeichert: im Prompt steht nur die daraus gezogene Textbeschreibung, genau wie in
+      // sceneDescription. Das Versprechen auf der Karte bleibt damit unangetastet.
+      onJobId: (jobId) => AppState.updatePerson(person.id, { pendingJobId: jobId, pendingSceneDescription: sceneDescription, charPrompt: prompt }),
     });
     charGenBusy = false;
     await generateExtraViewsAndFinish(person, result, sceneDescription);
@@ -445,6 +449,20 @@ async function generateExtraViewsAndFinish(person, frontResult, sceneDescription
   // sie, holt der Szenenstart sie nach (siehe runGeneration() in szene.js), und das Panel sagt es.
   // Gespeichert wird sie nur, wenn die Person noch dasselbe Frontbild hat (sonst gehoert sie zu
   // einem verworfenen Bild).
+  // NEU (23.09.2026, Nutzer-Entscheidung 3b): Stilpruefung des fertigen Blattes gegen die
+  // Stilreferenz -- ein Aufruf je Figur, im Hintergrund, die Kundin wartet nicht darauf.
+  // ALARM, KEINE HUERDE: Das Ergebnis verwirft nichts und startet nichts neu. Faellt das Blatt
+  // durch, fragt der Charakterblatt-Screen nach; entscheiden tut die Kundin (ein automatischer
+  // Neulauf wuerde bei einem Fehlalarm ungefragt Geld ausgeben).
+  // Gespeichert wird nur, wenn die Person noch DASSELBE Frontbild hat -- sonst gehoert das Urteil
+  // zu einem inzwischen verworfenen Bild. Gleiches Muster wie bei beschreibeFigurenblatt() unten.
+  if (Pipeline.pruefeBlattStil && frontResult && frontResult.url) {
+    const fuerStil = frontResult.url;
+    Pipeline.pruefeBlattStil(fuerStil).then((urteil) => {
+      const p = (AppState.data.people || []).find((x) => x.id === person.id);
+      if (p && p.imageUrl === fuerStil) AppState.updatePerson(person.id, { stilPruefung: Object.assign({ fuer: fuerStil }, urteil) });
+    }).catch(() => { /* pruefeBlattStil() wirft nicht; dieser Zweig ist nur die Sicherung */ });
+  }
   if (Pipeline.beschreibeFigurenblatt && frontResult && frontResult.url) {
     const fuer = frontResult.url;
     Pipeline.beschreibeFigurenblatt(fuer).then((daten) => {
@@ -524,7 +542,8 @@ async function generateCharacterImageFromPhoto(person, photoDataUri, buttons) {
     // bereits den daraus gezogenen Text und kann dadurch gefahrlos (kein Foto-Bezug mehr) persistiert
     // werden, ein Resume nach einem Reload braucht also KEIN erneutes Foto.
     const result = await Pipeline.runCharacterJobPolling(prompt, {
-      onJobId: (jobId) => AppState.updatePerson(person.id, { pendingJobId: jobId, pendingSceneDescription: sceneDescription }),
+      // Siehe Kommentar im Chips-Weg oben: nur der Prompt, nie das Foto.
+      onJobId: (jobId) => AppState.updatePerson(person.id, { pendingJobId: jobId, pendingSceneDescription: sceneDescription, charPrompt: prompt }),
     });
     resetUploadedPhoto();
     charGenBusy = false;
@@ -948,6 +967,34 @@ Screens.charakterblatt = {
       }
     }
 
+    // NEU (23.09.2026, Nutzer-Entscheidung 3b): Das Blatt ist bei der Stilpruefung durchgefallen.
+    // RUECKFRAGE, kein Automatismus -- die Kundin entscheidet, ob neu gezeichnet wird. Ein "nicht
+    // gemessen" (Pruefung aus, Aufruf gescheitert, Figur von vor dem 23.09.) fuehrt zu GAR KEINEM
+    // Kasten: eine nicht gelaufene Pruefung darf nie wie ein Freispruch und nie wie ein Alarm
+    // aussehen. Der Grund steht dann in person.stilPruefung.fehler im gespeicherten Stand -- eine
+    // eigene Anzeige dafuer gibt es (noch) nicht, und der Screen behauptet auch nichts Gegenteiliges.
+    const stil = person.stilPruefung;
+    if (stil && stil.urteil === "nein" && !stil.ignoriert && stil.fuer === person.imageUrl) {
+      const kasten = h("div", { style: { marginTop: "16px", padding: "12px", border: "3px solid var(--ink)", background: "var(--yellow)" } });
+      kasten.appendChild(h("p", { class: "h-black", style: { margin: "0 0 6px", fontSize: "13px" } }, "Diese Zeichnung ist stilistisch daneben geraten — soll ich sie noch einmal zeichnen?"));
+      kasten.appendChild(h("p", { style: { margin: "0 0 10px", fontSize: "11.5px", lineHeight: "1.4" } },
+        "sie passt nicht zum Stil unserer Bücher, und sie wird in jedem Wimmelbild mitgezeichnet. " +
+        (stil.begruendung ? "was mir auffällt: " + stil.begruendung : "")));
+      kasten.appendChild(h("button", {
+        type: "button", class: "h-black",
+        style: { minHeight: "46px", width: "100%", fontSize: "12.5px", cursor: "pointer", border: "3px solid var(--ink)", background: "var(--ink)", color: "var(--paper)" },
+        onClick: (ev) => neuZeichnen(person, [ev.currentTarget]),
+      }, "Ja, noch einmal zeichnen"));
+      kasten.appendChild(h("button", {
+        type: "button",
+        style: { display: "block", marginTop: "8px", background: "none", border: "none", padding: "4px 2px", cursor: "pointer", fontFamily: "'Archivo',sans-serif", fontSize: "12px", fontWeight: "700", letterSpacing: ".03em", textDecoration: "underline", color: "var(--ink)" },
+        // Das Urteil bleibt "nein" -- es war eine Messung. Vermerkt wird nur, dass die Kundin es
+        // bewusst uebergangen hat. Ein Messwert wird nie umgeschrieben, weil jemand anderer Meinung ist.
+        onClick: () => { AppState.updatePerson(person.id, { stilPruefung: Object.assign({}, stil, { ignoriert: true, ignoriertAm: new Date().toISOString() }) }); rerender(); },
+      }, "Nein, passt mir so"));
+      wrap.appendChild(kasten);
+    }
+
     const btnRow = h("div", { style: { display: "flex", gap: "10px", marginTop: "18px" } });
     // GEAENDERT (Sammel-Runde 11.09.2026, Punkt 2: "'Nachschärfen' braucht echte Anpassungs-
     // Möglichkeit, nicht nur Neu-Generieren"). Vorher navigierte dieser Button direkt zurueck zum
@@ -964,6 +1011,17 @@ Screens.charakterblatt = {
       style: { flex: "1", minHeight: "50px", background: s.charEditOpen ? "var(--yellow)" : "var(--paper)", border: "3px solid var(--ink)", fontSize: "13px", color: "inherit" },
       onClick: () => { AppState.update({ charEditOpen: !s.charEditOpen }); rerender(); }
     }, s.charEditOpen ? "Nachschärfen schließen" : "Nachschärfen"));
+    // NEU (23.09.2026, Nutzer-Entscheidung 3a): "Noch einmal zeichnen" -- derselbe Text-zu-Bild-Weg,
+    // der die Figur erzeugt hat, mit neuem Zufallswert und EINEM Kandidaten. Bewusst NEBEN
+    // "Nachschärfen" und nicht statt dessen: Nachschärfen aendert ein Detail am vorhandenen Blatt,
+    // das hier wuerfelt die ganze Figur neu. Ohne gespeicherten Prompt (Figuren von vor dem
+    // 23.09.2026) steht der Knopf da, sagt aber beim Druck ehrlich, dass er es nicht kann --
+    // besser als ein Knopf, der still nichts tut oder gar nicht erst erscheint.
+    btnRow.appendChild(h("button", {
+      type: "button", class: "h-black",
+      style: { flex: "1", minHeight: "50px", background: "var(--paper)", border: "3px solid var(--ink)", fontSize: "13px", color: "inherit" },
+      onClick: (ev) => neuZeichnen(person, [ev.currentTarget]),
+    }, "Noch einmal zeichnen"));
     btnRow.appendChild(h("button", {
       type: "button", class: "h-black", style: { flex: "1", minHeight: "50px", background: "var(--ink)", color: "var(--paper)", border: "3px solid var(--ink)", fontSize: "13px" },
       onClick: () => {
@@ -988,6 +1046,7 @@ Screens.charakterblatt = {
       }
     }, "Passt so"));
     wrap.appendChild(btnRow);
+    wrap.appendChild(h("p", { id: "char-neu-error", style: { margin: "8px 0 0", fontSize: "12px", color: "var(--red)", display: "none" } }, ""));
 
     // NEU (Sammel-Runde 11.09.2026, Punkt 4: "Lösch-Funktion für Figuren auf dem Charakterblatt
     // ergänzen"). Bisher liess sich eine einmal angelegte Figur nirgends mehr entfernen (z.B. bei
@@ -1095,6 +1154,49 @@ function buildCharEditPanel(person) {
 // ist bewusst dasselbe gemeinsame Re-Entry-Gate wie bei den anderen beiden Generierungswegen (C6):
 // eine Korrektur soll nicht parallel zu einer laufenden Neu-Generierung (oder einer zweiten
 // Korrektur) fuer dieselbe Person starten koennen.
+// NEU (23.09.2026, Nutzer-Entscheidung 3a): dieselbe Figur noch einmal zeichnen lassen.
+// WARUM EIGENER WEG: "Nachschaerfen" schickt das BESTEHENDE Blatt als Eingangsbild an den
+// Edit-Pfad -- der laeuft OHNE unser wmlstil-LoRA und kann einen Stilbruch nicht heilen, eher
+// festigen. Hier laeuft derselbe Text-zu-Bild-Weg wie bei der ersten Erzeugung (flux-lora MIT
+// LoRA), mit neuem Zufallswert. EIN Kandidat statt zwei: die Kundin hat ihr Blatt schon gesehen
+// und drueckt lieber noch einmal, als zwei zu bezahlen.
+// Die Zusatz-Ansichten und die Blattbeschreibung entstehen danach neu (generateExtraViewsAndFinish),
+// sonst gehoerten sie zum alten Bild.
+async function neuZeichnen(person, buttons) {
+  if (charGenBusy) return;
+  const el = charGenErrorEl("char-neu-error");
+  const zeig = (t) => { const e = charGenErrorEl("char-neu-error"); if (e) { e.textContent = t; e.style.display = "block"; } };
+  if (el) el.style.display = "none";
+  const prompt = person.charPrompt;
+  if (!prompt) {
+    // Ehrlich statt still: diese Figur ist vor dem 23.09.2026 entstanden, ihr Prompt wurde damals
+    // nicht gespeichert. Nichts zu raten -- ein aus der Beschreibung zurueckgebauter Prompt waere
+    // nicht derselbe, und das Ergebnis saehe nur zufaellig nach derselben Figur aus.
+    zeig("Diese Figur ist entstanden, bevor ich mir den Zeichenauftrag gemerkt habe — ich kann sie leider nicht einfach neu zeichnen. Mit «Nachschärfen» lässt sich einzelnes ändern; sonst hilft nur löschen und neu anlegen.");
+    return;
+  }
+  charGenBusy = true;
+  const aktive = (buttons || []).filter(Boolean);
+  aktive.forEach((b) => { b.dataset.prevText = b.textContent; b.disabled = true; b.textContent = "Zeichnet …"; b.style.opacity = "0.75"; });
+  try {
+    const result = await Pipeline.runCharacterJobPolling(prompt, {
+      anzahl: 1,
+      onJobId: (jobId) => AppState.updatePerson(person.id, { pendingJobId: jobId, pendingSceneDescription: person.sceneDescription || null, charPrompt: prompt }),
+    });
+    charGenBusy = false;
+    // Das alte Stilurteil und die alte Blattbeschreibung gehoeren zum alten Bild und muessen weg,
+    // BEVOR das neue Bild gesetzt wird -- sonst stuende kurz ein Urteil an einem Bild, zu dem es
+    // nicht gehoert, und die Rueckfrage unten haenge am falschen Blatt.
+    AppState.updatePerson(person.id, { stilPruefung: null, blatt: null });
+    await generateExtraViewsAndFinish(person, result, person.sceneDescription || "");
+  } catch (e) {
+    charGenBusy = false;
+    AppState.updatePerson(person.id, { pendingJobId: null, pendingSceneDescription: null });
+    setBusyButtons(aktive, false);
+    zeig("Neu zeichnen hat nicht geklappt: " + ((e && e.message) ? e.message : String(e)) + " — nochmal versuchen?");
+  }
+}
+
 async function applyCharEdit(person, buttons) {
   if (charGenBusy) return;
   const errorP = charGenErrorEl("char-edit-error");

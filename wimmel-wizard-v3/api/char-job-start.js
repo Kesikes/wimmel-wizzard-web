@@ -59,7 +59,10 @@ module.exports = async (req, res) => {
 
   const jobId = "cj_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 10);
   try {
-    const job = await createCharacterJob({ jobId, prompt, FAL_KEY });
+    // NEU (23.09.2026): anzahl=1 fuer "Noch einmal zeichnen". Alles ausser der ausdruecklichen 1
+    // bleibt bei 2 -- ein unbekannter Wert darf nie mehr Bilder bestellen, als der Client wollte.
+    const anzahl = Number(body.anzahl) === 1 ? 1 : 2;
+    const job = await createCharacterJob({ jobId, prompt, FAL_KEY, anzahl });
     await kvSetJson("charjob:" + jobId, job, JOB_TTL_SECONDS);
     res.status(200).json({ jobId });
   } catch (e) {

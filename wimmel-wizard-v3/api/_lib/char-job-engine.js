@@ -107,19 +107,27 @@ function charGenerateBody(prompt, seed) {
 // initialen Job-Datensatz zurueck -- SPEICHERT NICHTS selbst in KV, das macht der Aufrufer
 // (char-job-start.js), damit diese Datei rein fal.ai-/Zustands-bezogen bleibt und leichter isoliert
 // testbar ist (kein KV-Mock noetig fuer diese Funktion).
-async function createCharacterJob({ jobId, prompt, FAL_KEY }) {
-  const seedA = Math.floor(Math.random() * 1e9);
-  const seedB = Math.floor(Math.random() * 1e9);
-  const [reqA, reqB] = await Promise.all([
-    submitFalQueue(FLUX_MODEL, charGenerateBody(prompt, seedA), FAL_KEY),
-    submitFalQueue(FLUX_MODEL, charGenerateBody(prompt, seedB), FAL_KEY),
-  ]);
-  const candA = newCandidate(seedA); candA.genRequestId = reqA; candA.genStatus = "polling";
-  const candB = newCandidate(seedB); candB.genRequestId = reqB; candB.genStatus = "polling";
+// GEAENDERT (23.09.2026, "Noch einmal zeichnen"): anzahl waehlt, mit wie vielen Kandidaten der Job
+// startet. Vorgabe bleiben 2 (jede erste Erzeugung, unveraendert). anzahl=1 ist der
+// Wiederholungsfall: die Kundin hat ihr Blatt schon gesehen und will EIN neues -- sie drueckt lieber
+// noch einmal, als zwei zu bezahlen. maxKandidaten deckelt dann auch das Nachschieben (Schritt 3
+// unten): ohne diesen Deckel haette ein Ein-Kandidaten-Job stillschweigend wieder zwei oder drei
+// erzeugt, sobald der eine nicht fehlerfrei war -- genau die Sorte stiller Mehrkosten, die hier
+// nirgends stehen soll.
+async function createCharacterJob({ jobId, prompt, FAL_KEY, anzahl }) {
+  const wieViele = anzahl === 1 ? 1 : 2;
+  const seeds = [];
+  for (let i = 0; i < wieViele; i++) seeds.push(Math.floor(Math.random() * 1e9));
+  const reqs = await Promise.all(seeds.map((seed) => submitFalQueue(FLUX_MODEL, charGenerateBody(prompt, seed), FAL_KEY)));
+  const candidates = seeds.map((seed, i) => {
+    const c = newCandidate(seed); c.genRequestId = reqs[i]; c.genStatus = "polling"; return c;
+  });
   const now = Date.now();
   return {
     jobId, prompt, status: "in_progress", error: null,
-    candidates: [candA, candB],
+    candidates,
+    // Hoechstzahl Kandidaten insgesamt: bei einem Ein-Kandidaten-Job genau einer, sonst wie bisher 3.
+    maxKandidaten: wieViele === 1 ? 1 : 3,
     resultUrl: null, resultSeed: null, resultViolations: null, resultVerify: null,
     createdAt: now, updatedAt: now,
   };
@@ -197,7 +205,8 @@ async function advanceCharacterJob(job, { FAL_KEY }) {
   if (allSettled) {
     const usable = next.candidates.filter((c) => c.genStatus === "done" && c.verifyStatus === "done");
     const hasPerfect = usable.some((c) => c.violations === 0);
-    if (!hasPerfect && next.candidates.length < 3) {
+    // Aeltere Job-Datensaetze ohne maxKandidaten verhalten sich wie bisher (3).
+    if (!hasPerfect && next.candidates.length < (next.maxKandidaten || 3)) {
       const seedC = Math.floor(Math.random() * 1e9);
       try {
         const reqC = await submitFalQueue(FLUX_MODEL, charGenerateBody(next.prompt, seedC), FAL_KEY);

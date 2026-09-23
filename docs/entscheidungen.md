@@ -1374,7 +1374,7 @@ nie unübersetzt in der App stehen. Die Stift-Korrektur ist jetzt die erste Stel
 einhält; die übrigen Fehlerpfade (Zaubern, Figuren zeichnen, Nachschärfen, Speichern) sind noch
 nicht durchgegangen.
 
-### OFFEN (Einschätzung 23.09.2026, nichts gebaut): ein misslungenes Figurenblatt neu zeichnen lassen
+### GEBAUT (Produktentscheidung des Nutzers, 23.09.2026): ein misslungenes Figurenblatt neu zeichnen lassen
 
 Frage des Nutzers nach dem Befund zu Blatt B: Gibt es dafür heute einen Weg?
 
@@ -1400,7 +1400,26 @@ gewürfelt, ohne Eingaben und ohne Foto.
 - Zusatznutzen weit über den Stilbruch hinaus: „gefällt mir nicht, bitte nochmal" ist der
   natürlichste Wunsch überhaupt und hat heute keine Antwort.
 
-### OFFEN (Einschätzung 23.09.2026, nichts gebaut): Stil des Blattes direkt nach dem Erzeugen prüfen
+**Gebaut am 23.09.2026, genau so:**
+
+- Knopf **„Noch einmal zeichnen"** neben „Nachschärfen" auf dem Charakterblatt. Er ruft
+  `runCharacterJobPolling(person.charPrompt, { anzahl: 1 })` — denselben Text-zu-Bild-Weg
+  (`flux-lora` **mit** wmlstil-LoRA), neuer Zufallswert, **ein** Kandidat.
+- **Ein Kandidat heißt wirklich einer.** `createCharacterJob({ anzahl })` startet mit einem Seed
+  **und** setzt `maxKandidaten: 1`. Ohne diesen Deckel hätte der Job still wieder auf zwei oder drei
+  aufgefüllt, sobald der eine nicht fehlerfrei war — genau die Sorte unsichtbarer Mehrkosten, die
+  hier nirgends stehen soll. Die erste Erzeugung bleibt unverändert bei 2 (Deckel 3).
+- **Gespeichert wird nur der Prompt** (`person.charPrompt`, rund 1,5 KB je Figur), auf beiden
+  Wegen. **Das Foto weiterhin nicht**: im Prompt steht nur die daraus gezogene Textbeschreibung,
+  genau wie in `sceneDescription` — das Versprechen auf der Karte bleibt unangetastet.
+- **Figuren von vor dem 23.09.2026** haben keinen gespeicherten Prompt. Der Knopf ist trotzdem da
+  und sagt beim Drücken, dass er es nicht kann, statt still nichts zu tun. Einen Prompt aus der
+  Beschreibung zurückzubauen wäre geraten — das Ergebnis sähe nur zufällig nach derselben Figur aus.
+- Zusatz-Ansichten und Blattbeschreibung entstehen neu; das alte Stilurteil und die alte
+  Blattbeschreibung werden vorher gelöscht, damit nie ein Urteil an einem Bild hängt, zu dem es
+  nicht gehört.
+
+### GEBAUT (Produktentscheidung des Nutzers, 23.09.2026): Stil des Blattes direkt nach dem Erzeugen prüfen
 
 Frage des Nutzers: Wäre ein Aufruf je Figur, einmalig, besser als Ärger bei jedem Bild?
 
@@ -1423,12 +1442,103 @@ zeichnen"-Knopf von oben: *„Diese Zeichnung ist stilistisch daneben geraten �
 einmal zeichnen?"* Die Entscheidung bleibt bei der Kundin; ein automatischer Neulauf würde bei
 einem Fehlalarm ungefragt Geld ausgeben.
 
+**Gebaut am 23.09.2026 — ausdrücklich als ALARM, nicht als Hürde** (Entscheidung des Nutzers:
+„vorerst als ALARM, nicht als verbindliche Hürde, solange die 90-%-Regel nicht erfüllt ist"):
+
+- Neuer Modus `blatt_stil` in `api/claude-proxy.js`: Stilreferenz und Blatt als zwei Bilder,
+  wörtlich `STIL_TOR_FRAGE` aus `api/_lib/richter.js` — **dieselbe** Frage wie bei jeder Szene, kein
+  zweiter, auseinanderlaufender Wortlaut. Beide Bilder gehen als URL, wir reichen keine Bytes durch;
+  nur eigene Bildquellen sind zugelassen.
+- `Pipeline.pruefeBlattStil()` läuft im Hintergrund direkt nach dem Frontbild. Die Kundin wartet
+  nicht darauf, und **ein Fehler blockiert nichts**: Ein nicht erreichbarer Prüfdienst darf keine
+  Figur aufhalten. Dann steht `{ urteil: null, fehler }` — nicht gemessen sieht nie wie „bestanden"
+  aus, aber auch nie wie ein Alarm.
+- Bei „nein" erscheint auf dem Charakterblatt **eine Rückfrage, kein Automatismus**: „Diese
+  Zeichnung ist stilistisch daneben geraten — soll ich sie noch einmal zeichnen?" mit „Ja, noch
+  einmal zeichnen" und „Nein, passt mir so". Ein automatischer Neulauf würde bei einem Fehlalarm
+  ungefragt Geld ausgeben.
+- **„Nein, passt mir so" schreibt das Urteil nicht um.** Es bleibt „nein"; vermerkt wird nur
+  `ignoriert: true` samt Zeitpunkt. Ein Messwert wird nicht geändert, weil jemand anderer Meinung ist.
+- **Status: ALARM, nicht Hürde.** Das Urteil verwirft nichts, blockiert nichts und verändert keine
+  Auswahl. Es stellt eine Frage. **Die 90-%-Regel ist nicht erfüllt** — siehe Vorbehalt.
+
 **Vorbehalt, ehrlich:** Der Wortlaut des Stil-Tors ist auf **Szenen** zugeschnitten („wenn VIELE
 Figuren anders gezeichnet sind … einzelne Abweichungen sind noch ein ja") und auf einem Blatt mit
 einer Figur entsprechend milde. Er hat B, bgchars-5 und bgchars-10 trotzdem gefunden — das spricht
 dafür, dass er als **Alarm** taugt (wenige Fehlalarme). Wie viele echte Brüche er übersieht, ist
-**nicht gemessen**. Vor dem Einbau als verbindliche Hürde gehört deshalb die 90-%-Regel erfüllt:
-erst an einer Handvoll Blätter gegen dein Urteil messen, dann entscheiden.
+**nicht gemessen**. Bevor daraus je eine verbindliche Hürde wird (automatisch verwerfen, Figur
+sperren), gehört die 90-%-Regel erfüllt: erst an einer Handvoll Blätter gegen dein Urteil messen,
+dann entscheiden. Bis dahin bleibt es bei der Rückfrage.
+
+### OFFEN (Einschätzung 23.09.2026, nichts gebaut): „Nachschärfen" ist irreführend
+
+Befund des Nutzers: „Nachschärfen läuft ohne wmlstil-LoRA und kann einen Stilbruch festigen. Das
+ist für die Kundin irreführend, weil der Knopf genau danach aussieht, was sie will."
+
+**Der Befund stimmt, aber der Knopf ist nicht generell falsch — er ist für genau eine Sorte Wunsch
+falsch.** Zwei Wunschsorten stecken hinter „Nachschärfen":
+
+| Wunsch | Was gebraucht wird | Was „Nachschärfen" tut |
+|---|---|---|
+| „Das T-Shirt soll blau sein" | das Blatt behalten, ein Detail ändern | **genau das.** Der Edit-Pfad ist hier richtig: Er hält Gesicht, Haltung und Bild stabil, was ein Neulauf nicht könnte. |
+| „Das sieht falsch gezeichnet aus" | das Blatt **verwerfen** und neu würfeln | **das Gegenteil.** Er nimmt das schlechte Blatt als Vorlage — ohne LoRA — und schreibt den Fehler fort. |
+
+**Drei Möglichkeiten, und ich halte nur eine für richtig:**
+
+1. **Ganz auf den LoRA-Pfad umstellen** — also „Nachschärfen" intern zu einem Neulauf machen.
+   **Dagegen.** Damit ginge die eine Sache verloren, die der Edit-Pfad kann: das vorhandene Blatt
+   erhalten. „T-Shirt blau" würde zu einer neuen Figur mit blauem T-Shirt — anderes Gesicht,
+   andere Haltung. Das wäre ein Verlust, kein Fix.
+2. **Nur umbenennen.** Zu wenig. Ein besserer Name räumt die Verwechslung nicht aus, solange beide
+   Wünsche auf denselben Knopf zeigen.
+3. **Trennen und benennen — meine Empfehlung, und der größere Teil steht seit heute schon da.**
+   Seit dem 23.09. gibt es „Noch einmal zeichnen" als eigenen Knopf daneben. Es fehlt nur noch,
+   dass die beiden sich voneinander abgrenzen:
+   - „Nachschärfen" → **„Detail ändern"**, Untertext: „T-Shirt-Farbe, Brille, Frisur — alles
+     andere bleibt genau so."
+   - „Noch einmal zeichnen" bekommt den Untertext: „ganz neu würfeln, wenn die Zeichnung selbst
+     nicht passt."
+   - Dazu ein Satz **im Nachschärfen-Panel**, ehrlich statt technisch: „wenn die Zeichnung
+     grundsätzlich nicht passt, nimm lieber ‚Noch einmal zeichnen' — beim Nachschärfen male ich
+     über das vorhandene Bild, der Grundcharakter bleibt."
+
+   Kosten: reine Beschriftung, kein neuer Aufruf, kein neuer Pfad.
+
+**Ehrliche Einschränkung:** Auch das löst den technischen Kern nicht — der Edit-Pfad läuft weiter
+ohne LoRA, und selbst ein harmloses „T-Shirt blau" kann den Stil einer Figur leicht verschieben.
+Gemessen ist das **nicht**. Wer es wissen will, hat jetzt das Werkzeug dafür: `pruefeBlattStil()`
+läuft nach jedem Neuzeichnen — sie **nach einem Nachschärfen** ebenfalls laufen zu lassen wäre ein
+Dreizeiler und würde die Frage nebenbei beantworten, ohne eine eigene Messreihe.
+
+### VOR DEM LAUNCH (Auftrag des Nutzers, 23.09.2026): keine rohen Server-Meldungen in der App
+
+Die Regel: Eine rohe Server-, HTTP- oder Bibliotheksmeldung darf nie unübersetzt vor der Kundin
+stehen. Sie erklärt nichts, macht Angst und sagt nicht, was zu tun ist. Übersetzt wird in einen
+Satz, der sagt, **was die Kundin tun kann**; die technische Meldung bleibt dahinter stehen, weil
+Matthias sie im Support braucht.
+
+| Stelle | Stand |
+|---|---|
+| Stift-Korrektur (`penFehlerText()`) | **erledigt 23.09.2026** — 413, 429, Verbindungsabbruch |
+| Zaubern (Szene erzeugen) | offen |
+| Figuren zeichnen (beide Wege) | offen |
+| Nachschärfen / Noch einmal zeichnen | offen |
+| Speichern und Laden der Sitzung | offen |
+
+Vorlage ist `penFehlerText()` in `szene.js`: Die drei Fälle, die die Kundin selbst lösen kann,
+bekommen einen eigenen Satz, alles andere behält den allgemeinen Satz samt technischem Anhang.
+
+### VOR DEM LAUNCH (Befund 23.09.2026): `api/claude-proxy.js` hat keine Anfragegrenze
+
+Beim Einbau der Blatt-Stilprüfung aufgefallen: `api/claude-proxy.js` hat **überhaupt keine**
+Anfragegrenze — weder für den Chat noch für `translate` oder `moderate`, und alle drei kosten Geld.
+Jeder andere kostenpflichtige Endpunkt hat eine (`falproxy` 40/h, `charjob` 15/h, `scenejob` 10/h,
+Sitzung 240/30/5 — alle je IP, siehe unten).
+
+Nicht im Vorbeigehen repariert: Eine Grenze für die ganze Datei beträfe auch den Chat-Pfad, und der
+ist an dieser Änderung ungetestet. Der neue Modus `blatt_stil` hat eine eigene bekommen (30/h je
+IP). Der Rest gehört vor dem Launch entschieden — zusammen mit der Frage nach einer
+**Gesamtkosten-Obergrenze**, die bis heute nirgends existiert.
 
 ### VOR DEM LAUNCH: Promptlänge mit 5 Helden
 

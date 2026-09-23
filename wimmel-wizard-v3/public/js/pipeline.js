@@ -2315,6 +2315,33 @@ function parseFigurenblatt(text) {
     bottom: kurz(p.bottom), shoes: kurz(p.shoes), extras: kurz(p.extras) };
 }
 
+// NEU (23.09.2026, Nutzer-Entscheidung 3b): Stilpruefung EINES Figurenblatts gegen die
+// Stilreferenz -- dieselbe Frage, die das Stil-Tor bei jeder Szene stellt (claude-sonnet-5, siehe
+// api/_lib/richter.js), nur auf das Blatt angewandt. Ein Aufruf je Figur, einmalig.
+// WARUM UEBERHAUPT: Ein Figurenblatt geht in JEDE Szene dieses Buches ein. Ein Blatt im falschen
+// Stil zieht jedes Bild mit -- bei 0,30 $ Bildkosten je Szene ist ein einmaliger Pruefaufruf im
+// Cent-Bereich die mit Abstand billigste Stelle, das zu merken.
+// ALARM, KEINE HUERDE: Das Ergebnis blockiert nichts und verwirft nichts. Es fuehrt nur zu einer
+// Rueckfrage an die Kundin. Der Wortlaut der Frage ist auf SZENEN zugeschnitten und auf einem Blatt
+// mit einer Figur entsprechend mild; wie viele echte Brueche er uebersieht, ist NICHT gemessen
+// (90-%-Regel nicht erfuellt, siehe Register Abschnitt 16).
+// Ein Fehler wirft NICHT: ein nicht erreichbarer Pruefdienst darf keine Figur blockieren. Dann
+// kommt { urteil: null, fehler } zurueck -- nicht gemessen sieht nie wie "bestanden" aus.
+async function pruefeBlattStil(imageUrl) {
+  try {
+    const resp = await fetch("/api/claude-proxy", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: "blatt_stil", imageUrl, referenzUrl: richterReferenzUrl() }),
+    });
+    const data = await parseJsonResponse(resp);
+    if (!resp.ok || data.error) return { urteil: null, fehler: data.error || ("Pruef-Fehler " + resp.status), am: new Date().toISOString() };
+    if (data.urteil !== "ja" && data.urteil !== "nein") return { urteil: null, fehler: "Unerwartete Antwort der Stilpruefung.", am: new Date().toISOString() };
+    return { urteil: data.urteil, begruendung: String(data.begruendung || ""), modell: data.modell || null, am: new Date().toISOString() };
+  } catch (e) {
+    return { urteil: null, fehler: String((e && e.message) || e), am: new Date().toISOString() };
+  }
+}
+
 async function beschreibeFigurenblatt(imageUrl) {
   const text = await withTransientRetry(() => verifyImage([imageUrl], FIGURENBLATT_PROMPT), { retries: 3, delayMs: 3000 });
   return parseFigurenblatt(text);
@@ -3791,9 +3818,12 @@ async function composeCharacterImage(generate) {
 // REGULÄREN Weg, composeCharacterImage() bleibt nur noch als eigenstaendig getestete Referenz/
 // Fallback-Funktion erhalten (siehe dortiger Kommentar), wird aber im Produktpfad nicht mehr
 // aufgerufen.
-async function startCharacterJob(prompt) {
+// GEAENDERT (23.09.2026): anzahl waehlt die Zahl der Kandidaten -- ohne Angabe wie bisher 2,
+// anzahl=1 fuer "Noch einmal zeichnen".
+async function startCharacterJob(prompt, anzahl) {
   const resp = await fetch("/api/char-job-start", {
-    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt }),
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(anzahl === 1 ? { prompt, anzahl: 1 } : { prompt }),
   });
   const data = await parseJsonResponse(resp);
   if (!resp.ok || data.error) throw new Error(data.error || ("Start-Fehler " + resp.status));
@@ -3895,7 +3925,7 @@ function waitWithVisibilityWakeup(ms) {
 async function runCharacterJobPolling(prompt, opts) {
   opts = opts || {};
   const intervalMs = opts.intervalMs || 7000;
-  const jobId = opts.existingJobId || await startCharacterJob(prompt);
+  const jobId = opts.existingJobId || await startCharacterJob(prompt, opts.anzahl);
   if (opts.onJobId) opts.onJobId(jobId);
   for (;;) {
     if (opts.signal && opts.signal.aborted) throw new Error("Abgebrochen.");
@@ -4454,6 +4484,7 @@ window.Pipeline = {
   startCharacterJob, pollCharacterJobOnce, runCharacterJobPolling,
   startSceneJob, pollSceneJobOnce, runSceneJobPolling, neueSceneJobId,
   BGCHAR_MERKMALE, heldMerkmale, bgFigurAehnlich, filterBgSheets, beschreibeFigurenblatt, parseFigurenblatt,
+  pruefeBlattStil,
   heldBeschreibungAusBlatt, kinderUnterscheidung, FIGURENBLATT_PROMPT, GROSSE_KOEPFE_SATZ, heldEinmalSatz, heldExklusivMerkmal, haarPhrase,
   SCENE_STYLE_BLOCK, FILL_EMPTY_SPACE_RULE, COHERENCE_RULE, ZERO_TEXT_RULE, EMOTION_WORDS_RULE,
   SAFE_MARGIN_RULE, SCENE_TOTAL_CHARACTER_TARGET_RULE,

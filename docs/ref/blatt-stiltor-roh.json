@@ -1,5 +1,5 @@
 {
- "am": "2026-09-23T08:55:26.768Z",
+ "am": "2026-09-23T09:15:13.751Z",
  "referenz": "https://wimmel-wizard-v3.vercel.app/assets/referenz-bauernhof-2026-09-18.jpg",
  "modell": "claude-sonnet-5",
  "blaetter": [
@@ -94,117 +94,246 @@
    "url": "https://wimmel-wizard-v3.vercel.app/assets/bgchars/bgchars-13.jpg"
   }
  ],
- "teilA": [
-  {
-   "name": "A",
-   "gruppe": "alt",
-   "passt": "ja",
-   "begruendung": "Die Figur hat einen runden Kopf, dicke schwarze Konturen, flache Farbflächen, Punktaugen und einen einzelnen senkrechten Nasenstrich ohne plastische Schattierung im Gesicht, was dem Referenzstil entspricht."
-  },
-  {
-   "name": "B",
-   "gruppe": "alt",
-   "passt": "nein",
-   "begruendung": "Die Figur in Bild 2 hat eine glattere, anime-artige Schattierung und Rendering-Stil (weiche Farbverlaeufe an Haaren und Kleidung, feinere Linienfuehrung) statt der flachen Farbflaechen mit dicker gleichmaessiger Kontur wie in der Referenz. Zudem wirkt die Gesichtsproportion und Haarstruktur detailli"
-  },
-  {
-   "name": "C",
-   "gruppe": "alt",
-   "passt": "ja",
-   "begruendung": "Die Figur hat einen runden Kopf, dicke schwarze Konturen, flache Farbflaechen, Punktaugen und einen einzelnen senkrechten Nasenstrich ohne plastische Gesichtsschattierung, was dem Stil der Referenz entspricht."
-  },
-  {
-   "name": "Max",
-   "gruppe": "neu",
-   "passt": "ja",
-   "begruendung": "Die Figur zeigt einen runden Kopf, dicke schwarze Konturen, flache Farbflaechen, Punktaugen und einen einzelnen senkrechten Nasenstrich ohne plastische Gesichtsschattierung, was dem Stil der Referenz entspricht."
-  },
-  {
-   "name": "Moritz",
-   "gruppe": "neu",
-   "passt": "ja",
-   "begruendung": "Die Figur in Bild 2 hat einen runden Kopf, dicke schwarze Konturen, flache Farbflaechen, Punktaugen und einen einzelnen senkrechten Nasenstrich, ohne plastische Gesichtsschattierung - das entspricht dem Stil der Referenz."
-  },
-  {
-   "name": "bgchars-1",
-   "gruppe": "bibliothek",
-   "passt": "ja",
-   "begruendung": "Die Figuren in Bild 2 haben runde Koepfe, dicke schwarze Konturen, flache Farbflaechen, Punktaugen und den charakteristischen einzelnen senkrechten Nasenstrich, ohne plastische Gesichtsschattierung. Dies entspricht dem Zeichenstil der Referenz."
-  },
-  {
-   "name": "bgchars-2",
-   "gruppe": "bibliothek",
-   "passt": "ja",
-   "begruendung": "Die Figuren in Bild 2 haben runde Koepfe, dicke schwarze Konturen, flache Farbflaechen, Punktaugen und einen einzelnen senkrechten Nasenstrich ohne plastische Gesichtsschattierung, was dem Stil der Referenz entspricht."
-  },
-  {
-   "name": "bgchars-3",
-   "gruppe": "bibliothek",
-   "passt": "ja",
-   "begruendung": "Die Figuren in Bild 2 haben runde Koepfe, dicke schwarze Konturen, flache Farbflaechen, Punktaugen und einen einzelnen senkrechten Nasenstrich ohne plastische Gesichtsschattierung, was dem Referenzstil entspricht."
-  },
-  {
-   "name": "bgchars-4",
-   "gruppe": "bibliothek",
-   "passt": "ja",
-   "begruendung": "Die Figuren in Bild 2 zeigen dicke schwarze Konturen, flache Farbflaechen, runde Koepfe, Punktaugen und einen einzelnen senkrechten Nasenstrich ohne plastische Gesichtsschattierung, was der Referenz entspricht. Die Proportionen und der grafische Comic-Look stimmen ueberein, es gibt keinen klaren Sti"
-  },
-  {
-   "name": "bgchars-5",
-   "gruppe": "bibliothek",
-   "passt": "nein",
-   "begruendung": "Die Figuren in Bild 2 haben zwar runde Koepfe und Punktaugen, sind aber im Anime-/Manga-Stil mit feinerer Linienfuehrung, plastischer Schattierung bei Haaren und Kleidung sowie weicheren Farbverlaeufen gezeichnet, statt der dicken schwarzen Konturen und flachen Farbflaechen der Referenz. Zudem fehlt"
-  },
-  {
-   "name": "bgchars-6",
-   "gruppe": "bibliothek",
-   "passt": "ja",
-   "begruendung": "Die Figuren in Bild 2 haben runde Koepfe, Punktaugen, einen einzelnen senkrechten Nasenstrich, dicke schwarze Konturen und flache Farbflaechen ohne plastische Gesichtsschattierung, was dem Stil der Referenz entspricht."
-  },
-  {
-   "name": "bgchars-7",
-   "gruppe": "bibliothek",
-   "passt": "ja",
-   "begruendung": "Die Figuren in Bild 2 haben ebenfalls dicke schwarze Konturen, flache Farbflächen, runde Köpfe, Punktaugen und einen einzelnen senkrechten Nasenstrich ohne plastische Gesichtsschattierung, was dem Stil der Referenz entspricht."
-  },
-  {
-   "name": "bgchars-8",
-   "gruppe": "bibliothek",
-   "passt": "ja",
-   "begruendung": "Die Figuren in Bild 2 haben runde Koepfe, dicke schwarze Konturen, flache Farbflaechen, Punktaugen und den charakteristischen senkrechten Nasenstrich ohne plastische Gesichtsschattierung, was dem Stil der Referenz entspricht."
-  },
-  {
-   "name": "bgchars-9",
-   "gruppe": "bibliothek",
-   "passt": "ja",
-   "begruendung": "Die Figuren in Bild 2 haben runde Koepfe, dicke schwarze Konturen, flache Farbflaechen, Punktaugen und einen einzelnen senkrechten Nasenstrich ohne plastische Gesichtsschattierung, was dem Stil der Referenz entspricht."
-  },
-  {
-   "name": "bgchars-10",
-   "gruppe": "bibliothek",
-   "passt": "nein",
-   "begruendung": "Die Figuren in Bild 2 sind im Anime-Stil mit realistischeren Proportionen, schlanken Koerperformen und plastisch wirkenden Gesichtszuegen gezeichnet, waehrend die Referenz flache, runde Kindchenschema-Koepfe mit dicker Kontur zeigt. Zudem fehlt der charakteristische einzelne senkrechte Nasenstrich b"
-  },
-  {
-   "name": "bgchars-11",
-   "gruppe": "bibliothek",
-   "passt": "ja",
-   "begruendung": "Die Figuren in Bild 2 zeigen dieselben Stilmerkmale wie die Referenz: dicke schwarze Konturen, flache Farbflaechen, runde Koepfe, Punktaugen und einen einzelnen senkrechten Nasenstrich ohne plastische Gesichtsschattierung. Der Zeichenstil stimmt somit ueberein."
-  },
-  {
-   "name": "bgchars-12",
-   "gruppe": "bibliothek",
-   "passt": "ja",
-   "begruendung": "Die Figuren in Bild 2 haben runde Koepfe, dicke schwarze Konturen, flache Farbflaechen, Punktaugen und einen einzelnen senkrechten Nasenstrich ohne plastische Gesichtsschattierung, was dem Stil der Referenz entspricht."
-  },
-  {
-   "name": "bgchars-13",
-   "gruppe": "bibliothek",
-   "passt": "ja",
-   "begruendung": "Die Figuren in Bild 2 zeigen dieselben Stilmerkmale wie die Referenz: dicke schwarze Konturen, flache Farbflaechen, runde Koepfe, Punktaugen und ein einzelner senkrechter Nasenstrich ohne plastische Gesichtsschattierung. Rundliche Wangen und die klare Linienfuehrung stimmen ebenfalls mit dem Referen"
-  }
- ],
+ "teilA": [],
  "messung": {
-  "fehler": "Antwort bei max_tokens abgeschnitten."
+  "blaetter": [
+   {
+    "nr": 1,
+    "kontur": 8,
+    "flaechig": 8,
+    "haare_flaechig": 8,
+    "mund": 0,
+    "nase_strich": 1,
+    "gesicht_schattiert": 0,
+    "abweichung": "nichts wesentliches, minimal weichere Linienstärke",
+    "_name": "A",
+    "_gruppe": "alt"
+   },
+   {
+    "nr": 2,
+    "kontur": 7,
+    "flaechig": 6,
+    "haare_flaechig": 4,
+    "mund": 0,
+    "nase_strich": 1,
+    "gesicht_schattiert": 1,
+    "abweichung": "Haare mit Strähnendetail und leichter Schattierung statt flacher Flächen",
+    "_name": "B",
+    "_gruppe": "alt"
+   },
+   {
+    "nr": 3,
+    "kontur": 6,
+    "flaechig": 5,
+    "haare_flaechig": 6,
+    "mund": 0,
+    "nase_strich": 1,
+    "gesicht_schattiert": 1,
+    "abweichung": "Bart stark texturiert und schattiert statt flacher Fläche",
+    "_name": "C",
+    "_gruppe": "alt"
+   },
+   {
+    "nr": 4,
+    "kontur": 8,
+    "flaechig": 8,
+    "haare_flaechig": 8,
+    "mund": 0,
+    "nase_strich": 1,
+    "gesicht_schattiert": 0,
+    "abweichung": "nichts wesentliches",
+    "_name": "Max",
+    "_gruppe": "neu"
+   },
+   {
+    "nr": 5,
+    "kontur": 7,
+    "flaechig": 6,
+    "haare_flaechig": 5,
+    "mund": 0,
+    "nase_strich": 1,
+    "gesicht_schattiert": 1,
+    "abweichung": "Haare und Brille mit mehr Detail/Schattierung als Referenz",
+    "_name": "Moritz",
+    "_gruppe": "neu"
+   },
+   {
+    "nr": 6,
+    "kontur": 7,
+    "flaechig": 7,
+    "haare_flaechig": 6,
+    "mund": 0,
+    "nase_strich": 1,
+    "gesicht_schattiert": 0,
+    "abweichung": "lockige blonde Haare einer Figur mit mehr Strähnendetail als Referenz",
+    "_name": "bgchars-1",
+    "_gruppe": "bibliothek"
+   },
+   {
+    "nr": 1,
+    "kontur": 7,
+    "flaechig": 7,
+    "haare_flaechig": 7,
+    "mund": 0,
+    "nase_strich": 1,
+    "gesicht_schattiert": 0,
+    "abweichung": "kein Mund sichtbar, Gesicht auf Strich-Nase reduziert statt Referenz-Gesichtszuege",
+    "_name": "bgchars-2",
+    "_gruppe": "bibliothek"
+   },
+   {
+    "nr": 2,
+    "kontur": 7,
+    "flaechig": 7,
+    "haare_flaechig": 7,
+    "mund": 0,
+    "nase_strich": 1,
+    "gesicht_schattiert": 0,
+    "abweichung": "Gesichter ohne Mund und mit einfachem Strich als Nase, wirkt schematischer als Referenz",
+    "_name": "bgchars-3",
+    "_gruppe": "bibliothek"
+   },
+   {
+    "nr": 3,
+    "kontur": 7,
+    "flaechig": 7,
+    "haare_flaechig": 7,
+    "mund": 0,
+    "nase_strich": 1,
+    "gesicht_schattiert": 0,
+    "abweichung": "Fehlender Mund und reduzierte Gesichtszeichnung im Vergleich zur Referenz",
+    "_name": "bgchars-4",
+    "_gruppe": "bibliothek"
+   },
+   {
+    "nr": 4,
+    "kontur": 7,
+    "flaechig": 7,
+    "haare_flaechig": 7,
+    "mund": 0,
+    "nase_strich": 1,
+    "gesicht_schattiert": 0,
+    "abweichung": "Gesichter minimalistischer, kein Mund, nur Strich-Nase",
+    "_name": "bgchars-5",
+    "_gruppe": "bibliothek"
+   },
+   {
+    "nr": 5,
+    "kontur": 7,
+    "flaechig": 8,
+    "haare_flaechig": 8,
+    "mund": 0,
+    "nase_strich": 1,
+    "gesicht_schattiert": 0,
+    "abweichung": "Kleidung sehr flach ohne Schattierung, Gesichter ohne Mund",
+    "_name": "bgchars-6",
+    "_gruppe": "bibliothek"
+   },
+   {
+    "nr": 6,
+    "kontur": 7,
+    "flaechig": 8,
+    "haare_flaechig": 7,
+    "mund": 0,
+    "nase_strich": 1,
+    "gesicht_schattiert": 0,
+    "abweichung": "Sehr flache Farbgebung, keine Mundzeichnung, Gesichter schematisch",
+    "_name": "bgchars-7",
+    "_gruppe": "bibliothek"
+   },
+   {
+    "nr": 7,
+    "kontur": 7,
+    "flaechig": 8,
+    "haare_flaechig": 7,
+    "mund": 0,
+    "nase_strich": 1,
+    "gesicht_schattiert": 0,
+    "abweichung": "Kein Mund sichtbar, Gesichtsausdruck reduziert im Vergleich zur Referenz"
+   },
+   {
+    "nr": 1,
+    "kontur": 6,
+    "flaechig": 7,
+    "haare_flaechig": 5,
+    "mund": 1,
+    "nase_strich": 0,
+    "gesicht_schattiert": 1,
+    "abweichung": "Gesichter haben Mund und modellierte Wangen/Schattierung statt schlichter Striche wie in der Referenz",
+    "_name": "bgchars-8",
+    "_gruppe": "bibliothek"
+   },
+   {
+    "nr": 2,
+    "kontur": 5,
+    "flaechig": 6,
+    "haare_flaechig": 4,
+    "mund": 0,
+    "nase_strich": 1,
+    "gesicht_schattiert": 1,
+    "abweichung": "Haare mit Strähnen und Schattierungen in Kleidung, weniger flach als Referenz",
+    "_name": "bgchars-9",
+    "_gruppe": "bibliothek"
+   },
+   {
+    "nr": 3,
+    "kontur": 5,
+    "flaechig": 6,
+    "haare_flaechig": 4,
+    "mund": 0,
+    "nase_strich": 1,
+    "gesicht_schattiert": 1,
+    "abweichung": "Kleidung zeigt Schattenverläufe (z.B. Mantel, Cape), Haare mit Textur statt flacher Fläche",
+    "_name": "bgchars-10",
+    "_gruppe": "bibliothek"
+   },
+   {
+    "nr": 4,
+    "kontur": 5,
+    "flaechig": 6,
+    "haare_flaechig": 5,
+    "mund": 0,
+    "nase_strich": 1,
+    "gesicht_schattiert": 1,
+    "abweichung": "Beine/Körperformen realistischer proportioniert, leichte Schattierung an Kleidung",
+    "_name": "bgchars-11",
+    "_gruppe": "bibliothek"
+   },
+   {
+    "nr": 5,
+    "kontur": 5,
+    "flaechig": 5,
+    "haare_flaechig": 3,
+    "mund": 0,
+    "nase_strich": 1,
+    "gesicht_schattiert": 1,
+    "abweichung": "Haare mit deutlichen Strähnen und Volumen, Kleidung mit Faltenschattierung",
+    "_name": "bgchars-12",
+    "_gruppe": "bibliothek"
+   },
+   {
+    "nr": 6,
+    "kontur": 5,
+    "flaechig": 5,
+    "haare_flaechig": 4,
+    "mund": 0,
+    "nase_strich": 1,
+    "gesicht_schattiert": 1,
+    "abweichung": "Kleidung (Uniform, Jacke) mit deutlichen Schattierungen und Texturdetails",
+    "_name": "bgchars-13",
+    "_gruppe": "bibliothek"
+   },
+   {
+    "nr": 7,
+    "kontur": 5,
+    "flaechig": 6,
+    "haare_flaechig": 4,
+    "mund": 0,
+    "nase_strich": 1,
+    "gesicht_schattiert": 1,
+    "abweichung": "Kleidung mit Faltenschatten, Haare mit einzelnen Strähnen sichtbar"
+   }
+  ],
+  "fehler": null
  }
 }
