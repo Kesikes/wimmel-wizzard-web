@@ -159,7 +159,9 @@ function stilTorZahlen(l, fassung) {
   let k = 0, nein = 0, keinBild = 0, auftr = 0;
   l.auftraege.filter((a) => a.fassung === fassung && a.ergebnis).forEach((a) => {
     auftr++;
-    if (a.ergebnis.resultKeinBild) keinBild++;
+    // GEAENDERT (23.09.2026): seit der Notloesung gibt es kein "kein Bild" mehr -- gezaehlt wird
+    // jetzt, wie oft KEIN Kandidat bestanden hat (resultNotloesung), plus die alten Datensaetze.
+    if (a.ergebnis.resultKeinBild || a.ergebnis.resultNotloesung) keinBild++;
     (a.ergebnis.candidates || []).forEach((c) => { if (c.genStatus === "done") { k++; if (c.stilTor && c.stilTor.urteil === "nein") nein++; } });
   });
   return { auftr, k, nein, keinBild };
@@ -210,7 +212,7 @@ function seite(l) {
   const ziel = path.join(DIR, "vergleich.html");
   fs.writeFileSync(ziel, html);
   console.log("\nVergleichsseite: " + ziel);
-  console.log("Stil-Tor alt: " + za.nein + " von " + za.k + " Kandidaten gescheitert, kein Bild " + za.keinBild + "; neu: " + zn.nein + " von " + zn.k + ", kein Bild " + zn.keinBild);
+  console.log("Stil-Tor alt: " + za.nein + " von " + za.k + " Kandidaten gescheitert, keiner bestanden (Notloesung) " + za.keinBild + "; neu: " + zn.nein + " von " + zn.k + ", keiner bestanden " + zn.keinBild);
 }
 
 if (BEFEHL === "seite") seite();

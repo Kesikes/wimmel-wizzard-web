@@ -33,7 +33,7 @@
 // in pipeline.js (dessen Verhalten diese Datei ersetzt, sobald live bestaetigt).
 const {
   submitFalQueue, falQueueStatus, falQueueResult, callFalVerifySync, countViolations,
-  logFalError, VERIFY_MAX_VERSUCHE,
+  logFalError, VERIFY_MAX_VERSUCHE, compareSeverity,
 } = require("./fal-queue");
 const { richterUrteil, stilTorUrteil, RICHTER_MODELL } = require("./richter");
 
@@ -376,8 +376,8 @@ function stilbruchMessung(c) {
 //   - Gezeigt werden nur Kandidaten, die das Stil-Tor bestanden haben (job.angebot, Favorit zuerst).
 //   - Favorit: das EINIGE Urteil des Richters; sonst (uneinig, gescheitert, aus, nur einer) K1 --
 //     der zuerst angelegte bestandene Kandidat. Kein Rueckfall auf Heldenzaehlung oder Schwere.
-//   - Keiner bestanden (auch nicht der dritte): job.resultKeinBild = true, kein Bild. Der Client
-//     zeigt "Das hat diesmal nicht geklappt" und bietet einen kostenlosen neuen Durchgang an.
+//   - Keiner bestanden (auch nicht der dritte): SEIT 23.09.2026 gibt es trotzdem ein Bild --
+//     der am wenigsten schlechte Kandidat, siehe unten (resultNotloesung). Bis dahin: kein Bild.
 //   - Nur bei technischem Totalausfall (kein Kandidat ueberhaupt fertig) bleibt es ein Fehler.
 // HISTORISCH (bis 21.09.2026): drei Gruppen (geprueft ohne schweren Verstoss / ungeprueft /
 // geprueft mit schwerem Verstoss), darin compareSeverity(); der Richter nur bei Gleichstand.
@@ -391,24 +391,39 @@ function finalizeJob(job, usableCandidates) {
   }
   const bestanden = usableCandidates.filter(stilTorBestanden);
   job.status = "done";
+  // GEAENDERT (23.09.2026, Produktentscheidung des Nutzers: "Ein Bild mit Muendern ist besser als
+  // gar kein Bild"): Besteht KEIN Kandidat, gibt es trotzdem ein Bild -- der am wenigsten schlechte
+  // (compareSeverity) wird angeboten, zusammen mit einem ehrlichen Hinweis und einem kostenlosen
+  // neuen Durchgang. Der dritte, bezahlte Kandidat wird davor wie bisher erzeugt (advanceSceneJob).
+  // HISTORISCH (21.09.-22.09.2026): resultKeinBild = true, gar kein Bild. Das Feld bleibt stehen,
+  // damit aeltere Job-Datensaetze im Browser weiter richtig gelesen werden.
   if (!bestanden.length) {
-    job.resultKeinBild = true;
-    job.angebot = [];
-    job.resultUrl = null;
-    job.resultQuelle = "keiner_bestanden";
+    const reihe = usableCandidates.slice().sort((x, y) => compareSeverity(x.severity, y.severity));
+    job.resultKeinBild = false;
+    job.resultNotloesung = true;
+    job.resultQuelle = "notloesung";
+    setzeAngebot(job, reihe);
     return;
   }
+  job.resultNotloesung = false;
   const rr = job.richterErgebnis;
   const vomRichter = (rr && rr.ergebnis === "einig" && rr.gewaehlteUrl)
     ? bestanden.find((c) => c.url === rr.gewaehlteUrl) : null;
   const favorit = vomRichter || bestanden[0];
   job.resultQuelle = vomRichter ? "richter" : "k1";
-  const reihe = [favorit].concat(bestanden.filter((c) => c !== favorit));
+  setzeAngebot(job, [favorit].concat(bestanden.filter((c) => c !== favorit)));
+  job.resultKeinBild = false;
+}
+
+// setzeAngebot(): das Angebot und die abgeleiteten result*-Felder aus einer fertigen Reihenfolge
+// (Favorit zuerst). Einmal fuer den Normalfall, einmal fuer die Notloesung -- damit beide Wege
+// dieselben Felder setzen und keiner davon vergessen werden kann.
+function setzeAngebot(job, reihe) {
+  const favorit = reihe[0];
   job.angebot = reihe.map((c) => ({
     url: c.url, seed: c.seed, nr: job.candidates.indexOf(c) + 1,
     violations: c.violations, severity: c.severity || null, verify: c.verify, verifyStatus: c.verifyStatus || null,
   }));
-  job.resultKeinBild = false;
   job.resultUrl = favorit.url;
   job.resultSeed = favorit.seed;
   job.resultViolations = favorit.violations;

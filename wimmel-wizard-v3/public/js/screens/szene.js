@@ -944,9 +944,15 @@ function renderZauberRuhe(root) {
   // Hinweis bleibt stehen, bis ein neues Bild fertig ist (freierDurchgang wird dann geleert).
   const frei = AppState.data.freierDurchgang;
   if (frei) {
-    wrap.appendChild(h("p", { class: "kicker kicker-red" }, "Kein Bild diesmal"));
-    wrap.appendChild(h("h1", { class: "h1-scr", style: { fontSize: "28px" } }, "Das hat diesmal nicht geklappt."));
-    wrap.appendChild(h("p", { class: "caveat-sub" }, "keiner meiner Versuche hat unseren Zeichenstil getroffen. ich probiere es gern noch einmal — dieser Durchgang kostet dich nichts."));
+    // GEAENDERT (23.09.2026): zwei Gruende, zwei Texte. "notloesung" heisst, es GIBT ein Bild (mit
+    // Fehlern) -- dann darf hier nicht "kein Bild" stehen. "stil-tor" ist der alte Fall ohne Bild
+    // und kommt nur noch aus aelteren gespeicherten Staenden.
+    const notloesung = frei.grund === "notloesung";
+    wrap.appendChild(h("p", { class: "kicker kicker-red" }, notloesung ? "Dieser Durchgang ist frei" : "Kein Bild diesmal"));
+    wrap.appendChild(h("h1", { class: "h1-scr", style: { fontSize: "28px" } }, notloesung ? "Ich probier's gern nochmal." : "Das hat diesmal nicht geklappt."));
+    wrap.appendChild(h("p", { class: "caveat-sub" }, notloesung
+      ? "beim letzten Bild hat mein Zeichenstil nicht ganz gestimmt. du kannst es trotzdem behalten — oder ich zauber dir noch eins, dieser Durchgang kostet dich nichts."
+      : "keiner meiner Versuche hat unseren Zeichenstil getroffen. ich probiere es gern noch einmal — dieser Durchgang kostet dich nichts."));
     wrap.appendChild(h("button", { type: "button", class: "h-black", style: { marginTop: "14px", minHeight: "48px", width: "100%", fontSize: "13px", cursor: "pointer", background: "var(--yellow)", color: "var(--ink)", border: "3px solid var(--ink)" }, onClick: () => goZaubernFresh() }, "Nochmal zaubern"));
     root.appendChild(wrap);
     return;
@@ -1152,7 +1158,10 @@ Screens.zaubern = {
         promptText: result.promptText, instruction: result.instruction,
         violations: result.best.violations, verify: result.best.verify, candidates: result.candidates,
         richter: result.richter || null, quelle: result.quelle || null, heldenInfo: result.heldenInfo || null,
-        abgelehnt: result.abgelehnt || null, angebot: result.angebot || null
+        abgelehnt: result.abgelehnt || null, angebot: result.angebot || null,
+        // NEU (23.09.2026): kein Kandidat hat bestanden -- das Bild wird trotzdem angeboten, und
+        // der naechste Durchgang ist kostenlos (siehe addImage() in state.js).
+        notloesung: !!(result && result.notloesung)
       });
       zauberBusy = false;
       Router.goScreen("ergebnis");
@@ -1470,12 +1479,28 @@ function buildDebugDetails(image) {
     if (k.verifyRohAnfang) t += "\n    Antwort des Prüfmodells begann mit: " + k.verifyRohAnfang;
     return t;
   }
+  // GEAENDERT (23.09.2026, Nutzer-Entscheidung zu figures_est): In der ANZEIGE ist figures_est kein
+  // Verstoss mehr, sondern ein Messwert -- es schlug bei 28 von 32 Kandidaten an, und ob die
+  // Schaetzung des Modells oder die geforderte Spanne danebenliegt, ist NICHT gemessen.
+  // An der WERTUNG aendert sich nichts: die Zahlen im Kopf enthalten ihn weiter, und das steht
+  // ausdruecklich da -- eine Zeile weniger im Panel darf nicht wie eine Wertungsaenderung aussehen.
+  function figurenMessText(v) {
+    const n = v ? Number(v.figures_est) : NaN;
+    if (!isFinite(n)) return "Menschen im Bild: nicht gemessen (Feld figures_est fehlt)";
+    const soll = Array.isArray(gruendeBand) ? gruendeBand[0] + "–" + gruendeBand[1] : "keine Spanne hinterlegt";
+    const drin = Array.isArray(gruendeBand) && n >= gruendeBand[0] && n <= gruendeBand[1];
+    return "Menschen im Bild (Messwert, in der Anzeige ungewertet): geschätzt " + n + ", Sollbereich " + soll +
+      (Array.isArray(gruendeBand) ? (drin ? " → im Bereich" : " → außerhalb") : "") +
+      "\n    (zählt in den Zahlen oben WEITER als mittlerer Verstoß mit — nicht gemessen ist, ob die Schätzung oder die Forderung danebenliegt)";
+  }
   function gruendeText(v) {
     if (!v || !window.Pipeline || !Pipeline.severityOf) return "(keine Wertung)";
     const s = Pipeline.severityOf(v, gruendeBand);
     const kopf = s.heavy + " schwer / " + s.medium + " mittel / " + s.light + " leicht";
-    if (!s.gruende || !s.gruende.length) return kopf + " — keine Verstöße";
-    return kopf + "\n    · " + s.gruende.join("\n    · ");
+    const ohneFiguren = (s.gruende || []).filter((g) => !/^figures_est\b/.test(g));
+    const zeilen = ohneFiguren.concat([figurenMessText(v)]);
+    if (!s.gruende || !s.gruende.length) return kopf + " — keine Verstöße\n    · " + figurenMessText(v);
+    return kopf + "\n    · " + zeilen.join("\n    · ");
   }
   // NEU (20.09.2026): der D-Richter. Beide Urteile einzeln, weil erst der Vergleich der beiden
   // etwas wert ist -- stimmen sie ueberein, ist es kein Reihenfolge-Effekt. Ein gescheiterter
@@ -1713,6 +1738,19 @@ function buildErgebnisAnsicht(s, image) {
   // NEU (21.09.2026, Produktentscheidung, Wortlaut vom Nutzer): ersetzt den gelben Warnkasten
   // ("Bitte einmal gegenchecken" / "Nicht bestanden"). Steht einmal, direkt ueber dem Stift-Knopf --
   // dort, wo die Kundin den Fehler sieht und die Loesung gleich daneben hat.
+  // NEU (23.09.2026, Produktentscheidung des Nutzers: "Ein Bild mit Muendern ist besser als gar kein
+  // Bild"): Hat kein Kandidat bestanden, wird der am wenigsten schlechte gezeigt -- mit einem
+  // ehrlichen Hinweis und einem kostenlosen neuen Durchgang. Der Hinweis steht VOR dem allgemeinen
+  // KI-Hinweis, damit er nicht untergeht.
+  if (image.notloesung) {
+    const kasten = h("div", { class: "erg-notloesung", style: { margin: "12px 14px 0", padding: "12px", border: "3px solid var(--ink)", background: "var(--yellow)" } });
+    kasten.appendChild(h("p", { style: { margin: "0", fontSize: "13px", lineHeight: "1.45" } },
+      "Dieses Bild hat ein paar Fehler — mein Zeichenstil hat diesmal nicht ganz gestimmt. Du kannst es nehmen, mit dem Stift ausbessern oder noch einmal zaubern. Der nächste Durchgang kostet dich nichts."));
+    kasten.appendChild(h("button", { type: "button", class: "h-black",
+      style: { marginTop: "10px", minHeight: "46px", width: "100%", fontSize: "12.5px", cursor: "pointer", border: "3px solid var(--ink)", background: "var(--ink)", color: "var(--paper)" },
+      onClick: () => Router.goScreen("zaubern") }, "Noch einmal zaubern · kostenlos"));
+    seite.appendChild(kasten);
+  }
   seite.appendChild(h("p", { class: "erg-ki-hinweis" }, "Die Bilder malt eine KI. Sie macht manchmal kleine Fehler — zum Beispiel ist eine Figur doppelt da. Mit dem Stift kannst du solche Stellen einfach korrigieren."));
 
   // Werkzeuge. "Detail antippen" und "Nochmal zaubern" sind seit 19.09.2026 (Phase 0.2) entfernt

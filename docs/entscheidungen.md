@@ -194,11 +194,36 @@ ab welcher Fassung die Regel im Code gilt; „Schritt 3" heißt: kommt mit der K
 |---|---|
 | Der **dritte Kandidat** kommt **nur**, wenn **kein** Kandidat das Stil-Tor besteht. Tiefe, Figurengröße und die übrigen Prüfbefunde lösen keinen bezahlten dritten Lauf mehr aus. Ohne Stil-Tor (Kontrollschalter `stiltor=aus`) gibt es keinen dritten Kandidaten. | `2026-09-21i` |
 | Ein **technisch gescheitertes** Stil-Tor zählt als **bestanden**. | `2026-09-21i` (dritter Kandidat), `2026-09-21j` (Anzeige) |
-| Besteht auch der dritte das Stil-Tor nicht: **kein Bild**, „Das hat diesmal nicht geklappt" + „Nochmal zaubern"; der neue Durchgang ist für die Kundin **kostenlos**. | `2026-09-21j` — siehe unten |
+| ~~Besteht auch der dritte das Stil-Tor nicht: **kein Bild**~~ **ÜBERHOLT am 23.09.2026, siehe den Eintrag „Notlösung" direkt unter dieser Tabelle.** | `2026-09-21j`, ersetzt durch `2026-09-23a` |
 | Der **Richter** bestimmt bei jedem Paar den **Favoriten**. Uneinig oder gescheitert: K1 vorne, kein Rückfall auf die Heldenzählung. | `2026-09-21j` |
 | Besteht **nur einer**: nur diesen zeigen, kein Umschalter, kein dritter Kandidat. | `2026-09-21j` |
 | **Hinweistext** unter dem Bild, direkt über dem Stift-Knopf, ersetzt den gelben Warnkasten: „Die Bilder malt eine KI. Sie macht manchmal kleine Fehler — zum Beispiel ist eine Figur doppelt da. Mit dem Stift kannst du solche Stellen einfach korrigieren." | `2026-09-21j` |
 | **Stift** vorerst ohne Umschalter Malen/Verschieben; der kommt nur, wenn der Handytest des Nutzers ungewollte Striche zeigt. | gebaut 22.09.2026 (nur Oberfläche, keine neue Fassung) — Handytest des Nutzers steht aus |
+
+### GÜLTIG (Produktentscheidung des Nutzers, 23.09.2026): Notlösung statt „kein Bild"
+
+> „Wenn kein Kandidat besteht, bitte den am wenigsten schlechten anbieten, mit einem ehrlichen
+> Hinweis … Ein Bild mit Mündern ist besser als gar kein Bild."
+
+Ersetzt die Regel „kein Bild" vom 21.09.2026. Gebaut am 23.09.2026, Prüf-Fassung `2026-09-23a`:
+
+- Der **dritte Kandidat wird weiter vorher erzeugt** — daran ändert sich nichts.
+- Besteht danach immer noch keiner, sortiert `finalizeJob()` **alle** brauchbaren Kandidaten nach
+  `compareSeverity()` (schwer → Heldenfehler → mittel → leicht) und bietet sie an, den am wenigsten
+  schlechten zuerst. `resultQuelle` = `notloesung`, `resultNotloesung` = true.
+- Der Ergebnis-Screen zeigt darüber einen gelben Kasten: „Dieses Bild hat ein paar Fehler — mein
+  Zeichenstil hat diesmal nicht ganz gestimmt. Du kannst es nehmen, mit dem Stift ausbessern oder
+  noch einmal zaubern. Der nächste Durchgang kostet dich nichts." Dazu ein Knopf „Noch einmal
+  zaubern · kostenlos".
+- `freierDurchgang` wird mit dem Grund `notloesung` gesetzt — die Kundin behält das Bild **und**
+  den kostenlosen Durchgang. Der Zaubern-Screen sagt in diesem Fall nicht mehr „kein Bild",
+  sondern „Ich probier's gern nochmal".
+- `resultKeinBild` wird nicht mehr gesetzt. Das Feld bleibt im Code stehen, weil ältere
+  gespeicherte Stände es noch tragen.
+- An den 16 Vergleichsläufen nachgerechnet: die beiden Läufe ohne Bild (T3-alt, A2-alt) bieten jetzt
+  je zwei Kandidaten an. **Anmerkung:** In A2-alt stellt `compareSeverity()` den Kandidaten vorn,
+  den der Nutzer als stilistisch falsch beurteilt hat — der andere trug einen SCHWEREN Verstoß
+  (Stil-Tor nein). Die Reihenfolge ist also nicht unbedingt seine; die Kundin kann umschalten.
 
 Umsetzung (`2026-09-21j`):
 - Server (`finalizeJob()` in `scene-job-engine.js`) liefert `angebot`: nur bestandene Kandidaten,
@@ -855,6 +880,28 @@ Nutzer, 21.09.2026: jetzt nicht bauen, beim Prompt-Aufräumen angehen.
   Jahre, „reaches an adult's chest" für 6–9; in den Einmal-Satz des Helden aufnehmen und das
   Stil-Tor bzw. die Heldenprüfung um „passt das Alter/die Größe?" ergänzen (erst messen, 90-%-Regel).
 
+**Stand 23.09.2026:** Der Baustein „Alter als Größe" (`ALTER_ALS_GROESSE`) wurde gebaut, in zwei
+Szenen verglichen und zeigte **keine Wirkung** (Alter beide Male „gleich"). Er bleibt ausgeschaltet.
+Der Weg über den Text gilt damit als ausgeschöpft.
+
+**Verworfene Zwischenidee: graue Erwachsenen-Silhouette als Maßstab** (Idee des Nutzers, 22.09.,
+am 23.09. durch das Maßstabs-Konzept ersetzt — `docs/konzept-massstab-2026-09-23.md`). Die
+Einschätzung bleibt hier stehen, weil zwei Befunde daraus weiter gelten:
+
+- **Der wichtigste Punkt, gilt für JEDE Maßstabslösung:** Im Szenenprompt steht heute ausdrücklich
+  das Gegenteil — „Take their identity from those reference images, but **NOT their size**: the
+  references are close-up character sheets in which one person fills the frame, and that is a
+  property of the reference sheet, not of this scene." Solange dieser Satz unverändert steht, hebt
+  der Prompt jede Maßstabsinformation aus den Blättern wieder auf. Er muss eingeengt werden:
+  absolute Größe weiter aus der Größenregel, **Verhältnisse untereinander** aus den Blättern.
+- **Silhouette im Figurenblatt selbst scheitert an drei Stellen:** die Figurenprüfung fragt
+  wörtlich „Zeigt dieses Bild GENAU EINE einzelne Figur?" (`single_ok` würde jedes Blatt
+  ablehnen); `beschreibeFigurenblatt()` liest Haare und Oberteil aus dem Blatt und könnte die
+  beiden Figuren verwechseln; und die Nahaufnahme, an der die Gesichtsauflösung und damit die
+  Heldentreue hängt, ginge verloren. Dazu käme, dass beide Erzeugungswege (`flux-lora` aus Chips,
+  `nano-banana-2/edit` aus dem Foto) die Silhouette jedes Mal **neu erfinden** würden — sie wäre
+  also gerade nicht „immer gleich".
+
 ---
 
 ## 15. Offen — noch nicht entschieden
@@ -874,6 +921,29 @@ Nichts davon wird bis dahin gebaut, angeglichen oder umformuliert. Dazu gehören
   echte Zahl („34 (ins Buch passen höchstens 5)") statt „34 von 5".
 - **Die Produktleiter** (unten). Beim gefalteten Poster liegen die Falze anders als beim Buch
   (Abschnitt 17 gilt nur fürs Buch) — nur vorgemerkt.
+
+### OFFEN (Konzept, 23.09.2026): ein gemeinsamer Maßstab für alle Figuren
+
+Idee des Nutzers, ausgearbeitet als **`docs/konzept-massstab-2026-09-23.md`**. Ersetzt die
+Silhouetten-Idee vom 22.09. Greift Alter/Größe, Wiedererkennbarkeit der Bibliotheksfiguren und
+Marke zugleich an: Jahreszeiten-Sets statt Umkleide, gemeinsamer Maßstab, ein montiertes
+Maßstabsblatt je Familie (die Nahaufnahmen bleiben), WizzelWim in jedem Bild als Suchspiel und
+Maßstabsanker.
+
+Kurzfassung der Befunde aus dem Konzept:
+
+- **Es passt:** 12 von 14 Referenzbildern im schlimmsten Fall, Promptlänge bei sechs Figuren rund
+  25.200 von 30.000 (gemessen mit `prompt-laenge.js`). Nichts muss weichen.
+- **Der Bremsklotz** ist der Satz „Take their identity from those reference images, but NOT their
+  size". Formulierungsvorschlag steht im Konzept.
+- **Das Maßstabsblatt wird montiert, nicht erzeugt** — sonst zeichnet das Modell die Gesichter neu
+  und die Identität driftet.
+- **Der gemeinsame Maßstab muss nicht auf die Bibliotheksblätter** (Ebenenregel setzt dort die
+  Größe) — das spart den teuersten Teil.
+- **Empfohlene Reihenfolge:** erst die kostenlosen Messungen, dann der Maßstabstest (~2 $), dann
+  WizzelWim, dann die Umkleide mit dem vorhandenen Winter-Set, zuletzt das neue Sommer-Set
+  (8–12 $ plus Kuratierung).
+- **Fünf Entscheidungen** liegen bei Matthias, sie stehen am Ende des Konzepts.
 
 ### OFFEN (Teil des Produktangebots): Produktleiter (Idee des Nutzers, 21.09.2026)
 
@@ -1045,14 +1115,15 @@ Buch, Druck oder Seiten, plus ein ausdrückliches Verbot:
 | `BASE_CANVAS_NOTE` | „an empty sheet in the paper colour **of this book**" | „an empty sheet in a plain paper colour" |
 | B28 im neuen (abgeschalteten) Aufbau | „… free of named characters — may be cropped for print" | ohne den Zusatz |
 
-**Noch vorhanden, nicht geändert (Einschätzung, Entscheidung offen):**
+**Nachgezogen am 23.09.2026 (Nutzer: „bitte bei Gelegenheit mitnehmen"), Bild-Fassung `2026-09-23a`:**
 
-- Der Figurenprompt (`charPrompt()`) sagt „the flat, minimal, hand-drawn wmlstil illustration style
-  used **throughout this book**". Das ist eine Stilaussage, keine Anweisung zum Zeichnen eines
-  Buchs, und das Figurenblatt zeigt eine Person auf Weiß — ein gemaltes Buch ist dort bisher nie
-  aufgetreten. Ich würde es beim nächsten Anfassen des Figurenprompts mit streichen, nicht eigens.
-- Die Dichteregeln sagen „true busy seek-and-find **picture-book** density". Auch das ist eine
-  Stilaussage ohne Zeichenauftrag. Gleiche Empfehlung: bei Gelegenheit mitnehmen.
+| Stelle | vorher | jetzt |
+|---|---|---|
+| `charPrompt()` (Foto → Figurenblatt) | „wmlstil illustration style used **throughout this book**" | ohne den Zusatz |
+| Dichteregeln, 3 Stellen | „true busy seek-and-find **picture-book** density" | „true busy seek-and-find density" |
+
+Damit steht im gesamten Bild- und Figurenprompt kein Wort mehr über Buch, Doppelseite, Falz, Druck
+oder Beschnitt. Der Prompt beschreibt nur noch das Bild.
 
 **Prüfen ohne neue Messreihe:** Die vorhandene `heroes_x`-Messung sagt nur, wo die Helden stehen,
 nicht ob eine Mittellinie gemalt wurde. Ob die neue Fassung wirkt, sieht man an den nächsten
@@ -1098,16 +1169,30 @@ Panel, obwohl er angeboten wird. Häufigkeit über alle 32:
 | Stil-Tor NEIN | 4 |
 | `scale_est` | 1 |
 
-`figures_est` schlägt praktisch immer an: gefordert sind 100–130 Menschen, geschätzt werden 25–75.
+`figures_est` schlägt praktisch immer an: der Sollbereich der aktiven Phase 1 ist **55–130**, geschätzt wurden 25–75 (Median 40); 28 der 32 Kandidaten lagen unter 55.
 Ob die Schätzung oder die Forderung falsch ist, ist nicht gemessen. Solange das so bleibt, sieht im
 Panel jedes gute Bild nach „durchgefallen" aus, obwohl die Zahl nichts entscheidet.
 
-**Mögliche Schritte, nicht entschieden, nichts gebaut:**
+**Beide Schritte am 23.09.2026 vom Nutzer entschieden und gebaut:**
 
-1. Die Mundfrage aus dem Stil-Tor herausnehmen und allein der Zählung überlassen (die neue
-   8-von-10-Regel deckt den Extremfall bereits ab).
-2. `figures_est` in der Anzeige als Messwert kennzeichnen statt als Verstoß, bis geklärt ist, wer
-   von beiden danebenliegt.
+**1. Mundfrage raus aus dem Stil-Tor** (Nutzer: „JA, bitte bauen. Es rät dort nachweislich").
+`STIL_TOR_FRAGE_A` nennt den Mund nicht mehr unter den Stilmerkmalen und nicht mehr unter den
+Beispielen für einen Bruch; stattdessen steht dort ausdrücklich, dass Münder **nicht** maßgeblich
+sind und in der Begründung nicht vorkommen sollen. Münder entscheidet ab jetzt allein die Zählung:
+`mouths_of_ten` in der Wertung plus die 8-von-10-Regel aus Abschnitt 14.
+**Ehrlich vermerkt:** Die „0 Fehlalarme" des Stil-Tors stammen aus der Messung vom 21.09. mit dem
+**alten** Wortlaut. Für den neuen Wortlaut ist die Zahl **nicht** nachgemessen — sie steht so auch
+im Code-Kommentar.
+
+**2. `figures_est` nur in der ANZEIGE entschärft** (Nutzer: „An der Wertung nichts ändern").
+Im Panel steht die Zahl jetzt als eigene Zeile: „Menschen im Bild (Messwert, in der Anzeige
+ungewertet): geschätzt 45, Sollbereich 55–130 → außerhalb" — mit dem ausdrücklichen Zusatz, dass
+sie **in den Zahlen darüber weiter als mittlerer Verstoß mitzählt**. Die Wertung selbst
+(`severityOf()`, `countViolations()`) ist unverändert. Eine Zeile weniger im Panel darf nicht wie
+eine Wertungsänderung aussehen; deshalb steht beides nebeneinander.
+
+Offen bleibt die eigentliche Frage: Liegt die Schätzung des Modells daneben oder die geforderte
+Spanne von 55–130? Das ist **nicht gemessen**.
 
 ### VOR DEM LAUNCH: Start- und Speichergrenzen gelten je IP-Adresse (Befund 22.09.2026)
 

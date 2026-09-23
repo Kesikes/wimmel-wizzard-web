@@ -138,9 +138,14 @@ textarea.field { min-height: 108px; resize: none; padding: 11px; line-height: 1.
 }
 .erg-wahl { order: 2; padding: 12px 14px 0; }
 .erg-ki-hinweis { order: 2; margin: 12px 14px 0; font-size: 13px; line-height: 1.45; }
+/* NEU (23.09.2026): der ehrliche Hinweis, wenn kein Kandidat bestanden hat und trotzdem ein Bild
+   angeboten wird. Gleiche Einordnung wie der KI-Hinweis, damit er am Handy an derselben Stelle
+   steht und nicht ueber den Kopf rutscht. */
+.erg-notloesung { order: 2; }
 @media (min-width: 1024px) {
   .erg-wahl { padding: 0; }
   .erg-ki-hinweis { margin: 0; }
+  .erg-notloesung { margin: 0 !important; }
 }
 /* Stift am Handy (Schritt 4) */
 .erg-quer-tipp { display: none; margin: 0 0 8px; font-size: 12px; font-weight: 700; background: var(--yellow); border: 2px solid var(--ink); padding: 6px 8px; }

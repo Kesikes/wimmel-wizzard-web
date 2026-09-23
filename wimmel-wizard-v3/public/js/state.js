@@ -442,7 +442,10 @@ const AppState = {
   // waehlt (nur Stil-Tor bestanden, Favorit zuerst). Je Eintrag: url (Original), src (aktuell,
   // nach Stift-Korrekturen), nr (K1/K2/K3). gewaehlt = Index im angebot; gewaehltAm und
   // wahlProtokoll halten jede Wahl fest. Wechseln geht bis zum Kauf (gekauftAm), danach fest.
-  addImage({ title, src, promptText, instruction, violations, verify, candidates, richter, quelle, heldenInfo, abgelehnt, angebot }) {
+  // GEAENDERT (23.09.2026, Produktentscheidung): notloesung = kein Kandidat hat bestanden, das Bild
+  // wird trotzdem angeboten. Das Bild merkt es sich (ehrlicher Hinweis im Ergebnis-Screen), und der
+  // naechste Durchgang bleibt kostenlos -- deshalb wird freierDurchgang hier NICHT geleert.
+  addImage({ title, src, promptText, instruction, violations, verify, candidates, richter, quelle, heldenInfo, abgelehnt, angebot, notloesung }) {
     const id = "img-" + (this.data.images.length + 1) + "-" + Date.now().toString(36);
     const P = window.Pipeline || {};
     const jetzt = new Date().toISOString();
@@ -459,6 +462,8 @@ const AppState = {
       heldenInfo: heldenInfo || null,
       // NEU (21.09.2026): kein Kandidat hat das Stil-Tor bestanden -- Text mit Begruendung, sonst null.
       abgelehnt: abgelehnt || null,
+      // NEU (23.09.2026): kein Kandidat hat bestanden, das Bild wird trotzdem gezeigt.
+      notloesung: !!notloesung,
       // Der Lichtschalter gehoert sichtbar an die Bild-Fassung: sonst sind Testbilder mit und
       // ohne Licht in der Messreihe nicht auseinanderzuhalten -- die Pruefsumme ist bei beiden
       // dieselbe, weil der Block nur zur Laufzeit dazukommt.
@@ -469,7 +474,8 @@ const AppState = {
         (this.data.testKoepfe === "normal" ? " \u00b7 Köpfe NORMAL" : "")),
       pruefFassung: (P.PRUEF_FASSUNG || null) && (P.PRUEF_FASSUNG + (this.data.testStilTor === "aus" ? " \u00b7 Stil-Tor AUS" : "") + (this.data.testRichter === "aus" ? " \u00b7 Richter AUS" : "")) };
     const images = this.data.images.concat([image]);
-    this.update({ images, currentImageId: id, freierDurchgang: null });
+    this.update({ images, currentImageId: id,
+      freierDurchgang: notloesung ? { grund: "notloesung", am: jetzt } : null });
     return image;
   },
   // NEU (21.09.2026, Kandidatenwahl): die Kundin schaltet auf einen anderen Kandidaten um. Nach dem
