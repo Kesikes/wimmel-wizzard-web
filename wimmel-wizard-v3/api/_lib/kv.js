@@ -103,4 +103,18 @@ async function kvUnlock(key) {
   try { await kvCommand(["del", key]); } catch (e) { /* laeuft sonst per TTL ab */ }
 }
 
-module.exports = { kvConfig, kvGetJson, kvSetJson, kvIncrWithExpiry, kvTryLock, kvUnlock };
+// kvCommandSafe(parts): wie kvCommand(), wirft aber NICHT -- im Fehlerfall undefined.
+// NEU (23.09.2026, fuer api/_lib/kosten-deckel.js): Die Kosten-Notbremse darf unter keinen
+// Umstaenden eine laufende Generierung abbrechen; ein nicht erreichbarer Zaehler ist ein Problem
+// fuer Matthias, aber keines fuer die Kundin. undefined heisst ausdruecklich "nicht gemessen" --
+// der Aufrufer darf es nie als 0 lesen (siehe deckelStand() dort).
+async function kvCommandSafe(parts) {
+  try { return await kvCommand(parts); }
+  catch (e) {
+    try { console.error("[KV] Befehl fehlgeschlagen (" + (parts && parts[0]) + "): " + (e && e.message ? e.message : String(e))); }
+    catch (e2) { /* egal */ }
+    return undefined;
+  }
+}
+
+module.exports = { kvConfig, kvCommandSafe, kvGetJson, kvSetJson, kvIncrWithExpiry, kvTryLock, kvUnlock };

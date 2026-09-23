@@ -18,6 +18,7 @@
 
 const MODEL = "claude-sonnet-5";
 const { checkRateLimit } = require("./_lib/rate-limit");
+const { deckelErlaubt, deckelBuchen } = require("./_lib/kosten-deckel");
 
 // NEU (Sammel-Runde 11.09.2026, "Lastverhalten vor Launch": Nutzer fragt nach Verhalten bei
 // mehreren gleichzeitigen Nutzerinnen). Gleiches Prinzip wie fetchFalWithRetry() in fal-proxy.js --
@@ -198,6 +199,26 @@ module.exports = async (req, res) => {
 
   const body = req.body || {};
 
+  // NEU (23.09.2026, Produktentscheidung des Nutzers): Anfragegrenzen fuer diese Datei. Bis heute
+  // hatte sie KEINE -- weder Chat noch translate/moderate, und alle drei kosten Geld (Befund vom
+  // 23.09., Register Abschnitt 16, Punkt 1). Zwei Toepfe, weil die Sorten verschieden oft feuern:
+  //   claudechat  60/h -- ein volles Gespraech ist durch die 40-Nachrichten-Grenze weiter unten auf
+  //                       rund 20 Aufrufe gedeckelt, das sind also drei komplette Gespraeche/Stunde.
+  //   claudetext 120/h -- translate/moderate laufen auch AUSSERHALB des Chats (je Figur, je
+  //                       Stift-Korrektur, je Notizfeld); grosszuegig, damit ein normales Buch nie
+  //                       anstoesst.
+  // BEIDE WERTE SIND HERGELEITET, NICHT GEMESSEN: Der Chat-Weg wurde in keiner gespeicherten
+  // Sitzung je benutzt (Befund 23.09.), es gibt also keine Nutzungsdaten. Sobald es welche gibt
+  // (sceneChatMessages), gehoeren die Zahlen nachgezogen.
+  const istText = body.mode === "translate" || body.mode === "moderate";
+  const istBlatt = body.mode === "blatt_stil";
+  if (!istBlatt) {
+    const topf = istText ? { keyPrefix: "claudetext", limit: 120 } : { keyPrefix: "claudechat", limit: 60 };
+    if (!(await checkRateLimit(req, res, { keyPrefix: topf.keyPrefix, limit: topf.limit, windowSeconds: 3600 }))) return;
+    // Tagesdeckel ueber alle bezahlten Endpunkte zusammen (siehe _lib/kosten-deckel.js).
+    if (!(await deckelErlaubt(req, res, "claude"))) return;
+  }
+
   // ---- Modus "joke" ENTFERNT (Design-Feedback 05.09.2026: "Strategiewechsel von
   // Live-Generierung zu kuratierter, von Hand geprüfter Liste ... aktuelle Witze ergeben keinen
   // Sinn"). Wurde vom Client (Pipeline.fetchJokes(), pipeline.js) ohnehin nirgends aufgerufen --
@@ -242,6 +263,7 @@ module.exports = async (req, res) => {
         res.status(502).json({ error: "Keine Übersetzung erhalten." });
         return;
       }
+      await deckelBuchen("claude", 1);
       res.status(200).json({ text: translated });
     } catch (e) {
       res.status(502).json({ error: "Verbindung zu Anthropic fehlgeschlagen: " + String(e) });
@@ -283,6 +305,7 @@ module.exports = async (req, res) => {
       // Bewusst per startsWith statt exaktem "===" (fängt "ja", "ja.", "ja!" etc. gleichermaßen ab,
       // falls das Modell doch minimal von der angeforderten Ein-Wort-Antwort abweicht).
       const flagged = answer.startsWith("ja");
+      await deckelBuchen("claude", 1);
       res.status(200).json({ flagged });
     } catch (e) {
       res.status(502).json({ error: "Verbindung zu Anthropic fehlgeschlagen: " + String(e) });
@@ -307,6 +330,8 @@ module.exports = async (req, res) => {
     // dieser neue, bildverarbeitende Modus begrenzt: 30/Stunde je IP deckt mehrere Figuren samt
     // Wiederholungen grosszuegig ab.
     if (!(await checkRateLimit(req, res, { keyPrefix: "blattstil", limit: 30, windowSeconds: 3600 }))) return;
+    // Tagesdeckel, siehe _lib/kosten-deckel.js.
+    if (!(await deckelErlaubt(req, res, "claude"))) return;
     const erlaubt = (u) => /^https:\/\/([a-z0-9-]+\.)*fal\.(media|run)\//i.test(u) || /^https:\/\/([a-z0-9-]+\.)*vercel\.app\//i.test(u) || (req.headers && req.headers.host && u.indexOf("https://" + req.headers.host + "/") === 0);
     const imageUrl = String(body.imageUrl || "");
     const referenzUrl = String(body.referenzUrl || "");
@@ -349,6 +374,7 @@ module.exports = async (req, res) => {
         res.status(502).json({ error: "Stilpruefung mit unerwartetem Wert: " + JSON.stringify(p.passt) });
         return;
       }
+      await deckelBuchen("claude", 1);
       res.status(200).json({ urteil: p.passt, begruendung: String(p.begruendung || "").replace(/\s+/g, " ").slice(0, 300), modell: MODEL });
     } catch (e) {
       res.status(502).json({ error: "Verbindung zu Anthropic fehlgeschlagen: " + String(e) });
@@ -402,6 +428,7 @@ module.exports = async (req, res) => {
         res.status(502).json({ error: "Es konnten keine Merkmale erkannt werden." });
         return;
       }
+      await deckelBuchen("claude", 1);
       res.status(200).json({ traits: block.input });
     } catch (e) {
       res.status(502).json({ error: "Verbindung zu Anthropic fehlgeschlagen: " + String(e) });
@@ -470,6 +497,7 @@ module.exports = async (req, res) => {
       if (block.type === "text") reply += block.text;
       else if (block.type === "tool_use") tool_call = { name: block.name, input: block.input };
     }
+    await deckelBuchen("claude", 1);
     res.status(200).json({ reply: reply.trim(), tool_call });
   } catch (e) {
     res.status(502).json({ error: "Verbindung zu Anthropic fehlgeschlagen: " + String(e) });

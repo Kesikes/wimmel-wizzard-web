@@ -16,6 +16,7 @@
 const { kvSetJson } = require("./_lib/kv");
 const { createCharacterJob } = require("./_lib/char-job-engine");
 const { checkRateLimit } = require("./_lib/rate-limit");
+const { deckelErlaubt } = require("./_lib/kosten-deckel");
 const { logFalError } = require("./_lib/fal-queue");
 
 // Job-Aufbewahrung in KV: an fal.ai's eigener ~1h-Ergebnis-Aufbewahrung orientiert (siehe
@@ -33,6 +34,8 @@ module.exports = async (req, res) => {
   // fal-proxy.js-Aufruf) -- daher enger begrenzt als der dortige Wert. 15/Stunde deckt mehrere
   // Figuren samt ein paar Neuversuchen grosszuegig ab.
   if (!(await checkRateLimit(req, res, { keyPrefix: "charjob", limit: 15, windowSeconds: 3600 }))) return;
+  // NEU (23.09.2026): Tagesdeckel, siehe kosten-deckel.js.
+  if (!(await deckelErlaubt(req, res, "figur"))) return;
 
   const FAL_KEY = process.env.FAL_KEY;
   if (!FAL_KEY) {

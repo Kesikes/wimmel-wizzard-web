@@ -1381,7 +1381,13 @@ abzuleiten wäre eine erfundene Zahl.
 
 Beide Werte sind **nicht gemessen**, sondern aus den Deckeln im Code hergeleitet. Sobald der
 Chat-Weg echt benutzt wird, stehen die Zahlen in `sceneChatMessages` und die Grenze lässt sich
-nachziehen. Entschieden ist der Wert vom Nutzer, gebaut ist noch nichts.
+nachziehen.
+
+**GEBAUT am 23.09.2026** (Nutzer: „60 bzw. 120 je IP/Stunde übernehmen"). Zwei Töpfe in
+`api/claude-proxy.js`: `claudechat` 60/h für beide Chat-Modi und die Foto-Merkmalsextraktion,
+`claudetext` 120/h für `translate` und `moderate`. Der Modus `blatt_stil` behält seinen eigenen
+Topf (30/h). Der Vermerk „hergeleitet, nicht gemessen" steht wortgleich als Kommentar an der
+Stelle im Code — damit niemand die Zahl später für eine Messung hält.
 
 **b) Es gibt bis heute keine Gesamtkosten-Obergrenze.** Alle Grenzen oben gelten **je IP-Adresse**
 (Befund 22.09., siehe Abschnitt 17). Sie bremsen eine einzelne Kundin, aber nicht die Summe: Zehn
@@ -1424,16 +1430,67 @@ an einem starken Entwicklungstag.
 | **Zweite Mail** | 60 $ | „das ist kein normaler Tag mehr" |
 | **Harter Stopp** | **150 $** | keine bezahlten Aufrufe mehr bis Mitternacht, mit ehrlicher Meldung an die Kundin |
 
-Die Beträge sind **Vorschläge**, keine Rechnung: Sie stehen auf einem einzigen belegten Preis und
-einer angenommenen Verkaufszahl. Sobald die übrigen Preise einmal aus dem Dashboard abgelesen sind,
-gehören sie hier eingetragen und die Schwellen nachgezogen. Wichtiger als die genaue Höhe ist, dass
-es sie **überhaupt** gibt: Heute ist der Verlust nach oben offen.
+**GEBAUT am 23.09.2026 (Nutzer: „Schwellen wie vorgeschlagen übernehmen"): `api/_lib/kosten-deckel.js`**
 
-Zu klären ist außerdem, **wo** gezählt wird. In KV (Upstash) liegt bereits die Infrastruktur für
-Zähler (`rate-limit.js`); ein Tageszähler je Endpunkt mit fest hinterlegten Stückpreisen wäre die
-kleinste Lösung und käme ohne neue Abhängigkeit aus. Er zählt allerdings **Aufrufe**, nicht die
-echte Rechnung — bei einem Preisänderung liefe er auseinander. Das ist hinnehmbar, solange es als
-**Notbremse** verstanden wird und nicht als Buchhaltung.
+- Tageszähler in KV (`kosten:tag:JJJJ-MM-TT`, UTC-Tag, 36 h TTL). **Warn-Mail bei 25 $, zweite bei
+  60 $, harter Stopp bei 150 $** — je Schwelle und Tag genau eine Mail, über den vorhandenen
+  `sendMailWithCooldown()` und an denselben Empfänger wie die fal-Guthaben-Warnung. Kein neuer
+  Mail-Pfad, keine neue Umgebungsvariable, die beim Deploy vergessen werden könnte.
+- **Gebucht wird dort, wo der Aufruf wirklich rausgeht**, nicht an der Tür: `submitFalQueue()` und
+  `callFalVerifySync()` (deckt alle Job-Engine-Aufrufe ab, auch den dritten Kandidaten),
+  `fal-proxy.js` nach einem gelieferten Bild, `claude-proxy.js` nach jeder Antwort und `richter.js`
+  für Stil-Tor und Richter, die an keinem Endpunkt-Tor vorbeikommen. Die **Art** leitet sich aus
+  dem Modellnamen bzw. dem benutzten Endpunkt ab, nicht aus einem Feld des Clients — sonst könnte
+  ein Client seine Buchung verbilligen.
+- **Gebucht wird nach dem Erfolg.** Ein Aufruf, den fal ablehnt, kostet auch nichts.
+- **Das Tor** (`deckelErlaubt()`) steht in `scene-job-start`, `char-job-start`, `fal-proxy` und
+  `claude-proxy`. Bei Erreichen des harten Stopps: 503 mit „Heute ist bei mir gerade Zauberpause —
+  ich habe mein Tagespensum erreicht. Dein Fortschritt ist gespeichert, morgen geht es weiter."
+- **Fail-open wie bei `rate-limit.js`:** Ist der Zähler nicht erreichbar, läuft das Produkt weiter.
+  Ein Ausfall der Bremse darf nicht zum Ausfall des Produkts werden. `deckelStand()` liefert dann
+  `null` — ausdrücklich „nicht gemessen", **nie 0**: Ein kaputter Zähler darf nicht wie ein
+  kostenloser Tag aussehen.
+- Ein bereits laufender Job kann den Deckel um seine letzten Aufrufe überziehen. Für eine Notbremse
+  hinnehmbar, hier vermerkt statt verschwiegen.
+
+**AUSDRÜCKLICH: Das ist eine Notbremse, KEINE Buchhaltung** (Vermerk auf Wunsch des Nutzers, steht
+wortgleich im Kopf der Datei und in jeder Warn-Mail). Gezählt werden **Aufrufe mal hinterlegtem
+Stückpreis** — nicht die echte Rechnung:
+
+- Ändert fal oder Anthropic die Preise, läuft der Zähler auseinander, bis die Werte nachgezogen sind.
+- Ein Aufruf, der technisch scheitert, kann gezählt, aber nicht berechnet sein — und umgekehrt.
+- Was wirklich abgerechnet wird, steht im fal-Dashboard und in der Anthropic-Konsole, nirgends sonst.
+
+**Preise im Code, Stand 23.09.2026:** belegt ist **nur** `szene: 15 ct`. `figur`, `charedit`,
+`stift`, `verify` und `claude` sind **Platzhalter** — und bewusst nicht niedrig angesetzt: Eine
+Notbremse, die zu wenig zählt, greift zu spät. Ein Platzhalter darf überschätzen, nie
+unterschätzen. Die Konstanten heißen im Code `CENT_BELEGT` und `CENT_PLATZHALTER`, damit der
+Unterschied nicht verloren geht. Sobald Matthias die Werte aus dem fal-Dashboard abgelesen hat,
+gehören sie dort eingetragen und das Wort „Platzhalter" verschwindet.
+
+### VOR DEM LAUNCH, PUNKT 2 (Befund 23.09.2026): der Chat-Weg ist nie benutzt worden
+
+> „Dass er noch nie benutzt wurde, ist der eigentliche Befund." (Nutzer, 23.09.2026)
+
+Ausgezählt über alle gespeicherten Sitzungen: **eine** Nachricht insgesamt, und das war die
+Begrüßung des Assistenten. Jede Sitzung läuft über `sceneWay: 0`. Der Chat ist einer von drei
+Wegen, über die eine Kundin ihre Szene beschreiben kann — und der einzige, der noch nie gelaufen
+ist. Deckt sich mit Abschnitt 12 („Freitext-Weg, Stand 20.09.2026: nie getestet").
+
+Was daran vor dem Launch geklärt sein muss:
+
+| | |
+|---|---|
+| **Ungetestet** | Kein einziger vollständiger Durchlauf. Ob das Gespräch überhaupt zu einer brauchbaren Szene führt, ist unbekannt. Der Nutzer testet ihn selbst durch. |
+| **Zwei bezahlte Aufrufe je Beitrag** | Jeder Nutzer-Beitrag löst erst `moderate`, dann den Chat-Aufruf aus. Die Kundin sieht eine Nachricht, die App bezahlt zwei. |
+| **Kosten wachsen quadratisch** | Jeder Chat-Aufruf schickt den **ganzen bisherigen Verlauf** mit. Ein Gespräch mit 20 Beiträgen kostet nicht das Zwanzigfache des ersten, sondern deutlich mehr. Fixanteil je Aufruf: rund 1.500 Token System-Prompt plus Werkzeugbeschreibung. |
+| **Rohe Server-Meldung bei 40 Nachrichten** | `messages.length > 40` wird mit „Gespräch zu lang für einen einzelnen Schritt" abgewiesen — mitten im Gespräch, unübersetzt, ohne Ausweg. Gehört auf die Liste „keine rohen Server-Meldungen" weiter unten. |
+
+**Nächster Schritt:** Der Nutzer testet den Weg einmal selbst durch. Danach stehen echte Zahlen in
+`sceneChatMessages`, und daran lassen sich sowohl die Stunden-Grenze (heute hergeleitet: 60/h) als
+auch die 40-Nachrichten-Grenze nachziehen. Vorher ist jede weitere Zahl geraten.
+
+---
 
 ### VOR DEM LAUNCH: stille Fehler systematisch beseitigen (Auftrag des Nutzers, 22.09.2026)
 

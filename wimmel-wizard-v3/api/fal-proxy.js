@@ -91,6 +91,7 @@ async function fetchFalWithRetry(url, options, maxRetries) {
 }
 
 const { checkRateLimit } = require("./_lib/rate-limit");
+const { deckelErlaubt, deckelBuchen } = require("./_lib/kosten-deckel");
 const { logFalError, mediaLifecycleHeaders } = require("./_lib/fal-queue");
 
 // BUGFIX (Sammel-Runde 16.09.2026, live gefunden: "fal.ai 403 User is locked. Reason: TOP_UP").
@@ -128,6 +129,9 @@ module.exports = async (req, res) => {
   // Zusatzansichten + mehrere Szenen samt "Nochmal zaubern"/Stift-Korrekturen + Verify-Aufrufe),
   // begrenzt aber, wie oft eine EINZELNE Quelle unser FAL_KEY-Guthaben pro Stunde verbrauchen kann.
   if (!(await checkRateLimit(req, res, { keyPrefix: "falproxy", limit: 40, windowSeconds: 3600 }))) return;
+  // NEU (23.09.2026): Tagesdeckel, siehe kosten-deckel.js. Gebucht wird nicht hier, sondern beim
+  // tatsaechlichen Aufruf weiter unten -- hier steht nur das Tor.
+  if (!(await deckelErlaubt(req, res, "stift"))) return;
 
   const FAL_KEY = process.env.FAL_KEY;
   if (!FAL_KEY) {
@@ -210,6 +214,7 @@ module.exports = async (req, res) => {
         return;
       }
       const data = await resp.json();
+      await deckelBuchen("verify", 1);
       res.status(200).json({ output: (data && data.output) || "" });
     } catch (e) {
       sendConnectionError(res, e, "verify");
@@ -458,6 +463,11 @@ module.exports = async (req, res) => {
       res.status(502).json({ error: "fal.ai hat kein Bild geliefert." });
       return;
     }
+    // NEU (23.09.2026, Kosten-Notbremse): gebucht wird NACH einem gelieferten Bild -- ein
+    // gescheiterter Aufruf kostet nichts. Die Art richtet sich nach dem tatsaechlich benutzten
+    // Endpunkt, nicht nach dem kind-Feld des Clients: Ein Client soll die Buchung nicht durch eine
+    // falsche Angabe verbilligen koennen.
+    await deckelBuchen(imageUrl ? (useProModel ? "stift" : "charedit") : "figur", 1);
     // NEU (Sammel-Runde 10.09.2026, Punkt A3: "charInSceneFromChips()-Aufruf im Foto-Pfad mit den
     // tatsaechlichen Merkmalen befuellen statt leer"). Der Foto-Pfad hat keine Chip-/Notiz-UI (siehe
     // charakter.js buildFotoPanel()) -- es gibt dort schlicht keine vom Menschen eingegebenen

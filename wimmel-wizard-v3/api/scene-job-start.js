@@ -13,6 +13,7 @@
 const { kvSetJson, kvTryLock, kvUnlock } = require("./_lib/kv");
 const { createSceneJob } = require("./_lib/scene-job-engine");
 const { checkRateLimit } = require("./_lib/rate-limit");
+const { deckelErlaubt } = require("./_lib/kosten-deckel");
 const { logFalError } = require("./_lib/fal-queue");
 
 const JOB_TTL_SECONDS = 60 * 60;
@@ -32,6 +33,9 @@ module.exports = async (req, res) => {
   // 4K-Kandidaten pro Aufruf, siehe createSceneJob()) -- daher am engsten begrenzt. 10/Stunde deckt
   // ein volles Wimmelbuch (5 Szenen) plus mehrere "Nochmal zaubern"-Versuche grosszuegig ab.
   if (!(await checkRateLimit(req, res, { keyPrefix: "scenejob", limit: 10, windowSeconds: 3600 }))) return;
+  // NEU (23.09.2026): Tagesdeckel ueber ALLE bezahlten Endpunkte zusammen. Die Grenze oben gilt je
+  // IP und bremst eine einzelne Kundin; dieser Deckel bremst die Summe. Siehe kosten-deckel.js.
+  if (!(await deckelErlaubt(req, res, "szene"))) return;
 
   const FAL_KEY = process.env.FAL_KEY;
   if (!FAL_KEY) {

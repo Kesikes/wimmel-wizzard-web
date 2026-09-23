@@ -17,6 +17,7 @@
 const VERIFY_MODEL = "openrouter/router/vision";
 
 const { sendMailWithCooldown } = require("./mail");
+const { deckelBuchen } = require("./kosten-deckel");
 
 // logFalError(context, message): ZENTRALE Stelle fuer JEDEN fal.ai-bezogenen Fehler auf der
 // serverseitigen Job-Warteschlange (char-job-engine.js/scene-job-engine.js UND deren Einstiegspunkte
@@ -101,6 +102,20 @@ function falBaseAppId(model) {
   return parts.slice(0, 2).join("/");
 }
 
+// GEAENDERT (23.09.2026, Kosten-Notbremse): JEDER eingereihte fal-Auftrag wird verbucht -- hier,
+// weil das die EINE Stelle ist, durch die alle Bild-Auftraege der Job-Engines gehen (erste
+// Kandidaten, dritter Kandidat, Figuren). Gebucht wird NACH dem erfolgreichen Submit: ein Aufruf,
+// den fal abgelehnt hat, kostet auch nichts.
+// Die Art leitet sich aus dem Modellnamen ab statt aus einem neuen Parameter -- so kann kein
+// Aufrufer sie vergessen. Unbekanntes Modell: als Szenenbild gezaehlt, also teuer. Eine Notbremse
+// darf ueberschaetzen, nie unterschaetzen.
+function kostenArt(model) {
+  const m = String(model || "");
+  if (m.indexOf("flux-lora") >= 0) return "figur";
+  if (m.indexOf("nano-banana-pro") >= 0) return "szene";
+  if (m.indexOf("nano-banana") >= 0) return "charedit";
+  return "szene";
+}
 async function submitFalQueue(model, body, FAL_KEY) {
   const resp = await fetch("https://queue.fal.run/" + model, {
     method: "POST", headers: falHeaders(FAL_KEY), body: JSON.stringify(body),
@@ -111,6 +126,7 @@ async function submitFalQueue(model, body, FAL_KEY) {
   }
   const data = await resp.json();
   if (!data || !data.request_id) throw new Error("fal.ai Queue-Submit hat keine request_id geliefert.");
+  await deckelBuchen(kostenArt(model), 1);
   return data.request_id;
 }
 
@@ -164,6 +180,7 @@ async function callFalVerifySync(imageUrls, prompt, FAL_KEY) {
     throw new Error("fal.ai Vision-Fehler " + resp.status + ": " + txt.slice(0, 200));
   }
   const data = await resp.json();
+  await deckelBuchen("verify", 1);
   return (data && data.output) || "";
 }
 

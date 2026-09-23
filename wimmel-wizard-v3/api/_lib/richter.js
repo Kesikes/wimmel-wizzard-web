@@ -28,6 +28,7 @@ const MAX_TOKENS = 2000;
 
 const FRAGE = "Welcher der beiden Kandidaten trifft den GESICHTSSTIL der Referenz besser? Achte nur auf die Gesichter: Punktaugen, ein einzelner senkrechter Nasenstrich statt einer ausmodellierten Nase, kein Mund. Alles andere ist egal. Antworte NUR als JSON: {\"besser\": \"ERSTER\" oder \"ZWEITER\", \"begruendung\": \"ein bis zwei Sätze\"}.";
 
+const { deckelBuchen } = require("./kosten-deckel");
 function bild(url) { return { type: "image", source: { type: "url", url: url } }; }
 
 // einUrteil(): EIN Aufruf. Wirft bei jedem Fehler -- der Aufrufer wertet das als "kein Urteil",
@@ -55,6 +56,7 @@ async function einUrteil(referenzUrl, ersterUrl, zweiterUrl, KEY) {
   // Abgeschnittene Antwort ist ein Fehler, keine Antwort -- sonst sieht ein zu kleines Limit aus
   // wie ein kaputtes Modell.
   if (d.stop_reason === "max_tokens") throw new Error("Antwort bei max_tokens=" + MAX_TOKENS + " abgeschnitten.");
+  await deckelBuchen("claude", 1); // siehe claudeJson() weiter unten -- gleicher Grund
   const text = (d.content || []).map((t) => t.text || "").join("");
   const m = String(text).match(/\{[\s\S]*\}/);
   if (!m) throw new Error("Antwort ohne lesbares JSON: " + String(text).slice(0, 150));
@@ -276,6 +278,9 @@ async function claudeJson(referenzUrl, kandUrl, frage, KEY) {
   const d = await resp.json();
   if (d.stop_reason === "max_tokens") throw new Error("Antwort bei max_tokens=" + STIL_TOR_MAX_TOKENS + " abgeschnitten.");
   const text = (d.content || []).map((t) => t.text || "").join("");
+  // NEU (23.09.2026, Kosten-Notbremse): Stil-Tor und Richter laufen serverseitig und gehen an
+  // keinem der Endpunkt-Tore vorbei -- gebucht wird deshalb hier, direkt am Aufruf.
+  await deckelBuchen("claude", 1);
   const m = String(text).match(/\{[\s\S]*\}/);
   if (!m) throw new Error("Antwort ohne lesbares JSON: " + String(text).slice(0, 150));
   return { p: JSON.parse(m[0]), tokenEin: (d.usage && d.usage.input_tokens) || 0, tokenAus: (d.usage && d.usage.output_tokens) || 0 };
