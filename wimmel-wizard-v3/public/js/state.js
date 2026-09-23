@@ -99,6 +99,11 @@ const DEFAULT_STATE = {
   // (Auto-Save in localStorage, siehe Kommentar oben am Dateianfang). Siehe pickJoke() in szene.js.
   shownJokes: [],
   penOn: false,
+  // NEU (23.09.2026, Nutzer-Umbau der Stift-Bedienung): welche eurer Figuren bei "Neu zeichnen" an
+  // die markierte Stelle soll (Personen-Id) oder null. Steht im gespeicherten Zustand, weil die
+  // Modus-Umschalter im Stift-Panel ein volles Rerender ausloesen -- gleiches Muster wie
+  // penChangeText. Bei "Weg damit" wird das Feld NIE gelesen (siehe applyPenEdit()).
+  penFigurId: null,
   // NEU (17.09.2026, Punkt 0 "Szene nach Reload fortsetzen"): {jobId, title} des gerade laufenden
   // SZENEN-Jobs, null wenn keiner laeuft. Gegenstueck zu person.pendingJobId im Figuren-Weg (siehe
   // charakter.js) -- dort war der Reload-Schutz schon gebaut, auf dem Szenen-Weg fehlte er, obwohl

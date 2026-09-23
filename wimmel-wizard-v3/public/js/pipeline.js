@@ -655,6 +655,13 @@ async function describePhotoTraits(photoDataUri) {
 // Stift-Werkzeug: zwei Modi, Wortlaut exakt aus der Spezifikation Abschnitt 4.
 const PEN_INSTRUCTION_REMOVE = "The user has marked an object in the image using a rough freehand mark – this could be a circle, an X/cross, a scribble, or any other loose annotation. Regardless of its exact shape, treat this mark only as a rough pointer indicating which nearby object to target, not as a precise mask or boundary. Identify the complete, whole object that the mark is pointing to or overlapping, including all of its parts even if they extend beyond the marked area, and remove that entire object completely. Do not leave any remnants, edges, or partial fragments of the marked object behind. Fill the now-empty space naturally with elements consistent with the surrounding area, and remove the annotation mark itself from the final result.";
 const PEN_INSTRUCTION_REDO = "The user has marked an object in the image using a rough freehand mark (circle, cross, or scribble) – treat this only as a rough pointer, not a precise mask. Identify the complete, whole object that the mark is pointing to or overlapping. Generate a new, different version of just that object – a different pose, a different small activity, but in the exact same art style – while keeping everything else in the image (all other characters, objects, composition, lighting) exactly unchanged, pixel-identical where not marked. Remove the annotation mark itself from the final result.";
+// NEU (23.09.2026, Nutzer-Umbau: "Bei 'Neu zeichnen' kommt die Figurenauswahl hin"). Eigene
+// Anweisung fuer den Fall "an diese Stelle gehoert eine EURER Figuren". PEN_INSTRUCTION_REDO taugt
+// dafuer nicht: der verlangt "a new, different version of just that object" -- zusammen mit einem
+// Figurenblatt waere das ein Widerspruch (neu erfinden UND genau wie auf dem Blatt).
+const PEN_INSTRUCTION_FIGUR = "The user has marked a spot in the image with a rough freehand mark (circle, cross or scribble) \u2013 treat it only as a rough pointer to a PLACE, not as a precise mask. Draw the character from the character sheet at that spot: the same face, the same proportions, the same hair, the same clothing and the same drawing style as on the sheet, in a natural pose that fits what is happening around them. Draw them at the size the other figures at that same depth have, not larger. Whatever was at that spot before is replaced by this character. Keep everything else in the image exactly unchanged, pixel-identical away from that spot, and remove the annotation mark itself from the final result.";
+// Gleicher Fall OHNE Markierung: die Kundin hat nur eine Figur gewaehlt und beschrieben, wohin.
+const PEN_INSTRUCTION_FIGUR_OHNE_MARKE = "Draw the character from the character sheet into this image: the same face, the same proportions, the same hair, the same clothing and the same drawing style as on the sheet, at the size the other figures at that depth have, in a natural pose. Keep everything else in the image exactly unchanged, pixel-identical away from the place where the character is added.";
 // NEU (22.09.2026, Nutzer-Befund: "Der Kreis ist im korrigierten Bild mit drin"). Bis dahin ging an
 // fal EIN Bild: das Szenenbild MIT dem roten Kringel eingezeichnet. Das Modell sollte den Kringel
 // "wieder entfernen" -- tat es nicht immer, und dann war die Markierung Teil des Ergebnisses. Jetzt
@@ -677,7 +684,7 @@ function penBildAnweisung({ mitMarkierung, mitFigur }) {
   }
   if (mitFigur) {
     n++;
-    t.push("Image " + n + " is the character sheet of the character the change is about. Draw this character exactly as on its sheet: the same age, the same body size and proportions, the same hair, the same clothing, the same drawing style.");
+    t.push("Image " + n + " is the character sheet of the character this change is about. Draw this character exactly as on its sheet: the same age, the same body size and proportions, the same hair, the same clothing, the same drawing style. This sheet is a reference only — never copy its white background, its framing or its size into the picture.");
   }
   n++;
   t.push("Image " + n + " is a style reference only: match its drawing style (thick black outlines, flat colours, round heads, dot eyes, a single straight nose line, no mouths, no shading on faces). Take no characters, objects or scenery from it.");
@@ -4382,7 +4389,7 @@ window.Pipeline = {
   charSheetViewPrompt, charSheetViewPromptFromChips, threeQuarterEditInstruction,
   sideViewEditInstruction, backViewEditInstruction,
   kontextInstruction, photoStyleInstruction, traitBitFromPhotoDescription, describePhotoTraits,
-  PEN_INSTRUCTION_REMOVE, PEN_INSTRUCTION_REDO, PEN_ZWEI_BILDER, penBildAnweisung,
+  PEN_INSTRUCTION_REMOVE, PEN_INSTRUCTION_REDO, PEN_INSTRUCTION_FIGUR, PEN_INSTRUCTION_FIGUR_OHNE_MARKE, PEN_ZWEI_BILDER, penBildAnweisung,
   resizeImageToDataUri, generateImage, generateImageWithRetry, verifyImage, countViolations,
   richterReferenzUrl, SCENE_PHASES, ACTIVE_SCENE_PHASE, DEPTH_MIN_RATIO, SCALE_MIN_FIT, PROMPT_VERSION, PROMPT_LABEL, promptFingerprint, BILD_FASSUNG, PRUEF_FASSUNG, bildFingerprint, pruefFingerprint, heroRef, HERO_REF_START, lichtBlock, lichtKeywords, VERIFY_MAX_VERSUCHE, PRUEF_VERHALTEN, severityOf, compareSeverity, isGoodEnough,
   COMPOSITION_TYPES, pickComposition, querschnittVerboten, chatOrtTyp, layerSizeText,

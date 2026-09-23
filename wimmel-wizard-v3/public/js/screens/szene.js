@@ -1151,7 +1151,7 @@ Screens.zaubern = {
       }
       AppState.update({
         pendingSceneJob: null, usedSituations: neu,
-        penOn: false, penMode: null, penChangeText: "",
+        penOn: false, penMode: null, penChangeText: "", penFigurId: null,
       });
       AppState.addImage({
         title: title, src: result.best.url,
@@ -1698,7 +1698,7 @@ function buildErgebnisAnsicht(s, image) {
   const canvas = h("canvas", { style: { position: "absolute", inset: "0", width: "100%", height: "100%", touchAction: "none" } });
   canvas.classList.toggle("hidden", !s.penOn);
   zoomEbene.appendChild(canvas);
-  const penTag = h("span", { class: "h-black erg-stift-etikett" }, (s.penMode === "redo") ? "das hier neu" : "das da weg");
+  const penTag = h("span", { class: "h-black erg-stift-etikett" }, (s.penMode === "redo") ? (s.penFigurId ? "die kommt hierher" : "das hier neu") : "das da weg");
   penTag.classList.toggle("hidden", !s.penOn);
   zoomEbene.appendChild(penTag);
   // 16:9 -> 2:1-Druckbeschnitt-Vorschau, siehe buildCropViewport().
@@ -1751,13 +1751,15 @@ function buildErgebnisAnsicht(s, image) {
       onClick: () => Router.goScreen("zaubern") }, "Noch einmal zaubern · kostenlos"));
     seite.appendChild(kasten);
   }
-  seite.appendChild(h("p", { class: "erg-ki-hinweis" }, "Die Bilder malt eine KI. Sie macht manchmal kleine Fehler — zum Beispiel ist eine Figur doppelt da. Mit dem Stift kannst du solche Stellen einfach korrigieren."));
+  // GEAENDERT (23.09.2026, Nutzer: "Dass man seine Hauptfiguren auch VERSETZEN kann, muss sichtbar
+  // sein"): Der Hinweis nennt jetzt beide Faelle -- wegnehmen UND eine eurer Figuren woandershin.
+  seite.appendChild(h("p", { class: "erg-ki-hinweis" }, "Die Bilder malt eine KI. Manchmal ist jemand doppelt da oder steht an einer blöden Stelle. Mit dem Stift kringelst du so etwas ein und nimmst es weg. Und du kannst eine eurer Figuren woandershin setzen: Stelle einkringeln, „Hierher\u201c wählen, Figur antippen."));
 
   // Werkzeuge. "Detail antippen" und "Nochmal zaubern" sind seit 19.09.2026 (Phase 0.2) entfernt
   // bzw. ausgeblendet -- sie hatten keinen Klick-Handler. "Nochmal zaubern" kommt mit der
   // Kandidatenwahl (Schritt 3) zurueck, dann mit der richtigen Begrenzung.
   const werkzeuge = h("div", { class: "erg-werkzeuge" });
-  const penBtn = h("button", { type: "button", class: "h-black", style: { width: "100%", minHeight: "50px", fontSize: "12.5px", border: "3px solid var(--ink)", cursor: "pointer", background: s.penOn ? "var(--red)" : "var(--paper)", color: s.penOn ? "var(--paper)" : "var(--ink)" } }, "Stift · markieren, was weg soll");
+  const penBtn = h("button", { type: "button", class: "h-black", style: { width: "100%", minHeight: "50px", fontSize: "12.5px", border: "3px solid var(--ink)", cursor: "pointer", background: s.penOn ? "var(--red)" : "var(--paper)", color: s.penOn ? "var(--paper)" : "var(--ink)" } }, "Stift · etwas wegnehmen oder eine Figur versetzen");
   // Voller Rerender statt Class-Toggle: so erscheint/verschwindet buildPenPanel() automatisch mit.
   penBtn.addEventListener("click", () => {
     const nowOn = !AppState.data.penOn;
@@ -2088,13 +2090,24 @@ async function applyPenEdit({ image, canvas, img, mark, mode, errorId, applyBtn,
     // Verhalten, PEN_INSTRUCTION_REMOVE/REDO unveraendert), Freitext allein (neue generische
     // Editier-Anweisung aus dem uebersetzten Freitext), oder beides kombiniert (PEN_INSTRUCTION_*
     // als Basis, Freitext ergaenzt als praezisierende Zusatzangabe fuer das markierte Objekt).
+    // GEAENDERT (23.09.2026, Nutzer-Umbau): mitFigur gilt NUR bei "Neu zeichnen". Bei "Weg damit"
+    // geht NIE ein Figurenblatt mit, auch wenn eines uebergeben wuerde -- sonst malt das Modell den
+    // doppelten Helden womoeglich wieder hin, und genau das ist der haeufigste Loeschfall.
+    const mitFigur = mode === "redo" && !!(figur && figur.imageUrl);
     let instruction;
+    const basis = mitFigur
+      ? (hasMark ? Pipeline.PEN_INSTRUCTION_FIGUR : Pipeline.PEN_INSTRUCTION_FIGUR_OHNE_MARKE)
+      : (mode === "redo" ? Pipeline.PEN_INSTRUCTION_REDO : Pipeline.PEN_INSTRUCTION_REMOVE);
     if (hasMark && changeText) {
       const changeEn = await Pipeline.translateFreeText(changeText);
-      instruction = (mode === "redo" ? Pipeline.PEN_INSTRUCTION_REDO : Pipeline.PEN_INSTRUCTION_REMOVE)
-        + " The user additionally describes the desired change like this: \"" + changeEn + "\" — use this description to guide exactly what the new version of the marked object should look like.";
+      instruction = basis + (mitFigur
+        ? " The user additionally describes what the character should be doing there: \"" + changeEn + "\" — follow that description for the pose and the activity, never for the character's identity, which comes from the sheet."
+        : " The user additionally describes the desired change like this: \"" + changeEn + "\" — use this description to guide exactly what the new version of the marked object should look like.");
     } else if (hasMark) {
-      instruction = mode === "redo" ? Pipeline.PEN_INSTRUCTION_REDO : Pipeline.PEN_INSTRUCTION_REMOVE;
+      instruction = basis;
+    } else if (mitFigur) {
+      const changeEn = await Pipeline.translateFreeText(changeText);
+      instruction = basis + " Where the character goes and what they are doing: \"" + changeEn + "\".";
     } else {
       const changeEn = await Pipeline.translateFreeText(changeText);
       instruction = "Apply exactly this change to the image: \"" + changeEn + "\" — keep everything else (all other characters, objects, composition, lighting) exactly unchanged, pixel-identical where not affected by this change.";
@@ -2109,9 +2122,9 @@ async function applyPenEdit({ image, canvas, img, mark, mode, errorId, applyBtn,
     // wurde zu einer ganz anderen Figur in anderem Stil.
     const weitere = [];
     if (hasMark) weitere.push(composite);
-    if (figur && figur.imageUrl) weitere.push(figur.imageUrl);
+    if (mitFigur) weitere.push(figur.imageUrl);
     weitere.push(Pipeline.richterReferenzUrl());
-    instruction = Pipeline.penBildAnweisung({ mitMarkierung: hasMark, mitFigur: !!(figur && figur.imageUrl) }) + instruction;
+    instruction = Pipeline.penBildAnweisung({ mitMarkierung: hasMark, mitFigur }) + instruction;
     const result = await Pipeline.generateImage(instruction, "scene", { editImageUrl: img.src, styleRefUrls: weitere });
     // GEAENDERT (21.09.2026, Kandidatenwahl): die Korrektur gehoert zum GEWAEHLTEN Kandidaten und
     // bleibt ihm beim Umschalten erhalten.
@@ -2123,7 +2136,7 @@ async function applyPenEdit({ image, canvas, img, mark, mode, errorId, applyBtn,
     AppState.updateImage(image.id, patch);
     mark.clear();
     penApplyBusy = false;
-    AppState.update({ penOn: false, penMode: null, penChangeText: "" });
+    AppState.update({ penOn: false, penMode: null, penChangeText: "", penFigurId: null });
     Router.goScreen("ergebnis");
   } catch (e) {
     penApplyBusy = false;
@@ -2152,14 +2165,16 @@ function buildPenPanel({ image, canvas, img, mark, errorId }) {
     type: "button", class: "h-black",
     style: { flex: "1", minHeight: "40px", fontSize: "11px", border: "3px solid var(--ink)", cursor: "pointer", background: mode === "redo" ? "var(--red)" : "var(--paper)", color: mode === "redo" ? "var(--paper)" : "var(--ink)" },
     onClick: () => { AppState.update({ penMode: "redo" }); Router.goScreen("ergebnis"); }
-  }, "Neu zeichnen");
+  }, "Hierher / neu zeichnen");
   modeRow.appendChild(removeBtn);
   modeRow.appendChild(redoBtn);
   wrap.appendChild(modeRow);
 
+  // GEAENDERT (23.09.2026, Nutzer-Umbau der Stift-Bedienung): "Weg damit" nimmt etwas heraus und
+  // fragt NICHTS -- "Hierher / neu zeichnen" ist der Platz fuer die Figurenauswahl.
   wrap.appendChild(h("p", { style: { margin: "0 0 10px", fontSize: "11.5px", lineHeight: "1.4", color: "rgba(26,26,24,.65)" } },
     mode === "redo"
-      ? "kringel das Objekt ein, das anders werden soll — ich zeichne es neu, alles andere bleibt gleich."
+      ? "kringel die Stelle ein, die anders werden soll — ich zeichne sie neu, oder ich setze eine eurer Figuren dorthin."
       : "kringel das Objekt ein, das raus soll — ich entferne es komplett."));
 
   // NEU (21.09.2026, Schritt 4): Bedienung am Handy. Der Querformat-Tipp erscheint nur hochkant auf
@@ -2190,9 +2205,43 @@ function buildPenPanel({ image, canvas, img, mark, errorId }) {
   // AppState.data.penChangeText persistiert den Entwurf ueber die Modus-Umschalter-Re-Renders
   // hinweg (removeBtn/redoBtn oben loesen ein volles Router.goScreen("ergebnis") aus, gleiches
   // Muster wie sceneChatDraft in buildChatPanel()).
+  // NEU (23.09.2026, Nutzer-Umbau: "Bei 'Neu zeichnen' kommt die Figurenauswahl hin, zusammen mit
+  // dem Textfeld"). Die Auswahl steht jetzt FEST im Panel statt als Abfrage nach "Anwenden" -- so
+  // sieht die Kundin vorher, was passiert, und kann die Wahl wieder zuruecknehmen. Bei "Weg damit"
+  // erscheint sie gar nicht (und applyPenEdit() ignoriert sie dort zusaetzlich).
+  let gewaehlteFigur = null;
+  if (mode === "redo") {
+    const figuren = (AppState.data.people || []).filter((p) => p.status === "done" && p.imageUrl);
+    if (figuren.length) {
+      gewaehlteFigur = figuren.find((p) => p.id === AppState.data.penFigurId) || null;
+      const box = h("div", { style: { margin: "0 0 10px", padding: "10px", border: "3px solid var(--ink)", background: gewaehlteFigur ? "var(--yellow)" : "var(--paper)" } });
+      box.appendChild(h("p", { class: "h-black", style: { margin: "0 0 8px", fontSize: "12px" } }, "Soll eine eurer Figuren hierher?"));
+      const reihe = h("div", { style: { display: "flex", flexWrap: "wrap", gap: "8px" } });
+      figuren.forEach((pers) => {
+        const an = gewaehlteFigur && gewaehlteFigur.id === pers.id;
+        const b = h("button", { type: "button", class: "h-black", "aria-pressed": an ? "true" : "false",
+          style: { display: "flex", alignItems: "center", gap: "6px", minHeight: "44px", padding: "4px 10px 4px 4px", fontSize: "12px", border: "3px solid var(--ink)", cursor: "pointer", background: an ? "var(--ink)" : "var(--paper)", color: an ? "var(--paper)" : "var(--ink)" },
+          onClick: () => { AppState.update({ penFigurId: an ? null : pers.id }); Router.goScreen("ergebnis"); } });
+        b.appendChild(h("img", { src: pers.imageUrl, alt: "", style: { width: "34px", height: "34px", objectFit: "cover", border: "2px solid var(--ink)" } }));
+        b.appendChild(document.createTextNode(pers.name || "Figur"));
+        reihe.appendChild(b);
+      });
+      reihe.appendChild(h("button", { type: "button", class: "h-black", "aria-pressed": gewaehlteFigur ? "false" : "true",
+        style: { minHeight: "44px", padding: "0 12px", fontSize: "12px", border: "3px solid var(--ink)", cursor: "pointer", background: gewaehlteFigur ? "transparent" : "var(--ink)", color: gewaehlteFigur ? "var(--ink)" : "var(--paper)" },
+        onClick: () => { if (gewaehlteFigur) { AppState.update({ penFigurId: null }); Router.goScreen("ergebnis"); } } }, "keine — nur neu zeichnen"));
+      box.appendChild(reihe);
+      if (gewaehlteFigur) {
+        box.appendChild(h("p", { style: { margin: "8px 0 0", fontSize: "11.5px", lineHeight: "1.4" } },
+          "ich zeichne " + (gewaehlteFigur.name || "sie") + " genau wie auf ihrem Blatt an die markierte Stelle."));
+      }
+      wrap.appendChild(box);
+    }
+  }
   const changeTa = h("textarea", {
     class: "field", id: errorId + "-change-text", style: { minHeight: "64px", fontSize: "13px" },
-    placeholder: "Was soll anders werden? (optional, auch ohne Markierung möglich)"
+    placeholder: mode === "redo"
+      ? "Was soll hier hin? (optional — oder wähl oben eine eurer Figuren)"
+      : "Was soll anders werden? (optional, auch ohne Markierung möglich)"
   });
   changeTa.value = s.penChangeText || "";
   changeTa.addEventListener("input", () => AppState.update({ penChangeText: changeTa.value }));
@@ -2212,34 +2261,18 @@ function buildPenPanel({ image, canvas, img, mark, errorId }) {
     type: "button", class: "h-black",
     style: { flex: "1", minHeight: "44px", fontSize: "12px", border: "3px solid var(--ink)", background: "var(--yellow)", color: "var(--ink)", cursor: "pointer" }
   }, "Anwenden");
-  // NEU (22.09.2026, Nutzer-Entscheidung): vor dem Anwenden fragen, ob die Korrektur eine eurer
-  // Figuren betrifft. Figur gewaehlt -> nur ihr Figurenblatt geht mit; "Nein" -> keins. Die
-  // Stilreferenz geht immer mit (siehe applyPenEdit()). Ohne Markierung und ohne Text wird nicht
-  // gefragt -- dann meldet applyPenEdit() gleich, was fehlt.
-  const frage = h("div", { class: "stift-figurfrage", style: { display: "none", marginTop: "10px", padding: "10px", border: "3px solid var(--ink)", background: "var(--yellow)" } });
-  const anwenden = (figur) => { frage.style.display = "none"; applyPenEdit({ image, canvas, img, mark, mode, errorId, applyBtn, cancelBtn, exitBtn, figur }); };
+  // GEAENDERT (23.09.2026, Nutzer-Umbau): KEINE Abfrage mehr nach dem Druck auf "Anwenden". Die
+  // Figur steht bei "Hierher / neu zeichnen" schon oben im Panel; bei "Weg damit" gibt es sie
+  // nicht. Begruendung des Nutzers: Beim Loeschen darf NIE ein Figurenblatt mitgehen, sonst malt
+  // das Modell den doppelten Helden womoeglich wieder hin.
   applyBtn.addEventListener("click", () => {
     if (penApplyBusy) return;
-    const figuren = (AppState.data.people || []).filter((p) => p.status === "done" && p.imageUrl);
-    const etwasDa = mark.hasMark() || String(AppState.data.penChangeText || "").trim();
-    if (!figuren.length || !etwasDa) { anwenden(null); return; }
-    frage.innerHTML = "";
-    frage.appendChild(h("p", { class: "h-black", style: { margin: "0 0 8px", fontSize: "12px" } }, "Ist das eine eurer Figuren?"));
-    const reihe = h("div", { style: { display: "flex", flexWrap: "wrap", gap: "8px" } });
-    figuren.forEach((p) => {
-      const b = h("button", { type: "button", class: "h-black", style: { display: "flex", alignItems: "center", gap: "6px", minHeight: "44px", padding: "4px 10px 4px 4px", fontSize: "12px", border: "3px solid var(--ink)", background: "var(--paper)", color: "var(--ink)", cursor: "pointer" }, onClick: () => anwenden(p) });
-      b.appendChild(h("img", { src: p.imageUrl, alt: "", style: { width: "34px", height: "34px", objectFit: "cover", border: "2px solid var(--ink)" } }));
-      b.appendChild(document.createTextNode(p.name || "Figur"));
-      reihe.appendChild(b);
-    });
-    reihe.appendChild(h("button", { type: "button", class: "h-black", style: { minHeight: "44px", padding: "0 12px", fontSize: "12px", border: "3px solid var(--ink)", background: "transparent", color: "var(--ink)", cursor: "pointer" }, onClick: () => anwenden(null) }, "Nein, keine davon"));
-    frage.appendChild(reihe);
-    frage.style.display = "block";
+    applyPenEdit({ image, canvas, img, mark, mode, errorId, applyBtn, cancelBtn, exitBtn,
+      figur: mode === "redo" ? gewaehlteFigur : null });
   });
   btnRow.appendChild(cancelBtn);
   btnRow.appendChild(applyBtn);
   wrap.appendChild(btnRow);
-  wrap.appendChild(frage);
 
   // NEU (19.09.2026, Nutzer: "komme dort nicht mehr heraus"): ein ausdruecklicher Ausweg. Technisch
   // gab es ihn schon -- ein zweiter Druck auf "Stift" beendet den Modus --, aber dieser Knopf
@@ -2253,7 +2286,7 @@ function buildPenPanel({ image, canvas, img, mark, errorId }) {
     style: { marginTop: "8px", width: "100%", minHeight: "44px", fontSize: "12px", border: "3px dashed rgba(26,26,24,.5)", background: "transparent", color: "var(--ink)", cursor: "pointer" },
     onClick: () => {
       mark.clear();
-      AppState.update({ penOn: false, penMode: null, penChangeText: "" });
+      AppState.update({ penOn: false, penMode: null, penChangeText: "", penFigurId: null });
       Router.goScreen("ergebnis");
     }
   }, "Fertig – zurück zum Bild");

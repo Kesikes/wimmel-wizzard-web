@@ -267,6 +267,134 @@ Umsetzung (`2026-09-21j`):
     Figurenblatt (falls gewählt), Stilreferenz (`penBildAnweisung()` in `pipeline.js`).
   - Ohne fertige Figuren oder ohne Markierung und Text wird nicht gefragt.
 
+### GÜLTIG (Produktentscheidung des Nutzers, 23.09.2026): Stift — die Figurenabfrage sitzt jetzt bei „Hierher"
+
+Befund des Nutzers: „Stift funktioniert. Aber die Figurenabfrage sitzt an der falschen Stelle."
+Ersetzt die Regelung vom 22.09.2026 („vorher fragen"), bei der die Abfrage nach dem Druck auf
+*Anwenden* in **beiden** Modi kam.
+
+| Modus | Figurenblatt | Bedienung |
+|---|---|---|
+| **Weg damit** | geht **NIE** mit, auch wenn eine Figur gewählt wäre | keine Abfrage, nichts ändert sich |
+| **Hierher / neu zeichnen** | geht mit, wenn die Kundin eine Figur wählt | Auswahl steht **fest im Panel**, über dem Textfeld |
+
+- Begründung für „nie" beim Löschen (Nutzer, wörtlich): „Sonst malt das Modell den doppelten Helden
+  womöglich wieder hin." `applyPenEdit()` erzwingt das doppelt — die Auswahl erscheint im
+  Weg-damit-Modus gar nicht, **und** `mitFigur` ist dort hart auf false.
+- Die Stilreferenz geht wie bisher in **beiden** Modi immer mit.
+- Die Auswahl liegt in `penFigurId` im gespeicherten Zustand (wie `penChangeText`), weil jeder
+  Klick im Panel ein volles Rerender auslöst. Nach dem Anwenden und beim Verlassen wird sie geleert.
+- **Eigene Anweisung für den Figurenfall** (`PEN_INSTRUCTION_FIGUR` / `…_OHNE_MARKE`):
+  `PEN_INSTRUCTION_REDO` taugt dafür nicht, der verlangt „a new, different version of just that
+  object" — zusammen mit einem Figurenblatt wäre das ein Widerspruch (neu erfinden UND genau wie
+  auf dem Blatt). Freitext steuert im Figurenfall nur Pose und Tätigkeit, nie die Identität.
+- **Oberfläche** (Nutzer: „Dass man seine Hauptfiguren auch VERSETZEN kann, muss sichtbar sein"):
+  - Knopf: „Stift · etwas wegnehmen oder eine Figur versetzen" (vorher „markieren, was weg soll").
+  - Modus-Knopf: „Hierher / neu zeichnen" (vorher „Neu zeichnen").
+  - Hinweis über dem Stift: „Die Bilder malt eine KI. Manchmal ist jemand doppelt da oder steht an
+    einer blöden Stelle. Mit dem Stift kringelst du so etwas ein und nimmst es weg. Und du kannst
+    eine eurer Figuren woandershin setzen: Stelle einkringeln, ‚Hierher' wählen, Figur antippen."
+  - Das Etikett am Kringel heißt „die kommt hierher", sobald eine Figur gewählt ist.
+
+### OFFEN (Einschätzung 23.09.2026, nichts gebaut): eine Figur VERSETZEN — die alte Stelle
+
+Frage des Nutzers: Reicht ein Satz („diese Figur steht jetzt hier; wo sie vorher war, ist sie nicht
+mehr"), oder muss die alte Stelle mitmarkiert werden?
+
+**Einschätzung: ein Satz reicht nicht, und das ist keine Vermutung ins Blaue.**
+
+1. Der Satz widerspricht der übrigen Anweisung. Jede Stift-Korrektur verlangt ausdrücklich, alles
+   außerhalb der Markierung **pixelgleich** zu lassen. „Und entferne dieselbe Figur woanders" hebt
+   genau das auf — das Modell muss selbst entscheiden, wo die Ausnahme gilt.
+2. Dasselbe Modell schafft „jeder Held genau einmal" schon beim freien Zeichnen nicht. Gezählt in
+   der gesicherten Sitzung vom 22.09.: **29 von 61 geprüften Kandidaten** enthalten mindestens
+   einen doppelten Helden, betroffen sind **21 von 34 Bildern** (meist Figur C). Wer die Dopplung
+   beim Malen nicht vermeidet, wird sie beim Nachbessern nicht zuverlässig finden.
+3. **Kann es die alte Stelle finden?** Wir wissen nur, dass die *Prüfung* (gemini) Helden
+   lokalisiert — `heroes_x` liefert brauchbare Werte. Das ist ein anderes Modell und eine leichtere
+   Aufgabe als sauber ausradieren und den Hintergrund schließen. Für das Bildmodell haben wir dazu
+   **keine Messung**.
+
+**Vorschlag für die einfachste Bedienung — zwei Markierungen, eine Anweisung, ein Aufruf:**
+
+Die markierte Kopie (Bild 2) trägt heute genau eine rote Markierung. Sie kann zwei tragen:
+**rot = hier weg**, **grün = hierher**. Die Anweisung nennt die Farben, das Modell muss nichts
+suchen, und es bleibt bei **einem** Bildaufruf (0,15 $) statt zwei.
+
+Bedienung: Im Modus „Hierher" fragt die App nach der Figurenwahl eine Zeile: „Steht sie schon im
+Bild? Dann kringel sie dort auch ein." Der Stift wechselt dafür auf Rot, der zweite Kringel ist
+optional. Ohne zweiten Kringel bleibt es beim Satz — und die App sagt ehrlich dazu, dass die Figur
+dann doppelt sein kann.
+
+Die Alternative — zweimal nacheinander („Weg damit", dann „Hierher") — braucht keine neue Technik,
+kostet aber zwei Aufrufe (0,30 $) und zwei Wartezeiten. Der Zwei-Farben-Weg ist **nicht getestet**;
+ein einziges Kontrollbild (0,15 $) zeigt, ob das Modell die Farben auseinanderhält.
+
+### GEPRÜFT (23.09.2026): Läuft die Prüfung nach einer Stift-Korrektur neu?
+
+**Nein — aber sie wird auch nicht falsch.** `applyPenEdit()` setzt am korrigierten Kandidaten
+`violations: null, verify: null` und markiert ihn `korrigiert: true`. Das Panel zeigt danach
+„(keine Wertung)". `heroes_found` ist also nicht veraltet, sondern **leer** — genau richtig nach
+dem Grundsatz „nicht gemessen darf nie wie ein Messwert aussehen".
+
+Was es kosten würde, sie nur für `heroes_found` erneut laufen zu lassen:
+
+- **Ein** Prüfaufruf je Korrektur (`openrouter/router/vision` über fal), dieselbe Sorte Aufruf, die
+  nach jeder Generierung ohnehin zwei- bis dreimal läuft. Der Einzelpreis ist **hier nirgends
+  belegt** — er steht im fal-Dashboard. Im Verhältnis zu den 0,30 $ Bildkosten je Szene ist er
+  klein, aber ich schreibe keine Zahl hin, die wir nicht haben.
+- **Der eigentliche Aufwand ist nicht der Preis, sondern die Daten:** Der Prüf-Prompt und die
+  Heldenblätter liegen am **Job** (Redis, 1 Stunde), nicht am Bild. Nach einer Korrektur ist der
+  Job meist schon weg. Zwei Wege:
+  1. Eine **kurze eigene Frage** stellen, die nur `heroes_found` und `heroes_x` verlangt statt aller
+     zwölf Felder — kleinerer Aufruf, und sie lässt sich aus `heldenInfo` am Bild neu bauen, das
+     dort bereits gespeichert ist. **Empfehlung.**
+  2. Prüf-Prompt und Blatt-URLs am Bild mitspeichern — einfacher zu bauen, aber der gespeicherte
+     Stand wächst um mehrere Kilobyte je Bild, und genau daran ist das Speichern am 22.09. schon
+     einmal gescheitert (Grenze 1.000.000 Zeichen, Abschnitt 10).
+
+### BEFUND (23.09.2026, ohne neue Aufrufe): Liegt der Stilbruch an den Figurenblättern?
+
+Frage des Nutzers zum Bauernhof-Bild mit A/B/C im falschen Stil, während ein Urlaubsbild mit zwei
+neuen Figuren richtig war.
+
+**1. Ein Zusammenhang lässt sich aus den gespeicherten Daten nicht berechnen.** Die gesicherte
+Sitzung (`docs/ref/sitzung.json`, 34 Bilder, 68 Kandidaten) und alle Vergleichsläufe verwenden
+**denselben** Figurensatz A/B/C. Es gibt keine Vergleichsgruppe. Eine Korrelation zu behaupten wäre
+erfunden.
+
+**2. Was die Daten sagen, spricht eher GEGEN die Blätter.** In diesen 68 Kandidaten mit A/B/C:
+
+| | |
+|---|---|
+| Stil-Tor „nein" | **1 von 68** |
+| `shaded_of_ten` ≥ 3 | 2 von 68 |
+| `mouths_of_ten` ≥ 3 | 8 von 68 |
+
+Ein Figurensatz, der den Stil systematisch kippt, sähe anders aus.
+
+**3. Der Verdacht „Foto-Figuren sind weniger wmlstil" trifft nicht mehr zu.** Seit dem 15.09.2026
+läuft **auch** der Foto-Weg über `flux-lora` mit unserem wmlstil-LoRA; das Foto liefert nur noch
+eine kurze Textbeschreibung und geht nicht mehr als Bild in die Erzeugung. Beide Wege erzeugen die
+Blätter technisch gleich. Ein systematischer Stilunterschied zwischen „alten" und „neuen" Blättern
+ist aus der Pipeline heraus also nicht zu erwarten.
+
+**4. Ein Detail, das trotzdem auffällt.** Die Stil-Notizen nennen wiederholt dieselbe Figur:
+„Der Mann ganz links im Vordergrund hat eine plastisch gezeichnete Nase und Schattierungen im
+Gesicht." Figur C ist der bärtige Erwachsene, und `shaded_of_ten` zählt ausdrücklich „sichtbare
+Bartstoppeln oder Schattierung auf Wangen, Kinn oder Hals". Ein Bart ist damit der plausibelste
+einzelne Auslöser — bei 2 von 68 Fällen aber kein Beleg, sondern eine Spur.
+
+**Wie es sich ohne Bildaufruf klären lässt (Vorschlag, nicht gebaut):** Das Stil-Tor vergleicht
+jedes Bild gegen die Stilreferenz. Es lässt sich genauso auf die **Figurenblätter selbst** loslassen
+— die drei alten und die zwei neuen. Das sind fünf Aufrufe an claude-sonnet-5, **kein einziger
+Bildaufruf**, Kosten im Cent-Bereich. `dev-tools/stiltor-messen.js` macht das für Kandidaten schon;
+eine kleine Variante für beliebige Blatt-URLs ist schnell gebaut. Vorbehalt: Die Blätter liegen auf
+`fal.media`; ob die URLs noch abrufbar sind, zeigt der erste Aufruf.
+
+**Was dafür gebraucht wird:** die gesicherte Sitzung mit den **neuen** Figuren (TROCKEN). Erst
+damit gibt es zwei Gruppen und die Frage ist überhaupt beantwortbar.
+
 ### GÜLTIG (Produktentscheidung des Nutzers, 21.09.2026): die Kundin entscheidet
 
 > „Die automatische Auswahl bestimmt nur noch den Favoriten. Die Entscheidung trifft die Kundin."
@@ -898,9 +1026,10 @@ Einschätzung bleibt hier stehen, weil zwei Befunde daraus weiter gelten:
   wörtlich „Zeigt dieses Bild GENAU EINE einzelne Figur?" (`single_ok` würde jedes Blatt
   ablehnen); `beschreibeFigurenblatt()` liest Haare und Oberteil aus dem Blatt und könnte die
   beiden Figuren verwechseln; und die Nahaufnahme, an der die Gesichtsauflösung und damit die
-  Heldentreue hängt, ginge verloren. Dazu käme, dass beide Erzeugungswege (`flux-lora` aus Chips,
-  `nano-banana-2/edit` aus dem Foto) die Silhouette jedes Mal **neu erfinden** würden — sie wäre
-  also gerade nicht „immer gleich".
+  Heldentreue hängt, ginge verloren. Dazu käme, dass beide Erzeugungswege die Silhouette jedes Mal
+  **neu erfinden** würden — sie wäre also gerade nicht „immer gleich". (Korrektur 23.09.: **beide**
+  Wege, Chips und Foto, laufen seit dem 15.09. über `flux-lora` mit dem wmlstil-LoRA; der Foto-Weg
+  benutzt das Foto nur noch für eine kurze Textbeschreibung, nicht mehr als Eingangsbild.)
 
 ---
 
