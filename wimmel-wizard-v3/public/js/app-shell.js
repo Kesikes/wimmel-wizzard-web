@@ -15,11 +15,13 @@ const NEXT = [
   { l: "Figuren weitermachen", s: "nichts davon ist verbindlich" },
   { l: "Figur zeichnen lassen", s: "Ich speichere nach jeder Eingabe.<br>Wichtig: Auch Zauberer machen Fehler – und manchmal mache ich mir auch einfach nur einen Spaß.<br>Aber wir können alles wieder ändern." },
   { l: "Weiter zur Geschichte", s: "Figuren kannst du später ergänzen" },
-  // GEAENDERT (Sammel-Runde 11.09.2026, Punkt 7: "Load-Failed beim Zaubern, vermutlich iOS-
-  // Hintergrund-Drosselung"). "du kannst weggehen" widersprach direkt dem neuen Hinweis auf dem
-  // Zaubern-Screen selbst (Bildschirm an/Tab offen lassen, siehe szene.js) -- ein Hinweistext, der
-  // dem naechsten genau das Gegenteil sagt, waere keine Verbesserung.
-  { l: "Los, zaubern", s: "dauert 2–4 Minuten, Bildschirm an lassen" },
+  // GEAENDERT (Sammel-Runde 11.09.2026, Punkt 7: "Load-Failed beim Zaubern"). Damals wurde
+  // "du kannst weggehen" gestrichen, weil es dem Hinweis auf dem Zaubern-Screen widersprach
+  // (Bildschirm an lassen).
+  // ZURUECKGENOMMEN (24.09.2026): Seit der Warteschlangen-Umstellung vom 15.09. laeuft der Auftrag
+  // bei fal weiter, auch wenn das Handy schlaeft -- der widersprechende Hinweis ist weg (siehe
+  // szene.js), und "du kannst weggehen" ist jetzt schlicht wahr.
+  { l: "Los, zaubern", s: "dauert 2–5 Minuten, du kannst weggehen" },
   // TOT (Sammel-Runde 11.09.2026, Punkt 9): dieser Eintrag wird nicht mehr angezeigt --
   // renderBottomBar() blendet die komplette Bottom-Bar fuer idx 4 (Zaubern) jetzt aus, siehe dort.
   // Bewusst NICHT aus dem Array entfernt: NEXT ist positional zu SCREEN_ORDER indiziert, ein Entfernen

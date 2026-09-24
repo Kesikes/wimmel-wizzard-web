@@ -413,62 +413,43 @@ async function generateCharacterImage(person, buttons) {
   }
 }
 
-// NEU (B9/B10, Sammel-Runde 09.09.2026): aus generateCharacterImage() herausgezogen, damit der neue
-// Foto-Weg (generateCharacterImageFromPhoto() unten) dieselbe "nach dem Frontbild automatisch
-// Seite/Ruecken/3-4 generieren und an der Person speichern"-Logik nutzt, statt sie ein zweites Mal
-// (und potenziell abweichend) zu implementieren. Uebernimmt 1:1 das Verhalten von vorher (siehe
-// Kommentare, die urspruenglich hier standen, jetzt bei generateCharacterImage() historisch nicht
-// mehr vorhanden, da diese Funktion jetzt die einzige Quelle ist): Seite/Ruecken/3-4 laufen ALLE
-// ueber den Edit-Pfad mit dem fertigen Frontbild als visuelle Referenz (zuverlaessiger als reiner
-// Text-zu-Bild-Weg, siehe pipeline.js sideViewEditInstruction()/backViewEditInstruction()-Kommentar),
-// parallel statt nacheinander, best-effort (Promise.allSettled -- eine fehlgeschlagene Zusatz-Ansicht
-// blockiert die anderen nicht).
-// GEAENDERT (Sammel-Runde 16.09.2026, Foto-Pfad "Load failed"): Pipeline.generateImage() ->
-// Pipeline.generateImageWithRetry() -- siehe ausfuehrlicher Kommentar dort. Promise.allSettled bleibt
-// (eine dauerhaft fehlgeschlagene Zusatz-Ansicht soll weiterhin die anderen/das Frontbild nicht
-// blockieren), aber ein reiner Verbindungsaussetzer fuehrt nicht mehr sofort zu einer fehlenden
-// Ansicht, sondern wird zuerst automatisch nochmal versucht.
+// NEU (B9/B10, Sammel-Runde 09.09.2026): aus generateCharacterImage() herausgezogen, damit ALLE
+// Figuren-Wege (Erstgenerierung, Foto-Weg, "Detail aendern", "Noch einmal zeichnen") denselben
+// Abschluss nutzen statt ihn mehrfach und potenziell abweichend zu implementieren.
+// HISTORIE, damit die Aenderungen nachvollziehbar bleiben: Hier liefen bis zum 24.09.2026 drei
+// Zusatz-Ansichten (Seite, Ruecken, 3/4) ueber den Edit-Pfad, parallel und best-effort
+// (Promise.allSettled). Am 24.09. vormittags wurden sie auf die 3/4-Ansicht reduziert, am selben
+// Tag nach dem Sprachweg-Test ganz gestrichen (siehe unten).
 // Ausserdem: pendingJobId/pendingSceneDescription (siehe generateCharacterImage()/
 // generateCharacterImageFromPhoto() weiter unten) werden hier IMMER geloescht -- das ist der
-// gemeinsame "fertig, ob mit oder ohne Zusatz-Ansichten"-Punkt, an dem kein Resume mehr noetig ist.
-// GEAENDERT (24.09.2026, Nutzer-Entscheidung nach dem Kundendurchlauf): ohneZusatzAnsichten
-// ueberspringt die drei Edit-Aufrufe. Befund: Im Durchlauf entstanden 17 banana-2-Edits, davon 8
-// allein dadurch, dass nach JEDER Figur-Aenderung alle drei Zusatz-Ansichten NEU erzeugt wurden --
-// eine "Detail aendern"-Aenderung kostete damit 0,32 $ statt 0,08 $. Nach "T-Shirt blau" passen die
-// vorhandenen Ansichten in der Regel weiter; sie zeigen dieselbe Figur, nur aus anderer Richtung.
-// Die alten bleiben stehen (kein Loeschen), und wenn sie fehlen, sagt der Screen das wie bisher.
-async function generateExtraViewsAndFinish(person, frontResult, sceneDescription, opts) {
-  const ohneZusatz = !!(opts && opts.ohneZusatzAnsichten);
-  // GEAENDERT (24.09.2026, Produktentscheidung des Nutzers: "von drei auf EINE reduzieren, die
-  // 3/4-Ansicht. Der Vertrauensmoment bleibt, Ruecken und Seite bringen nichts."): Nur noch die
-  // 3/4-Ansicht wird erzeugt. Sie zeigt am meisten -- Gesicht UND Koerperform --, waehrend eine
-  // Figur im Wimmelbild fast immer von vorn zu sehen ist. Spart 0,16 $ je Figur (zwei Edits zu
-  // 0,08 $), bei fuenf Figuren 0,80 $.
-  // Die Felder imageUrlSide/imageUrlBack bleiben im Datenmodell: Figuren von vor dieser Aenderung
-  // haben sie gefuellt, und das Charakterblatt zeigt weiter, was da ist. Sie werden nur nicht mehr
-  // NEU erzeugt. Ein Loeschen waere Datenverlust ohne Gegenwert.
-  const [threeQR] = ohneZusatz
-    ? [{ status: "skipped" }]
-    : await Promise.allSettled([
-      Pipeline.generateImageWithRetry(Pipeline.threeQuarterEditInstruction(), "char", { editImageUrl: frontResult.url }),
-    ]);
+// gemeinsame "Figur fertig"-Punkt, an dem kein Resume mehr noetig ist.
+// GEAENDERT (24.09.2026, ZWEITE Stufe, Nutzer nach dem Sprachweg-Test: "Zusatz-Ansichten: ganz
+// weg, auch die 3/4-Ansicht. Immer nur ein Bild je Figur."): Es wird GAR KEINE Zusatz-Ansicht mehr
+// erzeugt. Damit kostet eine Figur 0,09 $ statt 0,17 $ (zwei Blatt-Kandidaten 0,055 $, zwei
+// Pruefungen 0,02 $, Blattbeschreibung 0,01 $) -- fuenf Figuren 0,45 $ statt 0,83 $.
+//
+// Die Funktion heisst weiter so, weil sie der gemeinsame Abschluss-Punkt ALLER Figuren-Wege ist
+// (Erstgenerierung, Foto-Weg, Detail aendern, Neu zeichnen): hier wird das Frontbild gespeichert,
+// die Blattbeschreibung und die Stilpruefung angestossen und zum Charakterblatt navigiert. Der
+// frueher hier haengende Parameter opts.ohneZusatzAnsichten ist damit gegenstandslos und
+// entfernt -- er wuerde heute nichts mehr ueberspringen.
+//
+// Die Felder imageUrlSide/imageUrlBack/imageUrlThreeQuarter bleiben im Datenmodell und werden
+// AUSDRUECKLICH NICHT geleert: Figuren von vor dieser Aenderung haben sie gefuellt, und das
+// Charakterblatt zeigt weiter, was da ist. Sie entstehen nur nicht mehr neu. Ein Loeschen waere
+// Datenverlust ohne Gegenwert.
+//
+// Pipeline.threeQuarterEditInstruction()/sideViewEditInstruction()/backViewEditInstruction()
+// bleiben in pipeline.js stehen, werden aber vom Produktpfad nicht mehr aufgerufen.
+async function generateExtraViewsAndFinish(person, frontResult, sceneDescription) {
   const vorhanden = (AppState.data.people || []).find((x) => x.id === person.id) || person;
-  AppState.updatePerson(person.id, Object.assign({
+  AppState.updatePerson(person.id, {
     imageUrl: frontResult.url, imageSeed: frontResult.seed, sceneDescription,
     pendingJobId: null, pendingSceneDescription: null,
-  }, ohneZusatz ? {
-    // Ausdruecklich die ALTEN Adressen stehen lassen -- nicht auf null setzen. Ein null waere hier
-    // eine Unwahrheit: die Ansichten sind da, sie sind nur nicht neu.
     imageUrlSide: vorhanden.imageUrlSide || null,
     imageUrlBack: vorhanden.imageUrlBack || null,
     imageUrlThreeQuarter: vorhanden.imageUrlThreeQuarter || null,
-  } : {
-    // Seite und Ruecken werden seit 24.09.2026 nicht mehr erzeugt (siehe oben). Vorhandene bleiben
-    // erhalten, damit aeltere Figuren nichts verlieren.
-    imageUrlSide: vorhanden.imageUrlSide || null,
-    imageUrlBack: vorhanden.imageUrlBack || null,
-    imageUrlThreeQuarter: threeQR.status === "fulfilled" ? threeQR.value.url : null,
-  }));
+  });
   // NEU (21.09.2026, Grundstand): die Heldenbeschreibung aus dem Figurenblatt entsteht jetzt schon
   // hier, gleich nach dem Frontbild -- im Hintergrund, die Kundin wartet nicht darauf. Scheitert
   // sie, holt der Szenenstart sie nach (siehe runGeneration() in szene.js), und das Panel sagt es.
@@ -984,15 +965,10 @@ Screens.charakterblatt = {
         });
         wrap.appendChild(viewsRow);
       }
-      // GEAENDERT (24.09.2026): Seit nur noch die 3/4-Ansicht erzeugt wird, waere "eine Ansicht
-      // fehlt" bei JEDER neuen Figur wahr -- der Hinweis haette dauerhaft einen Fehler behauptet,
-      // wo keiner ist. Gemeldet wird deshalb nur noch, wenn die 3/4-Ansicht selbst fehlt. Seite und
-      // Ruecken werden nicht mehr erzeugt; wo sie noch da sind (Figuren von vor dieser Aenderung),
-      // werden sie weiter angezeigt, aber ihr Fehlen ist kein Fehler mehr.
-      if (!person.imageUrlThreeQuarter) {
-        wrap.appendChild(h("p", { style: { margin: "6px 2px 0", fontSize: "11px", lineHeight: "1.4", color: "rgba(26,26,24,.6)" } },
-          "die zweite Ansicht ist diesmal nicht geglückt — mit «Detail ändern» nochmal versuchen."));
-      }
+      // ENTFERNT (24.09.2026, zweite Stufe): Es werden gar keine Zusatz-Ansichten mehr erzeugt --
+      // eine fehlende ist deshalb kein Fehler mehr, sondern der Normalfall. Ein Hinweis darauf
+      // wuerde bei JEDER neuen Figur eine Panne behaupten, die es nicht gibt. Die Reihe oben zeigt
+      // weiterhin, was bei aelteren Figuren vorhanden ist.
     }
 
     // NEU (23.09.2026, Nutzer-Entscheidung 3b): Das Blatt ist bei der Stilpruefung durchgefallen.
@@ -1281,7 +1257,7 @@ async function applyCharEdit(person, buttons) {
     AppState.updatePerson(person.id, { stilPruefung: null, stilPruefungVorher: vorher, blatt: null });
     // Nach einer Detail-Aenderung KEINE neuen Zusatz-Ansichten: spart 0,24 $ je Aenderung, und die
     // vorhandenen zeigen dieselbe Figur (siehe Kommentar an generateExtraViewsAndFinish()).
-    await generateExtraViewsAndFinish(person, result, person.sceneDescription, { ohneZusatzAnsichten: true });
+    await generateExtraViewsAndFinish(person, result, person.sceneDescription);
   } catch (e) {
     charGenBusy = false;
     setBusyButtons(activeButtons, false);

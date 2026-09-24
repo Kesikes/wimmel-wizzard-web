@@ -703,21 +703,30 @@ async function finalizeChatScene() {
   const context = { characters: doneCharacters, sceneIndex: (s.images || []).length + 1, sceneTarget: 5 };
   const versuch = await sceneChatMitNachfrage(messages, context);
   const result = versuch.result;
+  // BUGFIX (24.09.2026, Nutzer-Befund: "Im Chat stand die Schnellantwort 'Das reicht mir erstmal,
+  // bitte mach jetzt weiter.' zweimal untereinander"). finalText ist eine STEUER-Nachricht, die die
+  // App selbst schreibt, damit das Modell die Szene abschliesst -- die Kundin hat sie nie getippt.
+  // Sie wanderte bisher mit in den gespeicherten Verlauf, und weil jeder Druck auf "Los, zaubern"
+  // eine neue schickt, standen nach zwei abgelehnten Versuchen zwei gleiche Sprechblasen
+  // untereinander. Sie wird deshalb NICHT mehr gespeichert -- weder im Erfolgs- noch im
+  // Fehlerfall. Gesendet wird sie unveraendert (messages), nur der sichtbare Verlauf bleibt das,
+  // was die Kundin wirklich geschrieben hat. Gleiche Begruendung wie bei NACHFRAGE_SITUATIONEN.
+  const verlauf = s.sceneChatMessages || [];
+  const mitAntwort = (r) => verlauf.concat(r && r.reply ? [{ role: "assistant", content: r.reply }] : []);
   if (versuch.art === "szene") {
     const input = versuch.input;
     const theme = await buildThemeFromLocation(input.location_label, input.location_type);
-    const finalMessages = messages.concat(result.reply ? [{ role: "assistant", content: result.reply }] : []);
     AppState.update({
       sceneUserSituations: versuch.situations,
       sceneTheme: input.location_label || s.sceneTheme,
       sceneChatTheme: theme,
-      sceneChatMessages: finalMessages
+      sceneChatMessages: mitAntwort(result)
     });
     return { ok: true, grund: null };
   }
   // Modell antwortet stattdessen konversationell (z.B. eine letzte Rueckfrage) -- Verlauf trotzdem
   // sichern (kein Datenverlust), aber KEIN Thema erzwingen/raten.
-  AppState.update({ sceneChatMessages: messages.concat(result.reply ? [{ role: "assistant", content: result.reply }] : []) });
+  AppState.update({ sceneChatMessages: mitAntwort(result) });
   return { ok: false, grund: versuch.art, anzahl: versuch.anzahl };
 }
 
@@ -1114,19 +1123,24 @@ Screens.zaubern = {
       h("span", { style: { color: "var(--yellow)" } }, "schnell.")
     ]));
     wrap.appendChild(h("p", { class: "caveat", style: { margin: "8px 0 0", fontSize: "20px", lineHeight: "1.12", color: "var(--paper-a90)" } }, "Ich mache zwei Varianten, und du suchst dir die beste aus."));
-    // NEU (Sammel-Runde 11.09.2026, Punkt 7: "Load-Failed beim Zaubern, vermutlich iOS-Hintergrund-
-    // Drosselung"). Live-Verdacht: mobile Browser (v.a. iOS Safari) drosseln/pausieren offene
-    // Netzwerkverbindungen und Timer aggressiv, sobald der Bildschirm gesperrt wird oder der Tab in
-    // den Hintergrund wechselt -- bei einer 2-5 Minuten dauernden, durchgehend offenen Anfrage (siehe
-    // composeSceneImage() in pipeline.js) kann das zum "Load failed" fuehren, das bisher nur als
-    // generischer Fehler ankam. Sofort-Fix (dieser Absatz): deutlicher, unuebersehbarer Hinweis VOR
-    // dem Start, statt es nur im ohnehin schon vorhandenen "kannst weggehen"-Ton zu erwaehnen.
-    // Mittelfristiger Fix (siehe ausfuehrlicher Kommentar bei composeSceneImage() in pipeline.js):
-    // eine robustere Architektur mit kurzen, wiederholten Status-Abfragen statt einer einzigen langen
-    // offenen Verbindung ist der eigentlich richtige Weg, aber ein groesserer Umbau (fal.ai liefert
-    // aktuell synchron per fetch(), nicht über einen pollbaren Job-Status-Endpunkt) -- dieser
-    // Hinweistext ist der schnelle, sofort wirksame Teil der Abhilfe.
-    wrap.appendChild(h("p", { class: "h-black", style: { margin: "10px 0 0", fontSize: "12px", lineHeight: "1.45", color: "var(--ink)", background: "var(--yellow)", border: "3px solid var(--paper)", padding: "8px 10px", transform: "rotate(.6deg)" } }, "Wichtig: Bildschirm an lassen und diesen Tab offen halten, während gezaubert wird — sonst kann es auf manchen Handys mit „Load failed“ abbrechen."));
+    // ENTFERNT (24.09.2026, Nutzer-Befund nach dem Sprachweg-Test: "Der gelbe Kasten auf dem
+    // Zaubern-Screen ist wieder da"). Er war nie weg -- am 24.09. frueh wurde ein ANDERER gelber
+    // Kasten entfernt ("Fenster nicht schliessen", unten in der inzwischen ganz gestrichenen
+    // Bleib-hier-Karte). Es gab ZWEI, und nur der genannte wurde angefasst. Mein Fehler: Ich habe
+    // nach dem zitierten Wortlaut gesucht statt nach allen Kaesten derselben Aussage.
+    //
+    // WARUM ER AUCH INHALTLICH WEG GEHOERT (Stand nach der Warteschlangen-Umstellung vom
+    // 15.09.2026): Der Text stammt aus der Zeit, als eine Szene an EINER 2-5 Minuten offenen
+    // fetch()-Verbindung hing -- da war "Load failed" beim Sperren des Bildschirms real. Heute
+    // laeuft der Auftrag bei fal in der Warteschlange, der Browser fragt nur alle paar Sekunden
+    // nach (api/scene-job-status.js), waitWithVisibilityWakeup() weckt die Abfrage beim
+    // Zurueckkommen sofort wieder auf, und ein kompletter Neustart der Seite nimmt den Auftrag
+    // ueber pendingSceneJob/resumeSceneJob() wieder auf. Ein gesperrter Bildschirm macht das
+    // Zaubern also LAENGER, aber er bricht es nicht ab.
+    // Was bleibt, ist eine Frist: Der Job-Datensatz liegt eine Stunde im Speicher (JOB_TTL_SECONDS
+    // in api/scene-job-start.js, bei jeder Abfrage neu gesetzt). Wer laenger als eine Stunde nicht
+    // zurueckkommt, verliert ihn -- und das ist ein Fall fuer eine Loesung, nicht fuer eine
+    // Warnung an die Kundin (siehe Register, Abschnitt 16).
 
     // Design-Feedback (05.09.2026): der gestrichelte Ring drehte sich zwar schon (animation: spin),
     // aber bei einem gleichmäßig gestrichelten Kreis sieht eine Drehung optisch aus wie Stillstand

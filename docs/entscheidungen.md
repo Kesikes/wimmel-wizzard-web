@@ -819,9 +819,21 @@ Launch-Liste.
 | **fal-Kosten je Figur, ab 24.09.2026** | | | **0,165 $, rund 0,17 $** |
 
 **Halbiert.** Fünf Figuren kosten jetzt **0,83 $** statt 1,65 $. Die 3/4-Ansicht ist mit knapp der
-Hälfte weiterhin der größte Einzelposten einer Figur — sie bleibt, weil sie den Vertrauensmoment
-trägt (Nutzerentscheidung), nicht weil sie im Bildprompt gebraucht würde: in den Szenen-Prompt geht
-nach wie vor **nur das Frontbild**.
+Hälfte weiterhin der größte Einzelposten einer Figur.
+
+**NOCH EINMAL NACHGEZOGEN, am selben Tag** (Nutzer nach dem Sprachweg-Test: „Zusatz-Ansichten: ganz
+weg, auch die 3/4-Ansicht. Immer nur ein Bild je Figur."):
+
+| Posten | Anzahl | Preis | Summe |
+|---|---|---|---|
+| Figurenblatt (`flux-lora`, 0,786 MP) | 2 | 0,0275 $ | 0,055 $ |
+| Prüfung je Kandidat | 2 | 0,01 $ | 0,02 $ |
+| Blattbeschreibung (`beschreibeFigurenblatt()`) | 1 | 0,01 $ | 0,01 $ |
+| **fal-Kosten je Figur, endgültig** | | | **0,085 $, rund 0,09 $** |
+
+**Von 0,33 $ auf 0,09 $ an einem Tag — ein Viertel.** Fünf Figuren kosten **0,43 $** statt 1,65 $.
+Der Grund, dass es so einfach ging: Die Zusatz-Ansichten gingen nie in den Szenen-Prompt. Dort
+steht seit jeher **nur das Frontbild**. Sie waren reine Anzeige auf dem Charakterblatt.
 
 ### ÜBERHOLT (bis 19.09.2026): 0,30 $ je Bild
 
@@ -1707,6 +1719,19 @@ Prompt". **Die Ersparnis liegt bei den Bildern, nicht beim Text.**
 erfüllen. Fällt der Unterschied deutlich aus, ist die nächste Frage, ob er über mehr Runden hält —
 nicht, ob er sofort ins Produkt darf.
 
+> #### BEIM AUSWERTEN ZU BEACHTEN (Nutzer, 24.09.2026: „damit wir das Ergebnis später nicht überdehnen")
+>
+> Dieser Versuch vergleicht **„fünf Einzelblätter plus Einzelsätze"** gegen **„ein nummeriertes
+> Sammelblatt plus Einzelsätze plus Nummernsatz"**. Wenn er gewinnt, ist damit **nicht** belegt:
+>
+> - dass die Einzelsätze je Held überflüssig sind — sie standen in beiden Fassungen,
+> - dass es an der **Nummerierung** liegt und nicht an der geringeren Zahl der Referenzbilder —
+>   beides ändert sich gleichzeitig,
+> - dass der Effekt bei fünf Helden genauso groß ist wie bei den drei aus dem Probelauf.
+>
+> Belegt wäre nur: **Diese eine Umstellung, als Ganzes, ergibt bei diesem Figurensatz weniger
+> beanstandete Kandidaten.** Jede weitere Aussage braucht einen eigenen Durchgang.
+
 ### OFFEN (Teil des Produktangebots): Produktleiter (Idee des Nutzers, 21.09.2026)
 
 Nur festgehalten, nichts entschieden, nichts gebaut. Quelle und Einzelheiten:
@@ -2105,6 +2130,102 @@ keine Überraschung, sondern ein Punkt für die Zonen-Runde.
 5. Sitzung danach wieder per TROCKEN ziehen — dann lässt sich `sceneUserSituations` gegen die
    Gesprächsnachrichten halten, genau wie beim letzten Mal.
 
+### BESTÄTIGT 24.09.2026 im zweiten Sprachweg-Test: Punkt 13 ist erledigt
+
+Nutzer-Test mit denselben Wünschen wie im Kundendurchlauf. Ergebnis, seine Worte:
+
+| Geprüft | Ergebnis |
+|---|---|
+| Sperre bei leerer Situationsliste | **greift** — zwei Versuche abgelehnt, nach der Aufzählung lief es |
+| Ort erkannt | Panel zeigt „wmlstil, **mountain**, …" statt `generic` |
+| Wünsche im Prompt **und** im Bild | Kühe füttern und streicheln, Paraglider, Spielplatz, Kaiserschmarrn, Skateboard |
+| Stil-Tor | beide Kandidaten bestanden |
+| Richter | einig |
+| Helden im Falzstreifen | nein (22 und 80) |
+
+> „Das ist das beste Bild bisher. Punkt 13 ist damit erledigt." (Nutzer)
+
+**Bemerkenswert am Befund:** Die Sperre hat **zweimal** gegriffen. Das heißt, der Fehler aus dem
+Kundendurchlauf war **kein Ausreißer** — `add_scene` kommt regelmäßig ohne Situationen, auch nach
+der automatischen Nachfrage. Ohne die Sperre wären das zwei weitere bezahlte Bilder ohne den Inhalt
+der Kundin gewesen. Die offene Frage dahinter — **warum** das Modell die Liste weglässt — ist damit
+nicht beantwortet, sie ist nur unschädlich gemacht. Sie gehört auf die Liste, wenn der Chat-Weg
+ernsthaft benutzt wird.
+
+### BEHOBEN 24.09.2026: der gelbe Kasten auf dem Zaubern-Screen — es waren ZWEI
+
+> „Der gelbe Kasten auf dem Zaubern-Screen ist wieder da … Bitte prüfen, ob es zwei Kästen im Code
+> gibt oder ob die Änderung nicht gegriffen hat." (Nutzer)
+
+**Es waren zwei, und die Änderung hat gegriffen — nur am anderen.** Am 24.09. früh wurde die
+Bleib-hier-Karte mit dem Kasten „Fenster nicht schließen" entfernt (Commit `940e6f3`). Weiter oben
+auf demselben Screen stand ein **zweiter** Kasten mit derselben Aussage in anderen Worten:
+„Wichtig: Bildschirm an lassen und diesen Tab offen halten … sonst kann es auf manchen Handys mit
+„Load failed" abbrechen." Den habe ich nie angefasst.
+
+**Mein Fehler, und er hat eine Form:** Ich habe nach dem **zitierten Wortlaut** gesucht statt nach
+**allen Stellen derselben Aussage**. Das ist dieselbe Art von Lücke wie beim Ersatzwert-Muster: Eine
+Änderung gilt als erledigt, weil die genannte Stelle stimmt, und niemand fragt, ob es Geschwister
+gibt. **Regel daraus:** Wird ein Hinweistext entfernt, wird nach seiner **Aussage** gesucht, nicht
+nach seinem Wortlaut. Hier gab es drei Stellen — der Kasten, die FAQ auf der Startseite und die
+Unterzeile der Zaubern-Schaltfläche. Alle drei sind jetzt nachgezogen.
+
+**Und inhaltlich stimmte die Warnung nicht mehr.** Der Text stammt vom 11.09., aus der Zeit, als
+eine Szene an **einer** 2–5 Minuten offenen `fetch()`-Verbindung hing. Da war „Load failed" beim
+Sperren des Bildschirms real. Seit der Warteschlangen-Umstellung vom 15.09.:
+
+| Was passiert | Folge |
+|---|---|
+| Bildschirm gesperrt, Tab im Hintergrund | fal zeichnet in seiner Warteschlange weiter |
+| Browser fragt nicht mehr nach | der Auftrag **wartet**, er bricht nicht ab (`advanceSceneJob()` läuft nur beim Nachfragen) |
+| Kundin kommt zurück | `waitWithVisibilityWakeup()` weckt die Abfrage sofort, der Auftrag läuft weiter |
+| Seite komplett neu geladen | `pendingSceneJob`/`resumeSceneJob()` greifen den Auftrag wieder auf |
+
+**Ein gesperrter Bildschirm macht das Zaubern also länger, nicht kaputt.** Die Warnung hat einen
+Zustand beschrieben, den es seit neun Tagen nicht mehr gibt, und dafür Druck erzeugt.
+
+### VOR DEM LAUNCH, PUNKT 6 (Befund 24.09.2026): ein Auftrag verfällt eine Stunde nach der letzten Nachfrage
+
+Das ist der **wahre Kern** der abgeschafften Warnung — und er gehört behoben, nicht als Warnung an
+die Kundin weitergereicht (Vorgabe des Nutzers, wörtlich: „Wenn ein Handy den Tab schlafen legt und
+das Nachfragen abbricht, gehört das behoben, nicht als Warnung an die Kundin weitergereicht.").
+
+`JOB_TTL_SECONDS` in `api/scene-job-start.js` ist **eine Stunde**, und die Frist wird bei **jeder**
+Nachfrage neu gesetzt — sie läuft also ab der **letzten** Nachfrage, nicht ab dem Start. Wer
+innerhalb einer Stunde zurückkommt, verliert nichts.
+
+**Wer später zurückkommt, verliert zwei bezahlte Bilder — und erfährt nicht einmal, warum.** Der
+Auftrag ist dann aus dem Speicher, `resumeSceneJob()` bekommt einen 404, und die Bilder liegen bei
+fal ohne dass jemand ihre Adressen kennt (fal bewahrt sie 90 Tage auf, siehe Punkt 3 — die
+Adressen standen aber nur im verfallenen Auftrag).
+
+Drei Wege, keiner entschieden:
+
+| Weg | Aufwand | Was er löst |
+|---|---|---|
+| Frist verlängern (z. B. 24 h) | eine Zahl | deckt „Handy weggelegt, abends weiter" ab; fal selbst bewahrt Ergebnisse allerdings nur rund 1 h auf — nach Ablauf **dieser** Frist hilft die längere Job-Frist nicht mehr |
+| Ergebnis beim Fertigstellen **getrennt** vom Auftrag speichern, mit langer Frist | klein | die fertigen Bilder überleben, auch wenn der Auftrag verfällt — der eigentlich richtige Weg |
+| Ehrliche Meldung beim 404 statt eines generischen Fehlers | klein | löst nichts, verhindert aber Ratlosigkeit |
+
+**Empfehlung: Weg 2 plus Weg 3.** Die Frist zu verlängern hilft nur, solange fal das Ergebnis noch
+hat — sie verschiebt die Grenze, ohne sie zu beseitigen.
+
+### BEHOBEN 24.09.2026: „Das reicht mir erstmal" stand zweimal im Chat
+
+`finalText` ist eine **Steuer-Nachricht**, die die App selbst schreibt, damit das Modell die Szene
+abschließt. Die Kundin hat sie nie getippt — sie wanderte aber in den gespeicherten Verlauf, und
+weil jeder Druck auf „Los, zaubern" eine neue schickt, standen nach den **zwei abgelehnten
+Versuchen** zwei gleiche Sprechblasen untereinander.
+
+Gesendet wird sie unverändert, **gespeichert wird sie nicht mehr** — weder im Erfolgs- noch im
+Fehlerfall. Der sichtbare Verlauf ist damit das, was die Kundin wirklich geschrieben hat. Dieselbe
+Begründung wie bei der automatischen Nachfrage (`NACHFRAGE_SITUATIONEN`), die aus demselben Grund
+nie im Verlauf landet.
+
+**Das ist ein Nebenschaden der neuen Sperre, nicht ihr Fehler:** Vor dem 24.09. wurde ein Versuch
+praktisch nie abgelehnt, also fiel die doppelte Blase nie auf. Sobald etwas öfter fehlschlägt, wird
+sichtbar, was vorher nur selten passierte.
+
 ### BEHOBEN 24.09.2026: die beiden dringenden Treffer aus dem Muster-Durchgang
 
 | Stelle | vorher | jetzt |
@@ -2323,8 +2444,16 @@ Regel wie unten.
 | Buch klein | 3 | 0,96 $ | 0,83 $ | **rund 1,80 $** |
 | Buch groß | 5 | 1,60 $ | 0,83 $ | **rund 2,45 $** |
 
+**ENDSTAND 24.09.2026** (Figuren 0,09 $, keine Zusatz-Ansichten mehr):
+
+| Stufe | Wimmelbilder | Szenen (je 0,32 $) | 5 Figuren (je 0,09 $) | Summe fal |
+|---|---|---|---|---|
+| Poster | 1 | 0,32 $ | 0,43 $ | **rund 0,75 $** |
+| Buch klein | 3 | 0,96 $ | 0,43 $ | **rund 1,40 $** |
+| Buch groß | 5 | 1,60 $ | 0,43 $ | **rund 2,05 $** |
+
 Mit ein paar Stift-Korrekturen und dem gelegentlichen dritten Kandidaten landet ein großes Buch bei
-**rund 3,20 $ fal-Kosten** statt der früher gerechneten 4 $. Dazu kommen die claude-Aufrufe
+**rund 2,80 $ fal-Kosten** — am 23.09. waren es noch 4 $. Dazu kommen die claude-Aufrufe
 (Anthropic-Konsole).
 
 Die Figuren sind dabei der überraschende Posten: Bei einem **Poster** kosten sie mehr als das Bild.
@@ -2423,37 +2552,44 @@ eine Zusatz-Ansicht:
 
 | Posten | Summe |
 |---|---|
-| 5 Figuren (je 0,17 $) | 0,83 $ |
+| 5 Figuren (je 0,09 $) | 0,43 $ |
 | 1 Szene (2 Kandidaten + 2 Prüfungen) | 0,32 $ |
-| **fal je Besucherin, die nichts kauft** | **rund 1,15 $** |
+| **fal je Besucherin, die nichts kauft** | **rund 0,75 $** |
+
+(Am 24.09. vormittags waren es noch 1,15 $ — die Streichung der Zusatz-Ansichten am Nachmittag hat
+ein Drittel davon weggenommen.)
 
 Dazu claude, getrennt und **nicht beziffert**: auf dem Chat-Weg allein waren es im Kundendurchlauf
 **9 Gesprächsnachrichten**, dazu je Figur eine Blatt-Stilprüfung und die Übersetzungs-/
 Moderationsaufrufe. Die Zahl gehört in die Anthropic-Konsole, nicht hierher.
 
 **Was das bei 5 % Conversion bedeutet:** Auf eine Käuferin kommen 19 Besucherinnen, die nichts
-kaufen. 19 × 1,15 $ = **rund 22 $ je Käuferin**, die in keiner Produktkalkulation auftauchen —
-**fast das Zehnfache** der Herstellkosten eines großen Buchs (2,45 $). Die Gratis-Stufe ist damit
+kaufen. 19 × 0,75 $ = **rund 14 $ je Käuferin**, die in keiner Produktkalkulation auftauchen —
+**fast das Siebenfache** der Herstellkosten eines großen Buchs (2,05 $). Die Gratis-Stufe ist damit
 nicht der Nebenposten, sondern der Hauptkostenblock des Geschäftsmodells.
 
-Zwei Zahlen zur Einordnung, beide **nicht gemessen, sondern gerechnet**:
+Zahlen zur Einordnung, alle **nicht gemessen, sondern gerechnet**:
 
 | Conversion | fal-Kosten je Käuferin, nur aus der Gratis-Stufe |
 |---|---|
-| 2 % | rund 56 $ |
-| 5 % | rund 22 $ |
-| 10 % | rund 10 $ |
-| 20 % | rund 4,60 $ |
+| 2 % | rund 37 $ |
+| 5 % | rund 14 $ |
+| 10 % | rund 7 $ |
+| 20 % | rund 3 $ |
 
 > ### ENTSCHEIDUNG DES NUTZERS (24.09.2026): das hier verschiebt die Prioritäten
 >
 > **Die Conversion ist keine Marketing-Kennzahl, sondern der Haupt-Kostentreiber. Jeder
 > Prozentpunkt Conversion ist mehr wert als jede Einsparung am Bild.**
 >
-> Bei 5 % zahlt jede Käuferin **rund 22 $** an fal-Kosten für 19 Besucherinnen mit, die nichts
-> kaufen — **fast das Zehnfache** der 2,45 $, die ihr eigenes großes Buch an Herstellkosten
-> verursacht. Ein Sprung von 5 % auf 10 % spart **12 $ je Käuferin**. Zum Vergleich: die
-> Halbierung der Figurenkosten am 24.09. — ein echter, gebauter Fortschritt — spart **0,83 $**.
+> Bei 5 % zahlt jede Käuferin **rund 14 $** an fal-Kosten für 19 Besucherinnen mit, die nichts
+> kaufen — **fast das Siebenfache** der 2,05 $, die ihr eigenes großes Buch an Herstellkosten
+> verursacht. Ein Sprung von 5 % auf 10 % spart **7 $ je Käuferin**. Zum Vergleich: die Streichung
+> ALLER Zusatz-Ansichten am 24.09. — zwei echte, gebaute Schritte, die die Figurenkosten von 0,33 $
+> auf 0,09 $ gedrückt haben — spart **1,22 $**.
+>
+> **Das Verhältnis bleibt auch nach der Einsparung dasselbe.** Genau das ist der Punkt: Die
+> Bildkosten sind inzwischen klein, die Gratis-Stufe mal 19 ist es nicht.
 >
 > **Konsequenz für die Reihenfolge der Arbeit:** Alles, was Besucherinnen zu Käuferinnen macht
 > (Vertrauensmoment, erster Eindruck, der Weg vom Bild zum Kauf), steht vor allem, was Aufrufe
@@ -2494,6 +2630,9 @@ Kandidaten und 2 Prüfungen = 0,32 $:
 | 5 Figuren | | 0,83 $ |
 | **Obergrenze bei vollem Verbrauch** | | **rund 5,55 $** |
 
+(Figuren hier noch mit 0,83 $, dem Stand von vormittags. Die endgültigen Zahlen stehen in der
+Korrektur unten.)
+
 **Wichtiger Einwand:** Dein Testlauf kostete **5,42 $**. Ein Budget nach dieser Regel hätte ihn
 also **nicht** gestoppt — es hätte ihn genau erlaubt. Wenn das Ziel ist, den Ausreißer zu deckeln
 und nicht nur den Wahnsinnsfall, ist „doppelt" zu großzügig. Zum Vergleich:
@@ -2505,8 +2644,28 @@ und nicht nur den Wahnsinnsfall, ist „doppelt" zu großzügig. Zum Vergleich:
 | 1,2 × Szenen + 4 Korrekturen | 3,35 $ |
 | Normalfall ohne jede Korrektur | 2,45 $ |
 
-**ENTSCHIEDEN (Nutzer, 24.09.2026): 1,5 × Erzeugungen plus 6 Korrekturen, Obergrenze rund
-3,92 $ für ein großes Buch.** Nicht das Doppelte.
+**ENTSCHIEDEN (Nutzer, 24.09.2026): 1,5 × Erzeugungen plus 6 Korrekturen.** Nicht das Doppelte.
+
+> #### KORREKTUR 24.09.2026, zwei Gründe auf einmal
+>
+> **Erstens ein Rechenfehler von mir.** Die 3,92 $ in der Zeile oben gehen nicht auf. 1,5 × 5 Szenen
+> sind 7,5, aufgerundet **8 Erzeugungen** (eine halbe Erzeugung gibt es nicht, und Abrunden wäre
+> strenger als beschlossen): 8 × 0,32 $ + 6 × 0,15 $ + 0,83 $ = **4,29 $**. Die Zeile „1,2 ×
+> Szenen + 4 Korrekturen | 3,35 $" stimmt dagegen genau. Ich habe die eine Zeile falsch gerechnet
+> und die Zahl danach als beschlossenen Wert weitergetragen.
+>
+> **Zweitens sind die Figuren seither billiger geworden** (0,43 $ statt 0,83 $ für fünf).
+>
+> | Regel | Obergrenze großes Buch, Stand 24.09. abends |
+> |---|---|
+> | 2 × Szenen + 10 Korrekturen | 5,13 $ |
+> | **1,5 × Szenen + 6 Korrekturen (beschlossen)** | **3,89 $** |
+> | 1,2 × Szenen + 4 Korrekturen | 2,95 $ |
+> | Normalfall ohne jede Korrektur | 2,03 $ |
+>
+> **Die beschlossene Obergrenze ist damit 3,89 $.** Dass sie fast genau der falsch gerechneten
+> Zahl entspricht, ist Zufall aus zwei Fehlern in verschiedene Richtungen — kein Grund, die alte
+> Zahl stehen zu lassen.
 
 > „Mein Testlauf enthielt mehrere gescheiterte Stift-Korrekturen, die nach C1 nicht mehr anfallen
 > sollten." (Nutzer)

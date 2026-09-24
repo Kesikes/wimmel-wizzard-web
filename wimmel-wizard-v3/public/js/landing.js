@@ -55,7 +55,7 @@ const OCCASIONS = [
 const FAQS = [
   { q: "Sieht mein Kind wirklich aus wie mein Kind?", a: "Mit Foto am ehesten: Ich zeichne daraus eine Wimmelstil-Version. Ohne Foto geht auch – dann wählst du Haare, Frisur, Kleidung. Passt etwas nicht, kannst du gezielt nachschärfen (\"T-Shirt blau statt gelb\") oder komplett neu zaubern. So oft du willst." },
   { q: "Muss ich Fotos hochladen?", a: "Nein. Fotos sind der schnellste Weg, aber nie Pflicht. Was du hochlädst, wird nur für dein Bild benutzt und danach gelöscht. Kein Training, kein Weiterverkauf, kein Kleingedrucktes." },
-  { q: "Wie lange dauert ein Bild?", a: "Deine Eingaben: ein paar Minuten. Das Zeichnen: zwei bis vier. Ich probiere mehrere Varianten und zeige dir nur die, die was geworden ist. Dabei bitte Bildschirm an und den Tab offen lassen, sonst kann's abbrechen." },
+  { q: "Wie lange dauert ein Bild?", a: "Deine Eingaben: ein paar Minuten. Das Zeichnen: zwei bis fünf. Ich probiere mehrere Varianten und zeige dir nur die, die was geworden ist. Du kannst dabei weggehen — ich zeichne weiter, auch wenn du das Handy weglegst." },
   { q: "Kann ich am fertigen Bild noch was ändern?", a: "Ja. Mit dem Stift im Bild markieren, was weg soll. Einzelne Situationen neu zaubern. Der Rest der Szene bleibt genau so." },
   { q: "Was, wenn mir ein Bild schon reicht?", a: "Dann nimmst du das Poster und bist fertig. Völlig richtige Entscheidung. Wir schicken dir dann keine sieben Mails." }
 ];
