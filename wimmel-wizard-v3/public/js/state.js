@@ -469,6 +469,9 @@ const AppState = {
       abgelehnt: abgelehnt || null,
       // NEU (23.09.2026): kein Kandidat hat bestanden, das Bild wird trotzdem gezeigt.
       notloesung: !!notloesung,
+      // NEU (24.09.2026): wann die Kundin "Bild ist fertig" gedrueckt hat. NICHT verbindlich --
+      // verbindlich ist erst gekauftAm.
+      fertigAm: null,
       // Der Lichtschalter gehoert sichtbar an die Bild-Fassung: sonst sind Testbilder mit und
       // ohne Licht in der Messreihe nicht auseinanderzuhalten -- die Pruefsumme ist bei beiden
       // dieselbe, weil der Block nur zur Laufzeit dazukommt.
@@ -482,6 +485,33 @@ const AppState = {
     this.update({ images, currentImageId: id,
       freierDurchgang: notloesung ? { grund: "notloesung", am: jetzt } : null });
     return image;
+  },
+  // NEU (24.09.2026, Nutzer-Entscheidung 7): einen Schritt der Stift-Korrektur zuruecknehmen.
+  // Der Verlauf liegt je Kandidat in angebot[i].verlauf (neueste Adresse vorn, hoechstens 5 --
+  // siehe PEN_VERLAUF_MAX in szene.js). Zurueckgenommen wird NUR die Bildadresse; violations und
+  // verify bleiben null, weil zu diesem Bild keine Pruefung mehr gehoert -- sie wurde ja nach der
+  // Korrektur geleert. Nach dem Kauf (gekauftAm) geht nichts mehr zurueck.
+  schrittZurueck(id) {
+    const img = this.data.images.find((i) => i.id === id);
+    if (!img || img.gekauftAm || !Array.isArray(img.angebot)) return img;
+    const idx = img.gewaehlt || 0;
+    const a = img.angebot[idx];
+    if (!a || !Array.isArray(a.verlauf) || !a.verlauf.length) return img;
+    const zurueck = a.verlauf[0];
+    const rest = a.verlauf.slice(1);
+    const angebot = img.angebot.map((x, i) => (i === idx
+      ? Object.assign({}, x, { src: zurueck, verlauf: rest, korrigiert: rest.length > 0, nachpruefung: null })
+      : x));
+    return this.updateImage(id, { angebot, src: zurueck, violations: null, verify: null });
+  },
+  // NEU (24.09.2026, Produktentscheidung des Nutzers): "Bild ist fertig" merkt sich den Zeitpunkt
+  // und klappt das Angebot ein. VERBINDLICH wird die Wahl aber erst mit dem Kauf (gekauftAm) --
+  // bis dahin ist alles umkehrbar, und die App sagt das auch so, statt Verbindlichkeit zu
+  // suggerieren, die es nicht gibt.
+  bildFertig(id) {
+    const img = this.data.images.find((i) => i.id === id);
+    if (!img || img.fertigAm) return img;
+    return this.updateImage(id, { fertigAm: new Date().toISOString() });
   },
   // NEU (21.09.2026, Kandidatenwahl): die Kundin schaltet auf einen anderen Kandidaten um. Nach dem
   // Kauf (gekauftAm) nicht mehr moeglich. Stift-Korrekturen bleiben je Kandidat erhalten (src).

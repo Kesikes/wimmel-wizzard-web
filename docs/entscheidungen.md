@@ -1529,6 +1529,103 @@ raten zu lassen.
 Alle drei hängen an derselben Frage und sollten **zusammen** angegangen werden, sonst misst man
 dreimal dasselbe.
 
+### GEBAUT 24.09.2026: Zusatz-Ansichten nach einer Änderung nicht mehr neu — und die größere Frage
+
+`generateExtraViewsAndFinish()` nimmt jetzt `{ ohneZusatzAnsichten: true }`; `applyCharEdit()` ruft
+es so. Die alten Ansichten bleiben **stehen** und werden ausdrücklich nicht auf `null` gesetzt —
+`null` wäre hier eine Unwahrheit, die Ansichten sind da, sie sind nur nicht neu. **Spart 0,24 $ je
+Änderung.**
+
+**Die größere Frage (Einschätzung, nichts abgeschaltet): Wozu sind die drei Ansichten überhaupt da?**
+
+Was sie heute tun: Sie entstehen nach jedem Frontbild (`sideViewEditInstruction()`,
+`backViewEditInstruction()`, `threeQuarterEditInstruction()`), werden an der Person gespeichert und
+im Charakterblatt als kleine Reihe angezeigt. **In den Szenen-Prompt geht ausschließlich das
+Frontbild** (`heroRefUrls` = `spec.imageUrl`). Auch der Stift bekommt nur das Frontblatt. Kein
+einziger Bildaufruf im Produkt liest sie.
+
+Was verloren ginge, wenn es sie nicht gäbe:
+
+| | |
+|---|---|
+| **Vertrauen beim Anlegen der Figur** | Das ist ihr realer Wert. Drei Ansichten zeigen „die KI hat die Figur wirklich verstanden", nicht nur ein Glückstreffer von vorn. Das ist der Moment, in dem eine Kundin entscheidet, ob sie weitermacht. |
+| **Erkennen von Fehlern** | Ein Rücken- oder Seitenbild zeigt Unstimmigkeiten, die von vorn nicht auffallen. Heute nutzt das aber **niemand** — es gibt keine Prüfung darauf, und die Kundin bekommt keinen Hinweis. |
+| **Später gebraucht?** | Denkbar für die Figurenvorstellung im Buch (Doppelseite, `konzept-konto-layout-druck.md`) — dort wäre eine Seiten- oder 3/4-Ansicht schmückend. Entschieden ist das nicht. |
+
+Was sie kosten: **0,24 $ je Figur.** Bei 5 Figuren 1,20 $ — das ist mehr als ein kleines Buch an
+Szenenbildern kostet (0,96 $). Im Kundendurchlauf waren es 0,72 $ von 5,42 $, also **13 %**, dazu
+die 0,24 $ je Änderung, die jetzt wegfallen.
+
+**Meine Einschätzung, in der Reihenfolge, wie ich es machen würde:**
+
+1. **Nicht ganz abschaffen.** Der Vertrauensmoment beim Anlegen der Figur ist echt, und er liegt
+   genau dort, wo eine Kundin abspringen könnte.
+2. **Von drei auf eine reduzieren.** Die 3/4-Ansicht zeigt am meisten (Gesicht *und* Körperform);
+   Rücken und reine Seitenansicht sagen wenig über eine Figur, die im Wimmelbild ohnehin fast immer
+   von vorn zu sehen ist. Das spart **0,16 $ je Figur** bei fast unverändertem Effekt.
+3. **Erst auf Wunsch**, wenn Punkt 2 nicht reicht: ein Knopf „weitere Ansichten zeigen". Billiger,
+   aber der Vertrauensmoment ist weg — die Ansichten wirken nur, wenn sie unaufgefordert da sind.
+
+Nicht gebaut, weil es eine Produktentscheidung ist: Wie viel ist dir dieser Moment wert?
+
+### GEBAUT 24.09.2026: Zurück-Knopf nach einer Korrektur
+
+Wie besprochen, **5 Schritte je Kandidat** (`PEN_VERLAUF_MAX = 5`). Die Adresse vor jeder Korrektur
+wird vorn an `angebot[i].verlauf` gehängt, ältere fallen hinten raus. `AppState.schrittZurueck()`
+setzt sie zurück; nach dem Kauf (`gekauftAm`) geht nichts mehr zurück. Der Knopf „↶ Schritt
+zurück (n gespeichert)" steht nur da, wenn es etwas zurückzunehmen gibt, und **kostet keinen
+Aufruf** — es wird nichts neu erzeugt.
+
+`violations` und `verify` bleiben dabei `null`: Zu diesem Bild gehört keine Prüfung mehr, sie wurde
+mit der Korrektur geleert. Ein Zurücknehmen darf keine alte Wertung wiederbeleben, die zu einem
+anderen Bild gehörte.
+
+### GEBAUT 24.09.2026: die drei Stift-Befunde aus dem Kundendurchlauf
+
+Beide Vorschläge, wie freigegeben:
+
+**1. Die Lage der Markierung in Worten** (`Pipeline.ortInWorten()`, kostenlos). `mark.schwerpunkt()`
+liefert den Mittelpunkt der Striche in Bildkoordinaten, daraus wird „the lower left part of the
+image" — neun Felder plus „the very middle", bewusst grob, weil ein Kringel keine feinere
+Genauigkeit hat. Angehängt wird: *„The mark is in … — if several things there look alike, the one
+the mark touches is the one this change is about, and no other."* Damit hat das Modell ein
+**zweites, unabhängiges** Merkmal neben der Zeigerkopie. Genau das fehlte, als der falsche von zwei
+Zwillingen ersetzt wurde.
+
+**2. Ein Prüfaufruf danach, mit einmaligem Wiederholen** (`Pipeline.pruefeKorrektur()`, 0,01 $).
+Zwei Fragen, beide aus dem Kundendurchlauf: Ist die Markierung mitgemalt worden? Hat sich überhaupt
+etwas geändert? Bei „ja" oder „nein" wird **einmal** wiederholt, mit einem zusätzlichen Satz, der
+genau den beobachteten Fehler benennt.
+
+Zwei Dinge, die ich dabei abgesichert habe:
+
+- **Der zweite Versuch wird nur übernommen, wenn er nicht schlechter ist.** Sonst bleibt der erste.
+  Zwei schlechte Versuche dürfen nicht dazu führen, dass die Kundin den schlechteren bekommt.
+- **Eine gescheiterte Prüfung bricht nichts ab.** Dann steht `{ geprueft: false, grund }` am
+  Kandidaten — nicht gemessen sieht nie wie „in Ordnung" aus.
+
+Kosten: 0,01 $ immer, plus 0,15 $ nur im Fehlerfall. Der Nutzer dazu: „ein gescheiterter Versuch
+kostet mich heute dasselbe und bringt nichts."
+
+### GEBAUT 24.09.2026: „Bild ist fertig" merkt sich den Zeitpunkt, verbindlich wird erst der Kauf
+
+`AppState.bildFertig()` setzt `fertigAm`. Danach ist das Angebot **eingeklappt**, mit genau dem
+Satz, der die Lage beschreibt: „Du hast dieses Bild als fertig markiert. **Festgelegt ist noch
+nichts** — bis zum Kauf kannst du jederzeit zur anderen Variante wechseln." Daneben „andere
+Variante zeigen".
+
+Der Umschalter verschwindet erst mit `gekauftAm` — und das setzt weiterhin niemand, weil es keinen
+Kauf gibt. Das ist jetzt aber **gesagt** statt verschwiegen: Vorher suggerierte „Bild ist fertig"
+eine Verbindlichkeit, die es nicht gab.
+
+### GEBAUT 24.09.2026: Produkte mit fehlenden Bildern sind ausgegraut
+
+`TIERS` hat jetzt `minBilder` (Poster 1, Buch klein 2, Buch groß 5) — die Zahlen standen schon in
+den Beschreibungstexten, waren aber nirgends als Zahl hinterlegt, weshalb man eine Stufe wählen
+konnte, für die die Bilder fehlen. Fehlen Bilder, liegt über der Karte ein Störer „noch ein Bild" /
+„noch 3 Bilder" plus „tippen → weiteres Bild zaubern", und ein Klick führt auf den Szene-Screen.
+Eine „Coming Soon"-Stufe bleibt „Coming Soon" — das ist der stärkere Grund.
+
 ### OFFEN: Zurück-Knopf nach einer Korrektur (Einschätzung, nicht gebaut)
 
 Machbar und billig. Am Kandidaten steht `url` (das Original) und `src` (der aktuelle Stand) — es
@@ -1597,6 +1694,74 @@ nirgends: kein Figurenblatt, kein Satz im Prompt, kein Eintrag in `heroes_found`
 kein festes Design; das ist die eine gestalterische Entscheidung, die vorher fehlt.
 
 ---
+
+### VOR DEM LAUNCH, PUNKT 3 (Nutzer, 24.09.2026): fal bewahrt Bilder nur 90 Tage auf
+
+`MEDIA_TTL_SECONDS = 90 * 24 * 3600` in `api/_lib/fal-queue.js`. Alle Bildadressen im gespeicherten
+Stand zeigen auf `fal.media`. Nach drei Monaten sind sie tot — **auch die von gekauften Büchern.**
+
+> „Spätestens beim Kauf muss die Druckdatei in eigenen Speicher, sonst sind gekaufte Bücher nach
+> drei Monaten nicht mehr nachdruckbar." (Nutzer)
+
+Das betrifft drei Dinge unterschiedlich dringend:
+
+| | |
+|---|---|
+| **Gekaufte Bücher** | **dringend.** Ein Nachdruck, eine Reklamation oder eine zweite Bestellung ist nach 90 Tagen unmöglich. Die Druckdatei muss beim Kauf in eigenen Speicher. |
+| Laufende Sitzungen | unkritisch. Wer ein Buch in Wochen fertigstellt, merkt nichts. |
+| Der Zurück-Knopf (5 Schritte) | unkritisch, aus demselben Grund. |
+
+Es ist **kein** neues Problem des Zurück-Knopfes — es gilt heute für jedes gespeicherte Bild und
+ist nur nie aufgeschrieben worden. Dazu gehört ohnehin der bereits vermerkte Punkt, Bilder nicht
+mehr direkt von `fal.media` auszuliefern (Wasserzeichen, `konzept-konto-layout-druck.md`).
+
+### VOR DEM LAUNCH, PUNKT 4 — JETZT DRINGEND (Nutzer, 24.09.2026): Ersatzwerte, die wie Messwerte aussehen
+
+> „Das war mit dem `|| 1` bei der Strichbreite jetzt das **fünfte Mal**." (Nutzer)
+
+Die fünf Fälle, nebeneinander gelegt:
+
+| # | Fall | Der Ersatzwert | Was er bedeutete | Was er hätte bedeuten müssen |
+|---|---|---|---|---|
+| 1 | `violations: 99` | 99 | „schlechtestmöglich" | „nicht geprüft" |
+| 2 | Nullwerte in der Wertung (`Number("")` → 0) | 0 | „gemessen, Wert null" | „Feld fehlt" |
+| 3 | Fehlender Richter-Eintrag | kein Abschnitt im Panel | „nicht gelaufen" (unklar warum) | „aus / gescheitert / nicht gefragt — und warum" |
+| 4 | Speicheranzeige „gespeichert" | fest verdrahtetes Wort | „erfolgreich gespeichert" | „speichert … / gespeichert / abgelehnt" |
+| 5 | Strichbreite `\|\| 1` | 1 | „Canvas ist 1 px breit" | „nicht messbar — also keinen Strich anfangen" |
+
+**Die Regel, nach der man gezielt suchen kann** — und sie ist enger als „keine Magic Numbers":
+
+> **Wo ein fehlender Wert durch einen gültig aussehenden ersetzt wird, ohne dass der Unterschied
+> irgendwo bleibt.**
+
+Drei Merkmale, die alle fünf Fälle teilen:
+
+1. Der Ersatzwert liegt **im erlaubten Wertebereich**. 99 ist eine mögliche Verstoßzahl, 0 eine
+   mögliche Messung, 1 eine mögliche Breite. Deshalb fällt er nirgends auf.
+2. Der Ersatz passiert **an der Stelle des Lesens**, nicht des Entscheidens — `|| 1`, `Number(x)`,
+   `x || 0`, ein Default-Parameter. Wer später damit rechnet, kann nicht mehr sehen, woher der Wert
+   kam.
+3. **Es gibt kein zweites Feld**, das den Unterschied festhält. Kein `gemessen: false`, kein
+   `grund`, kein `null`.
+
+**Danach lässt sich mechanisch suchen.** Vier Muster, die im Code zu prüfen sind:
+
+| Muster | warum verdächtig |
+|---|---|
+| `\|\|` mit einer **Zahl** rechts (`\|\| 1`, `\|\| 0`, `\|\| 100`) | ersetzt 0/NaN/undefined durch eine plausible Zahl |
+| `Number(...)` ohne anschließendes `isFinite` | `Number("")` ist 0, `Number(undefined)` ist NaN |
+| Default-Parameter mit Zahl (`function f(n = 20)`) | ein fehlendes Argument wird zu einem Messwert |
+| `parseInt`/`parseFloat` ohne Prüfung | `parseInt("abc")` ist NaN, rechnet sich still weiter |
+
+Unverdächtig ist dasselbe Muster bei **Texten und Objekten** (`|| ""`, `|| []`, `|| {}`) — dort
+fällt ein leerer Wert auf, statt sich als Messung zu tarnen. Und unverdächtig ist ein Ersatzwert,
+der **außerhalb** des erlaubten Bereichs liegt (`-1` für „fehlt" bei `heroes_x` ist genau richtig
+gemacht: die Skala geht 0–100, −1 kann keine Messung sein).
+
+**Der Auftrag bleibt wie am 22.09. beschlossen, aber die Suche ist jetzt nach diesen vier Mustern
+zu führen statt nach Gefühl** — und sie ist **dringend**: Fünf Fälle in drei Tagen, jeder einzelne
+erst durch einen Kundenbefund aufgefallen, nicht durch die eigene Prüfung. Das ist keine Pechserie,
+sondern ein Muster im Code, und es wird weitere geben, solange niemand danach sucht.
 
 ## 16. Vor dem Launch
 

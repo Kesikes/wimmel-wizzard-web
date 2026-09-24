@@ -1725,7 +1725,20 @@ function buildErgebnisAnsicht(s, image) {
   // Entscheidung trifft die Kundin." Bestehen zwei Kandidaten das Stil-Tor, schaltet die Kundin
   // zwischen ihnen um -- Favorit vorn, unbeschriftet (kein "empfohlen"), bis zum Kauf.
   const angebot = Array.isArray(image.angebot) ? image.angebot : [];
-  if (angebot.length > 1 && !image.gekauftAm) {
+  // GEAENDERT (24.09.2026, Produktentscheidung): Nach "Bild ist fertig" (fertigAm) bleibt das
+  // Angebot erhalten, ist aber EINGEKLAPPT -- und der Text sagt ausdruecklich, dass noch nichts
+  // verbindlich ist. Verbindlich wird die Wahl erst mit dem Kauf (gekauftAm), und erst dann
+  // verschwindet der Umschalter ganz.
+  if (angebot.length > 1 && !image.gekauftAm && image.fertigAm && !angebotAufgeklappt) {
+    const zu = h("div", { class: "erg-wahl" });
+    zu.appendChild(h("p", { style: { margin: "0 0 8px", fontSize: "12.5px", lineHeight: "1.45" } },
+      "Du hast dieses Bild als fertig markiert. Festgelegt ist noch nichts — bis zum Kauf kannst du jederzeit zur anderen Variante wechseln."));
+    zu.appendChild(h("button", { type: "button", class: "h-black",
+      style: { minHeight: "42px", fontSize: "12px", cursor: "pointer", border: "3px solid var(--ink)", background: "var(--paper)", color: "var(--ink)" },
+      onClick: () => { angebotAufgeklappt = true; Router.goScreen("ergebnis"); } },
+      "andere Variante zeigen"));
+    seite.appendChild(zu);
+  } else if (angebot.length > 1 && !image.gekauftAm) {
     const wahl = h("div", { class: "erg-wahl" });
     wahl.appendChild(h("p", { class: "caveat", style: { margin: "0 0 8px", fontSize: "20px", lineHeight: "1.1" } }, "ich hab dir " + angebot.length + " Varianten gezaubert — such dir eine aus."));
     const reihe = h("div", { style: { display: "flex", gap: "8px" } });
@@ -1763,6 +1776,17 @@ function buildErgebnisAnsicht(s, image) {
   // bzw. ausgeblendet -- sie hatten keinen Klick-Handler. "Nochmal zaubern" kommt mit der
   // Kandidatenwahl (Schritt 3) zurueck, dann mit der richtigen Begrenzung.
   const werkzeuge = h("div", { class: "erg-werkzeuge" });
+  // NEU (24.09.2026, Nutzer-Entscheidung 7): "Schritt zurueck" -- nur da, wenn es etwas
+  // zurueckzunehmen gibt. Kostet keinen Aufruf: die vorige Bildadresse liegt am Kandidaten
+  // (verlauf), es wird nichts neu erzeugt.
+  const gewaehlterEintrag = Array.isArray(image.angebot) ? image.angebot[image.gewaehlt || 0] : null;
+  const kannZurueck = !!(gewaehlterEintrag && Array.isArray(gewaehlterEintrag.verlauf) && gewaehlterEintrag.verlauf.length && !image.gekauftAm);
+  if (kannZurueck) {
+    werkzeuge.appendChild(h("button", { type: "button", class: "h-black",
+      style: { width: "100%", minHeight: "46px", fontSize: "12.5px", border: "3px solid var(--ink)", cursor: "pointer", background: "var(--paper)", color: "var(--ink)" },
+      onClick: () => { AppState.schrittZurueck(image.id); Router.goScreen("ergebnis"); } },
+      "\u21b6 Schritt zur\u00fcck (" + gewaehlterEintrag.verlauf.length + " gespeichert)"));
+  }
   const penBtn = h("button", { type: "button", class: "h-black", style: { width: "100%", minHeight: "50px", fontSize: "12.5px", border: "3px solid var(--ink)", cursor: "pointer", background: s.penOn ? "var(--red)" : "var(--paper)", color: s.penOn ? "var(--paper)" : "var(--ink)" } }, "Stift · etwas wegnehmen oder eine Figur versetzen");
   // Voller Rerender statt Class-Toggle: so erscheint/verschwindet buildPenPanel() automatisch mit.
   penBtn.addEventListener("click", () => {
@@ -1972,6 +1996,18 @@ function setupFreehand(canvas, img, zoomEbene, key) {
     anzahl: () => striche.length,
     // NEU (23.09.2026): getrennt zaehlen und zeichnen -- "weg" (alte Stelle) und "hier" (neue).
     anzahlArt: (art) => striche.filter((x) => (x.art || "weg") === art).length,
+    // NEU (24.09.2026, Nutzer-Befund "es wurde der falsche von zwei doppelten Helden ersetzt"):
+    // der Schwerpunkt der Striche EINER Art, in Bildkoordinaten 0..1. Daraus macht der Code eine
+    // Ortsangabe in Worten (Pipeline.ortInWorten()) und gibt sie dem Modell als ZWEITES,
+    // unabhaengiges Merkmal neben der Zeigerkopie mit. Bei zwei identischen Helden war die
+    // Markierung bisher das einzige Unterscheidungsmerkmal -- und das Modell ging offenbar nach der
+    // Beschreibung statt nach dem Ort.
+    schwerpunkt: (art) => {
+      const w = striche.filter((x) => (x.art || "weg") === (art || "weg"));
+      const pkt = w.reduce((a2, x) => a2.concat(x.punkte), []);
+      if (!pkt.length) return null;
+      return { x: pkt.reduce((a2, q) => a2 + q.x, 0) / pkt.length, y: pkt.reduce((a2, q) => a2 + q.y, 0) / pkt.length };
+    },
     artWaehlen: (art) => { penStriche.art = art; },
     aktuelleArt: () => penStriche.art || "weg",
     undo: () => { striche.pop(); neuZeichnen(); },
@@ -2093,6 +2129,14 @@ async function captureAnnotatedImage(canvas, img, mark, nurArt, quelle) {
 // zeigen zwar getrennte <canvas>-Elemente, aber immer nur EINE davon ist gerade sichtbar/aktiv) --
 // gleiches Muster wie charGenBusy (charakter.js) und zauberBusy (oben in dieser Datei).
 let penApplyBusy = false;
+// Nur im Speicher: hat die Kundin das eingeklappte Angebot gerade aufgeklappt? Muss einen
+// Rerender ueberleben, aber kein Neuladen -- nach einem Neuladen ist "eingeklappt" wieder richtig.
+let angebotAufgeklappt = false;
+// NEU (24.09.2026, Nutzer-Entscheidung 7): wie viele Schritte je Kandidat zurueckgenommen werden
+// koennen. 5 ist die Zahl des Nutzers. Grenze ist NICHT der Speicher (rund 100 Byte je Schritt),
+// sondern die Haltbarkeit der Adressen bei fal: 90 Tage (MEDIA_TTL_SECONDS in fal-queue.js). Steht
+// als eigener Punkt auf der Launch-Liste.
+const PEN_VERLAUF_MAX = 5;
 
 // NEU (Punkt D): fuehrt die eigentliche Stift-Bearbeitung aus -- baut das Composite-Bild, waehlt je
 // nach Modus PEN_INSTRUCTION_REMOVE oder PEN_INSTRUCTION_REDO, ruft Pipeline.generateImage() als
@@ -2256,14 +2300,48 @@ async function applyPenEdit({ image, canvas, img, mark, mode, errorId, applyBtn,
     if (hasMark) weitere.push(composite);
     if (mitFigur) weitere.push(figur.imageUrl);
     weitere.push(Pipeline.richterReferenzUrl());
+    // NEU (24.09.2026): die Lage der Markierung in Worten, als zweites Merkmal neben der
+    // Zeigerkopie. Kostet nichts und ist deterministisch -- der Schwerpunkt der Striche steht im
+    // Code, das Modell muss ihn nicht erraten.
+    const sp = hasMark && mark.schwerpunkt ? mark.schwerpunkt(versetzen ? "hier" : (mode === "redo" ? mark.aktuelleArt() : "weg")) : null;
+    const ort = sp ? Pipeline.ortInWorten(sp.x, sp.y) : "";
+    if (ort) instruction += " The mark is in " + ort + " \u2014 if several things there look alike, the one the mark touches is the one this change is about, and no other.";
     instruction = Pipeline.penBildAnweisung({ mitMarkierung: hasMark, mitFigur }) + instruction;
-    const result = await Pipeline.generateImage(instruction, "scene", { editImageUrl: quelle, styleRefUrls: weitere });
+    let result = await Pipeline.generateImage(instruction, "scene", { editImageUrl: quelle, styleRefUrls: weitere });
+    // NEU (24.09.2026, Nutzer-Entscheidung): EIN Pruefaufruf, und bei einem klaren Fehlschlag EINE
+    // Wiederholung. Im Kundendurchlauf blieb einmal der Kringel im Bild und zweimal passierte gar
+    // nichts -- beides sieht die Kundin, bevor wir es sehen. Wiederholt wird nur bei mitgemalter
+    // Markierung oder gar keiner Aenderung, und nur einmal (Nutzer: "ein gescheiterter Versuch
+    // kostet mich heute dasselbe und bringt nichts").
+    let nachpruefung = await Pipeline.pruefeKorrektur(quelle, result.url);
+    if (nachpruefung.geprueft && (nachpruefung.markierung || !nachpruefung.geaendert)) {
+      if (applyBtn) applyBtn.textContent = "nochmal, das sa\u00df nicht \u2026";
+      const schaerfer = instruction
+        + (nachpruefung.markierung ? " IMPORTANT: your previous attempt drew the freehand mark into the picture. The mark exists only on the pointer image and must NEVER appear in the result \u2014 not as a line, not as a circle, not in any colour." : "")
+        + (!nachpruefung.geaendert ? " IMPORTANT: your previous attempt returned the picture unchanged. The change described above must actually happen." : "");
+      const zweiter = await Pipeline.generateImage(schaerfer, "scene", { editImageUrl: quelle, styleRefUrls: weitere });
+      const zweitePruefung = await Pipeline.pruefeKorrektur(quelle, zweiter.url);
+      // Der zweite Versuch wird nur uebernommen, wenn er NICHT schlechter ist. Sonst bleibt der
+      // erste -- zwei schlechte Versuche sollen nicht dazu fuehren, dass die Kundin den
+      // schlechteren bekommt.
+      const besser = !zweitePruefung.geprueft || (!zweitePruefung.markierung && zweitePruefung.geaendert);
+      if (besser) { result = zweiter; nachpruefung = Object.assign({ wiederholt: true }, zweitePruefung); }
+      else { nachpruefung = Object.assign({ wiederholt: true, zweiterVersuchVerworfen: true }, nachpruefung); }
+    }
     // GEAENDERT (21.09.2026, Kandidatenwahl): die Korrektur gehoert zum GEWAEHLTEN Kandidaten und
     // bleibt ihm beim Umschalten erhalten.
     const aktuell = (AppState.data.images || []).find((b) => b.id === image.id) || image;
     const patch = { src: result.url, violations: null, verify: null };
     if (Array.isArray(aktuell.angebot) && aktuell.angebot[aktuell.gewaehlt || 0]) {
-      patch.angebot = aktuell.angebot.map((a, i) => (i === (aktuell.gewaehlt || 0) ? Object.assign({}, a, { src: result.url, violations: null, verify: null, korrigiert: true }) : a));
+      patch.angebot = aktuell.angebot.map((a, i) => {
+        if (i !== (aktuell.gewaehlt || 0)) return a;
+        // NEU (24.09.2026, Nutzer-Entscheidung 7): Verlauf fuer den Zurueck-Knopf -- die Adresse VOR
+        // dieser Korrektur wird vorne angehaengt, hoechstens PEN_VERLAUF_MAX Schritte. Rund 100 Byte
+        // je Schritt; der gespeicherte Stand ist bei 1.000.000 Zeichen gedeckelt, das faellt nicht auf.
+        const bisher = Array.isArray(a.verlauf) ? a.verlauf : [];
+        const verlauf = [a.src || a.url].concat(bisher).filter(Boolean).slice(0, PEN_VERLAUF_MAX);
+        return Object.assign({}, a, { src: result.url, violations: null, verify: null, korrigiert: true, verlauf, nachpruefung });
+      });
     }
     AppState.updateImage(image.id, patch);
     mark.clear();
@@ -2458,3 +2536,13 @@ function buildPenPanel({ image, canvas, img, mark, errorId }) {
   wrap.appendChild(h("p", { id: errorId, style: { margin: "8px 0 0", fontSize: "12px", color: "var(--red)", display: "none" } }, ""));
   return wrap;
 }
+
+// NEU (24.09.2026, Produktentscheidung): Die Bottom-Bar "Bild ist fertig!" merkt sich den
+// Zeitpunkt am Bild (fertigAm) und klappt danach das Angebot ein. Verbindlich wird die Wahl
+// dadurch NICHT -- das passiert erst mit dem Kauf (gekauftAm). Siehe bildFertig() in state.js.
+Screens.ergebnis.onNext = ({ defaultGoNext }) => {
+  const bild = AppState.currentImage();
+  if (bild) AppState.bildFertig(bild.id);
+  angebotAufgeklappt = false;
+  defaultGoNext();
+};

@@ -2327,6 +2327,43 @@ function parseFigurenblatt(text) {
 // (90-%-Regel nicht erfuellt, siehe Register Abschnitt 16).
 // Ein Fehler wirft NICHT: ein nicht erreichbarer Pruefdienst darf keine Figur blockieren. Dann
 // kommt { urteil: null, fehler } zurueck -- nicht gemessen sieht nie wie "bestanden" aus.
+// NEU (24.09.2026, Nutzer-Entscheidung zu den Stift-Befunden 4/5/6): eine Stelle im Bild in Worte
+// fassen. x und y sind 0..1 (0,0 = links oben). Das Ergebnis geht als ZWEITES Merkmal neben der
+// Zeigerkopie in die Editier-Anweisung -- bei zwei identisch aussehenden Helden war die Markierung
+// bisher das einzige Unterscheidungsmerkmal, und das Modell hat sie zu schwach gewichtet.
+// Bewusst grob: Neun Felder plus "middle". Eine feinere Angabe ("bei 62 %") waere eine Genauigkeit,
+// die ein Kringel gar nicht hat.
+function ortInWorten(x, y) {
+  if (!isFinite(x) || !isFinite(y)) return "";
+  const sp = x < 0.34 ? "left" : (x > 0.66 ? "right" : "middle");
+  const ze = y < 0.34 ? "upper" : (y > 0.66 ? "lower" : "middle");
+  if (sp === "middle" && ze === "middle") return "the very middle of the image";
+  if (sp === "middle") return "the " + ze + " middle of the image";
+  if (ze === "middle") return "the middle of the " + sp + " side of the image";
+  return "the " + ze + " " + sp + " part of the image";
+}
+
+// NEU (24.09.2026, Nutzer-Entscheidung): EIN Pruefaufruf nach einer Stift-Korrektur. Zwei Fragen,
+// die die Kundin sonst selbst merken muesste: Ist die Markierung im Ergebnis mitgemalt worden (das
+// passierte im Kundendurchlauf), und hat sich ueberhaupt etwas geaendert (das passierte auch)?
+// Kostet 0,01 $ und ist damit rund ein Fuenfzehntel eines Bildaufrufs -- guenstiger als ein
+// Fehlversuch, den die Kundin sieht.
+// Wirft NIE: Eine gescheiterte Pruefung darf eine gelungene Korrektur nicht kaputtmachen. Dann
+// kommt { geprueft: false, grund } zurueck -- nicht gemessen sieht nie wie "in Ordnung" aus.
+async function pruefeKorrektur(vorherUrl, nachherUrl) {
+  const frage = "Du vergleichst zwei Fassungen derselben Illustration. Bild 1 ist die Fassung VORHER, Bild 2 die Fassung NACHHER. Beantworte genau zwei Fragen. 1. MARKIERUNG: Ist in Bild 2 irgendwo eine gemalte Freihand-Markierung zu sehen -- ein roter oder gruener Kringel, Kreis, Haken oder Gekritzel, das nicht zur Illustration gehoert? 2. AENDERUNG: Unterscheidet sich Bild 2 ueberhaupt sichtbar von Bild 1, oder sind beide praktisch gleich? Antworte NUR als JSON: {\"markierung\": true/false, \"geaendert\": true/false, \"notiz\": \"ein kurzer Satz\"}.";
+  try {
+    const roh = await verifyImage([vorherUrl, nachherUrl], frage);
+    const m = String(roh || "").match(/\{[\s\S]*\}/);
+    if (!m) return { geprueft: false, grund: "Antwort ohne lesbares JSON" };
+    const p = JSON.parse(m[0]);
+    if (typeof p.markierung !== "boolean" || typeof p.geaendert !== "boolean") return { geprueft: false, grund: "Unerwartete Felder in der Antwort" };
+    return { geprueft: true, markierung: p.markierung, geaendert: p.geaendert, notiz: String(p.notiz || "") };
+  } catch (e) {
+    return { geprueft: false, grund: String((e && e.message) || e) };
+  }
+}
+
 async function pruefeBlattStil(imageUrl) {
   try {
     const resp = await fetch("/api/claude-proxy", {
@@ -4484,7 +4521,7 @@ window.Pipeline = {
   startCharacterJob, pollCharacterJobOnce, runCharacterJobPolling,
   startSceneJob, pollSceneJobOnce, runSceneJobPolling, neueSceneJobId,
   BGCHAR_MERKMALE, heldMerkmale, bgFigurAehnlich, filterBgSheets, beschreibeFigurenblatt, parseFigurenblatt,
-  pruefeBlattStil,
+  pruefeBlattStil, ortInWorten, pruefeKorrektur,
   heldBeschreibungAusBlatt, kinderUnterscheidung, FIGURENBLATT_PROMPT, GROSSE_KOEPFE_SATZ, heldEinmalSatz, heldExklusivMerkmal, haarPhrase,
   SCENE_STYLE_BLOCK, FILL_EMPTY_SPACE_RULE, COHERENCE_RULE, ZERO_TEXT_RULE, EMOTION_WORDS_RULE,
   SAFE_MARGIN_RULE, SCENE_TOTAL_CHARACTER_TARGET_RULE,

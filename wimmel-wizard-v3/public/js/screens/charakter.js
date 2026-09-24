@@ -431,19 +431,36 @@ async function generateCharacterImage(person, buttons) {
 // Ausserdem: pendingJobId/pendingSceneDescription (siehe generateCharacterImage()/
 // generateCharacterImageFromPhoto() weiter unten) werden hier IMMER geloescht -- das ist der
 // gemeinsame "fertig, ob mit oder ohne Zusatz-Ansichten"-Punkt, an dem kein Resume mehr noetig ist.
-async function generateExtraViewsAndFinish(person, frontResult, sceneDescription) {
-  const [sideR, backR, threeQR] = await Promise.allSettled([
-    Pipeline.generateImageWithRetry(Pipeline.sideViewEditInstruction(), "char", { editImageUrl: frontResult.url }),
-    Pipeline.generateImageWithRetry(Pipeline.backViewEditInstruction(), "char", { editImageUrl: frontResult.url }),
-    Pipeline.generateImageWithRetry(Pipeline.threeQuarterEditInstruction(), "char", { editImageUrl: frontResult.url }),
-  ]);
-  AppState.updatePerson(person.id, {
+// GEAENDERT (24.09.2026, Nutzer-Entscheidung nach dem Kundendurchlauf): ohneZusatzAnsichten
+// ueberspringt die drei Edit-Aufrufe. Befund: Im Durchlauf entstanden 17 banana-2-Edits, davon 8
+// allein dadurch, dass nach JEDER Figur-Aenderung alle drei Zusatz-Ansichten NEU erzeugt wurden --
+// eine "Detail aendern"-Aenderung kostete damit 0,32 $ statt 0,08 $. Nach "T-Shirt blau" passen die
+// vorhandenen Ansichten in der Regel weiter; sie zeigen dieselbe Figur, nur aus anderer Richtung.
+// Die alten bleiben stehen (kein Loeschen), und wenn sie fehlen, sagt der Screen das wie bisher.
+async function generateExtraViewsAndFinish(person, frontResult, sceneDescription, opts) {
+  const ohneZusatz = !!(opts && opts.ohneZusatzAnsichten);
+  const [sideR, backR, threeQR] = ohneZusatz
+    ? [{ status: "skipped" }, { status: "skipped" }, { status: "skipped" }]
+    : await Promise.allSettled([
+      Pipeline.generateImageWithRetry(Pipeline.sideViewEditInstruction(), "char", { editImageUrl: frontResult.url }),
+      Pipeline.generateImageWithRetry(Pipeline.backViewEditInstruction(), "char", { editImageUrl: frontResult.url }),
+      Pipeline.generateImageWithRetry(Pipeline.threeQuarterEditInstruction(), "char", { editImageUrl: frontResult.url }),
+    ]);
+  const vorhanden = (AppState.data.people || []).find((x) => x.id === person.id) || person;
+  AppState.updatePerson(person.id, Object.assign({
     imageUrl: frontResult.url, imageSeed: frontResult.seed, sceneDescription,
+    pendingJobId: null, pendingSceneDescription: null,
+  }, ohneZusatz ? {
+    // Ausdruecklich die ALTEN Adressen stehen lassen -- nicht auf null setzen. Ein null waere hier
+    // eine Unwahrheit: die Ansichten sind da, sie sind nur nicht neu.
+    imageUrlSide: vorhanden.imageUrlSide || null,
+    imageUrlBack: vorhanden.imageUrlBack || null,
+    imageUrlThreeQuarter: vorhanden.imageUrlThreeQuarter || null,
+  } : {
     imageUrlSide: sideR.status === "fulfilled" ? sideR.value.url : null,
     imageUrlBack: backR.status === "fulfilled" ? backR.value.url : null,
     imageUrlThreeQuarter: threeQR.status === "fulfilled" ? threeQR.value.url : null,
-    pendingJobId: null, pendingSceneDescription: null,
-  });
+  }));
   // NEU (21.09.2026, Grundstand): die Heldenbeschreibung aus dem Figurenblatt entsteht jetzt schon
   // hier, gleich nach dem Frontbild -- im Hintergrund, die Kundin wartet nicht darauf. Scheitert
   // sie, holt der Szenenstart sie nach (siehe runGeneration() in szene.js), und das Panel sagt es.
@@ -1251,7 +1268,9 @@ async function applyCharEdit(person, buttons) {
     // zu beantworten. Genau dieses Vorher/Nachher am SELBEN Blatt ist die Messung.
     const vorher = person.stilPruefung || null;
     AppState.updatePerson(person.id, { stilPruefung: null, stilPruefungVorher: vorher, blatt: null });
-    await generateExtraViewsAndFinish(person, result, person.sceneDescription);
+    // Nach einer Detail-Aenderung KEINE neuen Zusatz-Ansichten: spart 0,24 $ je Aenderung, und die
+    // vorhandenen zeigen dieselbe Figur (siehe Kommentar an generateExtraViewsAndFinish()).
+    await generateExtraViewsAndFinish(person, result, person.sceneDescription, { ohneZusatzAnsichten: true });
   } catch (e) {
     charGenBusy = false;
     setBusyButtons(activeButtons, false);
