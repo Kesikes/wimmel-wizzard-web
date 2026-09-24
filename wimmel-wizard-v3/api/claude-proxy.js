@@ -450,6 +450,19 @@ module.exports = async (req, res) => {
     return;
   }
 
+// NEU (24.09.2026, Muster-Durchgang Treffer 2): hier stand
+//     `\nDies ist Szene ${context.sceneIndex || 1} von ${context.sceneTarget || 1}.`
+// Fehlten die Zahlen, bekam das Sprachmodell "Szene 1 von 1" gesagt -- eine erfundene Zahl, die
+// sein Verhalten steuert (wie ausfuehrlich es sammelt, ob es auf spaetere Bilder verweist), ohne
+// dass sie je jemand gemessen haette. Jetzt gilt: nur echte Zahlen kommen in den Systemprompt,
+// sonst gar kein Satz. Keine Information ist besser als eine erfundene.
+function szenenStandSatz(context) {
+  const idx = Number(context && context.sceneIndex);
+  const ziel = Number(context && context.sceneTarget);
+  if (!isFinite(idx) || idx < 1 || !isFinite(ziel) || ziel < 1 || idx > ziel) return "";
+  return "\nDies ist Szene " + idx + " von " + ziel + ".";
+}
+
   const cleanMessages = messages
     .filter((m) => m && typeof m.content === "string" && (m.role === "user" || m.role === "assistant"))
     .map((m) => ({ role: m.role, content: m.content.slice(0, 4000) }));
@@ -462,7 +475,7 @@ module.exports = async (req, res) => {
       : SCENE_SYSTEM +
         "\n\nBekannte Personen (werden von der Anwendung automatisch in den Bild-Prompt eingebaut, du musst sie nicht selbst beschreiben): " +
         JSON.stringify(context.characters || []) +
-        `\nDies ist Szene ${context.sceneIndex || 1} von ${context.sceneTarget || 1}.`;
+        szenenStandSatz(context);
 
   const tool = mode === "character" ? ADD_CHARACTER_TOOL : ADD_SCENE_TOOL;
 

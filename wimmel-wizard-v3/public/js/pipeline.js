@@ -1489,7 +1489,7 @@ function bildFingerprint() {
    heldGruppe, heldExklusivMerkmal, heldEinmalSatz, allCharactersRuleKurz,
    pickBackgroundCharacterSheets,
    // NEU (21.09.2026, Grundstand): Thema-Tabelle als Code-Regel.
-   pickComposition, querschnittVerboten, chatOrtTyp, pickHeroPlacements].forEach(function (fn) {
+   pickComposition, querschnittVerboten, chatOrtTyp, chatOrtId, pickHeroPlacements].forEach(function (fn) {
     teile.push(String(fn));
   });
   // Der Lichtblock steht nur bei gesetztem Schalter im Prompt, seine Formulierung gehoert aber zur
@@ -1512,7 +1512,7 @@ function bildFingerprint() {
     [scenePromptNeu, sceneComposeInstructionNeu, ageRoleNeu, heldBeschreibungNeu, spotKurz, zoneFuerSeite, zonenFuer].forEach(function (fn) { teile.push(String(fn)); });
     try { teile.push(JSON.stringify([THEMA_ZONEN, BAUERNHOF_ENHAUS, PROMPT_BLOECKE_ALT])); } catch (e) { /* flach */ }
   }
-  try { teile.push(JSON.stringify([QUERSCHNITT_TYPEN, CHAT_INNENRAUM, CHAT_OFFEN, CHAT_NIE_QUERSCHNITT, HERO_SIDES, HERO_SIDE_TEXT, FALZ_RULE])); } catch (e) { /* flach */ }
+  try { teile.push(JSON.stringify([QUERSCHNITT_TYPEN, CHAT_INNENRAUM, CHAT_OFFEN, CHAT_NIE_QUERSCHNITT, CHAT_ORT_IDS, HERO_SIDES, HERO_SIDE_TEXT, FALZ_RULE])); } catch (e) { /* flach */ }
   try { teile.push(JSON.stringify([BGCHAR_MERKMALE, ALTER_NACHBARN, HAAR_NACHBARN, HAARFARBE_AUS_BLATT, FIGURENBLATT_PROMPT, GROSSE_KOEPFE_SATZ])); } catch (e) { /* flach */ }
   return fnv1a(teile.join("\u0000"));
 }
@@ -2880,6 +2880,46 @@ function chatOrtTyp(label, modellTyp) {
   if (chatWortDa(label, CHAT_OFFEN)) return { type: "landscape", nieQuerschnitt: false, grund: "offener Ort" };
   if (modellTyp === "cutaway" && chatWortDa(label, CHAT_INNENRAUM)) return { type: "cutaway", nieQuerschnitt: false, grund: "eindeutiger Innenraum" };
   return { type: "landscape", nieQuerschnitt: false, grund: modellTyp === "cutaway" ? "Innenraum nicht eindeutig, deshalb offen" : "offen (Modell)" };
+}
+
+// NEU (24.09.2026, zweiter Befund aus Punkt 13 des Kundendurchlaufs): der Chat-Weg hat seinen
+// locId bisher HART auf "generic" gesetzt (siehe buildThemeFromLocation() in screens/szene.js) --
+// auch dann, wenn der Ort eindeutig war. In der Sitzung 9c73ec34 stand label "Berg", und die
+// Vignetten kamen trotzdem aus GAG_LIBRARY.generic, obwohl GAG_LIBRARY.mountains mit 30 Eintraegen
+// daneben liegt. chatOrtId() leitet den Topf jetzt aus dem Ortsnamen her, mit derselben
+// Wortanfangs-Erkennung wie chatOrtTyp() (chatWortDa(), nie mitten im Wort).
+//
+// WICHTIG, damit daraus kein Ersatzwert wird, der wie ein Messwert aussieht: kein Treffer heisst
+// weiterhin "generic", und das Ergebnis traegt den Grund mit (ortGrund), damit im Panel sichtbar
+// bleibt, ob der Topf ERKANNT oder nur der Rueckfall war.
+//
+// Die Reihenfolge ist Absicht: das Speziellere zuerst. "Weihnachten auf dem Bauernhof" ist eine
+// Weihnachtsszene, "Alm mit Kuehen" ist eine Bergszene. Die Woerterlisten sind gesetzt, nicht
+// gemessen -- sie stammen aus denselben Ueberlegungen wie CHAT_INNENRAUM/CHAT_OFFEN oben.
+const CHAT_ORT_IDS = [
+  ["christmas", ["weihnacht", "advent", "heiligabend", "christkind", "nikolaus", "christmas"]],
+  ["mountains", ["berg", "alm", "alpen", "gebirge", "gipfel", "hütte", "huette", "wandern", "wanderung",
+    "bergwanderung", "almwiese", "ski", "skipiste", "tal", "mountain"]],
+  ["beach", ["strand", "meer", "küste", "kueste", "ostsee", "nordsee", "insel", "hafen", "boot",
+    "segelboot", "sandburg", "beach", "badestrand"]],
+  ["zoo", ["zoo", "tierpark", "safari", "aquarium"]],
+  ["pool", ["schwimmbad", "freibad", "hallenbad", "pool", "therme", "badi"]],
+  ["school", ["schule", "klassenzimmer", "kita", "kindergarten", "hort", "schulhof", "pausenhof"]],
+  ["farm", ["bauernhof", "hof", "stall", "scheune", "kuh", "kühe", "kuehe", "traktor", "ziege",
+    "huhn", "hühner", "huehner", "weide", "koppel", "ponyhof"]],
+  ["park", ["park", "spielplatz", "garten", "wiese", "grünanlage", "gruenanlage", "see", "badesee",
+    "wald", "picknick"]],
+  ["city", ["stadt", "innenstadt", "city", "straße", "strasse", "gasse", "markt", "marktplatz",
+    "fußgängerzone", "fussgaengerzone", "bahnhof", "laden", "geschäft", "geschaeft", "supermarkt"]],
+  ["home", ["zuhause", "daheim", "wohnung", "wohnzimmer", "kinderzimmer", "küche", "kueche",
+    "haus", "garage", "keller", "dachboden"]]
+];
+function chatOrtId(label) {
+  for (var i = 0; i < CHAT_ORT_IDS.length; i++) {
+    var id = CHAT_ORT_IDS[i][0], woerter = CHAT_ORT_IDS[i][1];
+    if (chatWortDa(label, woerter)) return { locId: id, ortGrund: "erkannt am Wort im Ortsnamen" };
+  }
+  return { locId: "generic", ortGrund: "kein Ort erkannt, allgemeiner Topf" };
 }
 
 // NEU (17.09.2026, D2): Phase-2-Zusatz. Nutzer-Vorgabe, woertlich: "Vordergrund: klar erkennbare
@@ -4502,7 +4542,7 @@ window.Pipeline = {
   buildHeldenPruefPrompt,
   resizeImageToDataUri, generateImage, generateImageWithRetry, verifyImage, countViolations,
   richterReferenzUrl, SCENE_PHASES, ACTIVE_SCENE_PHASE, DEPTH_MIN_RATIO, SCALE_MIN_FIT, PROMPT_VERSION, PROMPT_LABEL, promptFingerprint, BILD_FASSUNG, PRUEF_FASSUNG, bildFingerprint, pruefFingerprint, heroRef, HERO_REF_START, lichtBlock, lichtKeywords, VERIFY_MAX_VERSUCHE, PRUEF_VERHALTEN, severityOf, compareSeverity, isGoodEnough,
-  COMPOSITION_TYPES, pickComposition, querschnittVerboten, chatOrtTyp, layerSizeText,
+  COMPOSITION_TYPES, pickComposition, querschnittVerboten, chatOrtTyp, chatOrtId, layerSizeText,
   HERO_ACTION_LIBRARY, pickHeroActions, shuffledPool,
   // Szenen-Komposition (neu, siehe Modul-Abschnitt oben)
   GAG_LIBRARY, THEME_META, pickGagChips, topUpSituations,

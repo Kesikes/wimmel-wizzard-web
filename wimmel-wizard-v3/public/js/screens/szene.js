@@ -594,9 +594,14 @@ function buildChatPanel() {
 // (location_label/location_type, siehe ADD_SCENE_TOOL in api/claude-proxy.js), ein zu
 // Pipeline.scenePrompt()/densityInstruction() kompatibles Theme-Objekt -- dieselbe Form wie ein
 // Eintrag aus Pipeline.THEME_META (siehe pipeline.js), nur zur Laufzeit aus dem Gespraech gebaut
-// statt aus der festen 6-Themen-Liste. locId bleibt "generic" (kein eigener GAG_LIBRARY-Pool fuer
-// frei erzaehlte Orte -- topUpSituations() faellt dafuer ohnehin schon auf den generischen Pool
-// zurueck, siehe pipeline.js). Uebersetzt den Orts-Namen per Pipeline.translateFreeText() (gleiches,
+// statt aus der festen 6-Themen-Liste.
+// GEAENDERT (24.09.2026, Punkt 13 des Kundendurchlaufs): locId war hier HART "generic" -- mit der
+// Begruendung, es gebe fuer frei erzaehlte Orte keinen passenden Pool. Das stimmte nicht: in
+// Sitzung 9c73ec34 lautete das Label "Berg", und GAG_LIBRARY.mountains mit 30 Eintraegen lag
+// danebenen, wurde aber nie angefasst. Der Topf wird jetzt aus dem Ortsnamen hergeleitet
+// (Pipeline.chatOrtId(), dieselbe Wortanfangs-Erkennung wie chatOrtTyp()); ohne Treffer bleibt es
+// "generic" wie bisher, und ortGrund sagt, welcher der beiden Faelle es war.
+// Uebersetzt den Orts-Namen per Pipeline.translateFreeText() (gleiches,
 // bereits bewaehrtes Freitext-Uebersetzungsmuster wie bei charNote/den alten Interview-Beats) --
 // wirft nie (translateFreeText() hat selbst schon einen stillen Woerterbuch-Fallback), daher hier
 // kein eigenes try/catch noetig.
@@ -606,8 +611,10 @@ async function buildThemeFromLocation(locationLabel, locationType) {
   // Code entscheidet (Pipeline.chatOrtTyp): Querschnitt nur bei eindeutigem Innenraum, Berg und
   // Stadt nie.
   const ort = Pipeline.chatOrtTyp(locationLabel, locationType);
+  const topf = Pipeline.chatOrtId(locationLabel);
   return {
-    locId: "generic",
+    locId: topf.locId,
+    ortGrund: topf.ortGrund,
     type: ort.type,
     nieQuerschnitt: ort.nieQuerschnitt,
     label: locationLabel || null,
@@ -626,31 +633,92 @@ async function buildThemeFromLocation(locationLabel, locationType) {
 // Gibt true zurueck, wenn add_scene erfolgreich kam (sceneChatTheme/sceneUserSituations sind dann
 // gesetzt), sonst false (Modell wollte noch etwas anderes sagen/fragen -- KEIN stiller Fallback,
 // runGeneration() zeigt in diesem Fall eine sichtbare Fehlermeldung statt einfach zu generieren).
+// NEU (24.09.2026, Punkt 13 des Kundendurchlaufs -- der eigentliche Fehler). Bisher stand an ZWEI
+// Stellen dieselbe Zeile:
+//     const rawSituations = Array.isArray(input.situations_en) ? input.situations_en : [];
+// Eine FEHLENDE Liste wurde damit stillschweigend zur LEEREN Liste, und eine leere Liste ist eine
+// gueltige Liste -- niemand weiter unten schoepfte Verdacht. In Sitzung 9c73ec34 hat die Kundin
+// Kuehe fuettern, Kaiserschmarrn und Spielplatz erzaehlt, add_scene kam ohne situations_en, und
+// alle 20 Vignetten kamen aus der Bibliothek. Das Bildmodell hat nichts ignoriert, es hat nie
+// davon erfahren.
+//
+// SITUATIONEN_MINDEST ist GESETZT, NICHT GEMESSEN: 0 ist der belegte Fehlerfall, alles darueber
+// ist eine Vorsichtsschwelle. Das Werkzeug-Schema verlangt mindestens 15 Eintraege (siehe
+// ADD_SCENE_TOOL in api/claude-proxy.js), aber Anthropic erzwingt minItems nicht hart -- deshalb
+// hier eine niedrige Schwelle, die nur den Fall "praktisch nichts angekommen" abfaengt, statt
+// einen brauchbaren Durchgang wegen zwoelf statt fuenfzehn Eintraegen abzulehnen.
+const SITUATIONEN_MINDEST = 5;
+
+// Die eine Nachfrage, die bei zu wenigen Situationen automatisch ins Gespraech geht. Sie wird
+// BEWUSST NICHT im gespeicherten Verlauf abgelegt: die Kundin soll keine Sprechblase sehen, die
+// sie nicht geschrieben hat. Sie gilt nur fuer diesen einen zweiten Versuch.
+const NACHFRAGE_SITUATIONEN = "Halt, in deiner Szene fehlen die Dinge, die darin passieren sollen. " +
+  "Bitte rufe add_scene noch einmal auf und trage in situations_en ALLE Situationen ein, die ich " +
+  "dir genannt habe, jede als kurzen englischen Satz.";
+
+// Prueft die Liste aus dem Werkzeugaufruf. Gibt {ok:true, situations} oder {ok:false, anzahl}.
+function situationenPruefen(input) {
+  const roh = Array.isArray(input && input.situations_en) ? input.situations_en : [];
+  const sauber = roh.map((t) => String(t == null ? "" : t).trim()).filter((t) => t.length > 0);
+  if (sauber.length < SITUATIONEN_MINDEST) return { ok: false, anzahl: sauber.length };
+  return { ok: true, situations: sauber.map((text) => ({ en: text, de: text })) };
+}
+
+// Ein Gespraechszug mit genau EINER automatischen Nachfrage, falls add_scene ohne brauchbare
+// Situationen kommt. Rueckgabe:
+//   { art: "szene",     result, input, situations }  -- brauchbar, kann generiert werden
+//   { art: "rueckfrage", result }                    -- Modell will noch etwas wissen (wie bisher)
+//   { art: "ohneSituationen", result, anzahl }       -- auch der zweite Versuch kam ohne Liste
+async function sceneChatMitNachfrage(messages, context) {
+  const erst = await Pipeline.sceneChat(messages, context);
+  const istSzene = (r) => !!(r && r.tool_call && r.tool_call.name === "add_scene");
+  if (!istSzene(erst)) return { art: "rueckfrage", result: erst };
+  const ersteInput = erst.tool_call.input || {};
+  const erstePruefung = situationenPruefen(ersteInput);
+  if (erstePruefung.ok) return { art: "szene", result: erst, input: ersteInput, situations: erstePruefung.situations };
+
+  // Zweiter Versuch, ein einziger Gespraechsaufruf (rund 0,01 $).
+  const nachfrageVerlauf = messages.concat([
+    { role: "assistant", content: erst.reply || "(Szene vorgeschlagen)" },
+    { role: "user", content: NACHFRAGE_SITUATIONEN }
+  ]);
+  const zweit = await Pipeline.sceneChat(nachfrageVerlauf, context);
+  if (istSzene(zweit)) {
+    const zweiteInput = zweit.tool_call.input || {};
+    const zweitePruefung = situationenPruefen(zweiteInput);
+    if (zweitePruefung.ok) return { art: "szene", result: zweit, input: zweiteInput, situations: zweitePruefung.situations };
+    return { art: "ohneSituationen", result: zweit, anzahl: zweitePruefung.anzahl };
+  }
+  return { art: "ohneSituationen", result: zweit, anzahl: erstePruefung.anzahl };
+}
+
+// GEAENDERT (24.09.2026): gibt jetzt {ok, grund} zurueck statt true/false -- runGeneration() soll
+// "Modell hat noch eine Rueckfrage" und "deine Wuensche sind nicht angekommen" unterscheiden
+// koennen, das sind fuer die Kundin zwei verschiedene Dinge.
 async function finalizeChatScene() {
   const s = AppState.data;
   const finalText = "Das reicht mir erstmal, bitte mach jetzt weiter.";
   const messages = (s.sceneChatMessages || []).concat([{ role: "user", content: finalText }]);
   const doneCharacters = (s.people || []).filter((p) => p.status === "done").map((p) => ({ name: p.name, description: p.sceneDescription || p.role }));
   const context = { characters: doneCharacters, sceneIndex: (s.images || []).length + 1, sceneTarget: 5 };
-  const result = await Pipeline.sceneChat(messages, context);
-  if (result.tool_call && result.tool_call.name === "add_scene") {
-    const input = result.tool_call.input || {};
-    const rawSituations = Array.isArray(input.situations_en) ? input.situations_en : [];
-    const situations = rawSituations.map((text) => ({ en: text, de: text }));
+  const versuch = await sceneChatMitNachfrage(messages, context);
+  const result = versuch.result;
+  if (versuch.art === "szene") {
+    const input = versuch.input;
     const theme = await buildThemeFromLocation(input.location_label, input.location_type);
     const finalMessages = messages.concat(result.reply ? [{ role: "assistant", content: result.reply }] : []);
     AppState.update({
-      sceneUserSituations: situations,
+      sceneUserSituations: versuch.situations,
       sceneTheme: input.location_label || s.sceneTheme,
       sceneChatTheme: theme,
       sceneChatMessages: finalMessages
     });
-    return true;
+    return { ok: true, grund: null };
   }
   // Modell antwortet stattdessen konversationell (z.B. eine letzte Rueckfrage) -- Verlauf trotzdem
   // sichern (kein Datenverlust), aber KEIN Thema erzwingen/raten.
   AppState.update({ sceneChatMessages: messages.concat(result.reply ? [{ role: "assistant", content: result.reply }] : []) });
-  return false;
+  return { ok: false, grund: versuch.art, anzahl: versuch.anzahl };
 }
 
 // NEU (Punkt C17): zentrale Sende-Funktion, sowohl fuer echte Nutzer-Nachrichten (Senden-Button im
@@ -708,15 +776,30 @@ async function sendChatTurn(userText, { buttons, skipModeration } = {}) {
   try {
     const doneCharacters = (s.people || []).filter((p) => p.status === "done").map((p) => ({ name: p.name, description: p.sceneDescription || p.role }));
     const context = { characters: doneCharacters, sceneIndex: (s.images || []).length + 1, sceneTarget: 5 };
-    const result = await Pipeline.sceneChat(messages, context);
-    if (result.tool_call && result.tool_call.name === "add_scene") {
-      const input = result.tool_call.input || {};
-      const rawSituations = Array.isArray(input.situations_en) ? input.situations_en : [];
-      // situations_en liefert nur Englisch (kein separates Deutsch pro Situation, anders als beim
-      // Audiotranskript-Weg mit echtem {en,de}-Paar) -- de wird hier bewusst mit dem englischen
-      // Text gespiegelt statt leer gelassen, da einige Debug-/Anzeige-Stellen (z.B. der
-      // Test-Details-Toggle auf dem Ergebnis-Screen) ein gefuelltes .de erwarten.
-      const situations = rawSituations.map((text) => ({ en: text, de: text }));
+    // GEAENDERT (24.09.2026, Punkt 13): laeuft jetzt ueber sceneChatMitNachfrage() -- eine
+    // add_scene-Antwort ohne brauchbare situations_en fuehrt NICHT mehr zu einem Bild ohne die
+    // Wuensche der Kundin, sondern zu einer Nachfrage im Gespraech und, wenn auch die nichts
+    // bringt, zu einer ehrlichen Meldung am Eingabefeld.
+    // situations_en liefert nur Englisch (kein separates Deutsch pro Situation, anders als beim
+    // Audiotranskript-Weg mit echtem {en,de}-Paar) -- de wird in situationenPruefen() bewusst mit
+    // dem englischen Text gespiegelt statt leer gelassen, da einige Debug-/Anzeige-Stellen (z.B.
+    // der Test-Details-Toggle auf dem Ergebnis-Screen) ein gefuelltes .de erwarten.
+    const versuch = await sceneChatMitNachfrage(messages, context);
+    const result = versuch.result;
+    if (versuch.art === "ohneSituationen") {
+      AppState.update({ sceneChatMessages: messages.concat(result.reply ? [{ role: "assistant", content: result.reply }] : []) });
+      if (typingHint) typingHint.style.display = "none";
+      activeButtons.forEach((b) => { b.disabled = false; });
+      if (errorP) {
+        errorP.textContent = "Deine Wünsche für die Szene sind gerade nicht angekommen — ich möchte kein Bild zaubern, in dem sie fehlen. " +
+          "Magst du sie noch einmal kurz aufzählen (was soll alles passieren)?";
+        errorP.style.display = "block";
+      }
+      return;
+    }
+    if (versuch.art === "szene") {
+      const input = versuch.input;
+      const situations = versuch.situations;
       const theme = await buildThemeFromLocation(input.location_label, input.location_type);
       const finalMessages = messages.concat(result.reply ? [{ role: "assistant", content: result.reply }] : []);
       AppState.update({
@@ -1283,9 +1366,15 @@ Screens.zaubern = {
         // bestehende Theme-Aufloesung weiter unten.
         if (s.sceneWay === 2 && !AppState.data.sceneChatTheme) {
           const finalized = await finalizeChatScene();
-          if (!finalized) {
+          if (!finalized.ok) {
             zauberBusy = false;
-            showError("WizzelWim hat noch eine kurze Rückfrage zur Szene — bitte zurück zum Gespräch und kurz antworten, dann nochmal auf „Los, zaubern“ tippen.");
+            // GEAENDERT (24.09.2026, Punkt 13): zwei verschiedene Faelle, zwei verschiedene Saetze.
+            if (finalized.grund === "ohneSituationen") {
+              showError("Deine Wünsche für die Szene sind nicht angekommen — ich zaubere lieber kein Bild, in dem sie fehlen. " +
+                "Bitte zurück zum Gespräch und kurz aufzählen, was alles passieren soll, dann nochmal auf „Los, zaubern“ tippen.");
+            } else {
+              showError("WizzelWim hat noch eine kurze Rückfrage zur Szene — bitte zurück zum Gespräch und kurz antworten, dann nochmal auf „Los, zaubern“ tippen.");
+            }
             return;
           }
         }
@@ -1460,7 +1549,12 @@ function buildDebugDetails(image) {
   }
   function ungeprueftText(k) {
     if (!k || k.verifyStatus !== "ungeprueft") return null;
-    let t = "UNGEPRÜFT — die Qualitätsprüfung ist " + (k.verifyVersuche || 2) + "-mal gescheitert, " +
+    // GEAENDERT (24.09.2026, Muster-Durchgang Treffer 1): stand hier "(k.verifyVersuche || 2)" --
+    // fehlte der Zaehler, behauptete der Satz gegenueber der Kundin "2-mal gescheitert", ohne dass
+    // irgendjemand zweimal gezaehlt haette. Jetzt: die echte Zahl, oder ehrlich keine.
+    const versucheZahl = Number(k.verifyVersuche);
+    const versucheText = isFinite(versucheZahl) && versucheZahl > 0 ? versucheZahl + "-mal" : "mehrfach (Anzahl nicht mitgezählt)";
+    let t = "UNGEPRÜFT — die Qualitätsprüfung ist " + versucheText + " gescheitert, " +
       "dieser Kandidat wurde NICHT bewertet (er gilt weder als gut noch als schlecht).";
     if (k.verifyError) t += "\n    Grund: " + k.verifyError;
     if (k.verifyRohAnfang) t += "\n    Antwort des Prüfmodells begann mit: " + k.verifyRohAnfang;
