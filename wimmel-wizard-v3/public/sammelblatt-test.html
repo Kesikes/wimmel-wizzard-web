@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Versuch: gemeinsames Sammelblatt</title>
+<!--
+  VERSUCH C3 (24.09.2026, Nutzer-Freigabe: "Sammelblatt: bauen, in deiner Reihenfolge — erst OHNE
+  Massstab, dann erweitern. Test fuer 6,40 $ ist freigegeben, gemessen an heroes_found gegen die
+  Grundlinie 29 von 63.")
+
+  FRAGE: Bekommt das Bildmodell weniger Doppelgaenger, wenn alle Helden auf EINEM nummerierten
+  Blatt stehen statt auf fuenf einzelnen?
+
+  WIE GEMESSEN: heroes_found aus der bestehenden Pruefung -- eine Zahl je benannter Figur, 1 ist
+  richtig, 0 heisst fehlt, 2+ heisst doppelt. Die Pruefung bekommt in BEIDEN Faellen die EINZELNEN
+  Figurenblaetter (heroRefUrls). Sie ist also unveraendert, und nur dadurch ist der Vergleich
+  ueberhaupt etwas wert.
+
+  PAARWEISE: Je Runde wird der Prompt EINMAL gebaut (mit allen Zufallsentscheidungen: Komposition,
+  Platzierungen, Handlungen, Bibliotheksblaetter, Vignetten) und daraus die Sammelblatt-Fassung
+  umgebaut (Pipeline.sammelblattVariante()). Die beiden Prompts eines Paares unterscheiden sich NUR
+  in der Referenzbild-Buchhaltung. Zwei getrennte Aufbauten waeren zwei verschiedene Szenen und der
+  Vergleich waere wertlos.
+
+  WAS DIESER VERSUCH NICHT MISST: Die Einzelsaetze je Held ("appears only once ... the only man with
+  a beard") bleiben in BEIDEN Fassungen stehen. Sie tragen das exklusive Merkmal, das eine eigene
+  Wirkung hat. Gemessen wird also "Sammelblatt PLUS Nummernsatz", nicht "Sammelblatt STATT der
+  Einzelsaetze". Das waere ein zweiter Durchgang.
+
+  NACH DEM VERSUCH LOESCHEN. Liegt nur deshalb in public/, weil /api/fal-proxy und /api/image-proxy
+  same-origin erreichbar sein muessen.
+-->
+<style>
+  body { font-family: system-ui, sans-serif; margin: 0; padding: 18px; background: #f4f1ea; color: #1a1a18; }
+  h1 { font-size: 20px; margin: 0 0 6px; } h2 { font-size: 15px; margin: 22px 0 6px; }
+  p, li { font-size: 14px; line-height: 1.5; max-width: 62em; }
+  button { min-height: 40px; padding: 0 14px; font-size: 13px; border: 3px solid #1a1a18; background: #fff; cursor: pointer; }
+  button:disabled { opacity: .45; cursor: default; }
+  .reihe { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 10px 0; }
+  .figuren { display: flex; gap: 10px; flex-wrap: wrap; }
+  .figur { border: 3px solid #1a1a18; background: #fff; padding: 6px; width: 130px; font-size: 12px; }
+  .figur img { width: 100%; display: block; }
+  .figur.aus { opacity: .35; }
+  #blatt { max-width: 100%; border: 3px solid #1a1a18; display: none; margin-top: 8px; }
+  table { border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+  th, td { border: 2px solid #1a1a18; padding: 4px 8px; text-align: left; }
+  th { background: #1a1a18; color: #fff; }
+  .gut { background: #d9f2d9; } .schlecht { background: #f7d6d2; }
+  #meldung { font-size: 13px; white-space: pre-wrap; border-left: 4px solid #1a1a18; padding-left: 10px; }
+  .warn { background: #f2c94c; border: 3px solid #1a1a18; padding: 10px; }
+  textarea { width: 100%; max-width: 62em; min-height: 70px; font-size: 12px; padding: 6px; border: 2px solid #1a1a18; }
+  select, input[type=number] { padding: 6px; font-size: 13px; border: 2px solid #1a1a18; }
+  code { font-size: 12px; }
+</style>
+</head>
+<body>
+<h1>Versuch: hilft ein gemeinsames, nummeriertes Sammelblatt gegen doppelte Helden?</h1>
+<p>Gemessen wird <code>heroes_found</code> aus der normalen Prüfung — eine Zahl je Figur,
+<b>1 ist richtig</b>, 0 heißt fehlt, 2+ heißt doppelt. Grundlinie aus der Sitzung vom 23.09.:
+<b>29 von 63 Kandidaten</b> hatten mindestens eine Dopplung oder eine fehlende Figur (46 %).</p>
+
+<div class="warn">
+  <b>Jede Runde kostet 0,32 $</b> (zwei 4K-Bilder à 0,15 $ und zwei Prüfaufrufe à 0,01 $).
+  20 Runden = <b>6,40 $</b>, also genau der freigegebene Betrag — und 20 gegen 20 statt 10 gegen 10,
+  weil bei 10 je Seite nur ein Absturz auf nahezu null überhaupt sichtbar wäre.
+  Nichts läuft ohne Knopfdruck.
+  <br><br>
+  <b>Aber: höchstens 10 Runden je Stunde.</b> Die Anfragegrenze von <code>api/fal-proxy</code> liegt
+  bei 40 Aufrufen je Stunde und IP-Adresse, und eine Runde braucht vier davon. Die zweiten 10 Runden
+  also eine Stunde später — die Tabelle sammelt weiter, solange die Seite offen bleibt. Läuft die
+  Grenze doch voll, hält der Lauf von selbst an und sagt es; bezahlt ist dann nur, was schon lief.
+</div>
+
+<h2>1. Figuren</h2>
+<p id="quelle"></p>
+<div class="reihe">
+  <button id="laden">Aus dem Browser-Stand laden</button>
+  <button id="ausJson">Aus eingefügtem JSON laden</button>
+</div>
+<textarea id="json" placeholder="Optional: Inhalt einer gesicherten Sitzung (docs/ref/sitzung.json) hier einfügen, dann 'Aus eingefügtem JSON laden'."></textarea>
+<div class="figuren" id="figuren"></div>
+
+<h2>2. Sammelblatt</h2>
+<p>Montiert, nicht erzeugt — kein Modellaufruf, keine Kosten. Die Gesichter bleiben unverändert.
+<b>Ohne Maßstab:</b> gleiche Blatthöhe je Spalte, keine gemeinsame Figurengröße. Das ist die zweite Stufe.</p>
+<div class="reihe"><button id="montieren">Sammelblatt bauen (kostenlos)</button></div>
+<p id="blattinfo"></p>
+<img id="blatt" alt="Sammelblatt">
+
+<h2>3. Lauf</h2>
+<div class="reihe">
+  Thema <select id="thema"></select>
+  Runden <input type="number" id="runden" value="10" min="1" max="10" style="width:5em">
+  <button id="probe">Erst nur die Prompts zeigen (kostenlos)</button>
+  <button id="start" style="background:#f2c94c">Lauf starten</button>
+  <button id="stop" disabled>Nach der laufenden Runde anhalten</button>
+</div>
+<p id="meldung">Bereit.</p>
+<div id="proben"></div>
+<div id="tabelle"></div>
+<div class="reihe"><button id="sichern" disabled>Rohdaten sichern (JSON-Datei)</button></div>
+
+<!-- helpers.js zuerst: pipeline.js benutzt assetPath() daraus. state.js/app-shell.js werden
+     bewusst NICHT geladen -- die wuerden die App starten. -->
+<script src="/js/helpers.js"></script>
+<script src="/js/pipeline.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const P = window.Pipeline;
+let personen = [], gewaehlt = [], blattUri = null, blattInfo = null, ergebnisse = [], anhalten = false;
+
+function sag(t) { $("meldung").textContent = t; }
+
+// ---------------------------------------------------------------- Figuren
+function personenSetzen(liste, woher) {
+  personen = (liste || []).filter((p) => p && p.imageUrl && p.status === "done");
+  gewaehlt = personen.slice(0, 5).map((p) => p.id);
+  $("quelle").textContent = woher + " — " + personen.length + " fertige Figur(en) mit Bild gefunden.";
+  figurenZeigen();
+}
+function figurenZeigen() {
+  const box = $("figuren"); box.textContent = "";
+  personen.forEach((p) => {
+    const an = gewaehlt.indexOf(p.id) >= 0;
+    const d = document.createElement("div");
+    d.className = "figur" + (an ? "" : " aus");
+    const im = document.createElement("img"); im.src = p.imageUrl; d.appendChild(im);
+    const t = document.createElement("div");
+    t.textContent = (an ? "▣ " : "☐ ") + (p.name || "?") + " (" + (p.role || "?") + (p.age ? ", " + p.age : "") + ")" +
+      (p.blatt && p.blatt.fuer === p.imageUrl ? " · Blatt ✓" : " · Blatt fehlt");
+    d.appendChild(t);
+    d.onclick = () => {
+      const i = gewaehlt.indexOf(p.id);
+      if (i >= 0) gewaehlt.splice(i, 1); else if (gewaehlt.length < 5) gewaehlt.push(p.id);
+      figurenZeigen();
+    };
+    box.appendChild(d);
+  });
+}
+$("laden").onclick = () => {
+  try {
+    const roh = localStorage.getItem("wimmelwizard.v3.state");
+    if (!roh) return sag("Im Browser-Stand liegt nichts. Entweder die App auf diesem Gerät einmal benutzen oder JSON einfügen.");
+    personenSetzen((JSON.parse(roh) || {}).people, "Browser-Stand");
+  } catch (e) { sag("Browser-Stand nicht lesbar: " + e.message); }
+};
+$("ausJson").onclick = () => {
+  try {
+    const d = JSON.parse($("json").value);
+    // Gesicherte Sitzungen liegen als {data:{…}} vor (session-sicherung), der Browser-Stand flach.
+    personenSetzen((d.data && d.data.people) || (d.stand && d.stand.people) || d.people, "eingefügtes JSON");
+  } catch (e) { sag("JSON nicht lesbar: " + e.message); }
+};
+
+// ---------------------------------------------------------------- Themen
+Object.keys(P.THEME_META).forEach((k) => {
+  const o = document.createElement("option"); o.value = k; o.textContent = k; $("thema").appendChild(o);
+});
+
+// ---------------------------------------------------------------- Helden-Spezifikationen
+function heroSpecs() {
+  return gewaehlt.map((id) => personen.find((p) => p.id === id)).filter(Boolean).map((p) => {
+    const spec = P.makeCharacterSpec({ id: p.id, name: p.name, role: p.role, sourceType: "chips" });
+    spec.identityCore.age = p.age;
+    spec.sceneDescription = p.sceneDescription || null;
+    spec.imageUrl = p.imageUrl;
+    // Wie im Produktpfad (szene.js): die Blattbeschreibung liefert die Kurzform und das exklusive
+    // Merkmal. Liegt sie in der Sitzung, wird sie benutzt -- neu geholt wird hier NICHTS, das waere
+    // ein zusaetzlicher bezahlter Aufruf je Figur.
+    if (p.blatt && p.blatt.fuer === p.imageUrl && p.blatt.daten) {
+      spec.blatt = p.blatt.daten;
+      spec.sceneDescription = P.heldBeschreibungAusBlatt(spec, p.blatt.daten);
+    }
+    return spec;
+  });
+}
+
+// ---------------------------------------------------------------- Sammelblatt
+$("montieren").onclick = async () => {
+  const specs = heroSpecs();
+  if (!specs.length) return sag("Erst Figuren laden und auswählen.");
+  sag("Blätter werden geladen und montiert …");
+  try {
+    blattInfo = await P.sammelblattBauen(specs.map((s) => s.imageUrl));
+    blattUri = blattInfo.uri;
+    $("blatt").src = blattUri; $("blatt").style.display = "block";
+    $("blattinfo").textContent = blattInfo.breite + " × " + blattInfo.hoehe + " Pixel, rund " +
+      Math.round(blattInfo.bytes / 1024) + " kB" +
+      (blattInfo.skala < 1 || blattInfo.guete < 0.9 ? "  ·  VERKLEINERT auf Skala " + blattInfo.skala + " / Güte " + blattInfo.guete + " (sonst zu groß für die Anfrage)" : "") +
+      (blattInfo.zuGross ? "  ·  ACHTUNG: auch nach dem Verkleinern über der Grenze — Lauf besser abbrechen" : "");
+    sag("Sammelblatt steht. Bitte ansehen: Sind alle Figuren vollständig, und stehen die Nummern richtig?");
+  } catch (e) { sag("Sammelblatt fehlgeschlagen: " + e.message); }
+};
+
+// ---------------------------------------------------------------- Eine Runde vorbereiten
+function paarBauen() {
+  const specs = heroSpecs();
+  const theme = P.THEME_META[$("thema").value];
+  const situations = P.autoSituations(theme, [], 20, []);
+  const built = P.buildSceneComposeInputs({ heroSpecs: specs, theme, situations, heldenNeu: true, blattfilter: false, koepfeGross: true });
+  const sam = P.sammelblattVariante(built, blattUri);
+  return { built, sam, specs };
+}
+
+$("probe").onclick = () => {
+  if (!blattUri) return sag("Erst das Sammelblatt bauen.");
+  const { built, sam } = paarBauen();
+  const box = $("proben"); box.textContent = "";
+  const f = document.createElement("p");
+  f.innerHTML = "<b>Ersetzungen:</b> " + (sam.ersetzt.join(", ") || "keine") +
+    "<br><b>Fehler:</b> " + (sam.fehler.length ? "<span style='color:#b00'>" + sam.fehler.join(" | ") + "</span>" : "keine") +
+    "<br><b>Referenzbilder:</b> normal " + built.styleRefUrls.length + ", Sammelblatt " + sam.styleRefUrls.length +
+    "<br><b>Promptlänge:</b> normal " + built.instruction.length + " Zeichen, Sammelblatt " + sam.instruction.length;
+  box.appendChild(f);
+  [["NORMAL", built.instruction], ["SAMMELBLATT", sam.instruction]].forEach(([titel, text]) => {
+    const h = document.createElement("h2"); h.textContent = titel; box.appendChild(h);
+    const t = document.createElement("textarea"); t.value = text; t.style.minHeight = "180px"; box.appendChild(t);
+  });
+  sag("Nur angesehen, nichts aufgerufen, nichts bezahlt.");
+};
+
+// ---------------------------------------------------------------- Lauf
+function heldenAus(parsed) {
+  const a = parsed && Array.isArray(parsed.heroes_found) ? parsed.heroes_found : null;
+  if (!a || !a.length) return { text: "nicht gemessen", ok: null, liste: null };
+  const ok = a.every((z) => Number(z) === 1);
+  return { text: a.join("/"), ok, liste: a };
+}
+
+async function einBild(instruction, styleRefUrls, editImageUrl, verifyPrompt, heroRefUrls, figuresBand) {
+  const bild = await P.generateImageWithRetry(instruction, "scene", { editImageUrl, styleRefUrls });
+  const roh = await P.verifyImage([bild.url].concat(heroRefUrls), verifyPrompt);
+  const gez = P.countViolations(roh, figuresBand);
+  return { url: bild.url, parsed: gez.parsed, violations: gez.violations, helden: heldenAus(gez.parsed) };
+}
+
+function tabelleZeigen() {
+  const box = $("tabelle"); box.textContent = "";
+  const t = document.createElement("table");
+  t.innerHTML = "<tr><th>#</th><th>normal: heroes_found</th><th>normal ok</th>" +
+    "<th>Sammelblatt: heroes_found</th><th>Sammelblatt ok</th><th>Bilder</th></tr>";
+  let okA = 0, okB = 0, nA = 0, nB = 0;
+  ergebnisse.forEach((r, i) => {
+    const tr = document.createElement("tr");
+    const zelle = (x) => { const td = document.createElement("td"); td.innerHTML = x; return td; };
+    const mark = (h) => h.ok === null ? "" : (h.ok ? "gut" : "schlecht");
+    if (r.a && r.a.helden.ok !== null) { nA++; if (r.a.helden.ok) okA++; }
+    if (r.b && r.b.helden.ok !== null) { nB++; if (r.b.helden.ok) okB++; }
+    tr.appendChild(zelle(String(i + 1)));
+    const a1 = zelle(r.a ? r.a.helden.text : "—"); if (r.a) a1.className = mark(r.a.helden); tr.appendChild(a1);
+    tr.appendChild(zelle(r.a ? (r.a.helden.ok === null ? "?" : (r.a.helden.ok ? "ja" : "NEIN")) : (r.fehlerA || "—")));
+    const b1 = zelle(r.b ? r.b.helden.text : "—"); if (r.b) b1.className = mark(r.b.helden); tr.appendChild(b1);
+    tr.appendChild(zelle(r.b ? (r.b.helden.ok === null ? "?" : (r.b.helden.ok ? "ja" : "NEIN")) : (r.fehlerB || "—")));
+    tr.appendChild(zelle((r.a ? "<a href='" + r.a.url + "' target='_blank'>normal</a>" : "") + " " +
+      (r.b ? "<a href='" + r.b.url + "' target='_blank'>sammel</a>" : "")));
+    t.appendChild(tr);
+  });
+  box.appendChild(t);
+  const p = document.createElement("p");
+  p.innerHTML = "<b>Stand:</b> normal " + okA + " von " + nA + " ohne Doppelung/Fehlende" +
+    (nA ? " (" + Math.round(100 * okA / nA) + " %)" : "") +
+    " · Sammelblatt " + okB + " von " + nB + (nB ? " (" + Math.round(100 * okB / nB) + " %)" : "") +
+    "<br>Grundlinie 23.09.: 34 von 63 ohne Beanstandung (54 %).";
+  box.appendChild(p);
+}
+
+$("stop").onclick = () => { anhalten = true; sag("Wird nach der laufenden Runde angehalten …"); };
+
+$("start").onclick = async () => {
+  if (!blattUri) return sag("Erst das Sammelblatt bauen.");
+  const runden = Math.max(1, Math.min(10, Number($("runden").value) || 1));
+  const kosten = (runden * 0.32).toFixed(2);
+  if (!confirm("Jetzt " + runden + " Runden starten. Das sind " + (runden * 2) + " Bilder und " +
+    (runden * 2) + " Prüfaufrufe, zusammen rund " + kosten + " $. Wirklich starten?")) return;
+  anhalten = false;
+  $("start").disabled = true; $("stop").disabled = false;
+  for (let i = 0; i < runden && !anhalten; i++) {
+    sag("Runde " + (i + 1) + " von " + runden + " — Prompt wird gebaut …");
+    const { built, sam } = paarBauen();
+    if (sam.fehler.length) {
+      sag("ABBRUCH: Der Sammelblatt-Prompt ist unvollständig — " + sam.fehler.join(" | ") +
+        "\nEs wurde nichts aufgerufen und nichts bezahlt.");
+      break;
+    }
+    const eintrag = { nr: i + 1, komposition: built.compositionId, ersetzt: sam.ersetzt, a: null, b: null };
+    let grenze = false;
+    const istGrenze = (e) => /429|Anfragegrenze|zu viele|rate/i.test(String((e && e.message) || e));
+    try {
+      sag("Runde " + (i + 1) + ": normales Bild wird gezeichnet und geprüft …");
+      eintrag.a = await einBild(built.instruction, built.styleRefUrls, built.editImageUrl, built.verifyPrompt, built.heroRefUrls, built.figuresBand);
+    } catch (e) { eintrag.fehlerA = e.message; grenze = grenze || istGrenze(e); }
+    try {
+      sag("Runde " + (i + 1) + ": Sammelblatt-Bild wird gezeichnet und geprüft …");
+      eintrag.b = await einBild(sam.instruction, sam.styleRefUrls, built.editImageUrl, built.verifyPrompt, sam.heroRefUrls, built.figuresBand);
+    } catch (e) { eintrag.fehlerB = e.message; grenze = grenze || istGrenze(e); }
+    ergebnisse.push(eintrag);
+    tabelleZeigen();
+    $("sichern").disabled = false;
+    // Eine angelaufene Anfragegrenze wiederholt sich in jeder weiteren Runde. Weiterlaufen hiesse,
+    // lauter halbe Runden zu erzeugen -- eine halbe Runde ist fuer den paarweisen Vergleich wertlos
+    // und trotzdem bezahlt.
+    if (grenze) {
+      sag("ANGEHALTEN: Die Anfragegrenze ist erreicht (40 Aufrufe je Stunde und IP). " +
+        ergebnisse.length + " Runde(n) stehen in der Tabelle. In einer Stunde einfach wieder auf " +
+        "„Lauf starten“ tippen — die Tabelle sammelt weiter. Vorher bitte die Rohdaten sichern.");
+      break;
+    }
+  }
+  $("start").disabled = false; $("stop").disabled = true;
+  sag("Fertig. " + ergebnisse.length + " Runde(n) gelaufen, rund " + (ergebnisse.length * 0.32).toFixed(2) + " $ ausgegeben.");
+};
+
+$("sichern").onclick = () => {
+  const d = {
+    versuch: "sammelblatt-ohne-massstab", am: new Date().toISOString(),
+    bildFassung: P.BILD_FASSUNG, pruefFassung: P.PRUEF_FASSUNG, promptLabel: P.PROMPT_LABEL,
+    thema: $("thema").value, blatt: blattInfo ? { breite: blattInfo.breite, hoehe: blattInfo.hoehe, bytes: blattInfo.bytes, skala: blattInfo.skala, guete: blattInfo.guete } : null,
+    figuren: heroSpecs().map((s) => ({ name: s.name, role: s.role, imageUrl: s.imageUrl })),
+    grundlinie: { text: "23.09.2026: 29 von 63 Kandidaten mit Dopplung oder fehlender Figur", ohneBeanstandung: 34, gesamt: 63 },
+    runden: ergebnisse,
+  };
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(d, null, 2)], { type: "application/json" }));
+  a.download = "sammelblatt-" + new Date().toISOString().replace(/[-:]/g, "").slice(0, 13) + ".json";
+  a.click();
+};
+</script>
+</body>
+</html>

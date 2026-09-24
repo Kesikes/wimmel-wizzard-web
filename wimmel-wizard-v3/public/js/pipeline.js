@@ -2594,6 +2594,201 @@ function heroRef(spec, i) {
   return "the " + rolle + " from reference image " + (HERO_REF_START + i);
 }
 
+// ============================================================================================
+// SAMMELBLATT (C3, Nutzer-Entscheidung 24.09.2026) -- NOCH NICHT IM PRODUKTPFAD.
+//
+// Idee: Statt bis zu fuenf einzelnen Heldenblaettern geht EIN montiertes Blatt ans Bildmodell, auf
+// dem alle benannten Figuren nebeneinander stehen, jede mit einer grossen Nummer darueber. Zwei
+// erhoffte Wirkungen:
+//   1. Weniger Referenzbilder (1 + 3-4 statt 5 + 3-4) -- mehr Aufmerksamkeit je Bild.
+//   2. "Diese drei, jede genau einmal" ist EIN Bild und EIN Satz statt fuenf verteilter Saetze.
+//
+// AUSDRUECKLICH OHNE MASSSTAB in dieser ersten Fassung. Das Blatt aus
+// docs/konzept-massstab-2026-09-23.md ist dasselbe Blatt mit zusaetzlich gemeinsamer Standlinie und
+// Groessenverhaeltnissen. Nutzer-Entscheidung zur Reihenfolge: erst ohne, messen, dann erweitern --
+// sonst liessen sich die beiden Wirkungen hinterher nicht trennen.
+//
+// GEMESSEN WIRD NICHTS HIER. Die Messgroesse ist heroes_found aus der bestehenden Pruefung, und die
+// Pruefung bekommt weiterhin die EINZELNEN Blaetter (heroRefUrls, getrennt von styleRefUrls) --
+// sonst waere die Messung mitveraendert und der Vergleich wertlos.
+
+// Wie ein Held auf dem Sammelblatt im Bildprompt genannt wird. Gegenstueck zu heroRef().
+function heroRefSammel(spec, i) {
+  const rolle = (spec && spec.role) ? String(spec.role) : "character";
+  return "the " + rolle + " marked with the number " + (i + 1) + " on reference image " + HERO_REF_START;
+}
+
+// Gegenstueck zu imageRefMapping(): EIN Blatt, Zuordnung ueber die Nummern.
+function imageRefMappingSammel(heroSpecs) {
+  const teile = heroSpecs.map((spec, i) => {
+    const text = stripEmotionWords(describeHero(spec));
+    const artikel = /^[aeiou]/i.test(text) ? "an " : "a ";
+    return "Number " + (i + 1) + " is " + artikel + text + ".";
+  }).join(" ");
+  return "Reference image " + HERO_REF_START + " is a single character sheet showing all " +
+    heroSpecs.length + " named characters standing side by side on a plain background, each of them " +
+    "with a large printed number above their head. That sheet is a chart, not a scene: take the " +
+    "characters from it, but never copy its plain background, its dividing lines or its numbers into " +
+    "the picture, and never draw a number, a letter or a label anywhere in the finished image. " + teile;
+}
+
+// Die Einmal-Aussage in ihrer Sammelblatt-Fassung: eine Aussage ueber das Blatt statt fuenf
+// verteilter Saetze. Die physische Begruendung bleibt woertlich stehen -- sie war der Teil, der beim
+// Bildmodell ueberhaupt gewirkt hat (siehe allCharactersRule()).
+function allCharactersRuleSammel(heroSpecs) {
+  const n = heroSpecs.length;
+  return "All " + n + " characters on reference image " + HERO_REF_START + " — the numbers 1 to " + n +
+    " — appear in this picture, and each of them appears exactly ONCE: it all happens at one moment, " +
+    "and nobody can be in two places at once, not even in two rooms of one house. Go through the " +
+    "numbers one by one and draw each of them exactly one single time.";
+}
+
+// sammelblattVariante(built, sammelblattUrl): baut aus einem FERTIGEN Ergebnis von
+// buildSceneComposeInputs() die Sammelblatt-Fassung desselben Prompts.
+//
+// WARUM ALS UMBAU UND NICHT ALS ZWEITER AUFBAU: buildSceneComposeInputs() wuerfelt (Komposition,
+// Platzierungen, Heldenhandlungen, Bibliotheksblaetter, Vignetten-Auffuellung). Zweimal aufgerufen
+// liefert es zwei verschiedene Szenen, und der Vergleich waere wertlos. So entsteht ein PAAR, das
+// sich NUR in der Referenzbild-Buchhaltung unterscheidet.
+//
+// JEDE ERSETZUNG WIRD GEZAEHLT. Trifft eine nicht, steht sie in .fehler und der Aufrufer darf den
+// Prompt NICHT abschicken -- ein nicht ersetzter Verweis auf "reference image 4" waere genau der
+// stille Fehler, den diese Fassung verhindern soll ("nie still", Abschnitt 16).
+function sammelblattVariante(built, sammelblattUrl) {
+  const heroSpecs = built.refHeroes || [];
+  const n = heroSpecs.length;
+  const bgCount = Math.max(0, (built.styleRefUrls || []).length - (built.heroRefUrls || []).length);
+  let text = built.instruction;
+  const fehler = [];
+  const ersetzt = [];
+
+  function tausche(alt, neuText, name, mindestens) {
+    const teile = text.split(alt);
+    const treffer = teile.length - 1;
+    if (treffer < (mindestens == null ? 1 : mindestens)) {
+      fehler.push(name + ": " + treffer + " Treffer (erwartet mindestens " + (mindestens == null ? 1 : mindestens) + ")");
+      return;
+    }
+    text = teile.join(neuText);
+    ersetzt.push(name + " (" + treffer + "x)");
+  }
+
+  // 1. Die Zuordnung Bild -> Held. Zuerst, solange der Text noch unveraendert ist.
+  tausche(imageRefMapping(heroSpecs, HERO_REF_START), imageRefMappingSammel(heroSpecs), "Bildzuordnung", 1);
+
+  // 2. Die Einmal-Regel am Prompt-Ende (je nach Schalter die kurze oder die lange Fassung).
+  const kurz = allCharactersRuleKurz(heroSpecs);
+  const lang = allCharactersRule(heroSpecs);
+  if (text.indexOf(kurz) >= 0) tausche(kurz, allCharactersRuleSammel(heroSpecs), "Einmal-Regel (kurz)", 1);
+  else if (text.indexOf(lang) >= 0) tausche(lang, allCharactersRuleSammel(heroSpecs), "Einmal-Regel (lang)", 1);
+  else fehler.push("Einmal-Regel: keine der beiden Fassungen im Prompt gefunden");
+
+  // 3. Die Bibliotheksblaetter ruecken von n+2 auf 3.
+  let bgNeu = "";
+  if (bgCount > 0) {
+    bgNeu = backgroundLibraryInstruction(HERO_REF_START + 1, bgCount);
+    tausche(backgroundLibraryInstruction(n + 2, bgCount), bgNeu, "Bibliotheks-Nummern", 1);
+  }
+
+  // 4. Jeder Held einzeln -- erst die grossgeschriebene Form (Satzanfang), dann die kleine.
+  heroSpecs.forEach((spec, i) => {
+    const alt = heroRef(spec, i), neuR = heroRefSammel(spec, i);
+    const gross = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+    if (text.indexOf(gross(alt)) >= 0) tausche(gross(alt), gross(neuR), "Held " + (i + 1) + " (Satzanfang)", 1);
+    tausche(alt, neuR, "Held " + (i + 1), 1);
+  });
+
+  // 5. Der Abspann spricht von "reference images" im Plural und von der Nummer des Bildes.
+  const abspannAlt = "The attached reference images show the exact established design of each named character listed above by reference-image number";
+  const abspannNeu = "Reference image " + HERO_REF_START + " is the character sheet carrying all named characters listed above, each under their own number, and it shows their exact established design";
+  tausche(abspannAlt, abspannNeu, "Abspann", 1);
+
+  // 6. Sicherung gegen uebrig gebliebene Verweise auf Heldenblaetter, die es nicht mehr gibt.
+  //    Die Bibliotheks-Anweisung wird vorher herausgenommen: sie nennt selbst Bildnummern ab 3 und
+  //    zwar bei genau EINEM Blatt in der Einzahl ("Reference image 3 show(s) ..."), was sonst hier
+  //    als falscher Alarm ankaeme und den ganzen Lauf abbraeche.
+  const pruefText = bgNeu ? text.split(bgNeu).join(" ") : text;
+  for (let k = HERO_REF_START + 1; k <= HERO_REF_START + n - 1; k++) {
+    if (pruefText.indexOf("reference image " + k) >= 0 || pruefText.indexOf("Reference image " + k) >= 0) {
+      fehler.push("Verweis auf reference image " + k + " steht noch im Prompt");
+    }
+  }
+
+  const bgUrls = (built.styleRefUrls || []).slice((built.heroRefUrls || []).length);
+  return {
+    instruction: text,
+    styleRefUrls: [sammelblattUrl].concat(bgUrls),
+    heroRefUrls: built.heroRefUrls,   // UNVERAENDERT -- die Pruefung bleibt die alte.
+    ersetzt, fehler,
+  };
+}
+
+// sammelblattBauen(heroImageUrls, opts): montiert die Blaetter nebeneinander, jedes mit einer
+// grossen Nummer darueber, und liefert eine data-URI. Erzeugt NICHTS -- kein Modellaufruf, keine
+// Kosten. Die Gesichter bleiben unveraendert, genau wie das Massstabs-Konzept es verlangt
+// ("montiert, nicht erzeugt -- sonst zeichnet das Modell die Gesichter neu und die Identitaet
+// driftet").
+//
+// OHNE MASSSTAB: jede Spalte wird auf dieselbe BLATTHOEHE gebracht, nicht auf eine gemeinsame
+// Figurengroesse. Das ist der Unterschied zur zweiten Stufe.
+const SAMMELBLATT_SPALTE_H = 1024;   // Hoehe je Spalte in Pixeln
+const SAMMELBLATT_BAND_H = 150;      // Hoehe des Nummernbands darueber
+const SAMMELBLATT_MAX_BYTES = 700 * 1024; // darueber wird verkleinert, siehe unten
+async function sammelblattBauen(heroImageUrls, opts) {
+  const urls = (heroImageUrls || []).filter(Boolean);
+  if (!urls.length) throw new Error("Sammelblatt: keine Figurenblätter übergeben.");
+  const proxy = (u) => (opts && opts.direkt) ? u : ("/api/image-proxy?url=" + encodeURIComponent(u));
+  const bilder = [];
+  for (const u of urls) {
+    bilder.push(await new Promise((ok, fehl) => {
+      const im = new Image();
+      im.onload = () => ok(im);
+      im.onerror = () => fehl(new Error("Figurenblatt konnte nicht geladen werden: " + u));
+      im.src = proxy(u);
+    }));
+  }
+  function malen(skala, guete) {
+    const spaltenH = Math.round(SAMMELBLATT_SPALTE_H * skala);
+    const bandH = Math.round(SAMMELBLATT_BAND_H * skala);
+    const breiten = bilder.map((im) => Math.max(1, Math.round(im.width * (spaltenH / im.height))));
+    const gesamtB = breiten.reduce((a, b) => a + b, 0);
+    const cv = document.createElement("canvas");
+    cv.width = gesamtB; cv.height = spaltenH + bandH;
+    const ctx = cv.getContext("2d");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, cv.width, cv.height);
+    let x = 0;
+    bilder.forEach((im, i) => {
+      const b = breiten[i];
+      ctx.drawImage(im, x, bandH, b, spaltenH);
+      ctx.fillStyle = "#000000";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.font = "bold " + Math.round(bandH * 0.72) + "px system-ui, sans-serif";
+      ctx.fillText(String(i + 1), x + b / 2, bandH / 2);
+      if (i > 0) {
+        ctx.strokeStyle = "#000000";
+        ctx.lineWidth = Math.max(2, Math.round(4 * skala));
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, cv.height); ctx.stroke();
+      }
+      x += b;
+    });
+    return { uri: cv.toDataURL("image/jpeg", guete), breite: cv.width, hoehe: cv.height };
+  }
+  // Erst in voller Groesse. Wird die data-URI zu gross fuer eine Anfrage, kleiner -- aber SICHTBAR:
+  // der Aufrufer bekommt die Stufe mitgeteilt und kann sie anzeigen. Kein stilles Verkleinern.
+  const stufen = [[1, 0.9], [1, 0.8], [0.75, 0.85], [0.6, 0.8]];
+  let letzte = null;
+  for (const [skala, guete] of stufen) {
+    letzte = malen(skala, guete);
+    letzte.skala = skala; letzte.guete = guete;
+    letzte.bytes = Math.round(letzte.uri.length * 0.75);
+    if (letzte.bytes <= SAMMELBLATT_MAX_BYTES) return letzte;
+  }
+  letzte.zuGross = true;
+  return letzte;
+}
+
 function imageRefMapping(heroSpecs, startIndex) {
   const ab = typeof startIndex === "number" ? startIndex : 1;
   return heroSpecs.map((spec, i) => {
@@ -4557,6 +4752,8 @@ window.Pipeline = {
   scenePrompt, sceneComposeInstruction, composeSceneImage,
   BACKGROUND_CHARACTER_LIBRARY, backgroundCharAssetUrl, pickBackgroundCharacterSheets,
   backgroundLibraryInstruction, buildSceneComposeInputs,
+  // C3 Sammelblatt (24.09.2026) -- nur fuer die Testseite, NICHT im Produktpfad.
+  sammelblattBauen, sammelblattVariante, heroRefSammel, imageRefMappingSammel, allCharactersRuleSammel,
   buildCharacterVerifyPrompt, composeCharacterImage,
   startCharacterJob, pollCharacterJobOnce, runCharacterJobPolling,
   startSceneJob, pollSceneJobOnce, runSceneJobPolling, neueSceneJobId,

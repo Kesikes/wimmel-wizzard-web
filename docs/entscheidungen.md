@@ -1522,6 +1522,14 @@ Ohne Zurücksetzen, ohne Serverfunktion — der Test beantwortet nur die zwei Fr
 hängt: **Trifft das Modell im Ausschnitt die richtige Stelle? Und passt die Kante?** Fällt das
 durch, ist der teure Serverteil gespart. **Empfehlung: erst diesen Test, dann entscheiden.**
 
+**ENTSCHIEDEN (Nutzer, 24.09.2026): Testseite bauen, 2,30 $ freigegeben — aber erst NACH C3.**
+
+> „Ich will nicht zwei Baustellen gleichzeitig beurteilen." (Nutzer)
+
+Die Reihenfolge ist damit: Sammelblatt bauen und messen, dann die Ausschnitt-Testseite. **Und C1
+hängt weiter hinten dran als es aussieht:** Das Produktbudget aus B3 (6 Korrekturen) rechnet damit,
+dass Korrekturen treffen. Fällt C1 durch, gehört das Kontingent noch einmal auf den Tisch.
+
 ### EINSCHÄTZUNG 24.09.2026 (C2, Idee des Nutzers): Zoom-Seiten aus vorhandenen Bildern
 
 > „Seiten kosten im Druck fast nichts, Bilder viel." (Nutzer)
@@ -1566,6 +1574,17 @@ formatfüllende Figur auf einer ganzen Seite wird daraus nicht.
 „Wo ist Oma?"-Seite müsste den Ausschnitt also nicht raten. **Achtung:** Wie verlässlich diese Zahl
 ist, ist **nicht gemessen** — für eine automatisch gesetzte Seite müsste sie es sein, für einen
 Vorschlag, den ein Mensch bestätigt, reicht sie.
+
+**STAND (Nutzer, 24.09.2026): nur dokumentiert, nichts gebaut, nichts weiter gerechnet.** Drei
+Zahlen sind das, was von hier aus feststeht und in die Produktsitzung mitgeht:
+
+| | |
+|---|---|
+| Grenze für einen Druckausschnitt | **etwa halbe Bildbreite** (2752 px, 236 dpi auf 296 mm) |
+| Figurenblatt im Druck | **65 × 87 mm** bei 300 dpi |
+| `heroes_x` | **Vorschlag** für den Ausschnitt, **menschlich zu bestätigen, nicht automatisch** (Verlässlichkeit nicht gemessen) |
+
+**Das Buchlayout mit Seitentypen macht der Nutzer in der eigenen Sitzung zu Produkt und Preisen.**
 
 **Fürs Layout heißt das:** Das Buch braucht **Seitentypen** statt einer Liste von Bildern — eine
 Seite hat dann eine Art (Vollbild, Ausschnitt, Porträtreihe, Textseite), eine Quelle (welches Bild,
@@ -1624,6 +1643,69 @@ deutlich besserem Wert eine Empfehlung, keine harte Hürde.
 **Empfohlene Reihenfolge, wenn beides kommt:** erst das Sammelblatt **ohne** Maßstab bauen und
 testen (misst nur die Dopplung), dann denselben Blatt-Aufbau um den gemeinsamen Maßstab erweitern
 (misst zusätzlich die Größen). Umgekehrt ließen sich die beiden Wirkungen nicht mehr trennen.
+
+### GEBAUT 24.09.2026 (Nutzer-Freigabe): Sammelblatt ohne Maßstab, mit Versuchsseite
+
+> „Sammelblatt: bauen, in deiner Reihenfolge — erst OHNE Maßstab, dann erweitern. Test für 6,40 $
+> ist freigegeben, gemessen an `heroes_found` gegen die Grundlinie 29 von 63." (Nutzer)
+
+**Im Produktpfad ändert sich nichts.** Gebaut sind drei Werkzeuge in `pipeline.js` und eine
+Versuchsseite; die App ruft nichts davon auf.
+
+| Neu | Was es tut |
+|---|---|
+| `sammelblattBauen(urls)` | montiert die Figurenblätter nebeneinander, jedes mit einer großen Nummer darüber. **Kein Modellaufruf, keine Kosten.** Gleiche Blatthöhe je Spalte — keine gemeinsame Figurengröße, das ist die zweite Stufe |
+| `sammelblattVariante(built, url)` | baut aus einem **fertigen** Prompt dessen Sammelblatt-Fassung |
+| `heroRefSammel` / `imageRefMappingSammel` / `allCharactersRuleSammel` | die drei Textstücke, die sich ändern |
+| `public/sammelblatt-test.html` | die Versuchsseite. **Nach dem Versuch löschen.** |
+
+**Warum Umbau und nicht zweiter Aufbau — das ist der Kern des Versuchsaufbaus.**
+`buildSceneComposeInputs()` würfelt: Komposition, Platzierungen, Heldenhandlungen, welche
+Bibliotheksblätter mitkommen, wie die Vignetten aufgefüllt werden. Zweimal aufgerufen liefert es
+**zwei verschiedene Szenen**, und ein Vergleich daraus wäre wertlos. Die Versuchsseite baut deshalb
+je Runde **einen** Prompt und formt daraus die zweite Fassung um. Die beiden Prompts eines Paares
+unterscheiden sich **nur** in der Referenzbild-Buchhaltung.
+
+**Jede Ersetzung wird gezählt.** Trifft eine nicht, steht sie in `.fehler`, und die Versuchsseite
+bricht ab, **bevor** ein bezahlter Aufruf rausgeht. Ein stehen gebliebener Verweis auf „reference
+image 4" wäre genau der stille Fehler, um den es in Abschnitt 16 geht — ein Prompt, der auf ein
+Blatt zeigt, das es nicht mehr gibt, und niemand sieht es. **Gegengeprüft: 60 Durchgänge über alle
+sechs Themen, 0 Fehler**, alle zehn Ersetzungen greifen jedes Mal.
+
+**Die Prüfung bleibt unverändert.** Sie bekommt in beiden Fassungen die **einzelnen**
+Figurenblätter (`heroRefUrls`, im Code seit dem 16.09. getrennt von `styleRefUrls` geführt). Nur
+deshalb ist `heroes_found` überhaupt vergleichbar.
+
+**Was der Versuch misst — und was nicht.** Die Einzelsätze je Held („appears only once … the only
+man with a beard") bleiben in **beiden** Fassungen stehen. Sie tragen das exklusive Merkmal, das
+eine eigene Wirkung hat. Gemessen wird also **Sammelblatt plus Nummernsatz**, nicht **Sammelblatt
+statt der Einzelsätze**. Das wäre ein zweiter Durchgang, und er gehört getrennt gemessen.
+
+**Zahlen aus dem Probelauf** (drei Figuren aus `sitzung.json`, ohne einen einzigen Aufruf):
+
+| | normal | Sammelblatt |
+|---|---|---|
+| Referenzbilder ans Modell | 7 | **5** |
+| Promptlänge | 19.849 Zeichen | 20.528 |
+
+Bei fünf Helden wären es **9 gegen 5**. Der Prompt wird dabei leicht **länger**, nicht kürzer — die
+Blatt-Erklärung kostet mehr Zeichen als die eingesparten Einzelverweise. Das ist unkritisch (Grenze
+30.000, siehe Abschnitt 16), aber es widerlegt die naheliegende Erwartung „ein Blatt, kürzerer
+Prompt". **Die Ersparnis liegt bei den Bildern, nicht beim Text.**
+
+**Zum Ablauf des Versuchs, zwei Dinge, die vorher niemand gesagt hat:**
+
+1. **Höchstens 10 Runden je Stunde.** `api/fal-proxy` lässt 40 Aufrufe je Stunde und IP zu
+   (Abschnitt 16), eine Runde braucht vier (zwei Bilder, zwei Prüfungen). Die zweiten 10 Runden
+   also eine Stunde später; die Seite hält von selbst an, sagt es, und die Tabelle sammelt weiter.
+2. **20 gegen 20 statt 10 gegen 10, zum selben freigegebenen Betrag.** Der Versuch kostet 0,32 $ je
+   Runde, nicht 0,64 $ — je Fassung wird **ein** Bild erzeugt, nicht das Kandidatenpaar des
+   Produktpfads. 20 Runden sind damit genau die freigegebenen 6,40 $. Das ist gut angelegt: Bei 10
+   je Seite wäre gegen eine Grundlinie von 46 % nur ein Absturz auf nahezu null sichtbar.
+
+**Auch mit 20 je Seite bleibt es ein Signal, kein Beweis.** Die 90-%-Regel ist damit nicht zu
+erfüllen. Fällt der Unterschied deutlich aus, ist die nächste Frage, ob er über mehr Runden hält —
+nicht, ob er sofort ins Produkt darf.
 
 ### OFFEN (Teil des Produktangebots): Produktleiter (Idee des Nutzers, 21.09.2026)
 
@@ -2363,9 +2445,21 @@ Zwei Zahlen zur Einordnung, beide **nicht gemessen, sondern gerechnet**:
 | 10 % | rund 10 $ |
 | 20 % | rund 4,60 $ |
 
-**Die Conversion ist damit keine Marketing-Kennzahl, sondern der Haupt-Kostentreiber.** Jeder
-Prozentpunkt ist mehr wert als jede Einsparung am Bild. Das ist der Grund, warum B2 und B3 unten
-nicht kosmetisch sind.
+> ### ENTSCHEIDUNG DES NUTZERS (24.09.2026): das hier verschiebt die Prioritäten
+>
+> **Die Conversion ist keine Marketing-Kennzahl, sondern der Haupt-Kostentreiber. Jeder
+> Prozentpunkt Conversion ist mehr wert als jede Einsparung am Bild.**
+>
+> Bei 5 % zahlt jede Käuferin **rund 22 $** an fal-Kosten für 19 Besucherinnen mit, die nichts
+> kaufen — **fast das Zehnfache** der 2,45 $, die ihr eigenes großes Buch an Herstellkosten
+> verursacht. Ein Sprung von 5 % auf 10 % spart **12 $ je Käuferin**. Zum Vergleich: die
+> Halbierung der Figurenkosten am 24.09. — ein echter, gebauter Fortschritt — spart **0,83 $**.
+>
+> **Konsequenz für die Reihenfolge der Arbeit:** Alles, was Besucherinnen zu Käuferinnen macht
+> (Vertrauensmoment, erster Eindruck, der Weg vom Bild zum Kauf), steht vor allem, was Aufrufe
+> billiger macht. Der Nutzer hat das am 24.09.2026 ausdrücklich so festgehalten.
+
+Das ist auch der Grund, warum B2 und B3 unten nicht kosmetisch sind.
 
 **Was die Technik anbieten kann** (nichts davon entschieden):
 
@@ -2411,8 +2505,21 @@ und nicht nur den Wahnsinnsfall, ist „doppelt" zu großzügig. Zum Vergleich:
 | 1,2 × Szenen + 4 Korrekturen | 3,35 $ |
 | Normalfall ohne jede Korrektur | 2,45 $ |
 
-Das ist eine Produktentscheidung (wie großzügig soll sich das Produkt anfühlen), keine technische —
-ich lege nur die Zahlen daneben. **Was die Technik dazu braucht:** einen Zähler je Produkt statt je
+**ENTSCHIEDEN (Nutzer, 24.09.2026): 1,5 × Erzeugungen plus 6 Korrekturen, Obergrenze rund
+3,92 $ für ein großes Buch.** Nicht das Doppelte.
+
+> „Mein Testlauf enthielt mehrere gescheiterte Stift-Korrekturen, die nach C1 nicht mehr anfallen
+> sollten." (Nutzer)
+
+Das ist die tragende Begründung und sie gehört festgehalten: Die 5,42 $ des Testlaufs sind **kein
+Maß für normalen Verbrauch**, sondern enthalten Korrekturen, die ihr Ziel verfehlt haben und
+deshalb wiederholt werden mussten. Ein Budget an dieser Zahl auszurichten hieße, den Fehler
+einzupreisen statt ihn zu beheben. **Damit hängt das Budget an C1:** Wird die
+Ausschnitt-Korrektur gebaut und trifft sie, sind 6 Korrekturen reichlich. Fällt C1 durch, muss das
+Kontingent noch einmal angesehen werden — dann ist die Fehlerrate wieder Teil der Rechnung.
+
+Das Übrige daran ist eine Produktentscheidung (wie großzügig soll sich das Produkt anfühlen), keine
+technische — ich lege nur die Zahlen daneben. **Was die Technik dazu braucht:** einen Zähler je Produkt statt je
 Tag. Der Tagesdeckel (`kosten-deckel.js`) zählt heute **global** und ist ausdrücklich eine
 Notbremse, keine Buchhaltung. Ein Produktbudget ist das Gegenteil: es muss je Kundin stimmen,
 dauerhaft gespeichert sein und nach einem Absturz noch stimmen. Das ist ein eigener Bauauftrag,
@@ -2447,6 +2554,9 @@ Daraus folgt für den naheliegenden Plan „Kandidaten in 2K, nur den gekauften 
 steht nur der 4K-Fall. Das ist mit **einem einzigen Aufruf in 1K und einem Blick ins Dashboard**
 (Einsatz: 0,15 $) zu klären — wenn das Ergebnis „billiger" lautet, ändert sich die Rechnung oben
 vollständig. Bis dahin gilt: 4K kostet nicht extra.
+
+**ERLEDIGT (Nutzer, 24.09.2026):** Punkt angenommen, 4K bleibt. Der 1K-Preisversuch läuft **bei
+Gelegenheit mit**, nicht als eigener Test.
 
 **Wo 4K trotzdem etwas kostet, nur eben nicht bei fal:** Datenmenge. Jedes 4K-JPEG liegt bei 2–4 MB
 (5504 × 3072). Zwei Kandidaten je Szene, fünf Szenen = bis zu 40 MB, die ein Handy lädt. Und sie
