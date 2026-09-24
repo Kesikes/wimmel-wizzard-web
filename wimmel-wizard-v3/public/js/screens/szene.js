@@ -221,10 +221,16 @@ Screens.szene.onNext = ({ nextBtn, weiterBtn, defaultGoNext }) => {
       return;
     }
     if (themeErrorP) themeErrorP.style.display = "none";
-    defaultGoNext();
+    // GEAENDERT (24.09.2026, Nutzer: "Nach der Themenwahl kommt 'Bild ansehen / von vorne zaubern'.
+    // Der Schritt ist zu viel"). Ursache: defaultGoNext() navigiert nur weiter, OHNE den
+    // Zauber-Auftrag zu setzen -- der Zaubern-Screen zeigte deshalb den Ruhe-Zustand statt
+    // loszulegen. goZaubernFresh() setzt den Auftrag und navigiert. Die Regel bleibt unangetastet:
+    // Der Auftrag lebt nur im Speicher dieser Seite, ein Neuladen kann ihn nicht mitbringen -- ein
+    // neues Bild entsteht also weiterhin NUR auf Knopfdruck.
+    goZaubernFresh();
     return;
   }
-  if (s.sceneWay !== 2) { defaultGoNext(); return; }
+  if (s.sceneWay !== 2) { goZaubernFresh(); return; }
   const errorP = document.getElementById("scene-chat-error");
   const hasUserReply = (s.sceneChatMessages || []).some((m) => m.role === "user");
   if (!hasUserReply) {
@@ -325,6 +331,29 @@ const MAX_RECORD_SECONDS = 5 * 60; // Sicherheitsgrenze, siehe api/transcribe-pr
 let recState = { phase: "idle", seconds: 0, error: "", mediaRecorder: null, chunks: [], stream: null, timerId: null, mimeType: "" };
 let recNotify = null;
 
+// NEU (24.09.2026, Nutzer-Befund: "Das Mikrofon schaltet sich nicht ab, auch nicht nach dem
+// Verlassen des Reiters"). resetRecState() lief bisher nur, wenn eine Aufnahme regulaer endete.
+// Wer waehrend der Aufnahme den Bildschirm wechselte, die Seite verliess oder den Tab schloss,
+// liess den MediaStream offen -- das Mikrofon blieb aktiv, samt Aufnahme-Punkt im Browser. Das ist
+// nicht nur unsauber, es ist ein Vertrauensbruch: Die Karte verspricht, dass nur aufgenommen wird,
+// solange man es will.
+// Drei Netze, absichtlich mehrere: ein Bildschirmwechsel innerhalb der App (Router), das Verlassen
+// der Seite (pagehide, feuert auch beim Zurueckwischen auf iOS) und das Wegwischen in den
+// Hintergrund reichen jeweils allein aus, um alles zu stoppen.
+function mikroSicherAus(grund) {
+  if (recState.phase === "idle") return;
+  try { console.info("[Mikro] Aufnahme beendet: " + grund); } catch (e) { /* egal */ }
+  resetRecState();
+  if (recNotify) recNotify();
+}
+if (typeof window !== "undefined") {
+  window.addEventListener("pagehide", () => mikroSicherAus("Seite verlassen"));
+  // BEWUSST NICHT bei visibilitychange: Wer eine Gute-Nacht-Geschichte aufnimmt, wechselt
+  // zwischendurch schon mal die App oder legt das Handy hin. Eine Aufnahme dort abzuschneiden waere
+  // schlimmer als der Fehler, den wir beheben. Seite verlassen und Bildschirmwechsel reichen.
+  if (window.Router && Router.onChange) Router.onChange((screen) => { if (screen !== "szene") mikroSicherAus("Bildschirm gewechselt"); });
+}
+
 function resetRecState() {
   if (recState.timerId) clearInterval(recState.timerId);
   if (recState.stream) recState.stream.getTracks().forEach((t) => t.stop());
@@ -413,7 +442,12 @@ async function handleRecordingStopped(chunks, mimeType) {
     // vor der festen THEME_META-Zuordnung bekommt).
     AppState.update({ sceneUserSituations: [{ en, de: transcriptDe }], sceneChatTheme: null });
     resetRecState();
-    goZaubernFresh();
+    // GEAENDERT (24.09.2026, Nutzer: "Nach der Spracheingabe faengt er selbstaendig an zu zaubern.
+    // Er soll erst auf Knopfdruck zaubern"). Vorher stand hier goZaubernFresh() -- die Aufnahme
+    // loeste also ein bezahltes Bild aus, ohne dass jemand darauf gedrueckt hat. Das verstoesst
+    // gegen die eigene Regel "ein neues Bild startet NUR auf Knopfdruck" (siehe
+    // zauberStartAuftrag oben). Jetzt bleibt der Text stehen, und die Kundin drueckt selbst.
+    if (recNotify) recNotify();
   } catch (e) {
     recState = { phase: "error", seconds: 0, error: (e && e.message) ? e.message : String(e), mediaRecorder: null, chunks: [], stream: null, timerId: null, mimeType: "" };
     if (recNotify) recNotify();
@@ -1358,59 +1392,12 @@ Screens.zaubern = {
     // entsprechend klarstellen"). Vorher: "du kannst auch was anderes machen" war mehrdeutig (koennte
     // als "App/Browser schliessen ist ok" gelesen werden) -- jetzt explizit "Tab wechseln ja,
     // Browser zu nein".
-    const stayCard = h("div", { style: { marginTop: "24px", border: "4px solid var(--paper)", background: "var(--red)", padding: "16px", transform: "rotate(.8deg)" } });
-    stayCard.appendChild(h("p", { class: "h-black", style: { fontSize: "15px", lineHeight: "1.05", letterSpacing: "-.02em" } }, "Willst du hierbleiben?"));
-    stayCard.appendChild(h("p", { class: "caveat", style: { margin: "7px 0 12px", fontSize: "20px", lineHeight: "1.12" } }, "du kannst gern zu einem anderen Tab oder einer anderen Seite wechseln – ich brauch dich hier nicht. nur den Browser bitte nicht schließen, sonst brech ich mittendrin ab. oder ich erzähl dir Witze."));
-
-    // NEU (Punkt D22): identischer Phase-1/Pilot-Hinweis wie auf der Landingpage (index.html,
-    // Ehrlichkeitsblock, Punkt A4) -- an EINER Stelle formuliert, an zwei Stellen eingesetzt.
-    stayCard.appendChild(h("p", { style: { margin: "0 0 12px", fontSize: "12px", lineHeight: "1.5", color: "var(--paper-a90)" } }, "Jeder fängt erst mal klein an. Wenn wir merken, dass euch unser Produkt gefällt, verbessern wir es kontinuierlich und werden bald auch größere, wimmligere Bilder anbieten können."));
-
-    // GEAENDERT (kuratierte Witzeliste, siehe JOKE_LIBRARY/pickJoke() oben): waehlt passend zum
-    // gerade gewaehlten Szenen-Thema (s.sceneTheme -> locId), faellt ohne Thema auf den
-    // generischen Pool zurueck. "usedJokes" kommt jetzt aus dem PERSISTENTEN AppState.data.shownJokes
-    // (Sammel-Runde 09.09.2026, Ergaenzung zu Punkt 21) statt bei jedem Seitenaufruf wieder leer
-    // anzufangen -- als Set gehalten fuer schnelle has()/delete()-Zugriffe in pickJoke(), nach jedem
-    // Zug zurueck in ein Array geschrieben und ueber AppState.update() gespeichert.
-    const usedJokes = new Set(s.shownJokes || []);
-    function saveShownJokes() { AppState.update({ shownJokes: Array.from(usedJokes) }); }
-    let currentJoke = "";
-    const jokeArea = h("div", {});
-    function renderJokeArea() {
-      jokeArea.innerHTML = "";
-      if (!s.jokesOn) {
-        // GEAENDERT (Sammel-Runde 11.09.2026, Punkt 10: "'Ich geh kurz weg'-Hinweis ebenfalls
-        // entfernen -- nur das 'Witz'-Feature bleibt"). Vorher stand hier zusaetzlich ein zweiter
-        // Button, der einfach zu "ergebnis" navigierte, OBWOHL die Generierung meist noch gar nicht
-        // fertig war (Screens.ergebnis.render() zeigte in dem Fall extra einen "noch kein Bild"-
-        // Wartehinweis, siehe Kommentar dort) -- verwirrend statt hilfreich. Jetzt nur noch der
-        // eine, tatsaechlich funktionierende Button.
-        const row = h("div", { style: { display: "flex", gap: "9px" } });
-        row.appendChild(h("button", { type: "button", class: "h-black", style: { flex: "1", minHeight: "48px", background: "var(--yellow)", border: "3px solid var(--ink)", fontSize: "13px", color: "var(--ink)" }, onClick: () => { AppState.update({ jokesOn: true }); renderJokeArea(); } }, "Witz, bitte"));
-        jokeArea.appendChild(row);
-      } else {
-        if (!currentJoke) {
-          const theme = Pipeline.THEME_META[s.sceneTheme];
-          currentJoke = pickJoke(theme ? theme.locId : "generic", usedJokes);
-          saveShownJokes();
-        }
-        const box = h("div", { style: { border: "3px solid var(--ink)", background: "var(--paper)", color: "var(--ink)", padding: "14px" } });
-        box.appendChild(h("p", { style: { fontSize: "15px", lineHeight: "1.45", fontWeight: "600" } }, currentJoke));
-        box.appendChild(h("button", {
-          type: "button", class: "h-black", style: { marginTop: "12px", minHeight: "44px", width: "100%", background: "var(--ink)", color: "var(--paper)", border: "3px solid var(--ink)", fontSize: "12px" },
-          onClick: () => {
-            const theme = Pipeline.THEME_META[s.sceneTheme];
-            currentJoke = pickJoke(theme ? theme.locId : "generic", usedJokes);
-            saveShownJokes();
-            renderJokeArea();
-          }
-        }, "Noch einen"));
-        jokeArea.appendChild(box);
-      }
-    }
-    renderJokeArea();
-    stayCard.appendChild(jokeArea);
-    wrap.appendChild(stayCard);
+// ENTFERNT (24.09.2026, Nutzer nach dem Kundendurchlauf: "Der gelbe Kasten 'Fenster nicht
+    // schliessen' auf dem Zaubern-Screen: weg."). Der Kasten stammte aus der Zeit, als eine Szene
+    // ueber EINE lange offene Verbindung lief und ein geschlossener Browser sie wirklich abgebrochen
+    // haette. Seit der Warteschlangen-Umstellung laeuft der Job auf dem Server weiter und wird nach
+    // einem Neuladen wieder aufgegriffen (pendingSceneJob, resumeSceneJob()) -- die Warnung stimmte
+    // also nicht mehr und machte nur Druck.
 
     root.appendChild(wrap);
   }
@@ -1835,7 +1822,10 @@ function zeichneStriche(ctx, w, h, liste) {
     const farbe = s.art === "hier" ? STIFT_FARBE_HIER : STIFT_FARBE;
     ctx.strokeStyle = farbe;
     ctx.fillStyle = farbe;
-    const lw = Math.max(1, s.breite * w);
+    // Sicherheitsnetz zum Bugfix vom 24.09.2026: Ein Strich kann nie breiter als ein Zwanzigstel
+    // des Bildes werden. Selbst ein kaputter gespeicherter Wert kann damit nicht mehr das ganze
+    // Bild einfaerben -- er faellt nur als zu dicker Strich auf, und das ist behebbar.
+    const lw = Math.min(Math.max(1, s.breite * w), w / 20);
     if (s.punkte.length === 1) {
       ctx.beginPath();
       ctx.arc(s.punkte[0].x * w, s.punkte[0].y * h, lw / 2, 0, Math.PI * 2);
@@ -1900,8 +1890,17 @@ function setupFreehand(canvas, img, zoomEbene, key) {
   }
   function aktiv() { return !canvas.classList.contains("hidden"); }
 
+  // BUGFIX (24.09.2026, Nutzer-Befund: "'Weg damit' faerbt beim Anklicken das ganze Bild rot").
+  // Ursache: breite ist ein ANTEIL der Bildbreite (STIFT_BREITE_PX geteilt durch die Canvas-Breite).
+  // War die Canvas-Breite im Moment des Aufsetzens 0 -- das passiert, solange das Element noch nicht
+  // ausgemessen ist oder gerade erst eingeblendet wurde --, machte der Fallback "|| 1" daraus die
+  // Breite 6 ANTEILE statt 6 Pixel. Beim naechsten Zeichnen wurde daraus eine Linie von der
+  // sechsfachen Bildbreite: das ganze Bild rot. Ein Rechenfehler, der wie ein Fehlklick aussah.
+  // Jetzt: ohne gemessene Breite entsteht GAR KEIN Strich. Kein Ersatzwert, der nur so aussieht,
+  // als waere er gemessen.
   function strichBeginnen(clientX, clientY) {
-    const w = canvas.offsetWidth || 1;
+    const w = canvas.offsetWidth;
+    if (!w) return;
     vorlaeufig = { breite: STIFT_BREITE_PX / zoom.z / w, art: penStriche.art || "weg", punkte: [bildPunkt(clientX, clientY)] };
     neuZeichnen();
   }

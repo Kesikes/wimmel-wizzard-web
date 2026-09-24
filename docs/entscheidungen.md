@@ -1456,6 +1456,148 @@ Mini-Heft (eventuell eigenes Profil mit weniger, größeren Figuren), Kalkulatio
 
 ---
 
+## 15b. Kundendurchlauf 24.09.2026 — Befunde und was daraus wurde
+
+Erster vollständiger Durchlauf des Nutzers als Kundin (Sitzung `9c73ec34-…`): 3 Figuren (2 aus
+Merkmalen, 1 aus Foto), 2 Änderungen an einer Figur, 3 Szenen (eine zweimal gezaubert), mehrere
+Stift-Korrekturen. **fal-Kosten 5,42 $.**
+
+### GEKLÄRT: Woher die 17 `nano-banana-2`-Edits kommen
+
+Die Rechnung geht **genau auf** — es ist kein Fehler, sondern eine Folge, die niemand
+zusammengezählt hatte:
+
+| Anlass | Edits | Rechnung |
+|---|---|---|
+| 3 Figuren × 3 Zusatz-Ansichten (Seite, Rücken, 3/4) | 9 | `generateExtraViewsAndFinish()` |
+| 2 Änderungen an einer Figur: je 1 Edit **plus 3 neue Zusatz-Ansichten** | 8 | `applyCharEdit()` ruft danach wieder `generateExtraViewsAndFinish()` |
+| **Summe** | **17** | × 0,08 $ = **1,36 $** |
+
+**Der teure Teil ist nicht die Änderung, sondern das, was ihr folgt.** Eine „Detail ändern"-Änderung
+kostet nicht 0,08 $, sondern **0,32 $** — weil danach alle drei Zusatz-Ansichten neu entstehen.
+Bei 5,42 $ Gesamtkosten sind die Zusatz-Ansichten mit rund **1,36 $ ein Viertel des Durchlaufs**.
+
+**Zu entscheiden (Produktfrage, nicht gebaut):** Werden die Zusatz-Ansichten überhaupt gebraucht?
+Sie werden heute erzeugt, an der Person gespeichert und im Charakterblatt angezeigt — in den
+Szenen-Prompt geht **nur das Frontbild**. Drei Möglichkeiten: ganz weglassen (spart 0,24 $ je Figur
+und 0,24 $ je Änderung), nur auf Wunsch erzeugen, oder nach einer Änderung **nicht** neu erzeugen
+(die alten passen nach „T-Shirt blau" meist noch). Die dritte wäre die billigste Verbesserung
+überhaupt: eine Zeile, spart 0,24 $ je Änderung.
+
+### BEHOBEN 24.09.2026: „Weg damit" färbte das ganze Bild rot
+
+Ursache gefunden und sie ist ein Rechenfehler, kein Bedienfehler: `breite` ist ein **Anteil** der
+Bildbreite (`STIFT_BREITE_PX / Canvas-Breite`). War die Canvas-Breite im Moment des Aufsetzens 0 —
+das passiert, solange das Element noch nicht ausgemessen oder gerade erst eingeblendet ist —, machte
+der Fallback `|| 1` daraus **6 Anteile statt 6 Pixel**. Beim nächsten Zeichnen wurde daraus eine
+Linie von sechsfacher Bildbreite: das ganze Bild rot.
+
+Ein Ersatzwert, der so aussieht wie ein gemessener — dasselbe Muster wie `violations: 99` und
+`Number("")`. Jetzt entsteht **gar kein Strich**, wenn keine Breite gemessen werden kann, plus ein
+zweites Netz beim Zeichnen: Ein Strich kann nie breiter als ein Zwanzigstel des Bildes werden.
+
+### BEHOBEN 24.09.2026: drei Ablaufpunkte
+
+| Befund | Ursache | Behoben |
+|---|---|---|
+| Gelber Kasten „Fenster nicht schließen" auf dem Zaubern-Screen | stammt aus der Zeit vor der Warteschlange, als eine Szene an EINER offenen Verbindung hing. Seitdem läuft der Job serverseitig weiter und wird nach einem Neuladen wieder aufgegriffen — die Warnung stimmte nicht mehr und machte nur Druck | Kasten entfernt |
+| Nach der Themenwahl kommt „Bild ansehen / von vorne zaubern" | `onNext` rief für Weg 0 und 1 `defaultGoNext()` — das navigiert, setzt aber den Zauber-Auftrag **nicht**, also zeigte der Zaubern-Screen den Ruhe-Zustand | `goZaubernFresh()` für alle drei Wege. Die Regel bleibt: Der Auftrag lebt nur im Speicher der Seite, **ein Neuladen kann ihn nicht mitbringen** |
+| Nach der Spracheingabe zaubert er selbständig los | `handleRecordingStopped()` rief `goZaubernFresh()` — die Aufnahme löste also ein **bezahltes** Bild aus, ohne Knopfdruck. Verstieß gegen die eigene Regel | Aufruf raus; der Text bleibt stehen, die Kundin drückt selbst |
+| Mikrofon schaltet sich nicht ab | `resetRecState()` lief nur, wenn eine Aufnahme regulär endete. Wer den Bildschirm wechselte oder die Seite verließ, ließ den MediaStream offen | Stoppt jetzt bei Bildschirmwechsel (`Router.onChange`) und beim Verlassen der Seite (`pagehide`). **Bewusst nicht** bei `visibilitychange`: Wer eine Gute-Nacht-Geschichte aufnimmt, wechselt zwischendurch die App — eine Aufnahme dort abzuschneiden wäre schlimmer als der Fehler |
+
+### OFFEN: die drei Stift-Befunde, die am Modell hängen (nicht gebaut)
+
+**Der Kringel blieb nach der ersten Korrektur im Bild, nach der zweiten nicht.** Seit dem 22.09.
+geht die Markierung nur als Zeigerkopie mit, das bearbeitete Bild ist unmarkiert — trotzdem malt
+das Modell sie manchmal ab. Verhindern lässt sich das nicht, **feststellen** schon:
+ein Prüfaufruf nach der Korrektur („ist eine rote Freihandmarkierung im Bild?", 0,01 $) und bei
+Treffer **einmal** automatisch wiederholen. Bounded, billig, und die Kundin sieht den Fehler gar
+nicht erst.
+
+**Beim Austauschen wurde der falsche Zwilling ersetzt.** Bei zwei identischen Helden ist die
+Markierung das **einzige** Unterscheidungsmerkmal, und das Modell geht offenbar nach der
+Beschreibung statt nach dem Ort. Vorschlag: Die Lage des Kringels im Code in Worte fassen — der
+Schwerpunkt der Striche ist bekannt, daraus wird „the one in the lower left quarter of the image".
+Deterministisch, kostet nichts, und gibt dem Modell ein zweites, unabhängiges Merkmal.
+
+**„Weg damit" wirkte zweimal gar nicht, beim dritten Mal verschwand zusätzlich Unmarkiertes.**
+Zwei verschiedene Fehler in einem: Erst tut es nichts, dann zu viel. Beides deutet darauf, dass die
+Markierung als Ortsangabe zu schwach ankommt. Derselbe Vorschlag wie oben würde beide betreffen —
+und der Prüfaufruf könnte auch „hat sich überhaupt etwas geändert?" beantworten, statt die Kundin
+raten zu lassen.
+
+Alle drei hängen an derselben Frage und sollten **zusammen** angegangen werden, sonst misst man
+dreimal dasselbe.
+
+### OFFEN: Zurück-Knopf nach einer Korrektur (Einschätzung, nicht gebaut)
+
+Machbar und billig. Am Kandidaten steht `url` (das Original) und `src` (der aktuelle Stand) — es
+fehlt nur die Kette dazwischen. Eine Liste `verlauf: [url, url, …]` je Kandidat kostet **rund 100
+Byte je Schritt**; bei 5 Schritten × 2 Kandidaten × 5 Bildern sind das 5 KB gegenüber der Grenze von
+1.000.000 Zeichen. **Speicher ist nicht das Problem.**
+
+Das Problem ist die **Haltbarkeit der Adressen**: `MEDIA_TTL_SECONDS = 90 Tage` — so lange bewahrt
+fal die Dateien auf. Innerhalb einer Sitzung und für Wochen danach ist ein Zurück also sicher; ein
+Buch, das ein halbes Jahr liegt, hat tote Adressen. Das gilt **heute schon für jedes gespeicherte
+Bild** und ist kein neues Problem des Zurück-Knopfes, gehört aber vor den Launch geklärt (eigene
+Ablage der gekauften Bilder).
+
+Vorschlag: **5 Schritte je Kandidat**, ältere fallen hinten raus. Ein Knopf „↶ Schritt zurück"
+neben dem Stift, der nur erscheint, wenn es etwas zurückzunehmen gibt.
+
+### OFFEN: Wann wird die Bildwahl verbindlich? (Frage des Nutzers, Vorschlag)
+
+**Wie es heute ist:** Die Wahl steht am Bild als `gewaehlt` (Index ins Angebot), mit `gewaehltAm`
+und einem `wahlProtokoll`, das jede Umschaltung festhält. Gesperrt wird sie durch `gekauftAm` —
+**und dieses Feld setzt heute niemand.** Es gibt keinen Kauf, also verfällt nie etwas: Die Kundin
+kann bis in alle Ewigkeit umschalten, und „Bild ist fertig" führt nur zum nächsten Bildschirm,
+ohne irgendetwas zu verbindlich zu machen. Das andere Bild verfällt **gar nicht** — es bleibt im
+Angebot stehen.
+
+**Vorschlag:** „Bild ist fertig" setzt `gewaehltAm` neu und merkt sich `fertigAm`; das Angebot
+bleibt sichtbar, aber eingeklappt („andere Variante zeigen"). Verbindlich — also `gekauftAm` — wird
+es erst mit dem Kauf, und dann verschwindet der Umschalter. Solange es keinen Kauf gibt, ist alles
+umkehrbar, und das sollte die App auch sagen, statt Verbindlichkeit zu suggerieren, die es nicht
+gibt.
+
+### OFFEN: „Und jetzt?" — fehlende Bilder ausgrauen (nicht gebaut)
+
+Produkte, für die noch Bilder fehlen, sollen ausgegraut erscheinen, mit einem Störer „weitere
+Bilder"; ein Klick führt zurück zur Szene. Sauber umzusetzen, sobald klar ist, welche Stufe wie
+viele Bilder braucht — das steht bereits fest (Poster 1, Buch klein 3, Buch groß 5, siehe
+`konzept-konto-layout-druck.md`). Vorgemerkt.
+
+### OFFEN: Kam vom Gespräch überhaupt etwas im Bild an? (nicht beantwortbar ohne die Sitzung)
+
+Befund des Nutzers: Kühe füttern, Kaiserschmarrn und Spielplatz tauchten im Bild nicht auf.
+
+**Der Weg ist gebaut und sieht richtig aus:** `finalizeChatScene()` nimmt `situations_en` aus dem
+`add_scene`-Werkzeug und legt sie als `sceneUserSituations` ab; `topUpSituations()` füllt auf 20
+auf und **schneidet bei mehr als 20 ab**. Die eigenen Situationen stehen dabei vorn, werden also
+nicht vom Abschneiden getroffen.
+
+Es gibt damit **drei** Stellen, an denen die Details verloren gehen können, und welche es war, steht
+in der gespeicherten Sitzung:
+
+1. Das Gespräch hat sie gar nicht erst ins Werkzeug übernommen (`situations_en` enthält sie nicht) —
+   dann ist der System-Prompt des Chats schuld.
+2. Sie stehen in `sceneUserSituations`, aber nicht im Prompt — dann liegt es am Zusammenbau.
+3. Sie stehen im Prompt, aber nicht im Bild — dann hat das Bildmodell 20 Vignetten bekommen und
+   einige ignoriert.
+
+**Was ich brauche:** die Sitzung `9c73ec34-…` per TROCKEN. Dann lese ich `sceneUserSituations` und
+den gespeicherten `instruction`-Text des Bildes und sage, welche der drei es war. Ohne die Daten
+wäre jede Antwort geraten.
+
+### BESTÄTIGT: WizzelWim ist NICHT gebaut
+
+Richtig. Er steht als Baustein 5 im Maßstabs-Konzept (`docs/konzept-massstab-2026-09-23.md`) und
+ist dort Schritt 3 der empfohlenen Reihenfolge — nach dem Maßstabstest. Im Code gibt es ihn
+nirgends: kein Figurenblatt, kein Satz im Prompt, kein Eintrag in `heroes_found`. Er hat auch noch
+kein festes Design; das ist die eine gestalterische Entscheidung, die vorher fehlt.
+
+---
+
 ## 16. Vor dem Launch
 
 ### VOR DEM LAUNCH, PUNKT 1 (Nutzer, 23.09.2026): die offene Kostenflanke
