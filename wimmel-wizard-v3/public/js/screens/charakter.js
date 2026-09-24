@@ -439,11 +439,17 @@ async function generateCharacterImage(person, buttons) {
 // Die alten bleiben stehen (kein Loeschen), und wenn sie fehlen, sagt der Screen das wie bisher.
 async function generateExtraViewsAndFinish(person, frontResult, sceneDescription, opts) {
   const ohneZusatz = !!(opts && opts.ohneZusatzAnsichten);
-  const [sideR, backR, threeQR] = ohneZusatz
-    ? [{ status: "skipped" }, { status: "skipped" }, { status: "skipped" }]
+  // GEAENDERT (24.09.2026, Produktentscheidung des Nutzers: "von drei auf EINE reduzieren, die
+  // 3/4-Ansicht. Der Vertrauensmoment bleibt, Ruecken und Seite bringen nichts."): Nur noch die
+  // 3/4-Ansicht wird erzeugt. Sie zeigt am meisten -- Gesicht UND Koerperform --, waehrend eine
+  // Figur im Wimmelbild fast immer von vorn zu sehen ist. Spart 0,16 $ je Figur (zwei Edits zu
+  // 0,08 $), bei fuenf Figuren 0,80 $.
+  // Die Felder imageUrlSide/imageUrlBack bleiben im Datenmodell: Figuren von vor dieser Aenderung
+  // haben sie gefuellt, und das Charakterblatt zeigt weiter, was da ist. Sie werden nur nicht mehr
+  // NEU erzeugt. Ein Loeschen waere Datenverlust ohne Gegenwert.
+  const [threeQR] = ohneZusatz
+    ? [{ status: "skipped" }]
     : await Promise.allSettled([
-      Pipeline.generateImageWithRetry(Pipeline.sideViewEditInstruction(), "char", { editImageUrl: frontResult.url }),
-      Pipeline.generateImageWithRetry(Pipeline.backViewEditInstruction(), "char", { editImageUrl: frontResult.url }),
       Pipeline.generateImageWithRetry(Pipeline.threeQuarterEditInstruction(), "char", { editImageUrl: frontResult.url }),
     ]);
   const vorhanden = (AppState.data.people || []).find((x) => x.id === person.id) || person;
@@ -457,8 +463,10 @@ async function generateExtraViewsAndFinish(person, frontResult, sceneDescription
     imageUrlBack: vorhanden.imageUrlBack || null,
     imageUrlThreeQuarter: vorhanden.imageUrlThreeQuarter || null,
   } : {
-    imageUrlSide: sideR.status === "fulfilled" ? sideR.value.url : null,
-    imageUrlBack: backR.status === "fulfilled" ? backR.value.url : null,
+    // Seite und Ruecken werden seit 24.09.2026 nicht mehr erzeugt (siehe oben). Vorhandene bleiben
+    // erhalten, damit aeltere Figuren nichts verlieren.
+    imageUrlSide: vorhanden.imageUrlSide || null,
+    imageUrlBack: vorhanden.imageUrlBack || null,
     imageUrlThreeQuarter: threeQR.status === "fulfilled" ? threeQR.value.url : null,
   }));
   // NEU (21.09.2026, Grundstand): die Heldenbeschreibung aus dem Figurenblatt entsteht jetzt schon
@@ -976,11 +984,14 @@ Screens.charakterblatt = {
         });
         wrap.appendChild(viewsRow);
       }
-      if (extraViews.some((v) => !v.url)) {
+      // GEAENDERT (24.09.2026): Seit nur noch die 3/4-Ansicht erzeugt wird, waere "eine Ansicht
+      // fehlt" bei JEDER neuen Figur wahr -- der Hinweis haette dauerhaft einen Fehler behauptet,
+      // wo keiner ist. Gemeldet wird deshalb nur noch, wenn die 3/4-Ansicht selbst fehlt. Seite und
+      // Ruecken werden nicht mehr erzeugt; wo sie noch da sind (Figuren von vor dieser Aenderung),
+      // werden sie weiter angezeigt, aber ihr Fehlen ist kein Fehler mehr.
+      if (!person.imageUrlThreeQuarter) {
         wrap.appendChild(h("p", { style: { margin: "6px 2px 0", fontSize: "11px", lineHeight: "1.4", color: "rgba(26,26,24,.6)" } },
-          availableViews.length
-            ? "eine oder mehrere Zusatz-Ansichten sind diesmal nicht geglückt — mit «Detail ändern» nochmal versuchen."
-            : "die Zusatz-Ansichten (Seite/Rücken/3-4) sind diesmal nicht geglückt — mit «Detail ändern» nochmal versuchen."));
+          "die zweite Ansicht ist diesmal nicht geglückt — mit «Detail ändern» nochmal versuchen."));
       }
     }
 

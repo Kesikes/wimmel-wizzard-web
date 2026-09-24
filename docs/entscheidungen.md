@@ -1715,6 +1715,101 @@ Es ist **kein** neues Problem des Zurück-Knopfes — es gilt heute für jedes g
 ist nur nie aufgeschrieben worden. Dazu gehört ohnehin der bereits vermerkte Punkt, Bilder nicht
 mehr direkt von `fal.media` auszuliefern (Wasserzeichen, `konzept-konto-layout-druck.md`).
 
+### GEKLÄRT 24.09.2026 (Punkt 13): Warum die Details aus dem Sprachgespräch nicht im Bild waren
+
+**Antwort: Verdacht 1 — das Gespräch hat sie nicht ins Werkzeug übernommen. Und der Fehler blieb
+still.** Das ist ein neuer, sechster Fall des Ersatzwert-Musters.
+
+Was in der Sitzung `9c73ec34-…` steht:
+
+| Feld | Wert |
+|---|---|
+| `sceneWay` | 2 (Chat) |
+| `sceneChatMessages` | 9 — das Gespräch ist vollständig da, mit Kühen, Paragleitern, Spielplatz, Kaiserschmarrn und Skateboard |
+| `sceneChatTheme` | gesetzt: `label: "Berg"` |
+| **`sceneUserSituations`** | **leer (0 Einträge)** |
+| Bild 4 („Berg") | `instruction` enthält „mountain" und „cow" — **kein** Paragleiter, **kein** Spielplatz, **kein** Kaiserschmarrn, **kein** Skateboard |
+
+Beide Felder — `sceneChatTheme` und `sceneUserSituations` — werden in **derselben** Zuweisung
+geschrieben. Dass das eine gesetzt und das andere leer ist, heißt: Das `add_scene`-Werkzeug **wurde
+aufgerufen**, mit dem Ort „Berg", aber **ohne Situationen**. Das Schema verlangt `minItems: 15` —
+und im Code steht seit dem 15.09. der Kommentar, dass „Anthropic minItems im Tool-Schema nicht hart
+erzwingt". Genau das ist passiert.
+
+Der Code dazu:
+
+    const rawSituations = Array.isArray(input.situations_en) ? input.situations_en : [];
+    const situations = rawSituations.map((text) => ({ en: text, de: text }));
+
+Ein leeres Array als Ersatz für „das Modell hat nichts geliefert" — **und niemand prüft es.**
+`finalizeChatScene()` gibt `true` zurück (das Werkzeug kam ja), die Generierung läuft an, und
+`topUpSituations()` füllt von 0 auf 20 auf: **alle zwanzig Vignetten aus der Bibliothek, keine
+einzige aus der Geschichte.** Die App hat kein Wort gesagt.
+
+**Das ist der sechste Fall des Musters** — und er korrigiert meine eigene Regel. Ich hatte
+geschrieben, `|| []` sei unverdächtig, weil Leere auffällt. Hier fiel sie nicht auf, weil **niemand
+hingesehen hat**. Die Regel braucht das vierte Merkmal (unten eingearbeitet).
+
+**Zweiter Befund, unabhängig davon und noch nie bemerkt:** `buildThemeFromLocation()` setzt
+`locId: "generic"` — **fest verdrahtet**, für jeden erzählten Ort. Die Gag-Bibliothek hat aber einen
+eigenen Topf `mountains` mit **30** Einträgen; benutzt wurde `generic` mit 24. Das Label war „Berg",
+und `THEME_META` ordnet „Berg" auf `mountains` zu — die Zuordnung existiert also, sie wird auf dem
+Chat-Weg nur nicht benutzt. **Jede** über den Chat erzählte Szene bekommt seit Einbau des Chat-Wegs
+generische Vignetten, auch wenn ein passender Topf da ist.
+
+**Vorschläge, nichts gebaut** (beides betrifft den Chat-Weg, den du gerade erst zum ersten Mal
+benutzt hast):
+
+1. **Leere Situationen dürfen nicht durchlaufen.** `finalizeChatScene()` gibt `false` zurück, wenn
+   `situations_en` fehlt oder leer ist — dann greift der schon vorhandene sichtbare Hinweis
+   („WizzelWim hat noch eine kurze Rückfrage"), statt ein bezahltes Bild ohne den Inhalt der
+   Kundin zu erzeugen. Eine Zeile. **Produktfrage dahinter:** Soll die App in diesem Fall
+   nachfragen oder selbst noch einen Gesprächszug machen („fasse jetzt zusammen")? Ich würde
+   nachfragen — ein zweiter automatischer Zug kostet wieder Geld und kann genauso scheitern.
+2. **`locId` aus dem Label ableiten.** `THEME_META` nach dem Label durchsuchen, bei Treffer dessen
+   `locId` nehmen, sonst wie bisher `generic`. Auch eine Zeile, und sie macht 30 statt 24 passende
+   Vignetten verfügbar.
+
+Was **nicht** die Ursache war: Der Zusammenbau lässt nichts fallen (die eigenen Situationen stehen
+vorn und werden vom Abschneiden bei 20 nicht getroffen), und das Bildmodell hat nichts ignoriert —
+es hat die Details nie bekommen.
+
+### DURCHGANG 24.09.2026: Suche nach Ersatzwerten, die wie Messwerte aussehen
+
+Gesucht nach den vier Mustern über `public/js/`, `public/js/screens/`, `api/` und `api/_lib/`.
+**Berichtet, nichts behoben** — wie vereinbart.
+
+**Treffer, nach Schwere sortiert:**
+
+| # | Stelle | Ersatzwert | Warum es zählt |
+|---|---|---|---|
+| 1 | `szene.js:1463` | `k.verifyVersuche \|\| 2` | Der Wert steht in einem **Satz**: „die Qualitätsprüfung ist **2**-mal gescheitert". Fehlt die Zahl, behauptet die App zwei Versuche. Eine erfundene Zahl in einer Aussage ist der schlimmste Fall. |
+| 2 | `claude-proxy.js:465` | `context.sceneIndex \|\| 1`, `sceneTarget \|\| 1` | Geht **in den System-Prompt** des Chats: „Dies ist Szene 1 von 1." Fehlt der Kontext, erzählt die App dem Modell etwas Falsches über das Buch — und das Modell richtet sein Gespräch danach. |
+| 3 | `pipeline.js:4144` | `maxDim \|\| 1024`, `quality \|\| 0.85` | Genau die Klasse des Strichbreiten-Fehlers: ein übergebenes `0` wird zum Vorgabewert. |
+| 4 | `pipeline.js:1176`, `2692` | `target = target \|\| 20` | Ein übergebenes `0` (= „keine Vignetten") wird zu 20. |
+| 5 | `pipeline.js:2063` | `(theme.regionMin \|\| 6) * 2` | Fehlendes `regionMin` wird 6 → die Zahl landet als Anforderung im Bildprompt. |
+| 6 | `richter.js:68/69/286` | `input_tokens \|\| 0` | Das Panel zeigt „[0/0 Token]" — sieht aus wie gemessen, heißt aber „nicht geliefert". |
+| 7 | `kosten-deckel.js:74` | `(CENT[art] \|\| 0)` | **Mein eigener Code, gestern gebaut.** Eine unbekannte Art bucht **0 Cent** — sie wäre kostenlos. Heute unerreichbar (`kostenArt()` fällt auf „szene" zurück), aber genau so sind die anderen fünf Fälle auch entstanden. |
+| 8 | `entscheidung.js:43` | `(t.minBilder \|\| 0)` | **Mein eigener Code, heute gebaut.** Eine Stufe ohne `minBilder` gilt als immer verfügbar. |
+| 9 | `szene.js` (Chat-Weg) | `Array.isArray(…) ? … : []` | Der Fall aus Punkt 13 oben: leeres Array statt „nichts geliefert", und niemand prüft es. |
+
+**Geprüft und unverdächtig** (damit die Liste nicht wieder abgesucht werden muss):
+
+- **Alle** `Number(...)` in der Wertung (`severityOf()`, `countViolations()`): direkt danach steht
+  `isFinite`, fehlende Felder führen zu `return`, nicht zu 0. Sauber gemacht.
+- `clampImageDim()` in `fal-proxy.js`: `Number.isFinite`-Prüfung, gibt `undefined` zurück.
+- `devicePixelRatio || 1`: 1 **ist** der richtige Vorgabewert laut Spezifikation, keine Erfindung.
+- `gewaehlt || 0`: Index 0 ist der erste Kandidat — die Vorgabe ist die Wahrheit.
+- `maxKandidaten || 3`: dokumentiert, betrifft nur alte Job-Datensätze.
+- `heroes_x = -1` für „fehlt": **vorbildlich** — die Skala geht 0–100, −1 kann keine Messung sein.
+- **Kein einziges** `parseInt`/`parseFloat` im ganzen Projekt.
+
+**Mein Vorschlag zur Reihenfolge:** 1 und 2 sind die einzigen, bei denen die erfundene Zahl
+**nach außen** geht — in einen Satz an die Kundin und in einen Prompt ans Modell. Die würde ich
+zuerst beheben. 3 bis 8 sind heute nicht erreichbar, aber sie sind die Saat für den siebten Fall;
+sie gehören in einem Zug behoben, solange die Liste noch frisch ist. 9 hängt an der Produktfrage
+oben.
+
 ### VOR DEM LAUNCH, PUNKT 4 — JETZT DRINGEND (Nutzer, 24.09.2026): Ersatzwerte, die wie Messwerte aussehen
 
 > „Das war mit dem `|| 1` bei der Strichbreite jetzt das **fünfte Mal**." (Nutzer)
@@ -1743,6 +1838,11 @@ Drei Merkmale, die alle fünf Fälle teilen:
    kam.
 3. **Es gibt kein zweites Feld**, das den Unterschied festhält. Kein `gemessen: false`, kein
    `grund`, kein `null`.
+4. **Niemand prüft weiter unten nach** (ergänzt am 24.09.2026 nach dem sechsten Fall). Das ist die
+   Bedingung, die ich zuerst unterschätzt hatte: Ich hatte `|| []` für unverdächtig erklärt, weil
+   Leere auffällt. Im Chat-Weg fiel sie nicht auf — ein leeres Situationen-Array lief bis in ein
+   bezahltes Bild, weil niemand hinsah. **Auch ein sichtbarer Ersatzwert ist gefährlich, solange
+   nichts ihn prüft.**
 
 **Danach lässt sich mechanisch suchen.** Vier Muster, die im Code zu prüfen sind:
 
