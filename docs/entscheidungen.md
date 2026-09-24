@@ -808,6 +808,21 @@ Die drei Zusatz-Ansichten machen **drei Viertel** der Kosten einer Figur aus —
 selbst. Ob sie im Produkt überhaupt gebraucht werden, ist nirgends entschieden; das gehört auf die
 Launch-Liste.
 
+**NACHGEZOGEN 24.09.2026** (Entscheidung des Nutzers: nur noch die 3/4-Ansicht, gebaut):
+
+| Posten | Anzahl | Preis | Summe |
+|---|---|---|---|
+| Figurenblatt (`flux-lora`, 0,786 MP) | 2 | 0,0275 $ | 0,055 $ |
+| Prüfung je Kandidat | 2 | 0,01 $ | 0,02 $ |
+| **3/4-Ansicht** (`nano-banana-2/edit`) | 1 | 0,08 $ | **0,08 $** |
+| Blattbeschreibung (`beschreibeFigurenblatt()`) | 1 | 0,01 $ | 0,01 $ |
+| **fal-Kosten je Figur, ab 24.09.2026** | | | **0,165 $, rund 0,17 $** |
+
+**Halbiert.** Fünf Figuren kosten jetzt **0,83 $** statt 1,65 $. Die 3/4-Ansicht ist mit knapp der
+Hälfte weiterhin der größte Einzelposten einer Figur — sie bleibt, weil sie den Vertrauensmoment
+trägt (Nutzerentscheidung), nicht weil sie im Bildprompt gebraucht würde: in den Szenen-Prompt geht
+nach wie vor **nur das Frontbild**.
+
 ### ÜBERHOLT (bis 19.09.2026): 0,30 $ je Bild
 
 Alle Kostenrechnungen vor diesem Datum waren beim Bildpreis doppelt zu hoch, auch die Tabelle im
@@ -1443,6 +1458,173 @@ Kurzfassung der Befunde aus dem Konzept:
   (8–12 $ plus Kuratierung).
 - **Fünf Entscheidungen** liegen bei Matthias, sie stehen am Ende des Konzepts.
 
+### EINSCHÄTZUNG 24.09.2026 (C1, Idee des Nutzers): Stift-Korrektur nur auf dem Ausschnitt
+
+> „Billigerer Aufruf, und das Modell kann gar nicht mehr an der falschen Stelle ändern (das ist mir
+> dreimal passiert)." (Nutzer)
+
+**Machbar: ja. Billiger: nein — und das ist der wichtigste Punkt dieser Einschätzung.**
+
+**Zum Preis:** `nano-banana-pro/edit` kostet **0,15 $ je Bild, unabhängig von der Größe**. Ein
+Ausschnitt von 600 × 600 Pixeln kostet genauso viel wie das ganze 4K-Bild. Billiger wird es nur
+durch ein **anderes Modell**: `nano-banana-2/edit` kostet 0,08 $ und macht heute schon die
+Detailänderungen an den Figurenblättern. Auf einem kleinen Ausschnitt ist die Anforderung geringer
+als auf einem vollen Wimmelbild — dort wäre banana-2 also einen Versuch wert. **Die Ersparnis
+hängt am Modellwechsel, nicht am Zuschnitt.**
+
+**Zur Qualität: das ist das starke Argument, und es trägt.** Heute bekommt das Modell das ganze
+Bild und einen Kringel; dass es dreimal an der falschen Stelle gearbeitet hat, ist genau der
+Fehler, den ein Ausschnitt **strukturell unmöglich** macht. Dieselbe Logik wie bei den zwei
+getrennten Aufrufen fürs Versetzen: Was das Modell nicht sieht, kann es nicht kaputt machen.
+
+**Der schwierige Teil ist nicht der Zuschnitt, sondern das Zurücksetzen.**
+
+| Schritt | Aufwand | Risiko |
+|---|---|---|
+| Ausschnitt bestimmen (Kringel-Rechteck + Rand) | klein, die Koordinaten liegen schon vor | — |
+| Ausschnitt schneiden | klein, `api/image-proxy.js` liefert schon Same-Origin-Pixel | — |
+| Aufruf mit dem Ausschnitt | klein | Modellwahl offen |
+| **Ergebnis zurück ins Vollbild setzen** | **der eigentliche Bauteil** | **hoch, siehe unten** |
+
+Drei Dinge am Zurücksetzen, die vorher geklärt sein müssen:
+
+1. **Auf dem Handy geht es nicht im Browser.** Das Szenenbild ist 5504 × 3072 = **16,9 Millionen
+   Pixel**. iOS Safari deckelt Canvas-Flächen bei rund 16,7 Millionen — das Vollbild liegt genau
+   darüber, und 67 MB Bildspeicher will man auf einem Telefon ohnehin nicht. **Das Zusammensetzen
+   muss auf den Server**, in eine eigene Funktion mit einer Bildbibliothek (`sharp`), die es im
+   Projekt noch nicht gibt (`package.json` kennt heute nur `pdf-lib`). Das ist der Hauptaufwand.
+2. **Die Kante.** Das Modell zeichnet den Ausschnitt neu, nicht nur die markierte Figur. Farbe,
+   Helligkeit und Linienstärke treffen den Nachbarn nicht exakt — es droht ein sichtbares Rechteck.
+   Gegenmittel: großzügiger Rand und weiches Überblenden der äußeren Pixel. Das ist Handwerk, kein
+   Forschungsproblem, aber es muss gesehen werden, bevor es ins Produkt geht.
+3. **Überlappende Figuren** (dein Punkt): Steht die zu entfernende Figur halb hinter einer anderen,
+   schneidet der Ausschnitt diese andere mitten durch. Das Modell ergänzt dann den fehlenden Teil
+   nach eigenem Gutdünken, und beim Zurücksetzen passt er nicht. **Faustregel: Der Ausschnitt muss
+   ganze Figuren enthalten, nicht halbe** — also lieber zu groß als zu knapp.
+
+**Der Pixelvergleich in der Maske: uneingeschränkt ja, und er ist mehr wert als er klingt.** Vorher
+und nachher im selben Ausschnitt Pixel für Pixel vergleichen (mittlere Abweichung); liegt sie unter
+einer Schwelle, hat sich nichts geändert. Das ist **kostenlos, sofort und sicher** — im Gegensatz
+zu `pruefeKorrektur()`, das heute ein Modell fragt, ob sich etwas geändert hat (0,01 $ und eine
+Meinung statt einer Messung). **Auf dem heutigen Vollbild-Weg funktioniert es nicht**, weil dort
+jedes Pixel neu gezeichnet wird und sich alles ändert. Es funktioniert **nur** auf dem
+Ausschnitt-Weg — ein zusätzliches Argument dafür.
+
+**Was ein Test kostet** (Testseite, kein Produktpfad, wie beim Zwei-Kringel-Versuch):
+
+| Posten | Menge | Kosten |
+|---|---|---|
+| Ausschnitte aus vorhandenen Bildern, `nano-banana-2` | 10 | 0,80 $ |
+| dieselben Ausschnitte, `nano-banana-pro` (Vergleich) | 10 | 1,50 $ |
+| **Summe Testaufrufe** | | **rund 2,30 $** |
+
+Ohne Zurücksetzen, ohne Serverfunktion — der Test beantwortet nur die zwei Fragen, an denen alles
+hängt: **Trifft das Modell im Ausschnitt die richtige Stelle? Und passt die Kante?** Fällt das
+durch, ist der teure Serverteil gespart. **Empfehlung: erst diesen Test, dann entscheiden.**
+
+### EINSCHÄTZUNG 24.09.2026 (C2, Idee des Nutzers): Zoom-Seiten aus vorhandenen Bildern
+
+> „Seiten kosten im Druck fast nichts, Bilder viel." (Nutzer)
+
+**Die Idee ist wirtschaftlich die stärkste des ganzen Blocks**, weil sie das Verhältnis von
+Buchseiten zu bezahlten Bildern verschiebt, ohne an der Bildqualität zu drehen. Ein großes Buch
+kostet heute 2,45 $ an fal-Kosten für fünf Bilder. Jede Seite, die aus vorhandenem Material
+entsteht, kostet **0,00 $**.
+
+**Reicht die Auflösung? Gerechnet, nicht geschätzt.** Das Szenenbild hat **5504 Pixel Breite**, die
+Buchseite ist **296 mm** breit. Für Druck gelten 300 dpi als Norm, 240 dpi als das, womit man bei
+einem Kinderbuch noch leben kann.
+
+| Ausschnitt (Anteil der Bildbreite) | Pixel | dpi auf 296 mm | Urteil |
+|---|---|---|---|
+| ganzes Bild | 5504 | 472 | weit über Norm |
+| 2/3 der Breite | 3669 | 315 | **einwandfrei** |
+| 1/2 der Breite | 2752 | 236 | **Grenzfall**, für ein Kinderbuch vertretbar |
+| 1/3 der Breite | 1835 | 157 | zu wenig |
+| 1/4 der Breite | 1376 | 118 | deutlich zu wenig |
+
+**Die Grenze liegt also bei etwa der halben Bildbreite.** „Ein großer Ausschnitt" funktioniert,
+„ein echter Zoom auf eine einzelne Figur" nicht — jedenfalls nicht ohne Hochrechnen (fal hat
+Upscaler, Preis und Ergebnis sind hier **nicht geprüft**).
+
+**Die Figurenblätter** sind 768 × 1024. Bei 300 dpi ergibt das **65 × 87 mm** — eine Briefmarke
+plus. Für eine „Wer ist wer"-Seite mit fünf bis sechs Porträts nebeneinander reicht das gut; eine
+formatfüllende Figur auf einer ganzen Seite wird daraus nicht.
+
+**Welche Seitentypen ohne einen einzigen neuen Aufruf gehen:**
+
+| Seite | Material | Auflösung reicht? |
+|---|---|---|
+| „Wo ist Oma gerade?" — großer Ausschnitt | halbe bis zwei Drittel Bildbreite | ja |
+| „Wer ist wer" — Porträtreihe | Figurenblätter, montiert | ja |
+| Suchaufgaben („finde 5 Hunde") | vorhandenes Bild + Text | ja |
+| Widmung, Auflösung am Schluss | reiner Satz | ja |
+| Vorsatzpapier aus einem Bildausschnitt | halbe Bildbreite, stark beschnitten | ja |
+
+**Ein Fund, der das billiger macht, als es klingt:** Die Heldenprüfung liefert schon heute
+`heroes_x` — eine **Position je Held** auf einer Skala 0–100, gespeichert an jedem Kandidaten. Eine
+„Wo ist Oma?"-Seite müsste den Ausschnitt also nicht raten. **Achtung:** Wie verlässlich diese Zahl
+ist, ist **nicht gemessen** — für eine automatisch gesetzte Seite müsste sie es sein, für einen
+Vorschlag, den ein Mensch bestätigt, reicht sie.
+
+**Fürs Layout heißt das:** Das Buch braucht **Seitentypen** statt einer Liste von Bildern — eine
+Seite hat dann eine Art (Vollbild, Ausschnitt, Porträtreihe, Textseite), eine Quelle (welches Bild,
+welcher Ausschnitt) und optional Text. Das ist eine Erweiterung des Layout-Teils in
+`konzept-konto-layout-druck.md`, kein Eingriff in die Bilderzeugung. **Und es ist der Punkt, an dem
+sich entscheidet, ob ein „Buch klein" mit 3 Bildern nach einem Buch aussieht oder nach drei
+Postern.**
+
+### EINSCHÄTZUNG 24.09.2026 (C3, Idee des Nutzers): ein gemeinsames, nummeriertes Heldenblatt
+
+> „Test mit einem gemeinsamen, nummerierten Sammelblatt aller Helden statt einzelner Blätter
+> (‚genau einmal im Bild: 1, 2, 3'), und mit weniger Bibliotheksblättern." (Nutzer)
+
+**Das ist dasselbe Blatt wie das Maßstabsblatt aus `konzept-massstab-2026-09-23.md`** — dort
+montiert, damit alle Figuren einen gemeinsamen Maßstab haben, hier nummeriert, damit jede genau
+einmal vorkommt. **Ein Blatt, zwei Zwecke.** Es sollte auch nur einmal gebaut und einmal getestet
+werden.
+
+**Warum es helfen könnte** — zwei Mechanismen, beide plausibel, keiner gemessen:
+
+1. **Weniger Referenzbilder.** Heute gehen bis zu 5 Heldenblätter + 3–4 Bibliotheksblätter ins
+   Modell (`buildSceneComposeInputs()`, Deckel bei 13). Ein Sammelblatt macht daraus **1 + 3–4**.
+   Weniger Bilder heißt mehr Aufmerksamkeit je Bild.
+2. **Die Einmal-Aussage wird sichtbar statt verteilt.** Heute steht je Held ein eigener Satz
+   („appears only once") im Prompt — fünf Sätze, die das Modell einzeln verarbeitet. Auf einem
+   nummerierten Blatt ist „diese drei, jede genau einmal" **ein** Bild und **ein** Satz.
+
+**Was dagegen spricht, ehrlich:** Jede Figur bekommt auf einem Sammelblatt weniger Pixel. Montiert
+man in voller Auflösung nebeneinander (5 × 768 = 3840 × 1024), verliert keine Figur Pixel — das
+Blatt wird nur breit. Ob das Modell ein breites Blatt so gut liest wie fünf einzelne, ist **nicht
+bekannt**. Das ist die eigentliche Testfrage.
+
+**Zu „weniger Bibliotheksblätter": davon rate ich ab, und zwar mit Zahlen.** Am 23.09. wurde genau
+das nachgerechnet (Abschnitt 8): Kandidaten **mit** einem Doppelgänger-Blatt hatten in **43 %**
+eine Dopplung, Kandidaten **ohne** in **71 %**. Die Richtung ist die **entgegengesetzte** der
+Vermutung. Bei 14 gegen 14 Kandidaten ist das Zufall und kein Befund — aber es gibt keinen Hinweis
+darauf, dass weniger Blätter helfen, und der Stil-Anker wird dabei nachweislich schwächer. **Wenn
+es getestet wird, dann als eigener Schalter und getrennt vom Sammelblatt**, sonst weiß am Ende
+niemand, welche der beiden Änderungen gewirkt hat.
+
+**Aufwand und Kosten:**
+
+| Posten | Aufwand | Kosten |
+|---|---|---|
+| Sammelblatt montieren (Canvas, nummeriert, gemeinsame Standlinie) | ein halber Bautag | **0,00 $** — montiert, nicht erzeugt |
+| Prompt umstellen (ein Blatt statt fünf, eine Einmal-Aussage) | klein | 0 $ |
+| Testlauf: 10 Szenen mit Sammelblatt | dein Durchgang | 10 × 0,32 $ = **3,20 $** |
+| Gegenprobe: dieselben 10 Szenen wie heute | dein Durchgang | **3,20 $** |
+| **Summe Test** | | **rund 6,40 $** |
+
+**Gemessen wird nichts Neues:** `heroes_found` steht an jedem Kandidaten und ist die
+Grundlinie — heute **29 von 63** Kandidaten mit Dopplung oder fehlendem Helden. Der Test ist damit
+eine **Zahl gegen eine Zahl**, keine Geschmacksfrage. Nach der 90-%-Regel wäre das Sammelblatt bei
+deutlich besserem Wert eine Empfehlung, keine harte Hürde.
+
+**Empfohlene Reihenfolge, wenn beides kommt:** erst das Sammelblatt **ohne** Maßstab bauen und
+testen (misst nur die Dopplung), dann denselben Blatt-Aufbau um den gemeinsamen Maßstab erweitern
+(misst zusätzlich die Größen). Umgekehrt ließen sich die beiden Wirkungen nicht mehr trennen.
+
 ### OFFEN (Teil des Produktangebots): Produktleiter (Idee des Nutzers, 21.09.2026)
 
 Nur festgehalten, nichts entschieden, nichts gebaut. Quelle und Einzelheiten:
@@ -1774,6 +1956,85 @@ Was **nicht** die Ursache war: Der Zusammenbau lässt nichts fallen (die eigenen
 vorn und werden vom Abschneiden bei 20 nicht getroffen), und das Bildmodell hat nichts ignoriert —
 es hat die Details nie bekommen.
 
+### GEBAUT 24.09.2026 (Entscheidung des Nutzers): beide Einzeiler aus Punkt 13
+
+> „Die Kundin soll merken, wenn ihre Wünsche nicht angekommen sind – notfalls mit einer Nachfrage
+> im Gespräch statt eines Bildes ohne ihre Details." (Nutzer)
+
+**1. Leere Situationsliste wird abgelehnt.** `situationenPruefen()` in `screens/szene.js` prüft die
+Liste aus `add_scene`: leere und reine Leerzeichen-Einträge fallen weg, dann zählt sie.
+
+| Ergebnis | was passiert |
+|---|---|
+| genug Einträge | wie bisher: Szene wird gebaut |
+| zu wenige | **eine** automatische Nachfrage ins Gespräch (`NACHFRAGE_SITUATIONEN`), ein einziger zusätzlicher Aufruf (rund 0,01 $) |
+| auch danach zu wenige | **kein Bild.** Im Chat: rote Meldung am Eingabefeld. Beim „Los, zaubern": eigener Satz, der den Fall benennt |
+
+Die Nachfrage steht **nicht** im gespeicherten Verlauf — die Kundin soll keine Sprechblase sehen,
+die sie nicht geschrieben hat. Sie gilt nur für diesen einen zweiten Versuch.
+
+**Abweichung von meinem eigenen Vorschlag, ausdrücklich vermerkt:** Ich hatte geschrieben, ich
+würde *nur* nachfragen, weil ein zweiter automatischer Zug „wieder Geld kostet und genauso
+scheitern kann". Gebaut ist jetzt beides: erst ein automatischer Zug, dann die Nachfrage. Grund:
+der Zug kostet 0,01 $ — ein Fünfzehntel eines Szenenbildes — und erspart der Kundin im Regelfall
+den Umweg. Scheitert er, ist die Meldung dieselbe wie vorher geplant.
+
+**`SITUATIONEN_MINDEST = 5` ist gesetzt, nicht gemessen.** Belegt ist nur der Fehlerfall 0. Das
+Schema verlangt 15, aber Anthropic erzwingt `minItems` nicht — eine Schwelle bei 15 würde einen
+brauchbaren Durchgang mit zwölf Einträgen wegwerfen. 5 fängt nur „praktisch nichts angekommen" ab.
+Eine Zahl zum Drehen, keine Messung.
+
+**2. `locId` wird aus dem Ortsnamen hergeleitet.** `Pipeline.chatOrtId()` (neben `chatOrtTyp()`,
+dieselbe Wortanfangs-Erkennung) ordnet den Ortsnamen einem Bibliothekstopf zu; ohne Treffer bleibt
+es `generic` wie bisher, und `ortGrund` am Theme-Objekt sagt, welcher der beiden Fälle es war —
+damit der Rückfall nie wie eine Erkennung aussieht.
+
+**Warum eine Wortliste und nicht `THEME_META`,** wie ich es vorgeschlagen hatte: `THEME_META` kennt
+genau sechs deutsche Namen (Bauernhof, Weihnachten, Urlaub, Berg, Stadt, Spielplatz). Das hätte
+„Berg" gefangen, aber weder „Alm" noch „Kühe füttern" — und es kennt die vier zusätzlichen Töpfe
+der Gag-Bibliothek gar nicht (`home`, `zoo`, `pool`, `school`, je 10 Einträge), die über den
+Chat-Weg jetzt erreichbar werden. Geprüft, dass alle Töpfe tragen: `topUpSituations()` liefert für
+`mountains`, `home`, `zoo`, `pool`, `school`, `farm` und `generic` je volle 20 Vignetten; für Töpfe,
+die `GROUP_LIBRARY`/`HERO_ACTION_LIBRARY` nicht kennen, greift dort der vorhandene Rückfall auf
+`generic`.
+
+**Nebenwirkung, bewusst:** `CHAT_ORT_IDS` zählt zur **Bild-Fassung** (`bildFingerprint()`). Bilder
+von vorher und nachher sind damit formal nicht mehr vergleichbar — was richtig ist, denn der
+Vignetten-Topf hat sich geändert.
+
+**Noch nicht wirksam, aber vorgemerkt:** `zonenFuer()` liest `THEMA_ZONEN[theme.locId]`. Solange
+`PROMPT_AUFBAU = "alt"` läuft, passiert nichts. Wird der aufgeräumte Aufbau eingeschaltet, bekommen
+Chat-Szenen ab da **auch Zonen** — bisher war das durch das feste `generic` verhindert. Das ist
+keine Überraschung, sondern ein Punkt für die Zonen-Runde.
+
+**Wie du es testest** (eine Szene über den Sprachweg, dieselben Wünsche):
+
+1. Im Gespräch wieder Kühe füttern, Kaiserschmarrn, Spielplatz, Gleitschirm, Skateboard nennen, Ort
+   „Berg" oder „Alm".
+2. **Erwartung A, Ort:** Im Bild-Panel steht am Theme jetzt `locId: "mountains"` statt `generic`
+   und `ortGrund: "erkannt am Wort im Ortsnamen"`. Die aufgefüllten Vignetten sind Bergmotive
+   (Seilbahn, Almhütte, Wanderer), keine allgemeinen.
+3. **Erwartung B, deine Wünsche:** Sie stehen als **erste** Einträge in den Situationen und im
+   `instruction`-Text des Bildes. Such im Test-Details-Toggle nach „cow", „playground", „paraglider".
+4. **Erwartung C, der Fehlerfall:** Wenn das Modell die Szene ohne Liste schickt, siehst du **kein
+   Bild**, sondern einen Satz — entweder rot am Eingabefeld oder auf dem Zauber-Screen. Der Fall ist
+   von außen nicht erzwingbar; er zeigt sich nur, wenn er wieder auftritt. Kommt er nicht vor, ist
+   das auch ein Ergebnis: dann war die Sitzung 9c73ec34 der Ausreißer und nicht der Normalfall.
+5. Sitzung danach wieder per TROCKEN ziehen — dann lässt sich `sceneUserSituations` gegen die
+   Gesprächsnachrichten halten, genau wie beim letzten Mal.
+
+### BEHOBEN 24.09.2026: die beiden dringenden Treffer aus dem Muster-Durchgang
+
+| Stelle | vorher | jetzt |
+|---|---|---|
+| `screens/szene.js`, `ungeprueftText()` | `(k.verifyVersuche \|\| 2)` in einem Satz an die Kundin | echte Zahl, oder „mehrfach (Anzahl nicht mitgezählt)" |
+| `api/claude-proxy.js`, Systemprompt | `Szene ${sceneIndex \|\| 1} von ${sceneTarget \|\| 1}` | `szenenStandSatz()`: nur bei echten Zahlen, sonst **gar kein Satz** |
+
+Beide waren die einzigen Treffer, bei denen die erfundene Zahl **nach außen** ging — einmal in
+einen Satz, den ein Mensch liest, einmal in einen Prompt, der das Verhalten des Modells steuert.
+Die übrigen sieben Treffer bleiben im Haus (Anzeige und Zählung) und werden beim nächsten Anfassen
+der jeweiligen Datei mitgenommen, so entschieden am 24.09.2026.
+
 ### DURCHGANG 24.09.2026: Suche nach Ersatzwerten, die wie Messwerte aussehen
 
 Gesucht nach den vier Mustern über `public/js/`, `public/js/screens/`, `api/` und `api/_lib/`.
@@ -1823,13 +2084,14 @@ Die fünf Fälle, nebeneinander gelegt:
 | 3 | Fehlender Richter-Eintrag | kein Abschnitt im Panel | „nicht gelaufen" (unklar warum) | „aus / gescheitert / nicht gefragt — und warum" |
 | 4 | Speicheranzeige „gespeichert" | fest verdrahtetes Wort | „erfolgreich gespeichert" | „speichert … / gespeichert / abgelehnt" |
 | 5 | Strichbreite `\|\| 1` | 1 | „Canvas ist 1 px breit" | „nicht messbar — also keinen Strich anfangen" |
+| 6 | Leere Situationsliste (`\|\| []`) | `[]` | „die Kundin hat nichts gewünscht" | „das Werkzeug hat nichts geliefert" |
 
 **Die Regel, nach der man gezielt suchen kann** — und sie ist enger als „keine Magic Numbers":
 
 > **Wo ein fehlender Wert durch einen gültig aussehenden ersetzt wird, ohne dass der Unterschied
 > irgendwo bleibt.**
 
-Drei Merkmale, die alle fünf Fälle teilen:
+Vier Merkmale — die ersten drei teilen alle sechs Fälle, das vierte ist am sechsten dazugekommen:
 
 1. Der Ersatzwert liegt **im erlaubten Wertebereich**. 99 ist eine mögliche Verstoßzahl, 0 eine
    mögliche Messung, 1 eine mögliche Breite. Deshalb fällt er nirgends auf.
@@ -1853,8 +2115,13 @@ Drei Merkmale, die alle fünf Fälle teilen:
 | Default-Parameter mit Zahl (`function f(n = 20)`) | ein fehlendes Argument wird zu einem Messwert |
 | `parseInt`/`parseFloat` ohne Prüfung | `parseInt("abc")` ist NaN, rechnet sich still weiter |
 
-Unverdächtig ist dasselbe Muster bei **Texten und Objekten** (`|| ""`, `|| []`, `|| {}`) — dort
-fällt ein leerer Wert auf, statt sich als Messung zu tarnen. Und unverdächtig ist ein Ersatzwert,
+**KORRIGIERT 24.09.2026 durch Fall 6:** Hier stand, dasselbe Muster bei **Texten und Objekten**
+(`|| ""`, `|| []`, `|| {}`) sei unverdächtig, weil ein leerer Wert auffalle. Das war falsch. Ein
+leerer Wert fällt nur auf, **wenn jemand hinsieht** — beim Chat-Weg lief eine leere Situationsliste
+bis in ein bezahltes Bild. Richtig ist: `|| []` ist unverdächtig **nur dort, wo eine Stelle weiter
+unten die Leere prüft und benennt.** Sonst gehört es in dieselbe Liste wie `|| 1`.
+
+Unverdächtig bleibt ein Ersatzwert,
 der **außerhalb** des erlaubten Bereichs liegt (`-1` für „fehlt" bei `heroes_x` ist genau richtig
 gemacht: die Skala geht 0–100, −1 kann keine Messung sein).
 
@@ -1862,6 +2129,12 @@ gemacht: die Skala geht 0–100, −1 kann keine Messung sein).
 zu führen statt nach Gefühl** — und sie ist **dringend**: Fünf Fälle in drei Tagen, jeder einzelne
 erst durch einen Kundenbefund aufgefallen, nicht durch die eigene Prüfung. Das ist keine Pechserie,
 sondern ein Muster im Code, und es wird weitere geben, solange niemand danach sucht.
+
+**STAND 24.09.2026:** Durchgang gelaufen (unten), **9 Treffer**. Die beiden, bei denen die
+erfundene Zahl nach außen ging, sind **behoben** (`verifyVersuche || 2` im Satz an die Kundin,
+`sceneIndex/sceneTarget || 1` im System-Prompt). Die übrigen sieben bleiben offen und werden beim
+nächsten Anfassen der jeweiligen Datei mitgenommen — Entscheidung des Nutzers, 24.09.2026. Der
+Punkt bleibt auf der Liste, bis diese sieben weg sind.
 
 ## 16. Vor dem Launch
 
@@ -1960,9 +2233,17 @@ Regel wie unten.
 | Buch klein | 3 | 0,96 $ | 1,65 $ | **rund 2,60 $** |
 | Buch groß | 5 | 1,60 $ | 1,65 $ | **rund 3,25 $** |
 
+**NACHGEZOGEN 24.09.2026** (Figuren jetzt 0,17 $ statt 0,33 $):
+
+| Stufe | Wimmelbilder | Szenen (je 0,32 $) | 5 Figuren (je 0,17 $) | Summe fal |
+|---|---|---|---|---|
+| Poster | 1 | 0,32 $ | 0,83 $ | **rund 1,15 $** |
+| Buch klein | 3 | 0,96 $ | 0,83 $ | **rund 1,80 $** |
+| Buch groß | 5 | 1,60 $ | 0,83 $ | **rund 2,45 $** |
+
 Mit ein paar Stift-Korrekturen und dem gelegentlichen dritten Kandidaten landet ein großes Buch bei
-**rund 4 $ fal-Kosten** — die alte Arbeitsannahme „3 bis 4 $" hat sich bestätigt, steht jetzt aber
-auf belegten Preisen statt auf einer Schätzung. Dazu kommen die claude-Aufrufe (Anthropic-Konsole).
+**rund 3,20 $ fal-Kosten** statt der früher gerechneten 4 $. Dazu kommen die claude-Aufrufe
+(Anthropic-Konsole).
 
 Die Figuren sind dabei der überraschende Posten: Bei einem **Poster** kosten sie mehr als das Bild.
 Zum Vergleich: Die gesamte Entwicklung bis heute hat **150,84 $** gekostet, davon 114,75 $ für 765
@@ -2037,6 +2318,140 @@ Was daran vor dem Launch geklärt sein muss:
 auch die 40-Nachrichten-Grenze nachziehen. Vorher ist jede weitere Zahl geraten.
 
 ---
+
+
+**NACHTRAG 24.09.2026:** Der erste echte Durchlauf hat den Weg benutzt — und sofort zwei Fehler
+gezeigt, die jahrelang hätten liegen bleiben können (leere Situationsliste, festes `locId`; beide
+behoben, siehe Abschnitt 15b). **Ein dritter, noch unbenutzter Pfad steckt daneben:**
+`add_scene` hat ein Feld `edit_instruction` für Änderungswünsche nach einem fertigen Bild — im
+System-Prompt ausführlich erklärt, im Client **nirgends gelesen**. Sagt eine Kundin im Gespräch
+„mach es Winter statt Sommer", füllt das Modell brav das Feld, und nichts passiert. Gehört in
+dieselbe Runde wie die beiden anderen: entweder bauen oder aus dem Prompt entfernen. **Nicht
+gebaut, nicht entschieden.**
+
+### VOR DEM LAUNCH, PUNKT 5 (Nutzer, 24.09.2026): die Kostenstruktur des Produkts
+
+> „Die Kalkulation mache ich in einer eigenen Sitzung mit Versand, Payment und Umsatzsteuer."
+> (Nutzer) — **hier steht nur, was die Technik dazu beitragen kann. Nichts davon ist gebaut.**
+
+#### B1 — Die Gratis-Stufe kostet bei jeder Besucherin Geld
+
+Die Gratis-Stufe ist **5 Figuren + 1 Szene**. Mit den belegten Preisen und nach der Reduktion auf
+eine Zusatz-Ansicht:
+
+| Posten | Summe |
+|---|---|
+| 5 Figuren (je 0,17 $) | 0,83 $ |
+| 1 Szene (2 Kandidaten + 2 Prüfungen) | 0,32 $ |
+| **fal je Besucherin, die nichts kauft** | **rund 1,15 $** |
+
+Dazu claude, getrennt und **nicht beziffert**: auf dem Chat-Weg allein waren es im Kundendurchlauf
+**9 Gesprächsnachrichten**, dazu je Figur eine Blatt-Stilprüfung und die Übersetzungs-/
+Moderationsaufrufe. Die Zahl gehört in die Anthropic-Konsole, nicht hierher.
+
+**Was das bei 5 % Conversion bedeutet:** Auf eine Käuferin kommen 19 Besucherinnen, die nichts
+kaufen. 19 × 1,15 $ = **rund 22 $ je Käuferin**, die in keiner Produktkalkulation auftauchen —
+**fast das Zehnfache** der Herstellkosten eines großen Buchs (2,45 $). Die Gratis-Stufe ist damit
+nicht der Nebenposten, sondern der Hauptkostenblock des Geschäftsmodells.
+
+Zwei Zahlen zur Einordnung, beide **nicht gemessen, sondern gerechnet**:
+
+| Conversion | fal-Kosten je Käuferin, nur aus der Gratis-Stufe |
+|---|---|
+| 2 % | rund 56 $ |
+| 5 % | rund 22 $ |
+| 10 % | rund 10 $ |
+| 20 % | rund 4,60 $ |
+
+**Die Conversion ist damit keine Marketing-Kennzahl, sondern der Haupt-Kostentreiber.** Jeder
+Prozentpunkt ist mehr wert als jede Einsparung am Bild. Das ist der Grund, warum B2 und B3 unten
+nicht kosmetisch sind.
+
+**Was die Technik anbieten kann** (nichts davon entschieden):
+
+- Die Gratis-Stufe **kleiner schneiden**: 3 Figuren statt 5 spart 0,34 $ je Besucherin (rund 30 %).
+- Die Szene der Gratis-Stufe mit **einem** Kandidaten statt zweien: spart 0,16 $, kostet aber genau
+  den Vergleich, der den Unterschied zu einem Bildgenerator ausmacht. Ich rate ab.
+- **Eine Hürde vor die Szene setzen** (E-Mail, Konto): verschiebt die Kosten hinter eine Absicht.
+  Das ist eine Produktentscheidung, keine technische.
+
+#### B2 — Korrekturlimit in der Gratis-Stufe
+
+Vorschlag des Nutzers: **2 Stift-Korrekturen**. Jede kostet 0,15 $, ein Versetzen 0,30 $. Ohne
+Limit ist die Gratis-Stufe nach oben offen — zehn Korrekturen sind 1,50 $, mehr als alles andere
+zusammen. Mit 2 Korrekturen liegt die Obergrenze der Gratis-Stufe bei **rund 1,45 $** (bzw. 1,75 $,
+wenn beide ein Versetzen sind).
+
+Technisch: der Zähler existiert bereits am Bild (`verlauf`, `PEN_VERLAUF_MAX = 5`). Ein Limit wäre
+eine Abfrage vor `applyPenEdit()` plus ein ehrlicher Satz statt eines gesperrten Knopfes.
+
+#### B3 — Budget je Produkt
+
+Vorschlag des Nutzers: **doppelt so viele Erzeugungen wie Szenen, plus ein Kontingent an
+Stift-Korrekturen**; darüber hinaus verbraucht es sichtbar Guthaben.
+
+Nachgerechnet für ein großes Buch (5 Szenen), eine „Erzeugung" = ein Szenendurchgang mit 2
+Kandidaten und 2 Prüfungen = 0,32 $:
+
+| Posten | Menge | Summe |
+|---|---|---|
+| Erzeugungen | 10 | 3,20 $ |
+| Stift-Korrekturen (Kontingent, angenommen 10) | 10 | 1,50 $ |
+| 5 Figuren | | 0,83 $ |
+| **Obergrenze bei vollem Verbrauch** | | **rund 5,55 $** |
+
+**Wichtiger Einwand:** Dein Testlauf kostete **5,42 $**. Ein Budget nach dieser Regel hätte ihn
+also **nicht** gestoppt — es hätte ihn genau erlaubt. Wenn das Ziel ist, den Ausreißer zu deckeln
+und nicht nur den Wahnsinnsfall, ist „doppelt" zu großzügig. Zum Vergleich:
+
+| Regel | Obergrenze großes Buch |
+|---|---|
+| 2 × Szenen + 10 Korrekturen (dein Vorschlag) | 5,55 $ |
+| 1,5 × Szenen + 6 Korrekturen | 3,92 $ |
+| 1,2 × Szenen + 4 Korrekturen | 3,35 $ |
+| Normalfall ohne jede Korrektur | 2,45 $ |
+
+Das ist eine Produktentscheidung (wie großzügig soll sich das Produkt anfühlen), keine technische —
+ich lege nur die Zahlen daneben. **Was die Technik dazu braucht:** einen Zähler je Produkt statt je
+Tag. Der Tagesdeckel (`kosten-deckel.js`) zählt heute **global** und ist ausdrücklich eine
+Notbremse, keine Buchhaltung. Ein Produktbudget ist das Gegenteil: es muss je Kundin stimmen,
+dauerhaft gespeichert sein und nach einem Absturz noch stimmen. Das ist ein eigener Bauauftrag,
+kein Schalter am Deckel.
+
+#### B4 — Kostengrenze je Konto
+
+Sinnvoll, und die Lücke ist real: Der Tagesdeckel schützt **mich** (150 $/Tag), die IP-Grenzen
+schützen gegen Dauerfeuer aus einer Leitung. Beide schützen **nicht** gegen eine einzelne Kundin,
+die über Tage hinweg teuer wird, und nicht gegen jemanden, der die IP wechselt.
+
+**Voraussetzung:** Konten gibt es noch nicht (siehe `konzept-konto-layout-druck.md`). Bis dahin ist
+die einzige verfügbare Identität die **Sitzungs-ID** — die kostet einen Klick auf „neue Sitzung",
+also kein echter Schutz, aber besser als nichts. Sobald es Konten gibt, ist die Grenze ein Zähler
+neben dem Tageszähler, dieselbe Mechanik, anderer Schlüssel.
+
+#### B5 — Brauchen wirklich alle Kandidaten 4K?
+
+**Meine Einschätzung: hier ist nichts zu sparen, und zwar aus einem Grund, der gegen die Erwartung
+geht.** Der Preis von `nano-banana-pro/edit` ist **je Bild**, nicht je Pixel: 765 Szenenbilder ×
+0,15 $ = 114,75 $, genau der Dashboard-Betrag — und diese 765 waren alle 4K. Die frühere Annahme
+„4K verdoppelt den Preis" ist bereits widerlegt (Abschnitt 5).
+
+Daraus folgt für den naheliegenden Plan „Kandidaten in 2K, nur den gekauften Favoriten in 4K":
+
+- Ein Bild lässt sich **nicht nachträglich hochrechnen**, ohne es neu zu erzeugen. Derselbe Seed
+  liefert bei anderer Auflösung **kein identisches Bild** — die Kundin bekäme im Druck ein anderes
+  Bild als das, das sie gewählt hat.
+- Der Favorit in 4K wäre also ein **zusätzlicher** Aufruf: **+0,15 $ je gekaufter Szene**, nicht −.
+
+**Was NICHT belegt ist:** ob `nano-banana-pro/edit` bei 1K oder 2K **weniger** kostet. Im Dashboard
+steht nur der 4K-Fall. Das ist mit **einem einzigen Aufruf in 1K und einem Blick ins Dashboard**
+(Einsatz: 0,15 $) zu klären — wenn das Ergebnis „billiger" lautet, ändert sich die Rechnung oben
+vollständig. Bis dahin gilt: 4K kostet nicht extra.
+
+**Wo 4K trotzdem etwas kostet, nur eben nicht bei fal:** Datenmenge. Jedes 4K-JPEG liegt bei 2–4 MB
+(5504 × 3072). Zwei Kandidaten je Szene, fünf Szenen = bis zu 40 MB, die ein Handy lädt. Und sie
+liegen auf fal, das sie nach **90 Tagen löscht** (Launch-Punkt 3). Das ist das eigentliche
+4K-Problem — Haltbarkeit und Ladezeit, nicht der Preis.
 
 ### VOR DEM LAUNCH: stille Fehler systematisch beseitigen (Auftrag des Nutzers, 22.09.2026)
 
