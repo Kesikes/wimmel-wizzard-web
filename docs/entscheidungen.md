@@ -1470,6 +1470,153 @@ Kurzfassung der Befunde aus dem Konzept:
   (8–12 $ plus Kuratierung).
 - **Fünf Entscheidungen** liegen bei Matthias, sie stehen am Ende des Konzepts.
 
+### ERGEBNIS 25.09.2026 (C3): Das Sammelblatt wird NICHT übernommen
+
+**Entscheidung des Nutzers.** 10 Runden, 20 Bilder, 20 Prüfungen, **3,20 $ tatsächlich** (gezählt,
+nicht gerechnet — siehe Punkt 4b). Rohdaten: `docs/ref/sammelblatt-20260925T1846.json`.
+Drei Figuren (A Junge, B Mädchen, C Mann), Thema Bauernhof.
+
+| | ohne Beanstandung |
+|---|---|
+| normal (fünf Einzelblätter) | **8 von 10** |
+| Sammelblatt | **5 von 10** |
+
+> „Der Grund ist nicht die Zahl, sondern die Fehlerart. … Das Sammelblatt tauscht einen Fehler, den
+> die Kundin mit dem Stift korrigieren kann, gegen einen, den sie nicht korrigieren kann – und ein
+> fehlender Held verstößt gegen Ausschlusskriterium 2." (Nutzer)
+
+**Das ist die tragende Begründung, und sie gilt unabhängig von der Stichprobengröße.** Eine
+Dopplung ist mit „Weg damit" in einem Zug behoben. Ein fehlender Held ist es nicht — es gibt keinen
+Weg in der App, eine Figur nachträglich hinzuzufügen. Selbst wenn beide Fassungen gleich viele
+Beanstandungen hätten, wäre die eine Fehlerart für die Kundin behebbar und die andere nicht.
+
+**EINE KORREKTUR AN DER BEFUNDBESCHREIBUNG** (nachgezählt in den Rohdaten, sie ändert die
+Entscheidung nicht):
+
+> „Bei der normalen Fassung waren beide Fehler Dopplungen (2/0/0, 2/1/1)." (Nutzer)
+
+`2/1/1` ist eine reine Dopplung. **`2/0/0` ist beides**: A zweimal, **B und C fehlen ganz**. Das
+ist sogar der schlimmste Einzelfall des ganzen Laufs. Richtig gezählt:
+
+| | Bilder mit **fehlendem** Helden | Bilder mit **doppeltem** Helden |
+|---|---|---|
+| normal | **1** von 10 (darin gleich zwei Fehlende) | 2 von 10 |
+| Sammelblatt | **4** von 10 | 1 von 10 |
+
+**Die Richtung bleibt: fehlend 1 → 4, doppelt 2 → 1.** Der Tausch, den der Nutzer beschreibt, ist
+real; nur war die normale Fassung nicht frei von fehlenden Helden.
+
+**EIN BEFUND, DEN NIEMAND GESUCHT HAT — und er ist schärfer als die Gesamtzahl.** Nach
+Kompositionstyp aufgeschlüsselt:
+
+| Komposition | normal | Sammelblatt |
+|---|---|---|
+| `open` (4 + 2) | 4 ok, 2 NEIN | **4 ok, 2 NEIN — identisch** |
+| `overview_cutaway` (4) | **4 ok, 0 NEIN** | **1 ok, 3 NEIN** |
+
+**Beim offenen Bild verhalten sich die beiden Fassungen gleich. Der gesamte Unterschied steckt im
+aufgeschnittenen Haus.** Bei vier Bildern je Fassung ist das kein Beweis — aber es ist ein
+auffällig sauberer Schnitt, und er legt einen Mechanismus nahe: Im Querschnitt muss das Modell
+zusätzlich Räume zuordnen. Ein Identitätsverweis, der erst eine gedruckte Nummer auf einem
+geteilten Blatt lesen muss, bricht unter dieser Zusatzlast offenbar zuerst. **Das ist eine
+Vermutung aus vier Bildern, keine Messung.**
+
+**Wer fehlte:** B (Position 2 auf dem Blatt, die Mitte) dreimal, A (Position 1) einmal. C
+(Position 3) nie. Bei vier Fällen ist das Rauschen — notiert, weil eine Positionsabhängigkeit
+prüfbar wäre, falls die Idee je wiederkommt.
+
+**Was der Versuch damit belegt und was nicht** (siehe den Auswertungsvorbehalt oben): Belegt ist,
+dass **diese eine Umstellung als Ganzes** bei diesen drei Figuren schlechter abschneidet, und zwar
+in der Fehlerart, die zählt. Nicht belegt ist, ob es an der Nummerierung, an der geringeren Zahl
+der Referenzbilder oder am Wegfall des eigenen Blattes je Held liegt. **Das muss auch niemand mehr
+auseinandernehmen** — die Idee ist erledigt.
+
+**Die zweiten 10 Runden entfallen** (Entscheidung des Nutzers). Von den freigegebenen 6,40 $ sind
+3,20 $ ausgegeben.
+
+**Was bleibt:** `sammelblattBauen()` / `sammelblattVariante()` in `pipeline.js` und
+`public/sammelblatt-test.html` stehen noch. Sie gehören entfernt, sobald die Maßstabsfrage unten
+entschieden ist — die Montage-Funktion ist genau das, was ein Maßstabsblatt bräuchte.
+
+### EINSCHÄTZUNG 25.09.2026: Spricht das auch gegen das MASSSTABSBLATT?
+
+> „Es ist dasselbe Blatt, nur für einen anderen Zweck. Wenn ein gemeinsames Blatt dazu führt, dass
+> Helden verloren gehen, ist die Maßstabsidee in dieser Form womöglich ebenfalls erledigt."
+> (Nutzer)
+
+**Meine Einschätzung: Nein — der entscheidende Unterschied ist ERSETZEN gegen HINZUFÜGEN.** Aber
+der Versuch hat dem Maßstabsblatt ein konkretes Risiko und eine Pflichtmessung mitgegeben.
+
+**Der Unterschied steht im Konzept selbst** (`konzept-massstab-2026-09-23.md`, Abschnitt 2, Punkt 4):
+
+> „Maßstabsblatt je Familie: alle Helden plus WizzelWim nebeneinander, in einem Maßstab. Die
+> einzelnen Nahaufnahmen **bleiben** — sie tragen die Gesichtsauflösung und damit die Heldentreue."
+
+Und die Bildzählung dort: Heldenblätter **bis 5, unverändert**, Maßstabsblatt **+1**.
+
+| | Sammelblatt (durchgefallen) | Maßstabsblatt (Konzept) |
+|---|---|---|
+| eigenes Referenzbild je Held | **nein**, ersetzt | **ja**, bleibt |
+| Verweis im Prompt | „die Figur mit der Nummer 2 auf Bild 2" | „das Mädchen von Referenzbild 3", unverändert |
+| Zweck des gemeinsamen Blattes | Identität **und** Anzahl | nur **Größenverhältnis** |
+| Referenzbilder gesamt | 5 statt 9 | 12 statt 10 |
+
+**Der plausibelste Mechanismus des Fehlschlags greift damit nicht.** Wenn ein Held sein eigenes
+Blatt behält und im Prompt weiter darüber angesprochen wird, hängt seine Existenz nicht mehr daran,
+dass das Modell eine gedruckte Nummer auf einem geteilten Blatt liest.
+
+**Was aber sehr wohl übertragbar ist — und vorher niemandem aufgefallen wäre:**
+
+1. **Ein stark verneintes Referenzbild könnte ganz abgewertet werden.** Das Sammelblatt trug den
+   Satz „that sheet is a chart, not a scene … never copy its background, its dividing lines or its
+   numbers". Das Maßstabsblatt trägt im Konzept einen noch stärkeren: „Never draw them standing in
+   a row, never draw them as a group". **Die Vermutung, die der Versuch nahelegt: Ein Modell, das
+   ein Bild so nachdrücklich zurückweisen soll, weist womöglich seinen Inhalt mit zurück.** Beim
+   Sammelblatt war dieser Inhalt die einzige Quelle der Helden — deshalb fehlten sie. Beim
+   Maßstabsblatt wäre der mitverworfene Inhalt „nur" der Maßstab, also die Wirkung, die man haben
+   wollte. **Der Fehlschlag sähe dann nicht nach Fehler aus, sondern nach Wirkungslosigkeit.**
+2. **Der Querschnitt ist die empfindliche Stelle.** Der ganze Unterschied steckte in
+   `overview_cutaway`. Ein Maßstabstest, der nur offene Bilder ansieht, würde genau die Komposition
+   auslassen, in der es zerbrochen ist.
+
+**Daraus zwei Auflagen für den Maßstabstest** (der laut Konzept ~2 $ an 3 Szenen kostet):
+
+| Auflage | Grund |
+|---|---|
+| `heroes_found` **mitzählen**, nicht nur die Größen ansehen | sonst fällt ein Heldenverlust nicht auf, weil niemand hinsieht — genau Bedingung 4 der Ersatzwert-Regel |
+| mindestens ein `overview_cutaway` in den 3 Szenen | dort ist es beim Sammelblatt zerbrochen |
+
+**Und eine Grundlinie liegt jetzt vor, die es vorher nicht gab:** Der normale Arm von heute ist ein
+Kontrolllauf mit **denselben drei Figuren, demselben Thema, derselben Prompt-Fassung, am selben
+Tag** — 8 von 10, davon 4 von 4 im Querschnitt. Ein Maßstabstest kann sich direkt daran messen,
+statt gegen die ältere, andersartige Grundlinie vom 23.09.
+
+**Nicht entschieden, und ich entscheide es nicht:** ob der Maßstabstest überhaupt noch stattfindet.
+Die Idee ist nach diesem Befund riskanter als am 23.09. gedacht, aber nicht widerlegt.
+
+### NOTIERT 25.09.2026 (Nebenbefund des Nutzers, keine Maßnahme): 80 % gegen 54 %
+
+> „Die normale Fassung lag heute bei 80 % gegenüber 54 % in der Grundlinie vom 23.09. Zehn Runden
+> sind zu wenig für eine Aussage, aber es könnte an den aussortierten Blättern 5 und 10 liegen.
+> Bitte nur notieren." (Nutzer)
+
+Notiert. **Damit die Zahl später nicht überdehnt wird, hier die Liste dessen, was sich zwischen den
+beiden Messungen alles geändert hat** — die Blätter 5 und 10 sind nur einer von sechs Punkten:
+
+| Unterschied | Grundlinie 23.09. | Lauf 25.09. |
+|---|---|---|
+| Bibliothek | 13 Blätter | 11 (bgchars-5 und -10 aussortiert) |
+| Themen | gemischt | **nur Bauernhof** |
+| Kandidaten je Durchgang | Paare (2 je Szene) | **einzeln** |
+| Stichprobe | 63 Kandidaten | 10 |
+| Prompt-Fassung | vor der Falz-Neufassung | danach, plus Münder/Schattierung |
+| Vignetten-Topf | wie gehabt | unverändert (Thema aus `THEME_META`, nicht Chat-Weg) |
+
+**Mit 10 gegen 63 und sechs gleichzeitigen Unterschieden ist aus dem Sprung nichts abzuleiten.**
+Prüfbar wäre er ohne einen einzigen neuen Aufruf, sobald wieder ein größerer Bestand vorliegt:
+`heroes_found` steht an jedem gespeicherten Kandidaten, und welche Blätter dabei waren, steht auch
+dort.
+
 ### EINSCHÄTZUNG 24.09.2026 (C1, Idee des Nutzers): Stift-Korrektur nur auf dem Ausschnitt
 
 > „Billigerer Aufruf, und das Modell kann gar nicht mehr an der falschen Stelle ändern (das ist mir
