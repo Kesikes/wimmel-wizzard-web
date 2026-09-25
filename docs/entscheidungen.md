@@ -2281,11 +2281,32 @@ will, konnte das über `scene-job-start` ohnehin — die kleinere Zahl an den an
 nichts geschützt, was nicht schon offen war, und die Länge ändert am Preis nichts (fal rechnet je
 Bild ab). Was wirklich schützt, sind die Anfragegrenzen je IP und der Tagesdeckel.
 
-**NOCH OFFEN, zum Entscheiden:** Dieselbe Doppelung gibt es bei der **Zahl der Referenzbilder** —
-`13` steht in `api/scene-job-start.js`, in `api/fal-proxy.js` und (als abgeleitete Rechnung
-`13 - heroRefUrls.length`) in `public/js/pipeline.js`. Heute stimmen alle drei überein. Ich habe
-sie **nicht** angefasst, weil eine Änderung dort das Bildverhalten berührt und du gerade einen
-Versuch starten willst. Vorschlag: beim nächsten Anfassen dieser Dateien in `grenzen.js` ziehen.
+#### OFFEN (Entscheidung des Nutzers, 25.09.2026): die Zahl 13 steht an drei Stellen
+
+> „Bitte beim nächsten Anfassen nachziehen, wie vorgeschlagen, und bis dahin als offenen Punkt im
+> Register führen." (Nutzer)
+
+Dieselbe Doppelung wie bei der Promptlänge, nur noch nicht eingetreten:
+
+| Datei | Form |
+|---|---|
+| `api/scene-job-start.js` | `styleRefUrls … .slice(0, 13)` |
+| `api/fal-proxy.js` | `.slice(0, 13)`, und für die Prüfung `.slice(0, 14)` (13 Referenzen plus das zu prüfende Bild) |
+| `public/js/pipeline.js` | `const bgBudget = Math.max(0, 13 - heroRefUrls.length)` — abgeleitete Rechnung |
+
+**Heute stimmen alle drei überein, und genau das ist der Zustand, in dem so etwas unauffällig
+bleibt.** Die Promptgrenze hat fünf Wochen gebraucht, bis jemand darüber stolperte.
+
+**Nicht angefasst, mit Grund:** Eine Änderung dort berührt das Bildverhalten (wie viele
+Bibliotheksblätter mitgehen), und der Sammelblatt-Versuch läuft gerade. Zwei Baustellen
+gleichzeitig sind nicht zu beurteilen — dieselbe Begründung, mit der C1 hinter C3 gestellt wurde.
+
+**Zu tun, beim nächsten Anfassen dieser Dateien:** `MAX_REFERENZBILDER = 13` in
+`api/_lib/grenzen.js`, die beiden Endpunkte lesen von dort, die Prüfzeile wird
+`MAX_REFERENZBILDER + 1` (und sagt damit endlich, warum es 14 sind). `pipeline.js` läuft im Browser
+und kann die Datei nicht einlesen — dort bleibt die Zahl eine zweite Kopie, aber mit einem
+ausdrücklichen Verweis, wie es `SCALE_MIN_FIT` schon vormacht („ZWEITE KOPIE in
+api/_lib/fal-queue.js — beide anpassen").
 
 ### VOR DEM LAUNCH, PUNKT 4b (Befund 25.09.2026): „Was geplant war" ist keine Messung
 
@@ -2300,13 +2321,41 @@ aus der Zahl der **Aufrufe**.
 
 **Das ist eine eigene Spielart des Musters aus Punkt 4, und sie gehört daneben:**
 
-> **Was geplant war, ist keine Messung.** Ein Betrag, eine Menge oder eine Dauer, die aus einer
-> Absicht gerechnet ist, darf nie in derselben Form dastehen wie eine, die aus dem beobachteten
-> Verlauf gezählt wurde.
+> **Was geplant war, ist keine Messung.** Eine Aussage, die aus einer Absicht abgeleitet ist, darf
+> nie in derselben Form dastehen wie eine, die aus dem beobachteten Verlauf stammt.
+>
+> **Der Prüfsatz** (Formulierung des Nutzers, 25.09.2026): **„Woher weiß ich das? Aus dem, was ich
+> vorhatte, oder aus dem, was passiert ist?"**
 
-Sie ist heimtückischer als der Ersatzwert, weil sie **fast immer stimmt**: Solange alles
-durchläuft, ist der geplante Betrag der tatsächliche. Auffallen kann sie nur, wenn etwas
-schiefgeht — also genau dann, wenn man sich auf die Zahl verlassen möchte.
+**ERWEITERT 25.09.2026 (Nutzer): Die Regel gilt nicht nur für Beträge.** Dieselbe Falle steckt
+überall, wo eine Absicht wie ein Befund aussieht. Beispiele, alle aus diesem Projekt:
+
+| Satz | klingt nach Befund | kommt aber aus |
+|---|---|---|
+| „rund 3,20 $ ausgegeben" | Abrechnung | der Zahl der geplanten Runden |
+| „die Prüfung ist **2**-mal gescheitert" | Zähler | dem Vorgabewert `\|\| 2` (Treffer 1 des Durchgangs) |
+| „**10** Runden gelaufen" | Protokoll | der Schleifenlänge, nicht den beendeten Runden |
+| „gespeichert" | Rückmeldung des Servers | einem fest verdrahteten Wort (Fall 4 der Ersatzwert-Tabelle) |
+| „zwei Varianten gezeichnet" | Ergebnis | dem Vorsatz, zwei zu starten |
+
+**Fall 4 der Ersatzwert-Tabelle gehörte von Anfang an hierher** — die Speicheranzeige „gespeichert"
+war kein fehlender Messwert, sondern eine Absicht, die als Vollzug dastand. Die beiden Regeln sind
+Geschwister:
+
+| | Punkt 4 | Punkt 4b |
+|---|---|---|
+| Woher kommt die falsche Zahl? | aus einem **Ersatzwert** für etwas Fehlendes | aus einer **Absicht** |
+| Wann fällt sie auf? | wenn der Ersatzwert unplausibel ist | **fast nie** — solange alles durchläuft, stimmt sie |
+
+**Und deshalb ist 4b die gefährlichere von beiden.** Der Ersatzwert ist irgendwann sichtbar falsch.
+Die Absicht stimmt genau so lange, bis etwas schiefgeht — also bis zu dem Moment, in dem man sich
+auf die Zahl verlassen möchte.
+
+**Beim Bauen anzuwenden so:** Bevor eine Zahl, ein Zustand oder ein Vollzug in einen Satz kommt,
+den ein Mensch liest, wird der Prüfsatz gestellt. Lautet die Antwort „aus dem, was ich vorhatte",
+gibt es zwei Möglichkeiten — die Aussage aus dem beobachteten Verlauf holen, oder sie als Absicht
+kennzeichnen („höchstens", „geplant", „ich versuche"). Was nicht geht, ist die dritte: sie stehen
+lassen, weil sie meistens stimmt.
 
 **Behoben in der Versuchsseite,** und zwar als Zählung mit drei Töpfen statt einer Rechnung:
 
