@@ -1,0 +1,239 @@
+{
+  "versuch": "sammelblatt-ohne-massstab",
+  "am": "2026-09-24T20:26:27.736Z",
+  "bildFassung": "2026-09-23a · Bild 2d88a5b7",
+  "pruefFassung": "2026-09-23a · Prüfung eacec9ea",
+  "promptLabel": "2026-09-23a",
+  "thema": "Bauernhof",
+  "blatt": {
+    "breite": 2304,
+    "hoehe": 1174,
+    "bytes": 246044,
+    "skala": 1,
+    "guete": 0.9
+  },
+  "figuren": [
+    {
+      "name": "A",
+      "role": "boy",
+      "imageUrl": "https://v3b.fal.media/files/b/0aaaf52a/UvNu1hY6F6NVqCM1Z3wYh.png"
+    },
+    {
+      "name": "B",
+      "role": "girl",
+      "imageUrl": "https://v3b.fal.media/files/b/0aaaf532/6Fe4nPTRh5-b_AqCiCJq5.png"
+    },
+    {
+      "name": "C",
+      "role": "man",
+      "imageUrl": "https://v3b.fal.media/files/b/0aaaf540/ANEzh0V9bGTV1etfJ94B5.png"
+    }
+  ],
+  "grundlinie": {
+    "text": "23.09.2026: 29 von 63 Kandidaten mit Dopplung oder fehlender Figur",
+    "ohneBeanstandung": 34,
+    "gesamt": 63
+  },
+  "runden": [
+    {
+      "nr": 1,
+      "komposition": "overview_cutaway",
+      "ersetzt": [
+        "Bildzuordnung (1x)",
+        "Einmal-Regel (kurz) (1x)",
+        "Bibliotheks-Nummern (1x)",
+        "Held 1 (Satzanfang) (1x)",
+        "Held 1 (2x)",
+        "Held 2 (Satzanfang) (1x)",
+        "Held 2 (2x)",
+        "Held 3 (Satzanfang) (1x)",
+        "Held 3 (1x)",
+        "Abspann (1x)"
+      ],
+      "a": null,
+      "b": null,
+      "fehlerA": "Prompt zu lang.",
+      "fehlerB": "Prompt zu lang."
+    },
+    {
+      "nr": 2,
+      "komposition": "overview_cutaway",
+      "ersetzt": [
+        "Bildzuordnung (1x)",
+        "Einmal-Regel (kurz) (1x)",
+        "Bibliotheks-Nummern (1x)",
+        "Held 1 (Satzanfang) (1x)",
+        "Held 1 (2x)",
+        "Held 2 (Satzanfang) (1x)",
+        "Held 2 (2x)",
+        "Held 3 (Satzanfang) (1x)",
+        "Held 3 (1x)",
+        "Abspann (1x)"
+      ],
+      "a": null,
+      "b": null,
+      "fehlerA": "Prompt zu lang.",
+      "fehlerB": "Prompt zu lang."
+    },
+    {
+      "nr": 3,
+      "komposition": "overview_cutaway",
+      "ersetzt": [
+        "Bildzuordnung (1x)",
+        "Einmal-Regel (kurz) (1x)",
+        "Bibliotheks-Nummern (1x)",
+        "Held 1 (Satzanfang) (1x)",
+        "Held 1 (2x)",
+        "Held 2 (Satzanfang) (1x)",
+        "Held 2 (2x)",
+        "Held 3 (Satzanfang) (1x)",
+        "Held 3 (1x)",
+        "Abspann (1x)"
+      ],
+      "a": null,
+      "b": null,
+      "fehlerA": "Prompt zu lang.",
+      "fehlerB": "Prompt zu lang."
+    },
+    {
+      "nr": 4,
+      "komposition": "open",
+      "ersetzt": [
+        "Bildzuordnung (1x)",
+        "Einmal-Regel (kurz) (1x)",
+        "Bibliotheks-Nummern (1x)",
+        "Held 1 (Satzanfang) (1x)",
+        "Held 1 (2x)",
+        "Held 2 (Satzanfang) (1x)",
+        "Held 2 (2x)",
+        "Held 3 (Satzanfang) (1x)",
+        "Held 3 (1x)",
+        "Abspann (1x)"
+      ],
+      "a": null,
+      "b": null,
+      "fehlerA": "Prompt zu lang.",
+      "fehlerB": "Prompt zu lang."
+    },
+    {
+      "nr": 5,
+      "komposition": "open",
+      "ersetzt": [
+        "Bildzuordnung (1x)",
+        "Einmal-Regel (kurz) (1x)",
+        "Bibliotheks-Nummern (1x)",
+        "Held 1 (Satzanfang) (1x)",
+        "Held 1 (2x)",
+        "Held 2 (Satzanfang) (1x)",
+        "Held 2 (2x)",
+        "Held 3 (Satzanfang) (1x)",
+        "Held 3 (1x)",
+        "Abspann (1x)"
+      ],
+      "a": null,
+      "b": null,
+      "fehlerA": "Prompt zu lang.",
+      "fehlerB": "Prompt zu lang."
+    },
+    {
+      "nr": 6,
+      "komposition": "overview_cutaway",
+      "ersetzt": [
+        "Bildzuordnung (1x)",
+        "Einmal-Regel (kurz) (1x)",
+        "Bibliotheks-Nummern (1x)",
+        "Held 1 (Satzanfang) (1x)",
+        "Held 1 (2x)",
+        "Held 2 (Satzanfang) (1x)",
+        "Held 2 (2x)",
+        "Held 3 (Satzanfang) (1x)",
+        "Held 3 (1x)",
+        "Abspann (1x)"
+      ],
+      "a": null,
+      "b": null,
+      "fehlerA": "Prompt zu lang.",
+      "fehlerB": "Prompt zu lang."
+    },
+    {
+      "nr": 7,
+      "komposition": "open",
+      "ersetzt": [
+        "Bildzuordnung (1x)",
+        "Einmal-Regel (kurz) (1x)",
+        "Bibliotheks-Nummern (1x)",
+        "Held 1 (Satzanfang) (1x)",
+        "Held 1 (2x)",
+        "Held 2 (Satzanfang) (1x)",
+        "Held 2 (2x)",
+        "Held 3 (Satzanfang) (1x)",
+        "Held 3 (1x)",
+        "Abspann (1x)"
+      ],
+      "a": null,
+      "b": null,
+      "fehlerA": "Prompt zu lang.",
+      "fehlerB": "Prompt zu lang."
+    },
+    {
+      "nr": 8,
+      "komposition": "open",
+      "ersetzt": [
+        "Bildzuordnung (1x)",
+        "Einmal-Regel (kurz) (1x)",
+        "Bibliotheks-Nummern (1x)",
+        "Held 1 (Satzanfang) (1x)",
+        "Held 1 (2x)",
+        "Held 2 (Satzanfang) (1x)",
+        "Held 2 (2x)",
+        "Held 3 (Satzanfang) (1x)",
+        "Held 3 (1x)",
+        "Abspann (1x)"
+      ],
+      "a": null,
+      "b": null,
+      "fehlerA": "Prompt zu lang.",
+      "fehlerB": "Prompt zu lang."
+    },
+    {
+      "nr": 9,
+      "komposition": "overview_cutaway",
+      "ersetzt": [
+        "Bildzuordnung (1x)",
+        "Einmal-Regel (kurz) (1x)",
+        "Bibliotheks-Nummern (1x)",
+        "Held 1 (Satzanfang) (1x)",
+        "Held 1 (2x)",
+        "Held 2 (Satzanfang) (1x)",
+        "Held 2 (2x)",
+        "Held 3 (Satzanfang) (1x)",
+        "Held 3 (1x)",
+        "Abspann (1x)"
+      ],
+      "a": null,
+      "b": null,
+      "fehlerA": "Prompt zu lang.",
+      "fehlerB": "Prompt zu lang."
+    },
+    {
+      "nr": 10,
+      "komposition": "open",
+      "ersetzt": [
+        "Bildzuordnung (1x)",
+        "Einmal-Regel (kurz) (1x)",
+        "Bibliotheks-Nummern (1x)",
+        "Held 1 (Satzanfang) (1x)",
+        "Held 1 (2x)",
+        "Held 2 (Satzanfang) (1x)",
+        "Held 2 (2x)",
+        "Held 3 (Satzanfang) (1x)",
+        "Held 3 (1x)",
+        "Abspann (1x)"
+      ],
+      "a": null,
+      "b": null,
+      "fehlerA": "Prompt zu lang.",
+      "fehlerB": "Prompt zu lang."
+    }
+  ]
+}
