@@ -91,6 +91,7 @@ async function fetchFalWithRetry(url, options, maxRetries) {
 }
 
 const { checkRateLimit } = require("./_lib/rate-limit");
+const { MAX_PROMPT_ZEICHEN } = require("./_lib/grenzen");
 const { deckelErlaubt, deckelBuchen } = require("./_lib/kosten-deckel");
 const { logFalError, mediaLifecycleHeaders } = require("./_lib/fal-queue");
 
@@ -119,7 +120,7 @@ function sendConnectionError(res, e, context) {
 
 module.exports = async (req, res) => {
   if (req.method !== "POST") {
-    res.status(405).json({ error: "Nur POST erlaubt." });
+    res.status(405).json({ error: "Nur POST erlaubt.", vorFal: true });
     return;
   }
 
@@ -135,7 +136,7 @@ module.exports = async (req, res) => {
 
   const FAL_KEY = process.env.FAL_KEY;
   if (!FAL_KEY) {
-    res.status(500).json({ error: "Server-Fehler: FAL_KEY ist im Vercel-Projekt nicht gesetzt." });
+    res.status(500).json({ error: "Server-Fehler: FAL_KEY ist im Vercel-Projekt nicht gesetzt.", vorFal: true });
     return;
   }
 
@@ -155,7 +156,7 @@ module.exports = async (req, res) => {
     const verifyImageUrls = (Array.isArray(body.imageUrls) ? body.imageUrls : []).filter(isImageRefV).slice(0, 14);
     const verifyPrompt = String(body.verifyPrompt || "").trim();
     if (!verifyImageUrls.length || !verifyPrompt) {
-      res.status(400).json({ error: "Verify: imageUrls und verifyPrompt erforderlich." });
+      res.status(400).json({ error: "Verify: imageUrls und verifyPrompt erforderlich.", vorFal: true });
       return;
     }
     // EXPERIMENTAL (Live-Test: gemini-2.5-flash liefert bei identischem Bild/Prompt/temperature:0
@@ -239,7 +240,7 @@ module.exports = async (req, res) => {
     const stylePrompt = String(body.prompt || "").trim();
     const strength = Number.isFinite(body.strength) ? Math.min(1, Math.max(0, body.strength)) : 0.5;
     if (!sourceUrl || !stylePrompt) {
-      res.status(400).json({ error: "style_pass: imageUrl und prompt erforderlich." });
+      res.status(400).json({ error: "style_pass: imageUrl und prompt erforderlich.", vorFal: true });
       return;
     }
     try {
@@ -359,7 +360,7 @@ module.exports = async (req, res) => {
   const useProModel = !!imageUrl && (kind === "scene" ? body.model !== "nano_banana_2" : body.model === "nano_banana_pro");
 
   if (!prompt) {
-    res.status(400).json({ error: "Kein Prompt übergeben." });
+    res.status(400).json({ error: "Kein Prompt übergeben.", vorFal: true });
     return;
   }
   // War vorher 2000: beim ausgiebigen Kundentest (5 Charaktere + 1 Szene mit 15 Wimmel-Situationen,
@@ -382,21 +383,28 @@ module.exports = async (req, res) => {
   // ueberschreiten. Auf 16000 angehoben -- immer noch eine bewusst endliche Obergrenze (echter
   // Missbrauchsschutz gegen z.B. ein absichtlich zehntausende Zeichen langes charNote bleibt
   // bestehen), aber mit deutlich mehr Sicherheitsabstand zum realistischen Wimmelbuch-Normalfall.
-  if (prompt.length > 16000) {
-    res.status(400).json({ error: "Prompt zu lang." });
+  // GEAENDERT (25.09.2026): die Zahl steht jetzt EINMAL, in api/_lib/grenzen.js -- sie war hier
+  // seit dem 10.09. bei 16.000 stehen geblieben, waehrend scene-job-start.js am 22.09. auf 30.000
+  // ging. Volle Begruendung dort.
+  // Die Antwort sagt jetzt AUSDRUECKLICH, dass fal noch gar nicht gerufen wurde (vorFal) und nennt
+  // Grenze und tatsaechliche Laenge. Ohne diese Felder muss ein Aufrufer raten, ob ein
+  // gescheiterter Aufruf Geld gekostet hat -- und Raten ist genau das, was hier nirgends passieren
+  // soll.
+  if (prompt.length > MAX_PROMPT_ZEICHEN) {
+    res.status(400).json({ error: "Prompt zu lang.", vorFal: true, grenze: MAX_PROMPT_ZEICHEN, laenge: prompt.length });
     return;
   }
   // Defensive Obergrenze: ein verkleinertes Foto (max. 1024px, JPEG q0.85) landet i.d.R. deutlich
   // darunter; das verhindert nur missbräuchlich riesige Payloads.
   if (imageUrl && imageUrl.startsWith("data:") && imageUrl.length > 4_000_000) {
-    res.status(400).json({ error: "Foto ist zu groß." });
+    res.status(400).json({ error: "Foto ist zu groß.", vorFal: true });
     return;
   }
   // Einfache Missbrauchsbremse fürs MVP, ersetzt keine echte Nutzer-Authentifizierung/Rate-Limitierung.
   // Gilt nur für die Text-zu-Bild-Erstgenerierung (flux-lora braucht das Trigger-Wort); die
   // Editier-Anweisungen an Nano Banana 2 enthalten es bewusst nicht.
   if (!imageUrl && !prompt.startsWith("wmlstil")) {
-    res.status(400).json({ error: "Prompt-Format ungültig." });
+    res.status(400).json({ error: "Prompt-Format ungültig.", vorFal: true });
     return;
   }
 

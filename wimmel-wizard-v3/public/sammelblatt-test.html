@@ -111,6 +111,38 @@ const $ = (id) => document.getElementById(id);
 const P = window.Pipeline;
 let personen = [], gewaehlt = [], blattUri = null, blattInfo = null, ergebnisse = [], anhalten = false;
 
+// NEU (25.09.2026, nach dem Fehlversuch vom 24.09.): Das Konto zaehlt, was TATSAECHLICH passiert
+// ist -- nicht, was geplant war. Die Seite meldete damals "rund 3.20 $ ausgegeben", obwohl alle 20
+// Aufrufe schon von unserem eigenen Endpunkt abgewiesen worden waren und fal nie gerufen wurde. Am
+// fal-Dashboard nachgeprueft: 793 statt 789 Bilder, und die vier stammten aus einem anderen Test.
+// Die Zahl war der Plan, ausgegeben als Messung -- dasselbe Muster wie bei den Ersatzwerten.
+//
+// Drei Toepfe, und der dritte ist der wichtige:
+//   geliefert       -- der Aufruf hat ein Ergebnis gebracht, also ist er abgerechnet. SICHER.
+//   abgewiesen      -- unser eigener Endpunkt hat abgelehnt (vorFal), fal wurde nie gerufen. SICHER.
+//   unklar          -- alles andere. Ob abgerechnet wurde, WEISS ICH NICHT, und dann steht das da.
+const konto = { bilder: 0, pruefungen: 0, abgewiesen: 0, unklar: 0, unklarGruende: [] };
+const PREIS_BILD = 0.15, PREIS_PRUEFUNG = 0.01;
+function buchen(art) { konto[art]++; }
+function fehlerBuchen(e) {
+  if (e && e.vorFal === true) { konto.abgewiesen++; return; }
+  konto.unklar++;
+  const t = (e && e.message ? e.message : String(e)) + (e && e.httpStatus ? " (Status " + e.httpStatus + ")" : "");
+  if (konto.unklarGruende.indexOf(t) < 0) konto.unklarGruende.push(t);
+}
+function kontoText() {
+  const bezahlt = konto.bilder * PREIS_BILD + konto.pruefungen * PREIS_PRUEFUNG;
+  let t = "Tatsächlich passiert: " + konto.bilder + " Bild(er) geliefert (" +
+    (konto.bilder * PREIS_BILD).toFixed(2) + " $), " + konto.pruefungen + " Prüfung(en) geliefert (" +
+    (konto.pruefungen * PREIS_PRUEFUNG).toFixed(2) + " $) — zusammen " + bezahlt.toFixed(2) + " $.";
+  if (konto.abgewiesen) t += "\n" + konto.abgewiesen + " Aufruf(e) hat unser eigener Endpunkt abgewiesen, bevor fal gerufen wurde: 0,00 $.";
+  if (konto.unklar) {
+    t += "\n" + konto.unklar + " Aufruf(e) sind anders gescheitert. Ob davon etwas abgerechnet wurde, WEISS ICH NICHT — " +
+      "das steht nur im fal-Dashboard. Gründe: " + konto.unklarGruende.join(" | ");
+  }
+  return t;
+}
+
 function sag(t) { $("meldung").textContent = t; }
 
 // ---------------------------------------------------------------- Figuren
@@ -212,7 +244,9 @@ $("probe").onclick = () => {
   f.innerHTML = "<b>Ersetzungen:</b> " + (sam.ersetzt.join(", ") || "keine") +
     "<br><b>Fehler:</b> " + (sam.fehler.length ? "<span style='color:#b00'>" + sam.fehler.join(" | ") + "</span>" : "keine") +
     "<br><b>Referenzbilder:</b> normal " + built.styleRefUrls.length + ", Sammelblatt " + sam.styleRefUrls.length +
-    "<br><b>Promptlänge:</b> normal " + built.instruction.length + " Zeichen, Sammelblatt " + sam.instruction.length;
+    "<br><b>Promptlänge:</b> normal " + built.instruction.length + " Zeichen, Sammelblatt " + sam.instruction.length +
+    " — die Endpunkte lassen zurzeit " + 30000 + " Zeichen zu (die verbindliche Zahl steht in " +
+    "<code>api/_lib/grenzen.js</code>; wird sie überschritten, sagt die Fehlermeldung Grenze und gesendete Länge).";
   box.appendChild(f);
   [["NORMAL", built.instruction], ["SAMMELBLATT", sam.instruction]].forEach(([titel, text]) => {
     const h = document.createElement("h2"); h.textContent = titel; box.appendChild(h);
@@ -229,9 +263,16 @@ function heldenAus(parsed) {
   return { text: a.join("/"), ok, liste: a };
 }
 
+// BEWUSST generateImage() und NICHT generateImageWithRetry(): Die Wiederholung deckt einen
+// Verbindungsaussetzer ab, kann dabei aber laut eigenem Kommentar in pipeline.js eine ZWEITE,
+// ebenfalls bezahlte Generierung ausloesen. Fuer einen Versuch, dessen Ergebnis eine Abrechnung
+// ist, waere das genau die Unschaerfe, die hier nicht sein darf: lieber eine Runde sichtbar
+// verlieren als eine unsichtbar doppelt bezahlen.
 async function einBild(instruction, styleRefUrls, editImageUrl, verifyPrompt, heroRefUrls, figuresBand) {
-  const bild = await P.generateImageWithRetry(instruction, "scene", { editImageUrl, styleRefUrls });
+  const bild = await P.generateImage(instruction, "scene", { editImageUrl, styleRefUrls });
+  buchen("bilder");
   const roh = await P.verifyImage([bild.url].concat(heroRefUrls), verifyPrompt);
+  buchen("pruefungen");
   const gez = P.countViolations(roh, figuresBand);
   return { url: bild.url, parsed: gez.parsed, violations: gez.violations, helden: heldenAus(gez.parsed) };
 }
@@ -258,11 +299,14 @@ function tabelleZeigen() {
     t.appendChild(tr);
   });
   box.appendChild(t);
+  // GEAENDERT (25.09.2026, Nutzer-Befund): "0 von 0" mit einer Prozentzahl daneben sieht aus wie
+  // ein Messergebnis. Null Messungen sind aber kein Ergebnis, sondern das Fehlen eines Ergebnisses.
+  const quote = (ok, n) => n ? (ok + " von " + n + " ohne Doppelung/Fehlende (" + Math.round(100 * ok / n) + " %)")
+                             : "nicht gemessen (kein Kandidat mit Urteil)";
   const p = document.createElement("p");
-  p.innerHTML = "<b>Stand:</b> normal " + okA + " von " + nA + " ohne Doppelung/Fehlende" +
-    (nA ? " (" + Math.round(100 * okA / nA) + " %)" : "") +
-    " · Sammelblatt " + okB + " von " + nB + (nB ? " (" + Math.round(100 * okB / nB) + " %)" : "") +
-    "<br>Grundlinie 23.09.: 34 von 63 ohne Beanstandung (54 %).";
+  p.innerHTML = "<b>Stand:</b> normal " + quote(okA, nA) + " · Sammelblatt " + quote(okB, nB) +
+    ((nA || nB) ? "<br>Grundlinie 23.09.: 34 von 63 ohne Beanstandung (54 %)." : "") +
+    "<br>" + kontoText().replace(/\n/g, "<br>");
   box.appendChild(p);
 }
 
@@ -272,8 +316,9 @@ $("start").onclick = async () => {
   if (!blattUri) return sag("Erst das Sammelblatt bauen.");
   const runden = Math.max(1, Math.min(10, Number($("runden").value) || 1));
   const kosten = (runden * 0.32).toFixed(2);
-  if (!confirm("Jetzt " + runden + " Runden starten. Das sind " + (runden * 2) + " Bilder und " +
-    (runden * 2) + " Prüfaufrufe, zusammen rund " + kosten + " $. Wirklich starten?")) return;
+  if (!confirm("Jetzt " + runden + " Runden starten. Wenn alles durchläuft, sind das " + (runden * 2) +
+    " Bilder und " + (runden * 2) + " Prüfaufrufe, HÖCHSTENS " + kosten + " $. Was am Ende wirklich " +
+    "angefallen ist, zählt die Seite mit und sagt es. Wirklich starten?")) return;
   anhalten = false;
   $("start").disabled = true; $("stop").disabled = false;
   for (let i = 0; i < runden && !anhalten; i++) {
@@ -287,29 +332,43 @@ $("start").onclick = async () => {
     const eintrag = { nr: i + 1, komposition: built.compositionId, ersetzt: sam.ersetzt, a: null, b: null };
     let grenze = false;
     const istGrenze = (e) => /429|Anfragegrenze|zu viele|rate/i.test(String((e && e.message) || e));
+    // NEU (25.09.2026): "Prompt zu lang" ist kein Zufall, der sich in der naechsten Runde anders
+    // entscheidet -- er trifft jede Runde gleich. Weiterlaufen hiesse zehnmal denselben Fehler
+    // sammeln. Genau das ist am 24.09. passiert.
+    const istZuLang = (e) => /zu lang/i.test(String((e && e.message) || e));
+    const fehlerText = (e) => (e && e.message ? e.message : String(e)) +
+      (e && e.grenze != null ? " (Grenze " + e.grenze + ", gesendet " + e.laenge + ")" : "") +
+      (e && e.vorFal === true ? " — vor dem fal-Aufruf abgewiesen, nichts abgerechnet" : "");
     try {
       sag("Runde " + (i + 1) + ": normales Bild wird gezeichnet und geprüft …");
       eintrag.a = await einBild(built.instruction, built.styleRefUrls, built.editImageUrl, built.verifyPrompt, built.heroRefUrls, built.figuresBand);
-    } catch (e) { eintrag.fehlerA = e.message; grenze = grenze || istGrenze(e); }
+    } catch (e) { eintrag.fehlerA = fehlerText(e); fehlerBuchen(e); grenze = grenze || istGrenze(e); }
     try {
       sag("Runde " + (i + 1) + ": Sammelblatt-Bild wird gezeichnet und geprüft …");
       eintrag.b = await einBild(sam.instruction, sam.styleRefUrls, built.editImageUrl, built.verifyPrompt, sam.heroRefUrls, built.figuresBand);
-    } catch (e) { eintrag.fehlerB = e.message; grenze = grenze || istGrenze(e); }
+    } catch (e) { eintrag.fehlerB = fehlerText(e); fehlerBuchen(e); grenze = grenze || istGrenze(e); }
     ergebnisse.push(eintrag);
     tabelleZeigen();
     $("sichern").disabled = false;
     // Eine angelaufene Anfragegrenze wiederholt sich in jeder weiteren Runde. Weiterlaufen hiesse,
     // lauter halbe Runden zu erzeugen -- eine halbe Runde ist fuer den paarweisen Vergleich wertlos
     // und trotzdem bezahlt.
+    if (istZuLang(eintrag.fehlerA) || istZuLang(eintrag.fehlerB)) {
+      sag("ABGEBROCHEN nach der ersten Runde: " + (eintrag.fehlerA || eintrag.fehlerB) +
+        "\nDas trifft jede Runde gleich — Weiterlaufen würde nur denselben Fehler zehnmal sammeln.\n" + kontoText());
+      break;
+    }
     if (grenze) {
       sag("ANGEHALTEN: Die Anfragegrenze ist erreicht (40 Aufrufe je Stunde und IP). " +
         ergebnisse.length + " Runde(n) stehen in der Tabelle. In einer Stunde einfach wieder auf " +
-        "„Lauf starten“ tippen — die Tabelle sammelt weiter. Vorher bitte die Rohdaten sichern.");
+        "„Lauf starten“ tippen — die Tabelle sammelt weiter. Vorher bitte die Rohdaten sichern.\n" + kontoText());
       break;
     }
   }
   $("start").disabled = false; $("stop").disabled = true;
-  sag("Fertig. " + ergebnisse.length + " Runde(n) gelaufen, rund " + (ergebnisse.length * 0.32).toFixed(2) + " $ ausgegeben.");
+  // GEAENDERT (25.09.2026): Hier stand "rund X $ ausgegeben", gerechnet aus der ZAHL DER RUNDEN --
+  // also der Plan, ausgegeben als Tatsache. Jetzt steht hier nur, was gezaehlt wurde.
+  sag("Fertig. " + ergebnisse.length + " Runde(n) durchlaufen.\n" + kontoText());
 };
 
 $("sichern").onclick = () => {
@@ -319,6 +378,10 @@ $("sichern").onclick = () => {
     thema: $("thema").value, blatt: blattInfo ? { breite: blattInfo.breite, hoehe: blattInfo.hoehe, bytes: blattInfo.bytes, skala: blattInfo.skala, guete: blattInfo.guete } : null,
     figuren: heroSpecs().map((s) => ({ name: s.name, role: s.role, imageUrl: s.imageUrl })),
     grundlinie: { text: "23.09.2026: 29 von 63 Kandidaten mit Dopplung oder fehlender Figur", ohneBeanstandung: 34, gesamt: 63 },
+    // Was wirklich angefallen ist, nicht was geplant war.
+    konto: { bilderGeliefert: konto.bilder, pruefungenGeliefert: konto.pruefungen,
+             vorFalAbgewiesen: konto.abgewiesen, unklar: konto.unklar, unklarGruende: konto.unklarGruende,
+             belegteKosten: Number((konto.bilder * PREIS_BILD + konto.pruefungen * PREIS_PRUEFUNG).toFixed(2)) },
     runden: ergebnisse,
   };
   const a = document.createElement("a");

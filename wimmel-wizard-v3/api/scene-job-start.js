@@ -11,6 +11,7 @@
 // simpel und vermeidet, dass die umfangreiche Szenen-Prompt-Logik aus pipeline.js hier ein zweites
 // Mal nachgebaut werden muesste (siehe Kommentar in scene-job-engine.js).
 const { kvSetJson, kvTryLock, kvUnlock } = require("./_lib/kv");
+const { MAX_PROMPT_ZEICHEN } = require("./_lib/grenzen");
 const { createSceneJob } = require("./_lib/scene-job-engine");
 const { checkRateLimit } = require("./_lib/rate-limit");
 const { deckelErlaubt } = require("./_lib/kosten-deckel");
@@ -89,8 +90,10 @@ module.exports = async (req, res) => {
   // GEAENDERT (22.09.2026, Nutzer-Entscheidung): 30.000 statt 24.000. Die echte Grenze bei fal liegt
   // laut Schema bei 50.000 (NanoBananaProEditInput.prompt.maxLength). Der bewaehrte Prompt erreicht
   // mit 5 Helden im Extremfall rund 24.400 und wurde bisher an dieser eigenen Grenze abgelehnt.
-  if (instruction.length > 30000) {
-    res.status(400).json({ error: "instruction zu lang." });
+  // GEAENDERT (25.09.2026): die Zahl steht jetzt in api/_lib/grenzen.js, gemeinsam mit fal-proxy.js
+  // -- dort war sie beim Anheben am 22.09. uebersehen worden und blieb bei 16.000.
+  if (instruction.length > MAX_PROMPT_ZEICHEN) {
+    res.status(400).json({ error: "instruction zu lang.", vorFal: true, grenze: MAX_PROMPT_ZEICHEN, laenge: instruction.length });
     return;
   }
   if (!verifyPrompt) {

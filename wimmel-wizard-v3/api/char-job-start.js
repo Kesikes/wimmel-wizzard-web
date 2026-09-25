@@ -16,6 +16,7 @@
 const { kvSetJson } = require("./_lib/kv");
 const { createCharacterJob } = require("./_lib/char-job-engine");
 const { checkRateLimit } = require("./_lib/rate-limit");
+const { MAX_PROMPT_ZEICHEN } = require("./_lib/grenzen");
 const { deckelErlaubt } = require("./_lib/kosten-deckel");
 const { logFalError } = require("./_lib/fal-queue");
 
@@ -46,13 +47,15 @@ module.exports = async (req, res) => {
   const body = req.body || {};
   const prompt = String(body.prompt || "").trim();
   if (!prompt) {
-    res.status(400).json({ error: "Kein Prompt übergeben." });
+    res.status(400).json({ error: "Kein Prompt übergeben.", vorFal: true });
     return;
   }
-  // Gleiche Schutz-Grenzen wie im bestehenden, synchronen Pfad (fal-proxy.js) — siehe dortige
-  // Kommentare zur Herleitung der genauen Zahlen.
-  if (prompt.length > 16000) {
-    res.status(400).json({ error: "Prompt zu lang." });
+  // Gleiche Schutz-Grenze wie die anderen Endpunkte. GEAENDERT (25.09.2026): die Zahl stand hier
+  // als DRITTE Kopie (16.000) und wurde beim Anheben am 22.09. ebenso uebersehen wie die in
+  // fal-proxy.js. Sie steht jetzt einmal, in api/_lib/grenzen.js. Fuer den Figuren-Prompt aendert
+  // das praktisch nichts -- er liegt bei rund 1,5 KB, also weit unter jeder der beiden Zahlen.
+  if (prompt.length > MAX_PROMPT_ZEICHEN) {
+    res.status(400).json({ error: "Prompt zu lang.", vorFal: true, grenze: MAX_PROMPT_ZEICHEN, laenge: prompt.length });
     return;
   }
   if (!prompt.startsWith("wmlstil")) {

@@ -98,6 +98,8 @@ async function deckelErlaubt(req, res, art) {
   res.status(503).json({
     error: "Heute ist bei mir gerade Zauberpause — ich habe mein Tagespensum erreicht. "
       + "Dein Fortschritt ist gespeichert, morgen geht es weiter.",
+    // vorFal (25.09.2026): die Notbremse greift VOR dem Aufruf, es ist nichts abgerechnet.
+    vorFal: true,
   });
   return false;
 }

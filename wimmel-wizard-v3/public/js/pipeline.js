@@ -4416,7 +4416,18 @@ async function generateImage(prompt, kind, opts) {
     }),
   });
   const data = await parseJsonResponse(resp);
-  if (!resp.ok || data.error) throw new Error(data.error || ("Bild-Server-Fehler " + resp.status));
+  // NEU (25.09.2026): der Fehler traegt mit, WORAN er gescheitert ist. Ohne das muss jeder Aufrufer
+  // raten, ob ein gescheiterter Aufruf schon Geld gekostet hat. vorFal===true heisst: unser eigener
+  // Endpunkt hat abgewiesen, fal wurde nicht gerufen, es ist NICHTS abgerechnet. Fehlt das Feld,
+  // ist es unbekannt -- und unbekannt muss unbekannt bleiben.
+  if (!resp.ok || data.error) {
+    const err = new Error(data.error || ("Bild-Server-Fehler " + resp.status));
+    err.httpStatus = resp.status;
+    if (data.vorFal === true) err.vorFal = true;
+    if (data.grenze != null) err.grenze = data.grenze;
+    if (data.laenge != null) err.laenge = data.laenge;
+    throw err;
+  }
   if (!data.url) throw new Error("Bild-Server hat keine Bild-URL geliefert.");
   // description: siehe fal-proxy.js-Kommentar (Punkt A3) -- fal.ai's eigene kurze Beschreibung des
   // TATSAECHLICH generierten Bilds, durchgereicht fuer den Foto-Pfad (charakter.js
@@ -4453,7 +4464,12 @@ async function verifyImage(imageUrl, verifyPrompt) {
     body: JSON.stringify({ mode: "verify", imageUrls, verifyPrompt }),
   });
   const data = await parseJsonResponse(resp);
-  if (!resp.ok || data.error) throw new Error(data.error || ("Verify-Fehler " + resp.status));
+  if (!resp.ok || data.error) {
+    const err = new Error(data.error || ("Verify-Fehler " + resp.status));
+    err.httpStatus = resp.status;
+    if (data.vorFal === true) err.vorFal = true;
+    throw err;
+  }
   return data.output || "";
 }
 

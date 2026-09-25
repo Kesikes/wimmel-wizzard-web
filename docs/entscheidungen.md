@@ -2238,6 +2238,103 @@ einen Satz, den ein Mensch liest, einmal in einen Prompt, der das Verhalten des 
 Die übrigen sieben Treffer bleiben im Haus (Anzeige und Zählung) und werden beim nächsten Anfassen
 der jeweiligen Datei mitgenommen, so entschieden am 24.09.2026.
 
+### FEHLVERSUCH 24.09.2026, behoben 25.09.: der Sammelblatt-Versuch lief ins Leere
+
+> „10 Runden gelaufen, ALLE 20 Fassungen wurden mit ‚Prompt zu lang' abgewiesen. Kein einziges
+> Bild entstanden, Tabelle leer." (Nutzer)
+
+**Die Ursache: die Grenze stand an DREI Stellen, und nur eine wurde gepflegt.**
+
+| Datei | Grenze bis 25.09. | wann zuletzt angefasst |
+|---|---|---|
+| `api/scene-job-start.js` | **30.000** | 22.09.2026, Entscheidung des Nutzers |
+| `api/fal-proxy.js` | 16.000 | 10.09.2026 — beim Anheben übersehen |
+| `api/char-job-start.js` | 16.000 | 10.09.2026 — ebenso übersehen |
+
+Der **Produktpfad** einer Szene läuft über `scene-job-start`, deshalb ist es fünf Wochen lang nicht
+aufgefallen. Die Versuchsseite ruft `fal-proxy` auf — und traf dort auf die vergessene Zahl.
+
+**Das ist dasselbe Muster wie beim gelben Kasten vom Vortag:** Eine Aussage steht an mehreren
+Stellen, eine wird gepflegt, die anderen nicht, und niemand sucht nach Geschwistern. Zwei Fälle an
+zwei aufeinanderfolgenden Tagen.
+
+**Eine Richtigstellung, die ich mir selbst schulde:** Es lag **nicht** am Sammelblatt. Nachgemessen:
+
+| | längster Prompt |
+|---|---|
+| normal, 3 Helden | 21.076 |
+| Sammelblatt, 3 Helden | 21.755 |
+| normal, 5 Helden | 22.469 |
+| Sammelblatt, 5 Helden | 23.262 |
+
+Schon der **normale** Prompt lag bei 21.076 Zeichen und damit weit über den 16.000. Beide Fassungen
+sind aus demselben Grund gescheitert; die 679 Zeichen, die das Sammelblatt zusätzlich braucht,
+spielten keine Rolle. Mit 30.000 bleibt auch im längsten gemessenen Fall (fünf Helden,
+Sammelblatt) ein Abstand von **6.738 Zeichen**.
+
+**Behoben:** `api/_lib/grenzen.js` hält `MAX_PROMPT_ZEICHEN = 30000`, alle drei Endpunkte lesen von
+dort. **Warum 30.000 und nicht 16.000** — das ist eine technische Entscheidung, und sie gehört
+begründet: Die Grenze ist ein Missbrauchsschutz, kein fal-Limit (fal erlaubt laut Schema 50.000).
+Alle drei Endpunkte sind gleich öffentlich, gleich unauthentifiziert, haben je eine eigene
+Anfragegrenze und hängen an der Kosten-Notbremse. Wer einen 30.000 Zeichen langen Prompt schicken
+will, konnte das über `scene-job-start` ohnehin — die kleinere Zahl an den anderen beiden hat also
+nichts geschützt, was nicht schon offen war, und die Länge ändert am Preis nichts (fal rechnet je
+Bild ab). Was wirklich schützt, sind die Anfragegrenzen je IP und der Tagesdeckel.
+
+**NOCH OFFEN, zum Entscheiden:** Dieselbe Doppelung gibt es bei der **Zahl der Referenzbilder** —
+`13` steht in `api/scene-job-start.js`, in `api/fal-proxy.js` und (als abgeleitete Rechnung
+`13 - heroRefUrls.length`) in `public/js/pipeline.js`. Heute stimmen alle drei überein. Ich habe
+sie **nicht** angefasst, weil eine Änderung dort das Bildverhalten berührt und du gerade einen
+Versuch starten willst. Vorschlag: beim nächsten Anfassen dieser Dateien in `grenzen.js` ziehen.
+
+### VOR DEM LAUNCH, PUNKT 4b (Befund 25.09.2026): „Was geplant war" ist keine Messung
+
+> „Die Meldung ‚rund 3.20 $ ausgegeben' war schlicht falsch – sie nennt den geplanten Betrag, nicht
+> den tatsächlichen. Genau dasselbe Muster wie bei den Ersatzwerten: eine Zahl, die aussieht wie
+> eine Messung." (Nutzer)
+
+**Er hat es am fal-Dashboard nachgeprüft: 793 statt 789 Bilder, und die vier stammten aus seinem
+Sprachweg-Test.** Aus dem Versuch ging kein einziger Aufruf raus. Die Seite hat trotzdem einen
+Betrag genannt — gerechnet aus `ergebnisse.length * 0.32`, also aus der Zahl der **Runden**, nicht
+aus der Zahl der **Aufrufe**.
+
+**Das ist eine eigene Spielart des Musters aus Punkt 4, und sie gehört daneben:**
+
+> **Was geplant war, ist keine Messung.** Ein Betrag, eine Menge oder eine Dauer, die aus einer
+> Absicht gerechnet ist, darf nie in derselben Form dastehen wie eine, die aus dem beobachteten
+> Verlauf gezählt wurde.
+
+Sie ist heimtückischer als der Ersatzwert, weil sie **fast immer stimmt**: Solange alles
+durchläuft, ist der geplante Betrag der tatsächliche. Auffallen kann sie nur, wenn etwas
+schiefgeht — also genau dann, wenn man sich auf die Zahl verlassen möchte.
+
+**Behoben in der Versuchsseite,** und zwar als Zählung mit drei Töpfen statt einer Rechnung:
+
+| Topf | wann | Sicherheit |
+|---|---|---|
+| geliefert | der Aufruf hat ein Ergebnis gebracht | **sicher abgerechnet** |
+| abgewiesen | unser eigener Endpunkt hat abgelehnt, bevor fal gerufen wurde | **sicher nicht abgerechnet** |
+| unklar | alles andere | **weiß ich nicht — und dann steht das da** |
+
+Damit der mittlere Topf überhaupt möglich ist, sagen die Endpunkte es jetzt **ausdrücklich**:
+`vorFal: true` an jeder Ablehnung, die vor dem fal-Aufruf greift (Längen- und Formatprüfungen,
+Anfragegrenze, Kosten-Notbremse), dazu `grenze` und `laenge` bei einer Längenablehnung.
+`generateImage()`/`verifyImage()` hängen das an den geworfenen Fehler. **Vorher musste ein Aufrufer
+raten, ob ein gescheiterter Aufruf Geld gekostet hat — und Raten ist genau das, was hier nirgends
+passieren soll.**
+
+Zwei kleinere Änderungen an derselben Seite aus demselben Grund:
+
+- **„Stand: normal 0 von 0"** mit einer Prozentzahl daneben ist keine Quote, sondern das Fehlen
+  eines Ergebnisses. Steht jetzt als „nicht gemessen (kein Kandidat mit Urteil)".
+- Die Seite ruft jetzt `generateImage()` statt `generateImageWithRetry()`. Die Wiederholung deckt
+  einen Verbindungsaussetzer ab, kann dabei aber laut Kommentar in `pipeline.js` eine **zweite,
+  ebenfalls bezahlte** Generierung auslösen. Für einen Versuch, dessen Ergebnis eine Abrechnung
+  ist, wäre das genau die Unschärfe, die nicht sein darf: **lieber eine Runde sichtbar verlieren
+  als eine unsichtbar doppelt bezahlen.**
+- Ein „Prompt zu lang" bricht den Lauf jetzt nach der **ersten** Runde ab. Er trifft jede Runde
+  gleich — weiterlaufen heißt zehnmal denselben Fehler sammeln. Genau das ist am 24.09. passiert.
+
 ### DURCHGANG 24.09.2026: Suche nach Ersatzwerten, die wie Messwerte aussehen
 
 Gesucht nach den vier Mustern über `public/js/`, `public/js/screens/`, `api/` und `api/_lib/`.
