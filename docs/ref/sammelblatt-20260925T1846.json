@@ -1,0 +1,927 @@
+{
+  "versuch": "sammelblatt-ohne-massstab",
+  "am": "2026-09-25T18:46:45.938Z",
+  "bildFassung": "2026-09-23a · Bild 2d88a5b7",
+  "pruefFassung": "2026-09-23a · Prüfung eacec9ea",
+  "promptLabel": "2026-09-23a",
+  "thema": "Bauernhof",
+  "blatt": {
+    "breite": 2304,
+    "hoehe": 1174,
+    "bytes": 246044,
+    "skala": 1,
+    "guete": 0.9
+  },
+  "figuren": [
+    {
+      "name": "A",
+      "role": "boy",
+      "imageUrl": "https://v3b.fal.media/files/b/0aaaf52a/UvNu1hY6F6NVqCM1Z3wYh.png"
+    },
+    {
+      "name": "B",
+      "role": "girl",
+      "imageUrl": "https://v3b.fal.media/files/b/0aaaf532/6Fe4nPTRh5-b_AqCiCJq5.png"
+    },
+    {
+      "name": "C",
+      "role": "man",
+      "imageUrl": "https://v3b.fal.media/files/b/0aaaf540/ANEzh0V9bGTV1etfJ94B5.png"
+    }
+  ],
+  "grundlinie": {
+    "text": "23.09.2026: 29 von 63 Kandidaten mit Dopplung oder fehlender Figur",
+    "ohneBeanstandung": 34,
+    "gesamt": 63
+  },
+  "konto": {
+    "bilderGeliefert": 20,
+    "pruefungenGeliefert": 20,
+    "vorFalAbgewiesen": 0,
+    "unklar": 0,
+    "unklarGruende": [],
+    "belegteKosten": 3.2
+  },
+  "runden": [
+    {
+      "nr": 1,
+      "komposition": "open",
+      "ersetzt": [
+        "Bildzuordnung (1x)",
+        "Einmal-Regel (kurz) (1x)",
+        "Bibliotheks-Nummern (1x)",
+        "Held 1 (Satzanfang) (1x)",
+        "Held 1 (2x)",
+        "Held 2 (Satzanfang) (1x)",
+        "Held 2 (2x)",
+        "Held 3 (Satzanfang) (1x)",
+        "Held 3 (1x)",
+        "Abspann (1x)"
+      ],
+      "a": {
+        "url": "https://v3b.fal.media/files/b/0aabdf91/9JkwOGJDl1iRG7yAs1e_v_91NmH9lW.jpg",
+        "parsed": {
+          "heroes_found": [
+            1,
+            1,
+            1
+          ],
+          "heroes_x": [
+            80,
+            16,
+            58
+          ],
+          "heroes_ok": true,
+          "shaded_of_ten": 0,
+          "blank_of_ten": 0,
+          "depth_ratio": 4.5,
+          "scale_est": 3.5,
+          "heads_ok": true,
+          "figures_est": 45,
+          "mouths_of_ten": 1,
+          "logic_ok": true,
+          "no_text_ok": true,
+          "notiz": ""
+        },
+        "violations": 1,
+        "helden": {
+          "text": "1/1/1",
+          "ok": true,
+          "liste": [
+            1,
+            1,
+            1
+          ]
+        }
+      },
+      "b": {
+        "url": "https://v3b.fal.media/files/b/0aabdf98/rVcH0I8udJQZ8yWs_rQCZ_faDVPUzT.jpg",
+        "parsed": {
+          "heroes_found": [
+            1,
+            1,
+            1
+          ],
+          "heroes_x": [
+            68,
+            20,
+            84
+          ],
+          "heroes_ok": true,
+          "shaded_of_ten": 0,
+          "blank_of_ten": 0,
+          "depth_ratio": 4.5,
+          "scale_est": 3,
+          "heads_ok": true,
+          "figures_est": 15,
+          "mouths_of_ten": 0,
+          "logic_ok": true,
+          "no_text_ok": true,
+          "notiz": ""
+        },
+        "violations": 1,
+        "helden": {
+          "text": "1/1/1",
+          "ok": true,
+          "liste": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "nr": 2,
+      "komposition": "open",
+      "ersetzt": [
+        "Bildzuordnung (1x)",
+        "Einmal-Regel (kurz) (1x)",
+        "Bibliotheks-Nummern (1x)",
+        "Held 1 (Satzanfang) (1x)",
+        "Held 1 (2x)",
+        "Held 2 (Satzanfang) (1x)",
+        "Held 2 (2x)",
+        "Held 3 (Satzanfang) (1x)",
+        "Held 3 (1x)",
+        "Abspann (1x)"
+      ],
+      "a": {
+        "url": "https://v3b.fal.media/files/b/0aabdfa0/zXkVyNQ3ZaY2aeglDAU9y_ToltIauC.jpg",
+        "parsed": {
+          "heroes_found": [
+            1,
+            1,
+            1
+          ],
+          "heroes_x": [
+            70,
+            14,
+            88
+          ],
+          "heroes_ok": true,
+          "shaded_of_ten": 0,
+          "blank_of_ten": 0,
+          "depth_ratio": 5.5,
+          "scale_est": 2.8,
+          "heads_ok": true,
+          "figures_est": 35,
+          "mouths_of_ten": 0,
+          "logic_ok": true,
+          "no_text_ok": true,
+          "notiz": ""
+        },
+        "violations": 1,
+        "helden": {
+          "text": "1/1/1",
+          "ok": true,
+          "liste": [
+            1,
+            1,
+            1
+          ]
+        }
+      },
+      "b": {
+        "url": "https://v3b.fal.media/files/b/0aabdfa5/i0RwQq7HkvbLI3Cj31hft_4CebHlpf.jpg",
+        "parsed": {
+          "heroes_found": [
+            1,
+            1,
+            1
+          ],
+          "heroes_x": [
+            80,
+            13,
+            89
+          ],
+          "heroes_ok": true,
+          "shaded_of_ten": 0,
+          "blank_of_ten": 0,
+          "depth_ratio": 4.5,
+          "scale_est": 3.5,
+          "heads_ok": true,
+          "figures_est": 35,
+          "mouths_of_ten": 0,
+          "logic_ok": true,
+          "no_text_ok": true,
+          "notiz": ""
+        },
+        "violations": 1,
+        "helden": {
+          "text": "1/1/1",
+          "ok": true,
+          "liste": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "nr": 3,
+      "komposition": "open",
+      "ersetzt": [
+        "Bildzuordnung (1x)",
+        "Einmal-Regel (kurz) (1x)",
+        "Bibliotheks-Nummern (1x)",
+        "Held 1 (Satzanfang) (1x)",
+        "Held 1 (2x)",
+        "Held 2 (Satzanfang) (1x)",
+        "Held 2 (2x)",
+        "Held 3 (Satzanfang) (1x)",
+        "Held 3 (1x)",
+        "Abspann (1x)"
+      ],
+      "a": {
+        "url": "https://v3b.fal.media/files/b/0aabdfab/2T8-E9yd5kLlMUnitCL36_iZhI78p1.jpg",
+        "parsed": {
+          "heroes_found": [
+            2,
+            0,
+            0
+          ],
+          "heroes_x": [
+            68,
+            -1,
+            -1
+          ],
+          "heroes_ok": true,
+          "shaded_of_ten": 1,
+          "blank_of_ten": 0,
+          "depth_ratio": 4.5,
+          "scale_est": 2.4,
+          "heads_ok": true,
+          "figures_est": 75,
+          "mouths_of_ten": 0,
+          "logic_ok": true,
+          "no_text_ok": true,
+          "notiz": "Held A kommt zweimal vor (Schubkarre vorne, Heuballen hinten). Held B und Held C fehlen. Der Mann vorne rechts hat eine gezeichnete Nase statt eines Strichs."
+        },
+        "violations": 2,
+        "helden": {
+          "text": "2/0/0",
+          "ok": false,
+          "liste": [
+            2,
+            0,
+            0
+          ]
+        }
+      },
+      "b": {
+        "url": "https://v3b.fal.media/files/b/0aabdfb1/MX9siz0Lk_SHsvQntrFWh_1ObOtkID.jpg",
+        "parsed": {
+          "heroes_found": [
+            1,
+            0,
+            1
+          ],
+          "heroes_x": [
+            61,
+            -1,
+            86
+          ],
+          "heroes_ok": true,
+          "shaded_of_ten": 1,
+          "blank_of_ten": 0,
+          "depth_ratio": 4.5,
+          "scale_est": 2.8,
+          "heads_ok": true,
+          "figures_est": 35,
+          "mouths_of_ten": 0,
+          "logic_ok": true,
+          "no_text_ok": false,
+          "notiz": "Figur B fehlt. shaded_of_ten: Mann mit Bart rechts unten hat eine gezeichnete Nase. no_text_ok: Schild am Verkaufsstand hat Text."
+        },
+        "violations": 3,
+        "helden": {
+          "text": "1/0/1",
+          "ok": false,
+          "liste": [
+            1,
+            0,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "nr": 4,
+      "komposition": "overview_cutaway",
+      "ersetzt": [
+        "Bildzuordnung (1x)",
+        "Einmal-Regel (kurz) (1x)",
+        "Bibliotheks-Nummern (1x)",
+        "Held 1 (Satzanfang) (1x)",
+        "Held 1 (2x)",
+        "Held 2 (Satzanfang) (1x)",
+        "Held 2 (2x)",
+        "Held 3 (Satzanfang) (1x)",
+        "Held 3 (1x)",
+        "Abspann (1x)"
+      ],
+      "a": {
+        "url": "https://v3b.fal.media/files/b/0aabdfb6/uPFIxfla2GYSKdgCxdUUT_Kc4cO0sG.jpg",
+        "parsed": {
+          "heroes_found": [
+            1,
+            1,
+            1
+          ],
+          "heroes_x": [
+            14,
+            80,
+            85
+          ],
+          "heroes_ok": true,
+          "shaded_of_ten": 0,
+          "blank_of_ten": 0,
+          "depth_ratio": 5,
+          "scale_est": 3.5,
+          "heads_ok": true,
+          "figures_est": 35,
+          "mouths_of_ten": 0,
+          "logic_ok": true,
+          "no_text_ok": true,
+          "notiz": ""
+        },
+        "violations": 1,
+        "helden": {
+          "text": "1/1/1",
+          "ok": true,
+          "liste": [
+            1,
+            1,
+            1
+          ]
+        }
+      },
+      "b": {
+        "url": "https://v3b.fal.media/files/b/0aabdfbc/gpwc0Nn65qwOTUORZppeK_N1E86LYm.jpg",
+        "parsed": {
+          "heroes_found": [
+            1,
+            0,
+            1
+          ],
+          "heroes_x": [
+            18,
+            -1,
+            11
+          ],
+          "heroes_ok": true,
+          "shaded_of_ten": 1,
+          "blank_of_ten": 0,
+          "depth_ratio": 4.5,
+          "scale_est": 2.4,
+          "heads_ok": true,
+          "figures_est": 26,
+          "mouths_of_ten": 1,
+          "logic_ok": true,
+          "no_text_ok": true,
+          "notiz": "Figur B fehlt. Bei den 10 größten Gesichtern hat der Junge ganz vorne (Figur A) eine gezeichnete Nase statt eines Strichs und einen Mund."
+        },
+        "violations": 3,
+        "helden": {
+          "text": "1/0/1",
+          "ok": false,
+          "liste": [
+            1,
+            0,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "nr": 5,
+      "komposition": "open",
+      "ersetzt": [
+        "Bildzuordnung (1x)",
+        "Einmal-Regel (kurz) (1x)",
+        "Bibliotheks-Nummern (1x)",
+        "Held 1 (Satzanfang) (1x)",
+        "Held 1 (2x)",
+        "Held 2 (Satzanfang) (1x)",
+        "Held 2 (2x)",
+        "Held 3 (Satzanfang) (1x)",
+        "Held 3 (1x)",
+        "Abspann (1x)"
+      ],
+      "a": {
+        "url": "https://v3b.fal.media/files/b/0aabdfc2/0hgQGl08Yx3FrYldBqcOH_srup7dcn.jpg",
+        "parsed": {
+          "heroes_found": [
+            1,
+            1,
+            1
+          ],
+          "heroes_x": [
+            60,
+            38,
+            82
+          ],
+          "heroes_ok": true,
+          "shaded_of_ten": 1,
+          "blank_of_ten": 0,
+          "depth_ratio": 5,
+          "scale_est": 2.5,
+          "heads_ok": true,
+          "figures_est": 35,
+          "mouths_of_ten": 0,
+          "logic_ok": true,
+          "no_text_ok": false,
+          "notiz": "shaded_of_ten: Das Gesicht von Figur C (Mann, der auf Heuballen klettert) ist plastisch gezeichnet, mit Schatten unter der Nase und auf den Wangen. no_text_ok: Auf dem Schild des Hofladens steht FARM SHOP."
+        },
+        "violations": 3,
+        "helden": {
+          "text": "1/1/1",
+          "ok": true,
+          "liste": [
+            1,
+            1,
+            1
+          ]
+        }
+      },
+      "b": {
+        "url": "https://v3b.fal.media/files/b/0aabdfca/2cHtIUohZ0qWj8CbFjjvE_ENpy19xP.jpg",
+        "parsed": {
+          "heroes_found": [
+            1,
+            0,
+            1
+          ],
+          "heroes_x": [
+            88,
+            -1,
+            84
+          ],
+          "heroes_ok": false,
+          "shaded_of_ten": 0,
+          "blank_of_ten": 0,
+          "depth_ratio": 4.5,
+          "scale_est": 3.5,
+          "heads_ok": true,
+          "figures_est": 35,
+          "mouths_of_ten": 0,
+          "logic_ok": true,
+          "no_text_ok": false,
+          "notiz": "Held B fehlt. Held A hat ein einfarbiges Hemd statt eines karierten. Held C hat ein T-Shirt statt eines Pullovers. Auf dem Schild am Stand steht Text."
+        },
+        "violations": 4,
+        "helden": {
+          "text": "1/0/1",
+          "ok": false,
+          "liste": [
+            1,
+            0,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "nr": 6,
+      "komposition": "overview_cutaway",
+      "ersetzt": [
+        "Bildzuordnung (1x)",
+        "Einmal-Regel (kurz) (1x)",
+        "Bibliotheks-Nummern (1x)",
+        "Held 1 (Satzanfang) (1x)",
+        "Held 1 (2x)",
+        "Held 2 (Satzanfang) (1x)",
+        "Held 2 (2x)",
+        "Held 3 (Satzanfang) (1x)",
+        "Held 3 (1x)",
+        "Abspann (1x)"
+      ],
+      "a": {
+        "url": "https://v3b.fal.media/files/b/0aabdfcf/vPfdpbIFkNOuqaH4cPqhB_wF3WFXLp.jpg",
+        "parsed": {
+          "heroes_found": [
+            1,
+            1,
+            1
+          ],
+          "heroes_x": [
+            13,
+            68,
+            7
+          ],
+          "heroes_ok": true,
+          "shaded_of_ten": 0,
+          "blank_of_ten": 0,
+          "depth_ratio": 4.5,
+          "scale_est": 2.8,
+          "heads_ok": true,
+          "figures_est": 35,
+          "mouths_of_ten": 0,
+          "logic_ok": true,
+          "no_text_ok": false,
+          "notiz": "no_text_ok ist false, weil auf dem Schild am Haus FARM SHOP steht."
+        },
+        "violations": 2,
+        "helden": {
+          "text": "1/1/1",
+          "ok": true,
+          "liste": [
+            1,
+            1,
+            1
+          ]
+        }
+      },
+      "b": {
+        "url": "https://v3b.fal.media/files/b/0aabdfd7/sPzp3xN7CIIqn4pevk6yL_8sAryLNV.jpg",
+        "parsed": {
+          "heroes_found": [
+            0,
+            1,
+            1
+          ],
+          "heroes_x": [
+            -1,
+            70,
+            28
+          ],
+          "heroes_ok": true,
+          "shaded_of_ten": 0,
+          "blank_of_ten": 0,
+          "depth_ratio": 6.5,
+          "scale_est": 2.8,
+          "heads_ok": true,
+          "figures_est": 45,
+          "mouths_of_ten": 1,
+          "logic_ok": true,
+          "no_text_ok": true,
+          "notiz": "Figur A fehlt. Figur C hat einen Mund."
+        },
+        "violations": 2,
+        "helden": {
+          "text": "0/1/1",
+          "ok": false,
+          "liste": [
+            0,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "nr": 7,
+      "komposition": "overview_cutaway",
+      "ersetzt": [
+        "Bildzuordnung (1x)",
+        "Einmal-Regel (kurz) (1x)",
+        "Bibliotheks-Nummern (1x)",
+        "Held 1 (Satzanfang) (1x)",
+        "Held 1 (2x)",
+        "Held 2 (Satzanfang) (1x)",
+        "Held 2 (2x)",
+        "Held 3 (Satzanfang) (1x)",
+        "Held 3 (1x)",
+        "Abspann (1x)"
+      ],
+      "a": {
+        "url": "https://v3b.fal.media/files/b/0aabdfdc/aaKUsU2KKDkKgSFZIx5em_to9cIEvb.jpg",
+        "parsed": {
+          "heroes_found": [
+            1,
+            1,
+            1
+          ],
+          "heroes_x": [
+            71,
+            13,
+            78
+          ],
+          "heroes_ok": false,
+          "shaded_of_ten": 0,
+          "blank_of_ten": 0,
+          "depth_ratio": 4.5,
+          "scale_est": 3.8,
+          "heads_ok": true,
+          "figures_est": 35,
+          "mouths_of_ten": 1,
+          "logic_ok": true,
+          "no_text_ok": true,
+          "notiz": "Figur B (links vorne) trägt ein blau kariertes Hemd statt des gepunkteten Referenz-Pullovers."
+        },
+        "violations": 2,
+        "helden": {
+          "text": "1/1/1",
+          "ok": true,
+          "liste": [
+            1,
+            1,
+            1
+          ]
+        }
+      },
+      "b": {
+        "url": "https://v3b.fal.media/files/b/0aabdfe5/9zvD7Jvy6i_sqsUhSv7aN_tQaAdrpb.jpg",
+        "parsed": {
+          "heroes_found": [
+            1,
+            1,
+            1
+          ],
+          "heroes_x": [
+            63,
+            26,
+            88
+          ],
+          "heroes_ok": true,
+          "shaded_of_ten": 0,
+          "blank_of_ten": 0,
+          "depth_ratio": 3.5,
+          "scale_est": 3.8,
+          "heads_ok": true,
+          "figures_est": 35,
+          "mouths_of_ten": 0,
+          "logic_ok": true,
+          "no_text_ok": true,
+          "notiz": ""
+        },
+        "violations": 1,
+        "helden": {
+          "text": "1/1/1",
+          "ok": true,
+          "liste": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "nr": 8,
+      "komposition": "overview_cutaway",
+      "ersetzt": [
+        "Bildzuordnung (1x)",
+        "Einmal-Regel (kurz) (1x)",
+        "Bibliotheks-Nummern (1x)",
+        "Held 1 (Satzanfang) (1x)",
+        "Held 1 (2x)",
+        "Held 2 (Satzanfang) (1x)",
+        "Held 2 (2x)",
+        "Held 3 (Satzanfang) (1x)",
+        "Held 3 (1x)",
+        "Abspann (1x)"
+      ],
+      "a": {
+        "url": "https://v3b.fal.media/files/b/0aabdfea/RwqIU8_YDLiVqp4fzolTj_f8SZTWhn.jpg",
+        "parsed": {
+          "heroes_found": [
+            1,
+            1,
+            1
+          ],
+          "heroes_x": [
+            22,
+            72,
+            10
+          ],
+          "heroes_ok": true,
+          "shaded_of_ten": 0,
+          "blank_of_ten": 0,
+          "depth_ratio": 4.5,
+          "scale_est": 3.5,
+          "heads_ok": true,
+          "figures_est": 55,
+          "mouths_of_ten": 0,
+          "logic_ok": true,
+          "no_text_ok": true,
+          "notiz": ""
+        },
+        "violations": 0,
+        "helden": {
+          "text": "1/1/1",
+          "ok": true,
+          "liste": [
+            1,
+            1,
+            1
+          ]
+        }
+      },
+      "b": {
+        "url": "https://v3b.fal.media/files/b/0aabdff2/LibfSdY5mjLbMRofuERir_XV1LlVj1.jpg",
+        "parsed": {
+          "heroes_found": [
+            1,
+            1,
+            2
+          ],
+          "heroes_x": [
+            15,
+            80,
+            26
+          ],
+          "heroes_ok": true,
+          "shaded_of_ten": 0,
+          "blank_of_ten": 0,
+          "depth_ratio": 4.5,
+          "scale_est": 3.2,
+          "heads_ok": true,
+          "figures_est": 40,
+          "mouths_of_ten": 0,
+          "logic_ok": true,
+          "no_text_ok": true,
+          "notiz": "Figur C kommt zweimal vor: einmal links bei der Scheune, einmal im Wohnzimmer."
+        },
+        "violations": 2,
+        "helden": {
+          "text": "1/1/2",
+          "ok": false,
+          "liste": [
+            1,
+            1,
+            2
+          ]
+        }
+      }
+    },
+    {
+      "nr": 9,
+      "komposition": "open",
+      "ersetzt": [
+        "Bildzuordnung (1x)",
+        "Einmal-Regel (kurz) (1x)",
+        "Bibliotheks-Nummern (1x)",
+        "Held 1 (Satzanfang) (1x)",
+        "Held 1 (2x)",
+        "Held 2 (Satzanfang) (1x)",
+        "Held 2 (2x)",
+        "Held 3 (Satzanfang) (1x)",
+        "Held 3 (1x)",
+        "Abspann (1x)"
+      ],
+      "a": {
+        "url": "https://v3b.fal.media/files/b/0aabdff8/7ZHhG-dp1YJSqUsBrOOys_Jcn3P6xc.jpg",
+        "parsed": {
+          "heroes_found": [
+            1,
+            1,
+            1
+          ],
+          "heroes_x": [
+            55,
+            16,
+            76
+          ],
+          "heroes_ok": true,
+          "shaded_of_ten": 0,
+          "blank_of_ten": 0,
+          "depth_ratio": 4.5,
+          "scale_est": 2.8,
+          "heads_ok": true,
+          "figures_est": 40,
+          "mouths_of_ten": 0,
+          "logic_ok": true,
+          "no_text_ok": true,
+          "notiz": ""
+        },
+        "violations": 1,
+        "helden": {
+          "text": "1/1/1",
+          "ok": true,
+          "liste": [
+            1,
+            1,
+            1
+          ]
+        }
+      },
+      "b": {
+        "url": "https://v3b.fal.media/files/b/0aabdffe/-n5emBBCfP3LAdbnceL1a_eprlhYIG.jpg",
+        "parsed": {
+          "heroes_found": [
+            1,
+            1,
+            1
+          ],
+          "heroes_x": [
+            94,
+            30,
+            84
+          ],
+          "heroes_ok": false,
+          "shaded_of_ten": 1,
+          "blank_of_ten": 0,
+          "depth_ratio": 5,
+          "scale_est": 3.5,
+          "heads_ok": true,
+          "figures_est": 30,
+          "mouths_of_ten": 1,
+          "logic_ok": true,
+          "no_text_ok": true,
+          "notiz": "heroes_ok: Figur A hat ein einfarbig blaues Hemd statt des karierten Hemdes aus der Referenz. Figur C hat eine gezeichnete Nase und einen detaillierten Bart, was vom flachen Stil abweicht. shaded_of_ten: Der Mann mit dem Huhn (Figur C) hat eine plastisch gezeichnete Nase und einen detaillierten Bart."
+        },
+        "violations": 2,
+        "helden": {
+          "text": "1/1/1",
+          "ok": true,
+          "liste": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "nr": 10,
+      "komposition": "open",
+      "ersetzt": [
+        "Bildzuordnung (1x)",
+        "Einmal-Regel (kurz) (1x)",
+        "Bibliotheks-Nummern (1x)",
+        "Held 1 (Satzanfang) (1x)",
+        "Held 1 (2x)",
+        "Held 2 (Satzanfang) (1x)",
+        "Held 2 (2x)",
+        "Held 3 (Satzanfang) (1x)",
+        "Held 3 (1x)",
+        "Abspann (1x)"
+      ],
+      "a": {
+        "url": "https://v3b.fal.media/files/b/0aabe005/F6qzszqLUWv9l_HSS_5Tn_CThNr7sA.jpg",
+        "parsed": {
+          "heroes_found": [
+            2,
+            1,
+            1
+          ],
+          "heroes_x": [
+            50,
+            70,
+            10
+          ],
+          "heroes_ok": true,
+          "shaded_of_ten": 0,
+          "blank_of_ten": 0,
+          "depth_ratio": 4.5,
+          "scale_est": 2.8,
+          "heads_ok": true,
+          "figures_est": 30,
+          "mouths_of_ten": 0,
+          "logic_ok": true,
+          "no_text_ok": false,
+          "notiz": "Figur A kommt zweimal vor. Das Schild FARM SHOP enthält Text."
+        },
+        "violations": 3,
+        "helden": {
+          "text": "2/1/1",
+          "ok": false,
+          "liste": [
+            2,
+            1,
+            1
+          ]
+        }
+      },
+      "b": {
+        "url": "https://v3b.fal.media/files/b/0aabe00d/wlM1N9uRJ45VQs9rsEFRc_GUiatIx7.jpg",
+        "parsed": {
+          "heroes_found": [
+            1,
+            1,
+            1
+          ],
+          "heroes_x": [
+            48,
+            73,
+            14
+          ],
+          "heroes_ok": false,
+          "shaded_of_ten": 0,
+          "blank_of_ten": 0,
+          "depth_ratio": 4.5,
+          "scale_est": 3.5,
+          "heads_ok": true,
+          "figures_est": 35,
+          "mouths_of_ten": 0,
+          "logic_ok": true,
+          "no_text_ok": false,
+          "notiz": "Figur A hat ein blaues Hemd statt eines karierten. Figur B hat einen Pullover ohne Punkte. Figur C hat ein blaues Hemd statt eines beigen Pullovers. Das Bild enthält Text (FARM SHOP)."
+        },
+        "violations": 3,
+        "helden": {
+          "text": "1/1/1",
+          "ok": true,
+          "liste": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    }
+  ]
+}
