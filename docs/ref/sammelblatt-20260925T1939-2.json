@@ -1,0 +1,849 @@
+{
+  "versuch": "sammelblatt-ohne-massstab",
+  "am": "2026-09-25T19:39:24.398Z",
+  "bildFassung": "2026-09-23a · Bild 2d88a5b7",
+  "pruefFassung": "2026-09-23a · Prüfung eacec9ea",
+  "promptLabel": "2026-09-23a",
+  "thema": "Bauernhof",
+  "komposition": "overview_cutaway",
+  "blatt": {
+    "breite": 2304,
+    "hoehe": 1174,
+    "bytes": 246044,
+    "skala": 1,
+    "guete": 0.9
+  },
+  "figuren": [
+    {
+      "name": "A",
+      "role": "boy",
+      "imageUrl": "https://v3b.fal.media/files/b/0aaaf52a/UvNu1hY6F6NVqCM1Z3wYh.png"
+    },
+    {
+      "name": "B",
+      "role": "girl",
+      "imageUrl": "https://v3b.fal.media/files/b/0aaaf532/6Fe4nPTRh5-b_AqCiCJq5.png"
+    },
+    {
+      "name": "C",
+      "role": "man",
+      "imageUrl": "https://v3b.fal.media/files/b/0aaaf540/ANEzh0V9bGTV1etfJ94B5.png"
+    }
+  ],
+  "grundlinie": {
+    "text": "23.09.2026: 29 von 63 Kandidaten mit Dopplung oder fehlender Figur",
+    "ohneBeanstandung": 34,
+    "gesamt": 63
+  },
+  "konto": {
+    "bilderGeliefert": 18,
+    "pruefungenGeliefert": 18,
+    "vorAufrufAbgewiesen": 0,
+    "unklar": 0,
+    "unklarGruende": [],
+    "belegteKosten": 2.88
+  },
+  "runden": [
+    {
+      "nr": 1,
+      "komposition": "overview_cutaway",
+      "kompositionGewuenscht": "overview_cutaway",
+      "ersetzt": [
+        "Bildzuordnung (1x)",
+        "Einmal-Regel (kurz) (1x)",
+        "Bibliotheks-Nummern (1x)",
+        "Held 1 (Satzanfang) (1x)",
+        "Held 1 (2x)",
+        "Held 2 (Satzanfang) (1x)",
+        "Held 2 (2x)",
+        "Held 3 (Satzanfang) (1x)",
+        "Held 3 (1x)",
+        "Abspann (1x)"
+      ],
+      "a": {
+        "url": "https://v3b.fal.media/files/b/0aabe0f4/1yGzQjvo2xpGcRquGtY38_ojMnsQdZ.jpg",
+        "parsed": {
+          "heroes_found": [
+            0,
+            1,
+            1
+          ],
+          "heroes_x": [
+            -1,
+            10,
+            86
+          ],
+          "heroes_ok": true,
+          "shaded_of_ten": 0,
+          "blank_of_ten": 0,
+          "depth_ratio": 3.5,
+          "scale_est": 3.8,
+          "heads_ok": true,
+          "figures_est": 25,
+          "mouths_of_ten": 1,
+          "logic_ok": true,
+          "no_text_ok": true,
+          "notiz": "Figur A fehlt."
+        },
+        "violations": 2,
+        "helden": {
+          "text": "0/1/1",
+          "ok": false,
+          "liste": [
+            0,
+            1,
+            1
+          ]
+        }
+      },
+      "b": {
+        "url": "https://v3b.fal.media/files/b/0aabe0f9/AYW53Viz7c5GqS4nwNP-y_SoLPxFpR.jpg",
+        "parsed": {
+          "heroes_found": [
+            1,
+            1,
+            1
+          ],
+          "heroes_x": [
+            65,
+            22,
+            92
+          ],
+          "heroes_ok": true,
+          "shaded_of_ten": 0,
+          "blank_of_ten": 0,
+          "depth_ratio": 4.5,
+          "scale_est": 3.5,
+          "heads_ok": true,
+          "figures_est": 45,
+          "mouths_of_ten": 0,
+          "logic_ok": true,
+          "no_text_ok": true,
+          "notiz": ""
+        },
+        "violations": 1,
+        "helden": {
+          "text": "1/1/1",
+          "ok": true,
+          "liste": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "nr": 2,
+      "komposition": "overview_cutaway",
+      "kompositionGewuenscht": "overview_cutaway",
+      "ersetzt": [
+        "Bildzuordnung (1x)",
+        "Einmal-Regel (kurz) (1x)",
+        "Bibliotheks-Nummern (1x)",
+        "Held 1 (Satzanfang) (1x)",
+        "Held 1 (2x)",
+        "Held 2 (Satzanfang) (1x)",
+        "Held 2 (2x)",
+        "Held 3 (Satzanfang) (1x)",
+        "Held 3 (1x)",
+        "Abspann (1x)"
+      ],
+      "a": {
+        "url": "https://v3b.fal.media/files/b/0aabe0ff/zMH8cb60L8s2ZHnj4dBeL_bXcxBL2W.jpg",
+        "parsed": {
+          "heroes_found": [
+            2,
+            0,
+            2
+          ],
+          "heroes_x": [
+            59,
+            -1,
+            63
+          ],
+          "heroes_ok": true,
+          "shaded_of_ten": 2,
+          "blank_of_ten": 0,
+          "depth_ratio": 3.5,
+          "scale_est": 3,
+          "heads_ok": true,
+          "figures_est": 35,
+          "mouths_of_ten": 0,
+          "logic_ok": true,
+          "no_text_ok": true,
+          "notiz": "Held A ist zweimal vorhanden (Mitte rechts, oben rechts). Held B fehlt. Held C ist zweimal vorhanden (oben auf Heuballen, oben rechts am Traktor). Zwei der zehn größten Gesichter haben eine gezeichnete Nase statt eines Strichs (Koch, Frau am Kochtopf)."
+        },
+        "violations": 3,
+        "helden": {
+          "text": "2/0/2",
+          "ok": false,
+          "liste": [
+            2,
+            0,
+            2
+          ]
+        }
+      },
+      "b": {
+        "url": "https://v3b.fal.media/files/b/0aabe104/kZEUNkPOiAMidls_nwPcx_epTpvl8b.jpg",
+        "parsed": {
+          "heroes_found": [
+            2,
+            1,
+            1
+          ],
+          "heroes_x": [
+            68,
+            15,
+            86
+          ],
+          "heroes_ok": false,
+          "shaded_of_ten": 1,
+          "blank_of_ten": 0,
+          "depth_ratio": 5,
+          "scale_est": 3.8,
+          "heads_ok": true,
+          "figures_est": 45,
+          "mouths_of_ten": 1,
+          "logic_ok": true,
+          "no_text_ok": true,
+          "notiz": "Figur A kommt zweimal vor. Figur C fehlt der Bart. Das Gesicht der Figur B vorne links ist plastisch gezeichnet mit Nase und Mund."
+        },
+        "violations": 3,
+        "helden": {
+          "text": "2/1/1",
+          "ok": false,
+          "liste": [
+            2,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "nr": 3,
+      "komposition": "overview_cutaway",
+      "kompositionGewuenscht": "overview_cutaway",
+      "ersetzt": [
+        "Bildzuordnung (1x)",
+        "Einmal-Regel (kurz) (1x)",
+        "Bibliotheks-Nummern (1x)",
+        "Held 1 (Satzanfang) (1x)",
+        "Held 1 (2x)",
+        "Held 2 (Satzanfang) (1x)",
+        "Held 2 (2x)",
+        "Held 3 (Satzanfang) (1x)",
+        "Held 3 (1x)",
+        "Abspann (1x)"
+      ],
+      "a": {
+        "url": "https://v3b.fal.media/files/b/0aabe10a/PfBBRBYCak9VBkud8lCnx_0xOL9hn0.jpg",
+        "parsed": {
+          "heroes_found": [
+            2,
+            1,
+            0
+          ],
+          "heroes_x": [
+            20,
+            89,
+            -1
+          ],
+          "heroes_ok": true,
+          "shaded_of_ten": 0,
+          "blank_of_ten": 0,
+          "depth_ratio": 4.5,
+          "scale_est": 2.8,
+          "heads_ok": true,
+          "figures_est": 30,
+          "mouths_of_ten": 1,
+          "logic_ok": true,
+          "no_text_ok": true,
+          "notiz": "Held A kommt zweimal vor (Hühnerstall links, Esstisch Küche). Held C fehlt."
+        },
+        "violations": 2,
+        "helden": {
+          "text": "2/1/0",
+          "ok": false,
+          "liste": [
+            2,
+            1,
+            0
+          ]
+        }
+      },
+      "b": {
+        "url": "https://v3b.fal.media/files/b/0aabe110/z6i9d8I3U04hxvSqC9y8A_v6JKIYF1.jpg",
+        "parsed": {
+          "heroes_found": [
+            1,
+            1,
+            1
+          ],
+          "heroes_x": [
+            88,
+            65,
+            21
+          ],
+          "heroes_ok": true,
+          "shaded_of_ten": 0,
+          "blank_of_ten": 0,
+          "depth_ratio": 3.5,
+          "scale_est": 4.5,
+          "heads_ok": true,
+          "figures_est": 35,
+          "mouths_of_ten": 0,
+          "logic_ok": true,
+          "no_text_ok": true,
+          "notiz": ""
+        },
+        "violations": 1,
+        "helden": {
+          "text": "1/1/1",
+          "ok": true,
+          "liste": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "nr": 4,
+      "komposition": "overview_cutaway",
+      "kompositionGewuenscht": "overview_cutaway",
+      "ersetzt": [
+        "Bildzuordnung (1x)",
+        "Einmal-Regel (kurz) (1x)",
+        "Bibliotheks-Nummern (1x)",
+        "Held 1 (Satzanfang) (1x)",
+        "Held 1 (2x)",
+        "Held 2 (Satzanfang) (1x)",
+        "Held 2 (2x)",
+        "Held 3 (Satzanfang) (1x)",
+        "Held 3 (1x)",
+        "Abspann (1x)"
+      ],
+      "a": {
+        "url": "https://v3b.fal.media/files/b/0aabe115/IyCqXhFnWEzZVPQWjvDm-_kuQHNoyt.jpg",
+        "parsed": {
+          "heroes_found": [
+            1,
+            1,
+            1
+          ],
+          "heroes_x": [
+            50,
+            72,
+            12
+          ],
+          "heroes_ok": false,
+          "shaded_of_ten": 1,
+          "blank_of_ten": 0,
+          "depth_ratio": 4.5,
+          "scale_est": 3.5,
+          "heads_ok": true,
+          "figures_est": 45,
+          "mouths_of_ten": 1,
+          "logic_ok": true,
+          "no_text_ok": true,
+          "notiz": "heroes_ok: Figur A (Junge in Küche) hat ein einfarbig blaues Hemd statt eines karierten. Figur C (Mann links unten) hat einen anderen Bartstil als die Referenz. shaded_of_ten: Mann links unten hat einen plastisch gezeichneten Bart."
+        },
+        "violations": 2,
+        "helden": {
+          "text": "1/1/1",
+          "ok": true,
+          "liste": [
+            1,
+            1,
+            1
+          ]
+        }
+      },
+      "b": {
+        "url": "https://v3b.fal.media/files/b/0aabe11d/NYDleynRPg8sZ2YGJRqlP_yWcXNTol.jpg",
+        "parsed": {
+          "heroes_found": [
+            1,
+            1,
+            1
+          ],
+          "heroes_x": [
+            30,
+            83,
+            14
+          ],
+          "heroes_ok": true,
+          "shaded_of_ten": 0,
+          "blank_of_ten": 0,
+          "depth_ratio": 4.5,
+          "scale_est": 2.4,
+          "heads_ok": true,
+          "figures_est": 30,
+          "mouths_of_ten": 1,
+          "logic_ok": true,
+          "no_text_ok": true,
+          "notiz": ""
+        },
+        "violations": 2,
+        "helden": {
+          "text": "1/1/1",
+          "ok": true,
+          "liste": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "nr": 5,
+      "komposition": "overview_cutaway",
+      "kompositionGewuenscht": "overview_cutaway",
+      "ersetzt": [
+        "Bildzuordnung (1x)",
+        "Einmal-Regel (kurz) (1x)",
+        "Bibliotheks-Nummern (1x)",
+        "Held 1 (Satzanfang) (1x)",
+        "Held 1 (2x)",
+        "Held 2 (Satzanfang) (1x)",
+        "Held 2 (2x)",
+        "Held 3 (Satzanfang) (1x)",
+        "Held 3 (1x)",
+        "Abspann (1x)"
+      ],
+      "a": {
+        "url": "https://v3b.fal.media/files/b/0aabe122/069ccirtB-6WRKgZ31Lt0_uS9huPwR.jpg",
+        "parsed": {
+          "heroes_found": [
+            1,
+            1,
+            1
+          ],
+          "heroes_x": [
+            70,
+            63,
+            55
+          ],
+          "heroes_ok": true,
+          "shaded_of_ten": 1,
+          "blank_of_ten": 0,
+          "depth_ratio": 6,
+          "scale_est": 2.8,
+          "heads_ok": true,
+          "figures_est": 65,
+          "mouths_of_ten": 1,
+          "logic_ok": true,
+          "no_text_ok": true,
+          "notiz": "Figur C: Bartform weicht vom Referenzbild ab. Stil: Mann mit Bart im Vordergrund hat eine gezeichnete Nase statt eines Strichs. Münder: Frau im Wohnzimmer hat einen Mund."
+        },
+        "violations": 0,
+        "helden": {
+          "text": "1/1/1",
+          "ok": true,
+          "liste": [
+            1,
+            1,
+            1
+          ]
+        }
+      },
+      "b": {
+        "url": "https://v3b.fal.media/files/b/0aabe127/Mv2Xobhpp34UyJIMcEyUr_A84Xx2h8.jpg",
+        "parsed": {
+          "heroes_found": [
+            0,
+            0,
+            1
+          ],
+          "heroes_x": [
+            -1,
+            -1,
+            12
+          ],
+          "heroes_ok": true,
+          "shaded_of_ten": 1,
+          "blank_of_ten": 0,
+          "depth_ratio": 4.5,
+          "scale_est": 3.5,
+          "heads_ok": true,
+          "figures_est": 45,
+          "mouths_of_ten": 1,
+          "logic_ok": true,
+          "no_text_ok": true,
+          "notiz": "shaded_of_ten: Figur C links unten hat eine plastisch gezeichnete Nase statt eines Strichs. mouths_of_ten: Figur C links unten hat einen Mund."
+        },
+        "violations": 2,
+        "helden": {
+          "text": "0/0/1",
+          "ok": false,
+          "liste": [
+            0,
+            0,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "nr": 6,
+      "komposition": "overview_cutaway",
+      "kompositionGewuenscht": "overview_cutaway",
+      "ersetzt": [
+        "Bildzuordnung (1x)",
+        "Einmal-Regel (kurz) (1x)",
+        "Bibliotheks-Nummern (1x)",
+        "Held 1 (Satzanfang) (1x)",
+        "Held 1 (2x)",
+        "Held 2 (Satzanfang) (1x)",
+        "Held 2 (2x)",
+        "Held 3 (Satzanfang) (1x)",
+        "Held 3 (1x)",
+        "Abspann (1x)"
+      ],
+      "a": {
+        "url": "https://v3b.fal.media/files/b/0aabe12c/xm73HGagiYdzDYbLISsug_1hS4dkI5.jpg",
+        "parsed": {
+          "heroes_found": [
+            1,
+            1,
+            1
+          ],
+          "heroes_x": [
+            83,
+            13,
+            85
+          ],
+          "heroes_ok": false,
+          "shaded_of_ten": 1,
+          "blank_of_ten": 0,
+          "depth_ratio": 5,
+          "scale_est": 2.8,
+          "heads_ok": true,
+          "figures_est": 40,
+          "mouths_of_ten": 0,
+          "logic_ok": true,
+          "no_text_ok": true,
+          "notiz": "Figur C (Mann mit Bart) trägt ein blaues Hemd statt des beigen Pullovers. Eines der zehn größten Gesichter (Mann mit Bart rechts) hat eine plastische Nase und Bartstoppeln."
+        },
+        "violations": 2,
+        "helden": {
+          "text": "1/1/1",
+          "ok": true,
+          "liste": [
+            1,
+            1,
+            1
+          ]
+        }
+      },
+      "b": {
+        "url": "https://v3b.fal.media/files/b/0aabe132/0oBl0NeB5GxCqyEZhUPsp_XdVS5GcX.jpg",
+        "parsed": {
+          "heroes_found": [
+            1,
+            1,
+            1
+          ],
+          "heroes_x": [
+            85,
+            18,
+            82
+          ],
+          "heroes_ok": true,
+          "shaded_of_ten": 0,
+          "blank_of_ten": 0,
+          "depth_ratio": 5.5,
+          "scale_est": 2.8,
+          "heads_ok": true,
+          "figures_est": 30,
+          "mouths_of_ten": 0,
+          "logic_ok": true,
+          "no_text_ok": true,
+          "notiz": ""
+        },
+        "violations": 1,
+        "helden": {
+          "text": "1/1/1",
+          "ok": true,
+          "liste": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "nr": 7,
+      "komposition": "overview_cutaway",
+      "kompositionGewuenscht": "overview_cutaway",
+      "ersetzt": [
+        "Bildzuordnung (1x)",
+        "Einmal-Regel (kurz) (1x)",
+        "Bibliotheks-Nummern (1x)",
+        "Held 1 (Satzanfang) (1x)",
+        "Held 1 (2x)",
+        "Held 2 (Satzanfang) (1x)",
+        "Held 2 (2x)",
+        "Held 3 (Satzanfang) (1x)",
+        "Held 3 (1x)",
+        "Abspann (1x)"
+      ],
+      "a": {
+        "url": "https://v3b.fal.media/files/b/0aabe139/btOzUhua8R-Ud3fChUYPq_WaFysd5q.jpg",
+        "parsed": {
+          "heroes_found": [
+            2,
+            1,
+            1
+          ],
+          "heroes_x": [
+            45,
+            15,
+            70
+          ],
+          "heroes_ok": false,
+          "shaded_of_ten": 0,
+          "blank_of_ten": 0,
+          "depth_ratio": 4.5,
+          "scale_est": 3.8,
+          "heads_ok": true,
+          "figures_est": 20,
+          "mouths_of_ten": 0,
+          "logic_ok": true,
+          "no_text_ok": true,
+          "notiz": "Held A (Junge mit blonden Stachelhaaren) ist zweimal vorhanden: einmal kniend vor dem Lamm, einmal mit Huhn auf dem Arm. Held C (Mann mit Bart) hat im Bild keinen Bart."
+        },
+        "violations": 3,
+        "helden": {
+          "text": "2/1/1",
+          "ok": false,
+          "liste": [
+            2,
+            1,
+            1
+          ]
+        }
+      },
+      "b": {
+        "url": "https://v3b.fal.media/files/b/0aabe142/cGV4gvTQ2l0kwFpYnkZyj_eNZS5PxL.jpg",
+        "parsed": {
+          "heroes_found": [
+            0,
+            0,
+            0
+          ],
+          "heroes_x": [
+            -1,
+            -1,
+            -1
+          ],
+          "heroes_ok": true,
+          "shaded_of_ten": 0,
+          "blank_of_ten": 0,
+          "depth_ratio": 5,
+          "scale_est": 2.8,
+          "heads_ok": true,
+          "figures_est": 30,
+          "mouths_of_ten": 0,
+          "logic_ok": true,
+          "no_text_ok": true,
+          "notiz": "Figur A fehlt. Figur B fehlt. Figur C fehlt."
+        },
+        "violations": 2,
+        "helden": {
+          "text": "0/0/0",
+          "ok": false,
+          "liste": [
+            0,
+            0,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "nr": 8,
+      "komposition": "overview_cutaway",
+      "kompositionGewuenscht": "overview_cutaway",
+      "ersetzt": [
+        "Bildzuordnung (1x)",
+        "Einmal-Regel (kurz) (1x)",
+        "Bibliotheks-Nummern (1x)",
+        "Held 1 (Satzanfang) (1x)",
+        "Held 1 (2x)",
+        "Held 2 (Satzanfang) (1x)",
+        "Held 2 (2x)",
+        "Held 3 (Satzanfang) (1x)",
+        "Held 3 (1x)",
+        "Abspann (1x)"
+      ],
+      "a": {
+        "url": "https://v3b.fal.media/files/b/0aabe149/EulLrLapI2b3tjn7z90Bj_fvKA7K9e.jpg",
+        "parsed": {
+          "heroes_found": [
+            4,
+            1,
+            2
+          ],
+          "heroes_x": [
+            48,
+            6,
+            89
+          ],
+          "heroes_ok": true,
+          "shaded_of_ten": 1,
+          "blank_of_ten": 0,
+          "depth_ratio": 4.5,
+          "scale_est": 3.8,
+          "heads_ok": true,
+          "figures_est": 40,
+          "mouths_of_ten": 0,
+          "logic_ok": true,
+          "no_text_ok": true,
+          "notiz": "Held A kommt 4 Mal vor. Held C kommt 2 Mal vor. Der Mann ganz rechts unten hat eine gezeichnete Nase statt eines Strichs."
+        },
+        "violations": 2,
+        "helden": {
+          "text": "4/1/2",
+          "ok": false,
+          "liste": [
+            4,
+            1,
+            2
+          ]
+        }
+      },
+      "b": {
+        "url": "https://v3b.fal.media/files/b/0aabe150/QhvTLrOUpX2pDDdbQsYjq_0qt6j45H.jpg",
+        "parsed": {
+          "heroes_found": [
+            1,
+            1,
+            1
+          ],
+          "heroes_x": [
+            33,
+            11,
+            85
+          ],
+          "heroes_ok": true,
+          "shaded_of_ten": 1,
+          "blank_of_ten": 0,
+          "depth_ratio": 4.5,
+          "scale_est": 2.8,
+          "heads_ok": true,
+          "figures_est": 35,
+          "mouths_of_ten": 1,
+          "logic_ok": true,
+          "no_text_ok": true,
+          "notiz": "shaded_of_ten: Der Mann mit dem Huhn vorne rechts hat eine gezeichnete Nase statt eines Strichs. mouths_of_ten: Der Mann mit dem Huhn vorne rechts hat einen Mund."
+        },
+        "violations": 1,
+        "helden": {
+          "text": "1/1/1",
+          "ok": true,
+          "liste": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "nr": 9,
+      "komposition": "overview_cutaway",
+      "kompositionGewuenscht": "overview_cutaway",
+      "ersetzt": [
+        "Bildzuordnung (1x)",
+        "Einmal-Regel (kurz) (1x)",
+        "Bibliotheks-Nummern (1x)",
+        "Held 1 (Satzanfang) (1x)",
+        "Held 1 (2x)",
+        "Held 2 (Satzanfang) (1x)",
+        "Held 2 (2x)",
+        "Held 3 (Satzanfang) (1x)",
+        "Held 3 (1x)",
+        "Abspann (1x)"
+      ],
+      "a": {
+        "url": "https://v3b.fal.media/files/b/0aabe157/sZ8UbWZcJui_IZY6Z0RvA_4xSG8bTJ.jpg",
+        "parsed": {
+          "heroes_found": [
+            2,
+            1,
+            1
+          ],
+          "heroes_x": [
+            93,
+            53,
+            68
+          ],
+          "heroes_ok": true,
+          "shaded_of_ten": 0,
+          "blank_of_ten": 0,
+          "depth_ratio": 4.5,
+          "scale_est": 4,
+          "heads_ok": true,
+          "figures_est": 40,
+          "mouths_of_ten": 10,
+          "logic_ok": true,
+          "no_text_ok": true,
+          "notiz": "Figur A ist doppelt vorhanden. Mund-Zählung ist 10, der Stil verlangt aber 0 oder 1."
+        },
+        "violations": 3,
+        "helden": {
+          "text": "2/1/1",
+          "ok": false,
+          "liste": [
+            2,
+            1,
+            1
+          ]
+        }
+      },
+      "b": {
+        "url": "https://v3b.fal.media/files/b/0aabe15c/Jeu4ChWjQ-kTODHBCUk3R_Zy8pTF9L.jpg",
+        "parsed": {
+          "heroes_found": [
+            2,
+            1,
+            1
+          ],
+          "heroes_x": [
+            86,
+            36,
+            70
+          ],
+          "heroes_ok": true,
+          "shaded_of_ten": 1,
+          "blank_of_ten": 0,
+          "depth_ratio": 4.5,
+          "scale_est": 2.8,
+          "heads_ok": true,
+          "figures_est": 40,
+          "mouths_of_ten": 0,
+          "logic_ok": true,
+          "no_text_ok": true,
+          "notiz": "Held A ist doppelt vorhanden: einmal groß rechts vorn und einmal klein auf dem Heuboden der Scheune. Der Mann mit Bart (Held C) hat eine gezeichnete Nase statt eines Strichs."
+        },
+        "violations": 2,
+        "helden": {
+          "text": "2/1/1",
+          "ok": false,
+          "liste": [
+            2,
+            1,
+            1
+          ]
+        }
+      }
+    }
+  ]
+}
