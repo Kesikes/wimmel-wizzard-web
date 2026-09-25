@@ -2531,6 +2531,97 @@ Zwei kleinere Änderungen an derselben Seite aus demselben Grund:
 - Ein „Prompt zu lang" bricht den Lauf jetzt nach der **ersten** Runde ab. Er trifft jede Runde
   gleich — weiterlaufen heißt zehnmal denselben Fehler sammeln. Genau das ist am 24.09. passiert.
 
+#### DURCHGANG 25.09.2026: Suche nach Absichten, die wie Befunde aussehen
+
+Gesucht mit dem Prüfsatz über `public/js/`, `public/js/screens/`, `api/` und `api/_lib/`.
+**Berichtet, nichts behoben** — wie beim Durchgang zu Punkt 4.
+
+**Treffer 1 — die Häkchen auf dem Zaubern-Screen (an die Kundin, der schwerste Fall).**
+
+`setPhase("done")` in `screens/szene.js` setzt **alle drei Schritte auf ✓**, und zwar allein dadurch,
+dass `runSceneJobPolling()` zurückgekehrt ist:
+
+| Zeile mit ✓ | was sie behauptet | woher das ✓ kommt |
+|---|---|---|
+| „Zwei Varianten der Szene werden gezeichnet" | es wurden zwei gezeichnet | der Ablauf ist am Ende — auch wenn ein Kandidat `genStatus: "error"` hat |
+| „Qualitätsprüfung: Alle Figuren da?" | die Prüfung ist gelaufen | der Ablauf ist am Ende — auch wenn beide Kandidaten `verifyStatus: "ungeprueft"` sind |
+
+**Der zweite Fall ist nicht theoretisch.** Für „ungeprüft" gibt es einen eigenen Zustand, einen
+eigenen Panel-Text und einen eigenen Absatz in diesem Register — „das hat in Szene 7 (Berg,
+19.09.2026) das bessere Bild verlieren lassen". Die Kundin sieht trotzdem ein Häkchen an der
+Qualitätsprüfung.
+
+**Und die Zutaten für die Wahrheit liegen schon bereit:** `onUpdate` bekommt bei jedem Poll
+`genStatus`/`verifyStatus` je Kandidat und wertet sie für den Wechsel „gen → verify" bereits aus.
+Nur der Schlusszustand fragt sie nicht mehr. Ein Häkchen, das nicht trägt, wird zu einem Strich
+(„1 von 2 gezeichnet", „nicht geprüft").
+
+**Treffer 2 — der Satz in der Stopp-Mail (an mich, und er betrifft Geld).**
+
+> „Es gehen ab jetzt **keine bezahlten Aufrufe** mehr raus, bis der Tag umschlägt."
+> (`api/_lib/kosten-deckel.js`)
+
+Das ist die **Absicht** der Notbremse. Ihre tatsächliche Reichweite:
+
+| Endpunkt | Tor (`deckelErlaubt`) | zahlt trotzdem? |
+|---|---|---|
+| `scene-job-start.js` | ja | — |
+| `char-job-start.js` | ja | — |
+| `fal-proxy.js` | ja | — |
+| `claude-proxy.js` | ja (beide Zweige) | — |
+| **`scene-job-status.js`** | **nein** | **ja**: `advanceSceneJob()` macht Prüfaufrufe (0,01 $) und kann einen **dritten Kandidaten** erzeugen (0,15 $) |
+| **`char-job-status.js`** | **nein** | **ja**: `advanceCharacterJob()` macht Prüfaufrufe |
+| **`transcribe-proxy.js`** | **nein** | **ja** (OpenAI), und er wird nicht einmal **gezählt** |
+
+Nach dem harten Stopp laufen also **angefangene Aufträge weiter und geben weiter Geld aus**. Das
+ist für sich genommen vielleicht richtig — einen laufenden Auftrag mitten im Zaubern abzuwürgen
+wäre für die Kundin schlimmer als ihn zu Ende zu führen. **Falsch ist der Satz, nicht unbedingt das
+Verhalten.**
+
+**Vorschlag (nicht gebaut):** den Satz an die Wirklichkeit angleichen statt das Verhalten an den
+Satz —
+
+> „Neue Aufträge werden ab jetzt nicht mehr angenommen. Bereits laufende werden zu Ende geführt;
+> ihre Prüfaufrufe und ein möglicher dritter Kandidat gehen noch raus."
+
+**Treffer 3 — `api/transcribe-proxy.js` hat weder Anfragegrenze noch Deckel.** Kein
+`checkRateLimit`, kein `deckelErlaubt`, kein `deckelBuchen`. Ein öffentlicher, unauthentifizierter,
+**bezahlter** Endpunkt (OpenAI-Transkription, Körper bis 5,6 MB, bis rund fünf Minuten Audio).
+
+Das ist kein 4b-Fall, sondern der Grund, warum der Satz aus Treffer 2 nicht stimmt — und es ist
+dieselbe Lücke wie die am 23.09. geschlossene „fehlende Anfragegrenze in `claude-proxy.js`". Beim
+Schließen jener Lücke wurde dieser Endpunkt **übersehen**; wieder ein Geschwister, nach dem niemand
+gesucht hat. **Gehört auf die Launch-Liste zu Punkt 1 (Kostenflanke), und zwar weit oben:** Er ist
+der einzige verbliebene bezahlte Endpunkt ganz ohne Bremse.
+
+**Treffer 4 — eine Behauptung in einem Kommentar, die seit einem Tag falsch ist.**
+
+In `screens/szene.js`, über `buildErgebnisAnsicht()`:
+
+> „Ein Bild ohne bestandenen Kandidaten entsteht gar nicht mehr."
+
+Seit dem Einbau der **Notlösung** am 24.09. entsteht genau das: Besteht keiner, wird der am
+wenigsten schlechte angeboten. Der Satz beschreibt einen Vorsatz von vorgestern. Er steht in einem
+Kommentar, also sieht ihn keine Kundin — aber er ist das, woran sich die nächste Änderung
+orientiert.
+
+**Geprüft und sauber** (damit die Liste nicht wieder abgesucht werden muss):
+
+| Stelle | warum in Ordnung |
+|---|---|
+| Speicheranzeige | seit 22.09. drei Zustände, „gespeichert" nur nach Server-Bestätigung |
+| „ich hab dir N Varianten gezaubert" | N kommt aus dem tatsächlichen Angebot, nicht aus der Absicht |
+| Richter-Abschnitt im Panel | sagt ehrlich „entweder … oder", statt ein Nichtlaufen zu verschweigen |
+| Stopp-Mail im Übrigen | „**Gezählter** Stand", „Notbremse, **keine Buchhaltung**" |
+| `deckelStand()` | liefert `null` für „nicht gemessen", nie 0 |
+| Person auf „fertig" | wird gesetzt, wenn die Kundin „Passt so" drückt — beobachtet, nicht vorgenommen |
+| „dauert 2–5 Minuten" | eine Erwartung, als Erwartung formuliert |
+| Versuchsseite Sammelblatt | zählt seit 25.09. drei Töpfe statt zu rechnen |
+
+**Vorgeschlagene Reihenfolge:** Treffer 3 zuerst (offener bezahlter Endpunkt), dann Treffer 1 (der
+einzige, den eine Kundin sieht), dann Treffer 2 (ein Satz), dann Treffer 4 (ein Kommentar).
+**Nichts davon ist gebaut** — entschieden wird wie beim letzten Durchgang erst nach dem Bericht.
+
 ### DURCHGANG 24.09.2026: Suche nach Ersatzwerten, die wie Messwerte aussehen
 
 Gesucht nach den vier Mustern über `public/js/`, `public/js/screens/`, `api/` und `api/_lib/`.
