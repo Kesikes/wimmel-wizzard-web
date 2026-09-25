@@ -1540,8 +1540,51 @@ in der Fehlerart, die zählt. Nicht belegt ist, ob es an der Nummerierung, an de
 der Referenzbilder oder am Wegfall des eigenen Blattes je Held liegt. **Das muss auch niemand mehr
 auseinandernehmen** — die Idee ist erledigt.
 
-**Die zweiten 10 Runden entfallen** (Entscheidung des Nutzers). Von den freigegebenen 6,40 $ sind
-3,20 $ ausgegeben.
+**Die zweiten 10 Runden entfallen** (Entscheidung des Nutzers, 25.09.2026). Von den freigegebenen
+6,40 $ sind 3,20 $ ausgegeben.
+
+#### GEÄNDERT am selben Tag: die zweiten 10 Runden finden doch statt — für eine ANDERE Frage
+
+> „Bei 4 Bildern je Fassung kann der Unterschied zwischen open und overview_cutaway reiner Zufall
+> sein, und wenn er hält, ist er wichtiger als die Sammelblatt-Frage selbst — er beträfe auch den
+> Maßstabstest und jede künftige Prompt-Änderung." (Nutzer)
+
+Die Sammelblatt-Entscheidung bleibt gefallen. Der zweite Lauf misst nicht mehr, ob das Sammelblatt
+taugt, sondern **ob der Querschnitt die empfindliche Komposition ist**: 10 Runden **nur**
+`overview_cutaway`, Thema Bauernhof, dieselben drei Figuren. Zusammen mit den vorhandenen 4 gegen 4
+stünden dann **14 gegen 14** im Querschnitt.
+
+**Dafür gebaut (nur die Versuchsseite, 25.09.2026):** ein Auswahlfeld für die Komposition. Vorher
+gab die Seite `buildSceneComposeInputs()` kein `composition`-Feld mit, also würfelte
+`pickComposition()` je Runde neu.
+
+**Die Falle, die dabei abgefangen werden musste:** `pickComposition()` übernimmt eine erzwungene
+Komposition **nur, wenn das Thema sie erlaubt**. Bei **Berg und Stadt** (`querschnittVerboten()`)
+fällt ein erzwungenes `overview_cutaway` **still auf `open` zurück** — die Seite hätte
+„Querschnitt" angezeigt und „offen" erzeugt, und der ganze Lauf wäre wertlos gewesen, ohne dass es
+jemand merkt. Nachgeprüft: `Bauernhof → overview_cutaway`, `Berg → open`. Die Seite prüft das
+jetzt zweimal — beim Auswählen (kostenlos, mit einer roten Zeile) und noch einmal je Runde **vor**
+dem ersten bezahlten Aufruf; stimmt Gewünschtes und Gebautes nicht überein, bricht der Lauf ab.
+Gegengeprüft an 10 trockenen Durchgängen: 0 Abweichungen, 0 Ersetzungsfehler, Promptlänge
+21.648–21.766.
+
+**WAS DER ZWEITE LAUF BELEGEN KANN — und was nicht.** Er vergleicht weiterhin *Sammelblatt gegen
+normal*, nur eben ausschließlich im Querschnitt. Belegt wäre bei einem klaren Ergebnis:
+
+> **Diese eine Umstellung bricht im Querschnitt, im offenen Bild nicht.**
+
+**Nicht** belegt wäre die allgemeine Form davon — „der Querschnitt ist die Komposition, in der jede
+Prompt-Schwäche zuerst sichtbar wird". Das ist die **Verallgemeinerung**, und sie ist es, die den
+Maßstabstest und künftige Änderungen beträfe. Ein Versuch mit **einer** Umstellung kann sie
+stützen, nicht beweisen; dafür bräuchte es dieselbe Beobachtung bei einer zweiten, unabhängigen
+Änderung. **Als Arbeitsregel taugt sie trotzdem sofort** — „miss eine Prompt-Änderung nicht nur an
+offenen Bildern" kostet nichts und kann nur helfen. Als Befund taugt sie erst nach dem zweiten
+Fall. Das steht hier, bevor gemessen wird, damit es hinterher nicht zurechtgebogen wird.
+
+**Zur Stundengrenze:** 10 Runden sind 40 Aufrufe und damit **genau** die 40, die `fal-proxy` je
+Stunde und IP zulässt — kein Spielraum. Ein einziger Fehlversuch oder eine parallele Nutzung der
+App von derselben Adresse lässt die letzte Runde auflaufen. Die Bestätigungsfrage der Seite sagt
+das jetzt; wer sichergehen will, nimmt 9 Runden.
 
 **Was bleibt:** `sammelblattBauen()` / `sammelblattVariante()` in `pipeline.js` und
 `public/sammelblatt-test.html` stehen noch. Sie gehören entfernt, sobald die Maßstabsfrage unten
@@ -2711,6 +2754,16 @@ die Flanke jeweils wirklich ist:
   echter Auftrag fragt alle sieben Sekunden nach, also rund 25-mal; nach einem Neuladen kommen
   weitere dazu. Eine zu enge Grenze nimmt einer Kundin ihre schon bezahlten Bilder weg. Vorschlag,
   **nicht gebaut**: 400/h je IP — das Zwanzigfache eines normalen Auftrags und trotzdem eine Decke.
+
+  > **OFFEN (Entscheidung des Nutzers, 25.09.2026):** „Das ist eine Produktabwägung, da hast du
+  > recht. Ich entscheide sie, sobald wir Konten haben — bis dahin bitte als offener Punkt stehen
+  > lassen, mit deinem Hinweis, dass es eine Infrastruktur- und keine Modellkostenflanke ist."
+  >
+  > Festgehalten: **Infrastruktur-Flanke** (Upstash-Anfragen, Funktionslaufzeit), **keine
+  > Modellkosten-Flanke** — der Auftrag ist ein Zustandsautomat, Dauerfeuer vervielfacht die
+  > bezahlten Modellaufrufe nicht. Mit Konten wird die Frage ohnehin anders: dann lässt sich je
+  > Konto begrenzen statt je IP, und eine Kundin verliert ihre schon bezahlten Bilder nicht mehr
+  > dadurch, dass sie sich die Adresse mit jemandem teilt.
 - **`image-proxy`:** nur Bandbreite, und nur für Adressen auf `fal.media`/`fal.run`, die ohnehin
   öffentlich sind. Geringste Priorität.
 

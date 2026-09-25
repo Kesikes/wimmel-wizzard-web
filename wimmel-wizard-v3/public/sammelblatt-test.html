@@ -92,11 +92,13 @@
 <h2>3. Lauf</h2>
 <div class="reihe">
   Thema <select id="thema"></select>
+  Komposition <select id="komposition"></select>
   Runden <input type="number" id="runden" value="10" min="1" max="10" style="width:5em">
   <button id="probe">Erst nur die Prompts zeigen (kostenlos)</button>
   <button id="start" style="background:#f2c94c">Lauf starten</button>
   <button id="stop" disabled>Nach der laufenden Runde anhalten</button>
 </div>
+<p id="kompoinfo" style="font-size:13px"></p>
 <p id="meldung">Bereit.</p>
 <div id="proben"></div>
 <div id="tabelle"></div>
@@ -191,6 +193,51 @@ Object.keys(P.THEME_META).forEach((k) => {
   const o = document.createElement("option"); o.value = k; o.textContent = k; $("thema").appendChild(o);
 });
 
+// NEU (25.09.2026, Nutzer-Frage vor dem zweiten Lauf: "Würfelt die Seite die Komposition je Runde
+// neu, oder kann ich sie festlegen?"). Sie würfelte -- buildSceneComposeInputs() bekam kein
+// composition-Feld, also entschied pickComposition() je Runde neu. Mit 4 gegen 4 Bildern je
+// Kompositionstyp ist die Frage nicht zu beantworten, deshalb jetzt festlegbar.
+//
+// DIE FALLE, die das hier abfangen muss: pickComposition() nimmt eine erzwungene Komposition NUR,
+// wenn das Thema sie erlaubt. Bei Berg und Stadt (querschnittVerboten) fällt ein erzwungenes
+// overview_cutaway still auf "open" zurück -- die Seite würde "Querschnitt" anzeigen und "offen"
+// erzeugen, und der ganze Lauf wäre wertlos, ohne dass es jemand merkt. Genau das Muster aus
+// Abschnitt 16 des Registers. Deshalb: vor jedem bezahlten Aufruf wird verglichen, was
+// herauskam -- stimmt es nicht mit dem Gewünschten überein, bricht der Lauf ab.
+const KOMPO_GEWUERFELT = "(gewürfelt, wie im Produkt)";
+const o0 = document.createElement("option"); o0.value = ""; o0.textContent = KOMPO_GEWUERFELT;
+$("komposition").appendChild(o0);
+Object.keys(P.COMPOSITION_TYPES).forEach((k) => {
+  const o = document.createElement("option"); o.value = k; o.textContent = k; $("komposition").appendChild(o);
+});
+
+function kompoPruefen() {
+  const theme = P.THEME_META[$("thema").value];
+  const gewuenscht = $("komposition").value;
+  const el = $("kompoinfo");
+  if (!gewuenscht) {
+    el.innerHTML = "Komposition wird je Runde gewürfelt — wie im Produkt. Für eine Frage NACH Komposition ist das der falsche Aufbau.";
+    el.style.color = "";
+    return true;
+  }
+  const phase = P.SCENE_PHASES[P.ACTIVE_SCENE_PHASE];
+  const kommt = P.pickComposition(theme, phase, gewuenscht).id;
+  if (kommt === gewuenscht) {
+    el.innerHTML = "<b>Fest auf „" + gewuenscht + "“.</b> Gegengeprüft: Thema „" + $("thema").value +
+      "“ lässt das zu, pickComposition() liefert genau das. Jede Runde prüft das noch einmal, bevor etwas bezahlt wird.";
+    el.style.color = "";
+    return true;
+  }
+  el.innerHTML = "<b style='color:#b00'>GEHT NICHT:</b> Thema „" + $("thema").value + "“ erlaubt „" + gewuenscht +
+    "“ nicht — pickComposition() liefert stattdessen „" + kommt + "“. (Berg und Stadt verbieten jeden Querschnitt, " +
+    "siehe querschnittVerboten().) Bitte ein anderes Thema oder eine andere Komposition wählen. Es wurde nichts aufgerufen.";
+  el.style.color = "";
+  return false;
+}
+$("thema").onchange = kompoPruefen;
+$("komposition").onchange = kompoPruefen;
+kompoPruefen();
+
 // ---------------------------------------------------------------- Helden-Spezifikationen
 function heroSpecs() {
   return gewaehlt.map((id) => personen.find((p) => p.id === id)).filter(Boolean).map((p) => {
@@ -230,19 +277,27 @@ $("montieren").onclick = async () => {
 function paarBauen() {
   const specs = heroSpecs();
   const theme = P.THEME_META[$("thema").value];
+  const gewuenscht = $("komposition").value || undefined;
   const situations = P.autoSituations(theme, [], 20, []);
-  const built = P.buildSceneComposeInputs({ heroSpecs: specs, theme, situations, heldenNeu: true, blattfilter: false, koepfeGross: true });
+  const built = P.buildSceneComposeInputs({ heroSpecs: specs, theme, situations, composition: gewuenscht, heldenNeu: true, blattfilter: false, koepfeGross: true });
   const sam = P.sammelblattVariante(built, blattUri);
-  return { built, sam, specs };
+  // Der Abgleich, nicht die Absicht: was ist WIRKLICH herausgekommen?
+  const kompoFehler = (gewuenscht && built.compositionId !== gewuenscht)
+    ? ("Komposition „" + gewuenscht + "“ gewünscht, aber „" + built.compositionId + "“ gebaut")
+    : null;
+  return { built, sam, specs, gewuenscht: gewuenscht || null, kompoFehler };
 }
 
 $("probe").onclick = () => {
   if (!blattUri) return sag("Erst das Sammelblatt bauen.");
-  const { built, sam } = paarBauen();
+  const paar = paarBauen();
+  const { built, sam } = paar;
   const box = $("proben"); box.textContent = "";
   const f = document.createElement("p");
   f.innerHTML = "<b>Ersetzungen:</b> " + (sam.ersetzt.join(", ") || "keine") +
     "<br><b>Fehler:</b> " + (sam.fehler.length ? "<span style='color:#b00'>" + sam.fehler.join(" | ") + "</span>" : "keine") +
+    "<br><b>Komposition:</b> gewünscht " + (paar.gewuenscht || "(gewürfelt)") + ", gebaut " + built.compositionId +
+      (paar.kompoFehler ? " <span style='color:#b00'>— " + paar.kompoFehler + "</span>" : "") +
     "<br><b>Referenzbilder:</b> normal " + built.styleRefUrls.length + ", Sammelblatt " + sam.styleRefUrls.length +
     "<br><b>Promptlänge:</b> normal " + built.instruction.length + " Zeichen, Sammelblatt " + sam.instruction.length +
     " — die Endpunkte lassen zurzeit " + 30000 + " Zeichen zu (die verbindliche Zahl steht in " +
@@ -314,22 +369,33 @@ $("stop").onclick = () => { anhalten = true; sag("Wird nach der laufenden Runde 
 
 $("start").onclick = async () => {
   if (!blattUri) return sag("Erst das Sammelblatt bauen.");
+  if (!kompoPruefen()) return sag("Die gewählte Komposition passt nicht zum Thema — siehe Zeile darüber. Es wurde nichts aufgerufen.");
   const runden = Math.max(1, Math.min(10, Number($("runden").value) || 1));
   const kosten = (runden * 0.32).toFixed(2);
-  if (!confirm("Jetzt " + runden + " Runden starten. Wenn alles durchläuft, sind das " + (runden * 2) +
-    " Bilder und " + (runden * 2) + " Prüfaufrufe, HÖCHSTENS " + kosten + " $. Was am Ende wirklich " +
-    "angefallen ist, zählt die Seite mit und sagt es. Wirklich starten?")) return;
+  const aufrufe = runden * 4;
+  if (!confirm("Jetzt " + runden + " Runden starten" +
+    ($("komposition").value ? ", fest auf „" + $("komposition").value + "“" : ", Komposition gewürfelt") +
+    ".\n\nWenn alles durchläuft, sind das " + (runden * 2) + " Bilder und " + (runden * 2) +
+    " Prüfaufrufe, HÖCHSTENS " + kosten + " $.\n\n" + aufrufe + " Aufrufe von 40, die die Stundengrenze zulässt" +
+    (aufrufe >= 40 ? " — also KEIN Spielraum: ein einziger Fehlversuch oder eine parallele App-Nutzung von derselben Adresse lässt die letzte Runde auflaufen." : ".") +
+    "\n\nWas am Ende wirklich angefallen ist, zählt die Seite mit und sagt es. Wirklich starten?")) return;
   anhalten = false;
   $("start").disabled = true; $("stop").disabled = false;
   for (let i = 0; i < runden && !anhalten; i++) {
     sag("Runde " + (i + 1) + " von " + runden + " — Prompt wird gebaut …");
-    const { built, sam } = paarBauen();
+    const paar = paarBauen();
+    const { built, sam } = paar;
+    if (paar.kompoFehler) {
+      sag("ABBRUCH: " + paar.kompoFehler + ".\nEs wurde nichts aufgerufen und nichts bezahlt. " +
+        "Ein Lauf, der eine andere Komposition erzeugt als die untersuchte, wäre wertlos.\n" + kontoText());
+      break;
+    }
     if (sam.fehler.length) {
       sag("ABBRUCH: Der Sammelblatt-Prompt ist unvollständig — " + sam.fehler.join(" | ") +
         "\nEs wurde nichts aufgerufen und nichts bezahlt.");
       break;
     }
-    const eintrag = { nr: i + 1, komposition: built.compositionId, ersetzt: sam.ersetzt, a: null, b: null };
+    const eintrag = { nr: i + 1, komposition: built.compositionId, kompositionGewuenscht: paar.gewuenscht, ersetzt: sam.ersetzt, a: null, b: null };
     let grenze = false;
     const istGrenze = (e) => /429|Anfragegrenze|zu viele|rate/i.test(String((e && e.message) || e));
     // NEU (25.09.2026): "Prompt zu lang" ist kein Zufall, der sich in der naechsten Runde anders
@@ -375,7 +441,7 @@ $("sichern").onclick = () => {
   const d = {
     versuch: "sammelblatt-ohne-massstab", am: new Date().toISOString(),
     bildFassung: P.BILD_FASSUNG, pruefFassung: P.PRUEF_FASSUNG, promptLabel: P.PROMPT_LABEL,
-    thema: $("thema").value, blatt: blattInfo ? { breite: blattInfo.breite, hoehe: blattInfo.hoehe, bytes: blattInfo.bytes, skala: blattInfo.skala, guete: blattInfo.guete } : null,
+    thema: $("thema").value, komposition: $("komposition").value || "(gewürfelt)", blatt: blattInfo ? { breite: blattInfo.breite, hoehe: blattInfo.hoehe, bytes: blattInfo.bytes, skala: blattInfo.skala, guete: blattInfo.guete } : null,
     figuren: heroSpecs().map((s) => ({ name: s.name, role: s.role, imageUrl: s.imageUrl })),
     grundlinie: { text: "23.09.2026: 29 von 63 Kandidaten mit Dopplung oder fehlender Figur", ohneBeanstandung: 34, gesamt: 63 },
     // Was wirklich angefallen ist, nicht was geplant war.
