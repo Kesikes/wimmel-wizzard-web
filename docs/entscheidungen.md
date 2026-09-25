@@ -1259,14 +1259,25 @@ Eintrag erzeugt, steht im Code.
 
 ## 13. Thema und Kompositionstyp
 
-> **BEFUND 25.09.2026, hier ausdrücklich vermerkt, weil er beim nächsten Versuch zu beachten ist:**
-> Im Sammelblatt-Versuch (Abschnitt 15) steckte der **gesamte** Unterschied zwischen den beiden
-> Fassungen im **`overview_cutaway`** — beim offenen Bild waren sie identisch (4 ok / 2 nein auf
-> beiden Seiten), im aufgeschnittenen Haus stand es **4:0 gegen 1:3**. Vier Bilder je Fassung sind
-> kein Beweis, aber der Schnitt ist sauber und passt zu dem, was über den Querschnitt schon
-> bekannt ist: **Er verlangt dem Modell mehr ab — es muss zusätzlich Räume zuordnen —, und unter
-> Zusatzlast bricht zuerst das Schwächste.** Wer eine Prompt-Änderung misst, misst sie deshalb
-> nicht nur an offenen Bildern.
+> **ZURÜCKGEZOGEN 25.09.2026, am selben Abend.** Hier stand ein Befund von mir: Im
+> Sammelblatt-Versuch habe der **gesamte** Unterschied zwischen den beiden Fassungen im
+> `overview_cutaway` gesteckt (4:0 gegen 1:3), und der Querschnitt sei damit die empfindliche
+> Komposition.
+>
+> **Der zweite Lauf mit 9 Runden nur im Querschnitt hat das Gegenteil geliefert** (Abschnitt 15).
+> Über beide Läufe steht es im Querschnitt **7 von 13 gegen 6 von 13** — Gleichstand. Die 4 von 4
+> waren Zufall.
+>
+> **Was von der Sache bleibt, ist keine Aussage über den Querschnitt, sondern eine über das
+> Messen:** Dieselbe Fassung, dieselbe Komposition, dasselbe Thema, dieselben Figuren, an zwei
+> Tagen — **4 von 4 gegen 3 von 9**. Das Rauschen zwischen zwei Läufen ist größer als jeder
+> Unterschied, den wir mit dieser Stichprobengröße suchen. Genau dieselbe Lektion wie bei den
+> Blattmessungen am 23.09. (Verlässlichkeit 0,33).
+>
+> **Die Arbeitsregel bleibt trotzdem richtig** (Nutzer, 25.09.2026): Wer eine Prompt-Änderung
+> misst, misst sie **nicht nur an offenen Bildern**. Sie kostet nichts und kann nur helfen. Sie ist
+> aber eine Vorsichtsmaßnahme, **kein Befund** — der Querschnitt ist nach heutigem Stand nicht
+> nachweislich empfindlicher.
 
 ### GÜLTIG (Produktentscheidung des Nutzers, 21.09.2026; Code ab Fassung `2026-09-21i`)
 
@@ -1586,9 +1597,131 @@ Stunde und IP zulässt — kein Spielraum. Ein einziger Fehlversuch oder eine pa
 App von derselben Adresse lässt die letzte Runde auflaufen. Die Bestätigungsfrage der Seite sagt
 das jetzt; wer sichergehen will, nimmt 9 Runden.
 
+#### ERGEBNIS des zweiten Laufs (25.09.2026, 9 Runden, 2,88 $): mein Kompositionsbefund hat NICHT gehalten
+
+Rohdaten: `docs/ref/sammelblatt-20260925T1939-2.json`. Bauernhof, fest auf `overview_cutaway`,
+9 Runden, gezählt: 18 Bilder und 18 Prüfungen geliefert, **2,88 $**, nichts unklar.
+
+| | Lauf 1 (Querschnitt-Anteil) | Lauf 2 (nur Querschnitt) | zusammen |
+|---|---|---|---|
+| normal | **4 von 4** | **3 von 9** | **7 von 13** |
+| Sammelblatt | 1 von 4 | **5 von 9** | **6 von 13** |
+
+**Genau umgekehrt zum ersten Lauf, und im Ergebnis Gleichstand.** Der Befund von gestern ist damit
+widerlegt; der Kasten in Abschnitt 13 ist zurückgezogen.
+
+**Nachgerechnet, damit die Größenordnung klar ist** (Fisher, zweiseitig):
+
+| Vergleich | Zahlen | p |
+|---|---|---|
+| **derselbe Aufbau an zwei Tagen** (normal, Querschnitt) | 4 von 4 gegen 3 von 9 | **0,07** |
+| offen gegen Querschnitt (normaler Arm beider Läufe) | 4 von 6 gegen 7 von 13 | 1,0 |
+| offen gegen Querschnitt, dazu die Bilder aus den gespeicherten Sitzungen | 7 von 10 gegen 11 von 17 | 1,0 |
+| Sammelblatt gegen normal, beide Läufe | 10 von 19 gegen 11 von 19 | 1,0 |
+
+**Die oberste Zeile ist das eigentliche Ergebnis dieses Versuchs.** Zwei Läufe **desselben**
+Aufbaus unterscheiden sich stärker (p = 0,07) als alles, was wir zwischen den Fassungen gemessen
+haben (p = 1,0). Solange das so ist, kann ein Durchgang dieser Größe zwischen zwei Prompt-Fassungen
+nicht unterscheiden — er kann nur grobe Ausfälle zeigen.
+
+#### Die Sammelblatt-Entscheidung bleibt NEIN — aus einem schwächeren Grund
+
+Wortlaut des Nutzers, und so ist es auch gemeint: **Es zeigt weiterhin Ausfälle, und ein Vorteil
+ist nirgends belegt.** Die Gesamtzahl über beide Läufe ist 10 zu 11 — praktisch Gleichstand, kein
+Argument. Was bleibt, ist die **Art** der Fehler, und die ist über beide Läufe konsistent:
+
+| über beide Läufe, je 19 Bilder | normal | Sammelblatt |
+|---|---|---|
+| ohne Beanstandung | 11 | 10 |
+| Bilder mit **fehlendem** Helden | 4 | **6** |
+| fehlende Helden **insgesamt** | 5 | **9** |
+| Bilder mit **doppeltem** Helden | **7** | 3 |
+| Bild **ganz ohne** Helden (0/0/0) | — | **1** |
+
+**Einzeln ist nichts davon belegt** (p = 0,71 bzw. 0,27). Zusammen zeigen sie in beiden Läufen
+dieselbe Richtung: Das Sammelblatt verschiebt Fehler von der Dopplung zum Fehlen — von dem Fehler,
+den die Kundin mit dem Stift beheben kann, zu dem, den sie nicht beheben kann. Und der einzige
+Totalausfall (ein Bild ohne einen einzigen Helden) steht auf der Sammelblatt-Seite.
+
+**Eine Genauigkeit noch, wie gestern:** Der Nutzer schreibt „Ausfälle, die die normale Fassung
+nicht hat". Zwei fehlende Helden auf einmal gab es auch normal (`2/0/0`, Lauf 1). **Einzigartig**
+ist nur das Bild ganz ohne Helden.
+
+**Damit steht die Entscheidung auf: kein belegter Vorteil, eine ungünstige Tendenz bei der
+Fehlerart.** Das ist schwächer als gestern, und so gehört es hier zu stehen. Die Montage-Funktionen
+bleiben im Code, bis die Maßstabsfrage entschieden ist.
+
 **Was bleibt:** `sammelblattBauen()` / `sammelblattVariante()` in `pipeline.js` und
 `public/sammelblatt-test.html` stehen noch. Sie gehören entfernt, sobald die Maßstabsfrage unten
 entschieden ist — die Montage-Funktion ist genau das, was ein Maßstabsblatt bräuchte.
+
+### NACHGESEHEN 25.09.2026: Was sagen die gespeicherten Sitzungen über Querschnitt gegen offen?
+
+> „Die NORMALE Fassung liegt im Querschnitt bei 3 von 9. Der Bauernhof läuft seit dem 22.09.
+> regulär als `overview_cutaway`, bei etwa jedem zweiten Bild. Bitte prüfen, was die gespeicherten
+> Daten dazu hergeben … Ohne neue Aufrufe. Wenn sich das bestätigt, stelle ich die
+> Bauernhof-Entscheidung zurück." (Nutzer)
+
+**Kurz: Es bestätigt sich nicht — aber vor allem sind kaum Daten da, und das ist der eigentliche
+Befund.**
+
+**Das Verfahren funktioniert.** Die Komposition steht **nicht** am gespeicherten Bild (es gibt kein
+Feld `compositionId` in `state.js`), sie lässt sich aber aus der gespeicherten `instruction`
+zurückgewinnen: Der Kompositionstext aus `COMPOSITION_TYPES` steht dort wörtlich drin. Geprüft,
+dass die fünf Texte sich eindeutig unterscheiden — die ersten 90 Zeichen von `overview_cutaway` und
+`overview_open` sind gleich, die vollen Texte nicht. Ein Bild aus einer älteren Prompt-Fassung
+fällt dabei als „nicht zuordenbar" heraus statt still falsch zugeordnet zu werden.
+
+**Was im Repository liegt — und es ist erschreckend wenig:**
+
+| Datei | Bilder | Kandidaten mit `heroes_found` |
+|---|---|---|
+| `docs/ref/sitzung.json` | 4 | 8 |
+| `docs/ref/sitzung-neu.json` | 1 | 2 |
+| `dev-tools/session-sicherung/` (19.09., vier Dateien) | 10 | **0** — vor Einbau von `heroes_found` |
+
+**Zehn Kandidaten.** Aufgeschlüsselt: `overview_cutaway` 4 von 4, `cutaway` 0 von 2, `open` 3 von 4.
+
+**Warum so wenig: `docs/ref/sitzung.json` ist gar nicht versioniert** (`docs/ref/.gitignore` listet
+`sitzung.json`), und die Datei wurde am 24.09. vom Kundendurchlauf **überschrieben**. Die
+Grundlinie, die dieses Register an mehreren Stellen zitiert — **29 von 63 Kandidaten, 35 Bilder,
+Stand 23.09.** — ist aus dem Repository **nicht mehr reproduzierbar**. Sie steht nur noch als Zahl
+im Text.
+
+**Das ist genau die Lektion vom 23.09., nur an einer anderen Datei nicht angewandt.** Damals:
+„Bitte beide Messungen als Rohdaten behalten" — daraufhin bekam `blatt-stiltor.js` Dateinamen mit
+Zeitstempel und überschreibt seither nichts mehr. Die Sitzungssicherung hat diese Behandlung nie
+bekommen. **Regel, die daraus gehört:** Ein gezogener Sitzungsstand bekommt einen Namen mit
+Zeitstempel und wird nie überschrieben — dieselbe Behandlung wie die Blattmessungen und die
+Versuchsdaten des Sammelblatts.
+
+**Was sich mit dem heute Vorhandenen sagen lässt** (Versuchsarm „normal" beider Läufe plus die
+zehn Kandidaten oben):
+
+| | offen | Querschnitt (`overview_cutaway`) |
+|---|---|---|
+| ohne Beanstandung | **7 von 10** | **11 von 17** |
+| | 70 % | 65 % |
+
+**p = 1,0.** Kein Unterschied zu sehen. Die 3 von 9 aus dem zweiten Lauf stehen neben 4 von 4 aus
+dem ersten — im selben Aufbau.
+
+**Die Bauernhof-Entscheidung ist damit nicht zurückzustellen**, jedenfalls nicht auf dieser
+Grundlage. Festzuhalten ist aber, was damals entschieden wurde und was nicht: Am 22.09. lautete die
+Begründung „taugt, regulär mitwürfeln" — eine **Geschmacksentscheidung nach Ansehen der Bilder**.
+Ob der Querschnitt Helden kostet, war **nie gemessen** und ist es bis heute nicht. Die Frage ist
+offen, nicht beantwortet.
+
+**Wie sie beantwortbar wäre, ohne einen einzigen bezahlten Aufruf:** Die Sitzungen liegen **90 Tage**
+in Upstash (`SESSION_TTL_SECONDS` in `api/session.js`), und `dev-tools/session-retten.py
+--sichere-alle` zieht jede einzelne als eigene Datei. Das Skript **liest nur** (steht so in seinem
+Kopf), kostet keine Modellaufrufe und nur ein paar KV-Anfragen. Danach lässt sich jedes gespeicherte
+Bild der letzten drei Monate über seine `instruction` einer Komposition zuordnen und gegen
+`heroes_found` auszählen — die Auswertung selbst läuft dann ohne jeden Aufruf.
+
+**Vorschlag, nicht gemacht:** Du ziehst alle Sitzungen; ich werte aus und sage vorher, ab welcher
+Zahl je Feld die Frage überhaupt entscheidbar ist. Nach dem, was die beiden Läufe über das
+Rauschen gezeigt haben, werden das eher 40 bis 50 Kandidaten je Komposition sein als 10.
 
 ### EINSCHÄTZUNG 25.09.2026: Spricht das auch gegen das MASSSTABSBLATT?
 
