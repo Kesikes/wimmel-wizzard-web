@@ -20,15 +20,31 @@
 // zusätzliches npm-Paket nötig — dieses Projekt hat bewusst kein package.json/node_modules, siehe
 // die anderen beiden Proxy-Dateien).
 
+//
+// NEU (25.09.2026, Befund aus dem 4b-Durchgang, Nutzer: "transcribe-proxy hat gar keine Bremse"):
+// Dieser Endpunkt hatte als EINZIGER bezahlter Endpunkt WEDER eine Anfragegrenze NOCH die
+// Kosten-Notbremse NOCH eine Buchung -- oeffentlich, ohne Anmeldung, bis rund fuenf Minuten Audio
+// je Aufruf. Beim Schliessen derselben Luecke in claude-proxy.js am 23.09. wurde er uebersehen:
+// dort wurde nach dem NAMEN gesucht ("der Chat hat keine Grenze"), nicht nach der AUSSAGE ("welche
+// Endpunkte kosten Geld?"). Das dritte Geschwister in drei Tagen, siehe Abschnitt 16 im Register.
+//
+// Grenze 20 Aufrufe je Stunde und IP: Eine Kundin nimmt je Szene eine Geschichte auf und erzaehlt
+// sie im Zweifel zwei- oder dreimal neu; bei fuenf Szenen sind das grosszuegig gerechnet 15. Im
+// schlimmsten Fall kostet die Grenze 20 x 0,03 $ = 0,60 $ je Stunde und Adresse.
+const { checkRateLimit } = require("./_lib/rate-limit");
+const { deckelErlaubt, deckelBuchen } = require("./_lib/kosten-deckel");
+
 module.exports = async (req, res) => {
   if (req.method !== "POST") {
-    res.status(405).json({ error: "Nur POST erlaubt." });
+    res.status(405).json({ error: "Nur POST erlaubt.", vorAufruf: true });
     return;
   }
+  if (!(await checkRateLimit(req, res, { keyPrefix: "transkript", limit: 20, windowSeconds: 3600 }))) return;
+  if (!(await deckelErlaubt(req, res, "transkript"))) return;
 
   const OPENAI_KEY = process.env.OPENAI_API_KEY;
   if (!OPENAI_KEY) {
-    res.status(500).json({ error: "Server-Fehler: OPENAI_API_KEY ist im Vercel-Projekt nicht gesetzt." });
+    res.status(500).json({ error: "Server-Fehler: OPENAI_API_KEY ist im Vercel-Projekt nicht gesetzt.", vorAufruf: true });
     return;
   }
 
@@ -37,7 +53,7 @@ module.exports = async (req, res) => {
   const mimeType = typeof body.mimeType === "string" && body.mimeType ? body.mimeType : "audio/webm";
 
   if (!audioBase64) {
-    res.status(400).json({ error: "Keine Audiodaten erhalten." });
+    res.status(400).json({ error: "Keine Audiodaten erhalten.", vorAufruf: true });
     return;
   }
 
@@ -48,7 +64,7 @@ module.exports = async (req, res) => {
   // automatisch, bevor diese Grenze überhaupt in Reichweite kommt -- dieser Check hier ist die
   // zweite, serverseitige Absicherung, falls der Client-seitige Deckel je umgangen wird.
   if (audioBase64.length > 5600000) {
-    res.status(413).json({ error: "Aufnahme ist zu lang/groß fürs Hochladen. Bitte kürzer aufnehmen (max. ca. 5 Minuten)." });
+    res.status(413).json({ error: "Aufnahme ist zu lang/groß fürs Hochladen. Bitte kürzer aufnehmen (max. ca. 5 Minuten).", vorAufruf: true });
     return;
   }
 
@@ -56,11 +72,11 @@ module.exports = async (req, res) => {
   try {
     buffer = Buffer.from(audioBase64, "base64");
   } catch (e) {
-    res.status(400).json({ error: "Audiodaten konnten nicht gelesen werden." });
+    res.status(400).json({ error: "Audiodaten konnten nicht gelesen werden.", vorAufruf: true });
     return;
   }
   if (!buffer.length) {
-    res.status(400).json({ error: "Audiodaten sind leer." });
+    res.status(400).json({ error: "Audiodaten sind leer.", vorAufruf: true });
     return;
   }
 
@@ -73,7 +89,9 @@ module.exports = async (req, res) => {
     // Sprache fest auf Deutsch gesetzt (statt Auto-Erkennung) -- alle Zielnutzer:innen erzählen die
     // Gute-Nacht-Geschichte auf Deutsch, eine feste Sprachangabe verbessert bei kurzen/undeutlichen
     // Aufnahmen (Hintergrundgeräusche, Kinderstimmen im Hintergrund) die Trefferquote gegenüber
-        form.append("language", "de");
+    // der Auto-Erkennung. (Der Satz brach hier mitten im Wort ab und die Zeile darunter war
+    // verrutscht -- beim Einbau der Bremse am 25.09.2026 mitgenommen.)
+    form.append("language", "de");
 
     const resp = await fetch("https://api.openai.com/v1/audio/transcriptions", {
       method: "POST",
@@ -93,6 +111,9 @@ module.exports = async (req, res) => {
     }
 
     const text = (data && typeof data.text === "string") ? data.text.trim() : "";
+    // Gebucht wird NACH einer gelieferten Transkription, nicht an der Tuer -- ein gescheiterter
+    // Aufruf kostet nichts. Gleiches Muster wie in fal-proxy.js und claude-proxy.js.
+    await deckelBuchen("transkript", 1);
     res.status(200).json({ text });
   } catch (e) {
     res.status(502).json({ error: "Transkription fehlgeschlagen: " + (e && e.message ? e.message : String(e)) });

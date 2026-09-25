@@ -47,7 +47,7 @@ module.exports = async (req, res) => {
   const body = req.body || {};
   const prompt = String(body.prompt || "").trim();
   if (!prompt) {
-    res.status(400).json({ error: "Kein Prompt übergeben.", vorFal: true });
+    res.status(400).json({ error: "Kein Prompt übergeben.", vorAufruf: true });
     return;
   }
   // Gleiche Schutz-Grenze wie die anderen Endpunkte. GEAENDERT (25.09.2026): die Zahl stand hier
@@ -55,7 +55,7 @@ module.exports = async (req, res) => {
   // fal-proxy.js. Sie steht jetzt einmal, in api/_lib/grenzen.js. Fuer den Figuren-Prompt aendert
   // das praktisch nichts -- er liegt bei rund 1,5 KB, also weit unter jeder der beiden Zahlen.
   if (prompt.length > MAX_PROMPT_ZEICHEN) {
-    res.status(400).json({ error: "Prompt zu lang.", vorFal: true, grenze: MAX_PROMPT_ZEICHEN, laenge: prompt.length });
+    res.status(400).json({ error: "Prompt zu lang.", vorAufruf: true, grenze: MAX_PROMPT_ZEICHEN, laenge: prompt.length });
     return;
   }
   if (!prompt.startsWith("wmlstil")) {

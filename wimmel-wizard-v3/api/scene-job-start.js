@@ -93,7 +93,7 @@ module.exports = async (req, res) => {
   // GEAENDERT (25.09.2026): die Zahl steht jetzt in api/_lib/grenzen.js, gemeinsam mit fal-proxy.js
   // -- dort war sie beim Anheben am 22.09. uebersehen worden und blieb bei 16.000.
   if (instruction.length > MAX_PROMPT_ZEICHEN) {
-    res.status(400).json({ error: "instruction zu lang.", vorFal: true, grenze: MAX_PROMPT_ZEICHEN, laenge: instruction.length });
+    res.status(400).json({ error: "instruction zu lang.", vorAufruf: true, grenze: MAX_PROMPT_ZEICHEN, laenge: instruction.length });
     return;
   }
   if (!verifyPrompt) {

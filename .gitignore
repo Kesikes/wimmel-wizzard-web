@@ -1,3 +1,8 @@
 
 # Sicherungen aus dev-tools/session-retten.py -- koennen Namen und Bild-URLs enthalten
 dev-tools/session-sicherung/
+.DS_Store
+**/.DS_Store
+
+# Testbilder und Zwischenstände aus Stil-Versuchen -- gehoeren nicht ins Repo
+asset-originals-v3/stiltests-*/

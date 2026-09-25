@@ -1259,6 +1259,15 @@ Eintrag erzeugt, steht im Code.
 
 ## 13. Thema und Kompositionstyp
 
+> **BEFUND 25.09.2026, hier ausdrücklich vermerkt, weil er beim nächsten Versuch zu beachten ist:**
+> Im Sammelblatt-Versuch (Abschnitt 15) steckte der **gesamte** Unterschied zwischen den beiden
+> Fassungen im **`overview_cutaway`** — beim offenen Bild waren sie identisch (4 ok / 2 nein auf
+> beiden Seiten), im aufgeschnittenen Haus stand es **4:0 gegen 1:3**. Vier Bilder je Fassung sind
+> kein Beweis, aber der Schnitt ist sauber und passt zu dem, was über den Querschnitt schon
+> bekannt ist: **Er verlangt dem Modell mehr ab — es muss zusätzlich Räume zuordnen —, und unter
+> Zusatzlast bricht zuerst das Schwächste.** Wer eine Prompt-Änderung misst, misst sie deshalb
+> nicht nur an offenen Bildern.
+
 ### GÜLTIG (Produktentscheidung des Nutzers, 21.09.2026; Code ab Fassung `2026-09-21i`)
 
 | Thema | open | overview_open | cutaway | gridhouse | overview_cutaway |
@@ -2513,7 +2522,7 @@ lassen, weil sie meistens stimmt.
 | unklar | alles andere | **weiß ich nicht — und dann steht das da** |
 
 Damit der mittlere Topf überhaupt möglich ist, sagen die Endpunkte es jetzt **ausdrücklich**:
-`vorFal: true` an jeder Ablehnung, die vor dem fal-Aufruf greift (Längen- und Formatprüfungen,
+`vorAufruf: true` an jeder Ablehnung, die vor dem bezahlten Aufruf greift (Längen- und Formatprüfungen,
 Anfragegrenze, Kosten-Notbremse), dazu `grenze` und `laenge` bei einer Längenablehnung.
 `generateImage()`/`verifyImage()` hängen das an den geworfenen Fehler. **Vorher musste ein Aufrufer
 raten, ob ein gescheiterter Aufruf Geld gekostet hat — und Raten ist genau das, was hier nirgends
@@ -2618,9 +2627,99 @@ orientiert.
 | „dauert 2–5 Minuten" | eine Erwartung, als Erwartung formuliert |
 | Versuchsseite Sammelblatt | zählt seit 25.09. drei Töpfe statt zu rechnen |
 
-**Vorgeschlagene Reihenfolge:** Treffer 3 zuerst (offener bezahlter Endpunkt), dann Treffer 1 (der
-einzige, den eine Kundin sieht), dann Treffer 2 (ein Satz), dann Treffer 4 (ein Kommentar).
-**Nichts davon ist gebaut** — entschieden wird wie beim letzten Durchgang erst nach dem Bericht.
+#### GEBAUT 25.09.2026 (Nutzer: „alle vier bitte bauen", Reihenfolge wie vorgeschlagen)
+
+**Treffer 3 — `transcribe-proxy` hat jetzt alle drei Bremsen.**
+
+| | Wert | Begründung |
+|---|---|---|
+| Anfragegrenze | **20 je Stunde und IP** | Eine Kundin nimmt je Szene eine Geschichte auf und erzählt sie im Zweifel zwei- bis dreimal neu; bei fünf Szenen großzügig 15. Kostet im schlimmsten Fall 0,60 $ je Stunde und Adresse. |
+| Deckel-Tor | `deckelErlaubt(…, "transkript")` | wie an den anderen bezahlten Endpunkten |
+| Buchung | `deckelBuchen("transkript", 1)` **nach** gelieferter Transkription | gescheiterte Aufrufe kosten nichts — gleiches Muster wie `fal-proxy` |
+| Stückpreis | **3 Cent, geschätzt** (`CENT_GESCHAETZT`) | `gpt-4o-transcribe` kostet 0,006 $ **je Minute**, nicht je Aufruf. 3 Cent ist der Preis einer **vollen** Fünf-Minuten-Aufnahme, also der obere Rand — nicht der Mittelwert. Der Zähler kennt nur die Byte-Zahl, nicht die Bitrate, und soll nicht schätzen, was er nicht weiß. |
+
+**Mitgenommen:** In derselben Datei brach ein Kommentar mitten im Wort ab („… die Trefferquote
+gegenüber") und die Zeile darunter war verrutscht. Beides berichtigt.
+
+**Umbenannt:** Das Feld `vorFal` heißt jetzt **`vorAufruf`**. Es bedeutet „der bezahlte Dienst
+wurde nicht gerufen" und gilt seit heute auch für OpenAI und Anthropic — ein Feldname, der nach
+einem einzigen Anbieter klingt, ist genau die Sorte Bezeichnung, die den nächsten Irrtum vorbereitet.
+
+**Treffer 1 — die Häkchen kommen aus dem echten Stand.** `schritteAusStand(candidates)` ersetzt
+`setPhase("done")`:
+
+| Fall | was jetzt dasteht |
+|---|---|
+| alle Kandidaten gezeichnet und geprüft | ✓ wie bisher |
+| ein Kandidat mit `genStatus: "error"` | „! … — 1 von 2 sind etwas geworden" |
+| kein Kandidat mit `verifyStatus: "done"` | „! … — nicht geprüft, die Prüfung ist diesmal nicht durchgelaufen" |
+| geprüft, aber nicht alle | „! … — 1 von 2 geprüft" |
+| keine Kandidatenliste da | **„?"** statt eines Hakens |
+
+**Und derselbe Befund an der Stelle, wo er bleibt.** Die berichtigten Häkchen sind nur Sekunden zu
+sehen — danach navigiert `finishSceneResult()` zum Ergebnis. Die Aussage gehört dorthin, wo die
+Kundin entscheidet. Auf dem Ergebnis-Screen steht deshalb, **nur** bei ausdrücklichem
+`verifyStatus: "ungeprueft"` des gezeigten Kandidaten:
+
+> „Bei diesem Bild ist meine Qualitätsprüfung nicht durchgelaufen — ich kann dir diesmal nicht
+> sagen, ob alle eure Figuren genau einmal vorkommen. Schau bitte selbst kurz nach."
+
+**Bewusst kein Alarmkasten**, sondern ein ruhiger Satz in der Zeilenart des KI-Hinweises: Es fehlt
+eine Auskunft, es ist kein Fehler am Bild. Und **nur bei ausdrücklichem „ungeprueft"** — ein
+fehlendes Feld (Bilder von vor dem 20.09., der Ersatz-Eintrag in `addImage()`) heißt „unbekannt"
+und darf nicht wie ein Befund aussehen.
+
+**Treffer 2 — der Satz, nicht das Verhalten** (Entscheidung des Nutzers: „Einen laufenden Auftrag
+abzuwürgen wäre für die Kundin schlimmer."). Die Stopp-Mail sagt jetzt, dass **neue** Aufträge nicht
+mehr angenommen werden, dass **laufende zu Ende geführt** werden, und dass deren Prüfaufrufe und ein
+möglicher dritter Kandidat die Schwelle noch etwas überschreiten können.
+
+**Treffer 4 —** der Kommentar über `buildErgebnisAnsicht()` sagt nicht mehr „Ein Bild ohne
+bestandenen Kandidaten entsteht gar nicht mehr", sondern verweist auf die Notlösung.
+
+#### DURCHGANG 25.09.2026: Welche Endpunkte kosten Geld, und was bremst sie?
+
+> „Bitte auch prüfen, ob es weitere bezahlte Endpunkte ohne Bremse gibt — nach der AUSSAGE suchen,
+> nicht nach dem Namen. Das ist jetzt das dritte Geschwister in drei Tagen." (Nutzer)
+
+Gesucht nach **ausgehenden Aufrufen an bezahlte Dienste**, nicht nach Dateinamen. Vollständige
+Liste der Ziele im Code: `fal.run`/`queue.fal.run`, `api.anthropic.com`, `api.openai.com`,
+`api.resend.com`, Upstash (über `_lib/kv.js`).
+
+| Endpunkt | ruft an und zahlt | Anfragegrenze | Deckel-Tor | Buchung |
+|---|---|---|---|---|
+| `scene-job-start` | fal, 2 Bilder | 10/h | ja | über `fal-queue` |
+| `char-job-start` | fal | 15/h | ja | über `fal-queue` |
+| `fal-proxy` | fal | 40/h | ja | ja |
+| `claude-proxy` | Anthropic | 30 / 60 / 120 je Betriebsart | ja | ja |
+| `transcribe-proxy` | OpenAI | **20/h (neu)** | **ja (neu)** | **ja (neu)** |
+| `session` (Mail) | Resend | 5/h | nein | nein |
+| `session` (Sichern/Laden) | Upstash je Anfrage | 240/h bzw. 30/h | nein | nein |
+| **`scene-job-status`** | fal: Prüfaufrufe **und** ein dritter Kandidat | **keine** | **nein** | über `fal-queue` |
+| **`char-job-status`** | fal: Prüfaufrufe | **keine** | **nein** | über `fal-queue` |
+| `image-proxy` | nur Bandbreite (Vercel), Ziel auf fal.media/fal.run begrenzt | **keine** | — | — |
+
+**Befund: Nach dem heutigen Einbau ruft kein Endpunkt mehr ein bezahltes KI-Modell ohne Tor an.**
+Drei haben weiterhin **keine Anfragegrenze**, und dazu gehört eine ehrliche Einordnung, wie groß
+die Flanke jeweils wirklich ist:
+
+- **`scene-job-status` / `char-job-status`:** Dauerfeuer vervielfacht die Modellkosten **nicht** —
+  der Auftrag ist ein Zustandsautomat: jeder Kandidat wird einmal geprüft, der dritte einmal
+  erzeugt, und wie viele Aufträge überhaupt entstehen, begrenzt `scene-job-start` mit 10/h. Was
+  Dauerfeuer schon vervielfacht, sind **Upstash-Anfragen** (fünf je Abfrage) und Funktionslaufzeit.
+  Das ist eine Infrastruktur-Flanke, keine Modellkosten-Flanke. **Eine Grenze hier ist heikel:** Ein
+  echter Auftrag fragt alle sieben Sekunden nach, also rund 25-mal; nach einem Neuladen kommen
+  weitere dazu. Eine zu enge Grenze nimmt einer Kundin ihre schon bezahlten Bilder weg. Vorschlag,
+  **nicht gebaut**: 400/h je IP — das Zwanzigfache eines normalen Auftrags und trotzdem eine Decke.
+- **`image-proxy`:** nur Bandbreite, und nur für Adressen auf `fal.media`/`fal.run`, die ohnehin
+  öffentlich sind. Geringste Priorität.
+
+**Was der Durchgang über das Muster sagt:** Die Lücke in `transcribe-proxy` ist entstanden, weil am
+23.09. nach dem NAMEN gesucht wurde („der Chat hat keine Grenze") statt nach der AUSSAGE („welche
+Endpunkte kosten Geld?"). Dieselbe Form wie die drei Kopien der Promptgrenze und wie die zwei
+gelben Kästen. **Die Abhilfe ist jedes Mal dieselbe: nach der Aussage suchen, nicht nach dem
+Wortlaut — und danach aufschreiben, wo überall sie gilt.** Die Tabelle oben ist genau dieses
+Aufschreiben; sie gehört beim nächsten neuen Endpunkt fortgeschrieben.
 
 ### DURCHGANG 24.09.2026: Suche nach Ersatzwerten, die wie Messwerte aussehen
 
@@ -3506,6 +3605,31 @@ Bei der Doppelseite 296 mm entspricht das einem Streifen von rund 7 % der Bildbr
     (90-%-Regel). Das ist eine Erweiterung der Prüffrage, keine neue Messreihe; die Werte sammeln
     sich bei normalen Szenen. Genauigkeit der Schätzung vorab unbekannt, ein Abgleich mit dem
     Urteil des Nutzers an ein paar Bildern entscheidet, ob sie taugt.
+
+### VERMUTUNG 25.09.2026 (aus dem Sammelblatt-Versuch): Ein zu nachdrücklich zurückgewiesenes Referenzbild verliert womöglich seinen Inhalt mit
+
+**Gehört neben die Falz-Lektion, weil es dieselbe Familie ist — und die Richtung ist die
+umgekehrte.** Die Falz-Lektion lautet: *Was man im Prompt benennt, um es zu verbieten, zeichnet
+das Modell womöglich gerade deshalb.* Die Vermutung von heute lautet: *Was man im Prompt zu
+nachdrücklich zurückweist, verliert das Modell womöglich ganz — mitsamt dem, was man daran
+behalten wollte.*
+
+**Woher sie kommt:** Das Sammelblatt trug den Satz „that sheet is a chart, not a scene … never copy
+its plain background, its dividing lines or its numbers into the picture". Es war zugleich die
+**einzige** Quelle der Helden. In 4 von 10 Bildern fehlte danach ein Held ganz (Abschnitt 15).
+
+**Warum das für das Maßstabsblatt zählt:** Dessen Konzept trägt einen noch stärkeren Satz („Never
+draw them standing in a row, never draw them as a group"). Dort wäre der mitverworfene Inhalt nicht
+die Existenz der Helden — die steht auf ihren eigenen Blättern —, sondern **der Maßstab selbst**.
+**Der Fehlschlag sähe dann nicht nach Fehler aus, sondern nach Wirkungslosigkeit**, und niemand
+würde ihn der Formulierung zuschreiben. Genau deshalb steht er hier aufgeschrieben, bevor jemand
+misst.
+
+**Status: Vermutung, nicht gemessen.** Sie stammt aus einem Versuch mit einer anderen Fragestellung
+und n = 10. Prüfbar wäre sie mit zwei Fassungen desselben Maßstabsblatts — eine mit dem starken
+Verbot, eine mit einer neutraleren Formulierung („this sheet shows how tall they are next to one
+another") — gemessen an `heroes_found` und an den Größen. Das ist ein eigener Versuch, keine
+Nebensache im Maßstabstest.
 
 ### KORRIGIERT 22.09.2026 (Fehlerbefund des Nutzers, dringend): Der Falz darf im Prompt nicht vorkommen
 

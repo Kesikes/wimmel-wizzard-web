@@ -63,9 +63,10 @@ async function checkRateLimit(req, res, opts) {
     if (count > limit) {
       res.status(429).json({
         error: "Zu viele Anfragen von dieser Adresse. Bitte in ein paar Minuten nochmal versuchen.",
-        // vorFal (25.09.2026): hier wurde fal NICHT gerufen, es ist nichts abgerechnet. Ein
+        // vorAufruf (25.09.2026): hier wurde der bezahlte Dienst NICHT gerufen, es ist nichts
+        // abgerechnet -- egal welcher Endpunkt die Grenze zieht (fal, Anthropic, OpenAI). Ein
         // Aufrufer soll das wissen koennen, statt es zu vermuten -- siehe api/_lib/grenzen.js.
-        vorFal: true,
+        vorAufruf: true,
       });
       return false;
     }

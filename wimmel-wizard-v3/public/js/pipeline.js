@@ -4417,13 +4417,14 @@ async function generateImage(prompt, kind, opts) {
   });
   const data = await parseJsonResponse(resp);
   // NEU (25.09.2026): der Fehler traegt mit, WORAN er gescheitert ist. Ohne das muss jeder Aufrufer
-  // raten, ob ein gescheiterter Aufruf schon Geld gekostet hat. vorFal===true heisst: unser eigener
-  // Endpunkt hat abgewiesen, fal wurde nicht gerufen, es ist NICHTS abgerechnet. Fehlt das Feld,
+  // raten, ob ein gescheiterter Aufruf schon Geld gekostet hat. vorAufruf===true heisst: unser eigener
+  // Endpunkt hat abgewiesen, der bezahlte Dienst wurde nicht gerufen, es ist NICHTS abgerechnet.
+  // Fehlt das Feld,
   // ist es unbekannt -- und unbekannt muss unbekannt bleiben.
   if (!resp.ok || data.error) {
     const err = new Error(data.error || ("Bild-Server-Fehler " + resp.status));
     err.httpStatus = resp.status;
-    if (data.vorFal === true) err.vorFal = true;
+    if (data.vorAufruf === true) err.vorAufruf = true;
     if (data.grenze != null) err.grenze = data.grenze;
     if (data.laenge != null) err.laenge = data.laenge;
     throw err;
@@ -4467,7 +4468,7 @@ async function verifyImage(imageUrl, verifyPrompt) {
   if (!resp.ok || data.error) {
     const err = new Error(data.error || ("Verify-Fehler " + resp.status));
     err.httpStatus = resp.status;
-    if (data.vorFal === true) err.vorFal = true;
+    if (data.vorAufruf === true) err.vorAufruf = true;
     throw err;
   }
   return data.output || "";

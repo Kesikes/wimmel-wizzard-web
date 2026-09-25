@@ -1160,8 +1160,9 @@ Screens.zaubern = {
       const row = h("div", { style: { display: "flex", gap: "10px", alignItems: "flex-start", fontSize: "13px", lineHeight: "1.4", padding: "11px 0", borderTop: "2px solid var(--paper-a45)", color: "var(--paper-a45)" } });
       const mark = h("span", { class: "h-black", style: { flex: "none", width: "22px", fontSize: "13px" } }, "○");
       row.appendChild(mark);
-      row.appendChild(h("span", { style: { flex: "1", minWidth: "0" } }, l.label));
-      stepRows[l.key] = { row, mark };
+      const text = h("span", { style: { flex: "1", minWidth: "0" } }, l.label);
+      row.appendChild(text);
+      stepRows[l.key] = { row, mark, text, label: l.label };
       stepsWrap.appendChild(row);
     });
     wrap.appendChild(stepsWrap);
@@ -1172,11 +1173,50 @@ Screens.zaubern = {
       const order = ["refs", "gen", "verify"];
       const idx = key === "done" ? order.length : order.indexOf(key);
       order.forEach((k, i) => {
-        const { row, mark } = stepRows[k];
+        const { row, mark, text, label } = stepRows[k];
+        text.textContent = label;
         if (i < idx) { mark.textContent = "✓"; row.style.color = "var(--paper)"; }
         else if (i === idx) { mark.textContent = "◐"; row.style.color = "var(--paper)"; }
         else { mark.textContent = "○"; row.style.color = "var(--paper-a45)"; }
       });
+    }
+
+    // NEU (25.09.2026, 4b-Durchgang, Treffer 1). Vorher stand hier setPhase("done") -- das setzte
+    // ALLE drei Zeilen auf ✓, und zwar allein deshalb, weil der Ablauf am Ende war. Auch
+    // "Qualitätsprüfung: Alle Figuren da?" bekam ein Häkchen, wenn beide Kandidaten
+    // verifyStatus "ungeprueft" trugen, und "Zwei Varianten ... gezeichnet" auch dann, wenn einer
+    // mit genStatus "error" endete. Ein Häkchen ist eine Aussage darüber, was passiert ist; sie
+    // kam aber aus der Absicht. Siehe Punkt 4b im Register: "Woher weiß ich das? Aus dem, was ich
+    // vorhatte, oder aus dem, was passiert ist?"
+    //
+    // Die Zutaten lagen schon bereit: onUpdate wertet genStatus/verifyStatus je Kandidat bereits
+    // aus, um zwischen "gen" und "verify" umzuschalten. Nur der Schlusszustand fragte sie nicht.
+    //
+    // Ohne Kandidatenliste (sie fehlt in keinem heutigen Pfad, aber der Bildschirm soll auch dann
+    // nicht behaupten) steht ein Fragezeichen statt eines Hakens.
+    function schritteAusStand(kandidaten) {
+      setPhase("done");
+      const setzen = (key, zeichen, zusatz) => {
+        const { mark, text, label } = stepRows[key];
+        mark.textContent = zeichen;
+        text.textContent = label + zusatz;
+      };
+      const liste = Array.isArray(kandidaten) ? kandidaten.filter(Boolean) : null;
+      if (!liste || !liste.length) {
+        setzen("gen", "?", " — wie viele Varianten entstanden sind, weiß dieser Bildschirm nicht");
+        setzen("verify", "?", " — ob geprüft wurde, weiß dieser Bildschirm nicht");
+        return;
+      }
+      const gezeichnet = liste.filter((k) => k.url).length;
+      const geprueft = liste.filter((k) => k.url && k.verifyStatus === "done").length;
+      if (gezeichnet < liste.length) {
+        setzen("gen", "!", " — " + gezeichnet + " von " + liste.length + " sind etwas geworden");
+      }
+      if (!gezeichnet || !geprueft) {
+        setzen("verify", "!", " — nicht geprüft, die Prüfung ist diesmal nicht durchgelaufen");
+      } else if (geprueft < gezeichnet) {
+        setzen("verify", "!", " — " + geprueft + " von " + gezeichnet + " geprüft");
+      }
     }
 
     // Fehler-/Hinweis-Box: wird nur befuellt, wenn runGeneration() (unten) nicht starten kann
@@ -1327,7 +1367,7 @@ Screens.zaubern = {
         throw e;
       });
       abfragen().then((result) => {
-        setPhase("done");
+        schritteAusStand(result && result.candidates);
         finishSceneResult(result, pending.title || AppState.data.sceneTheme);
       }).catch((e) => {
         // Haeufigster echter Fall hier: der Job-Datensatz ist abgelaufen (1 Stunde Gueltigkeit, siehe
@@ -1475,7 +1515,7 @@ Screens.zaubern = {
             setPhase(allGenSettled ? "verify" : "gen");
           },
         });
-        setPhase("done");
+        schritteAusStand(result && result.candidates);
         // GEAENDERT (17.09.2026, Punkt 0): der eigentliche Abschluss liegt jetzt in
         // finishSceneResult() (oben), damit Neustart und Fortsetzen nicht auseinanderlaufen koennen.
         // title weiterhin aus sNow statt s -- bei sceneWay 2 (Chat) war s.sceneTheme beim ersten
@@ -1791,8 +1831,13 @@ function buildDebugDetails(image) {
 //
 // ENTFERNT (21.09.2026, Schritt 3): der gelbe Warnkasten ("Bitte einmal gegenchecken", bei
 // gescheiterter Pruefung oder schwerem Verstoss; "Nicht bestanden", wenn kein Kandidat das Stil-Tor
-// bestand). Ersetzt durch den festen KI-Hinweis ueber dem Stift. Ein Bild ohne bestandenen
-// Kandidaten entsteht gar nicht mehr (siehe finishSceneResult()/renderZauberRuhe()).
+// bestand). Ersetzt durch den festen KI-Hinweis ueber dem Stift.
+// KORRIGIERT (25.09.2026, 4b-Durchgang, Treffer 4): Hier stand "Ein Bild ohne bestandenen
+// Kandidaten entsteht gar nicht mehr". Das war seit dem 24.09. falsch -- die NOTLOESUNG bietet
+// genau dann den am wenigsten schlechten Kandidaten an, wenn keiner bestanden hat (siehe
+// finalizeJob() in scene-job-engine.js und den erg-notloesung-Kasten weiter unten). Der Satz
+// beschrieb einen Vorsatz von vorgestern; kein Mensch sieht ihn, aber die naechste Aenderung
+// orientiert sich daran.
 function buildErgebnisAnsicht(s, image) {
   const erg = h("section", { class: "erg" });
 
@@ -1875,6 +1920,19 @@ function buildErgebnisAnsicht(s, image) {
       style: { marginTop: "10px", minHeight: "46px", width: "100%", fontSize: "12.5px", cursor: "pointer", border: "3px solid var(--ink)", background: "var(--ink)", color: "var(--paper)" },
       onClick: () => Router.goScreen("zaubern") }, "Noch einmal zaubern · kostenlos"));
     seite.appendChild(kasten);
+  }
+  // NEU (25.09.2026, 4b-Durchgang, Treffer 1, zweiter Teil). Die berichtigten Häkchen auf dem
+  // Zaubern-Screen sind nur Sekunden zu sehen -- danach navigiert finishSceneResult() hierher.
+  // Die Aussage "diesmal konnte ich nicht prüfen" gehört deshalb DORTHIN, wo die Kundin
+  // entscheidet, und nicht nur in den Test-Details-Umschalter (ungeprueftText()).
+  // BEWUSST KEIN ALARMKASTEN: Es fehlt eine Auskunft, es ist kein Fehler am Bild. Deshalb ein
+  // ruhiger Satz über dem KI-Hinweis, in derselben Zeilenart.
+  // Nur bei AUSDRUECKLICHEM "ungeprueft" -- ein fehlendes Feld (Bilder von vor dem 20.09., der
+  // Ersatz-Eintrag in addImage()) heißt "unbekannt" und darf nicht wie ein Befund aussehen.
+  const gezeigterEintrag = Array.isArray(image.angebot) ? image.angebot[image.gewaehlt || 0] : null;
+  if (gezeigterEintrag && gezeigterEintrag.verifyStatus === "ungeprueft") {
+    seite.appendChild(h("p", { class: "erg-ki-hinweis" },
+      "Bei diesem Bild ist meine Qualitätsprüfung nicht durchgelaufen — ich kann dir diesmal nicht sagen, ob alle eure Figuren genau einmal vorkommen. Schau bitte selbst kurz nach."));
   }
   // GEAENDERT (23.09.2026, Nutzer: "Dass man seine Hauptfiguren auch VERSETZEN kann, muss sichtbar
   // sein"): Der Hinweis nennt jetzt beide Faelle -- wegnehmen UND eine eurer Figuren woandershin.

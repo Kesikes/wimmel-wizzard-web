@@ -119,13 +119,13 @@ let personen = [], gewaehlt = [], blattUri = null, blattInfo = null, ergebnisse 
 //
 // Drei Toepfe, und der dritte ist der wichtige:
 //   geliefert       -- der Aufruf hat ein Ergebnis gebracht, also ist er abgerechnet. SICHER.
-//   abgewiesen      -- unser eigener Endpunkt hat abgelehnt (vorFal), fal wurde nie gerufen. SICHER.
+//   abgewiesen      -- unser eigener Endpunkt hat abgelehnt (vorAufruf), fal wurde nie gerufen. SICHER.
 //   unklar          -- alles andere. Ob abgerechnet wurde, WEISS ICH NICHT, und dann steht das da.
 const konto = { bilder: 0, pruefungen: 0, abgewiesen: 0, unklar: 0, unklarGruende: [] };
 const PREIS_BILD = 0.15, PREIS_PRUEFUNG = 0.01;
 function buchen(art) { konto[art]++; }
 function fehlerBuchen(e) {
-  if (e && e.vorFal === true) { konto.abgewiesen++; return; }
+  if (e && e.vorAufruf === true) { konto.abgewiesen++; return; }
   konto.unklar++;
   const t = (e && e.message ? e.message : String(e)) + (e && e.httpStatus ? " (Status " + e.httpStatus + ")" : "");
   if (konto.unklarGruende.indexOf(t) < 0) konto.unklarGruende.push(t);
@@ -338,7 +338,7 @@ $("start").onclick = async () => {
     const istZuLang = (e) => /zu lang/i.test(String((e && e.message) || e));
     const fehlerText = (e) => (e && e.message ? e.message : String(e)) +
       (e && e.grenze != null ? " (Grenze " + e.grenze + ", gesendet " + e.laenge + ")" : "") +
-      (e && e.vorFal === true ? " — vor dem fal-Aufruf abgewiesen, nichts abgerechnet" : "");
+      (e && e.vorAufruf === true ? " — vor dem fal-Aufruf abgewiesen, nichts abgerechnet" : "");
     try {
       sag("Runde " + (i + 1) + ": normales Bild wird gezeichnet und geprüft …");
       eintrag.a = await einBild(built.instruction, built.styleRefUrls, built.editImageUrl, built.verifyPrompt, built.heroRefUrls, built.figuresBand);
@@ -380,7 +380,7 @@ $("sichern").onclick = () => {
     grundlinie: { text: "23.09.2026: 29 von 63 Kandidaten mit Dopplung oder fehlender Figur", ohneBeanstandung: 34, gesamt: 63 },
     // Was wirklich angefallen ist, nicht was geplant war.
     konto: { bilderGeliefert: konto.bilder, pruefungenGeliefert: konto.pruefungen,
-             vorFalAbgewiesen: konto.abgewiesen, unklar: konto.unklar, unklarGruende: konto.unklarGruende,
+             vorAufrufAbgewiesen: konto.abgewiesen, unklar: konto.unklar, unklarGruende: konto.unklarGruende,
              belegteKosten: Number((konto.bilder * PREIS_BILD + konto.pruefungen * PREIS_PRUEFUNG).toFixed(2)) },
     runden: ergebnisse,
   };
