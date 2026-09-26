@@ -11,7 +11,7 @@
 <link rel="stylesheet" href="css/main.css" />
 <style>
   /* Landingpage-spezifische Layoutregeln, ergaenzend zu css/main.css */
-  .lp-hero-scroll { position: relative; height: 72vh; min-height: 600px; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; }
+  .lp-hero-scroll { position: relative; height: 72vh; min-height: 600px; /* 540 -> 600 (26.09.2026): Text rutschte 32px tiefer, sonst Kollision mit Punkt 1 auf kleinen Handys */ overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; }
   .lp-hero-track { position: relative; width: 294%; height: 100%; }
   /* Design-Feedback (05.09.2026): "nummerierte Quadrate im Hero doppelt so groß" -- 44px -> 88px,
      Schrift/Rahmen mitskaliert. Design-Korrektur (06.09.2026,
@@ -95,6 +95,8 @@
       </div>
     </div>
 
+    <!-- GEAENDERT (26.09.2026): top 12px -> 44px, damit der ueberstehende Header-Button
+         "kostenlos loswimmeln" den gelben Kasten nicht mehr ueberdeckt. -->
     <div style="position: absolute; top: 44px; left: 12px; right: 12px; pointer-events: none;">
       <p class="h-black" style="margin: 0 0 7px; display: inline-block; background: var(--yellow); border: 3px solid var(--ink); font-size: 10px; letter-spacing: .08em; padding: 5px 9px; transform: rotate(-2deg);">Wimmelbilder aus eurem Leben</p>
       <h1 class="h-black" style="font-size: 36px; line-height: .88; letter-spacing: -.045em; text-align: left; max-width: 94%; color: var(--paper); text-shadow: 3px 3px 0 var(--ink), -2px -2px 0 var(--ink), 2px -2px 0 var(--ink), -2px 2px 0 var(--ink);">Eure<br />Erlebnisse<br />haben mehr<br />verdient<br /><span style="color: var(--yellow);">als noch ein<br />Fotobuch.</span></h1>
