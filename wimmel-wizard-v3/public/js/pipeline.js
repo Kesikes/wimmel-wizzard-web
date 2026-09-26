@@ -2845,7 +2845,15 @@ function allCharactersRule(heroSpecs) {
   // Haus-Querschnitt kam eine Heldin dreimal vor, in Bad, Kueche und Schlafzimmer. Der Zusatz
   // argumentiert physisch statt formal: dieselbe Person kann nicht in zwei Raeumen gleichzeitig
   // sein. Das ist fuer ein Bildmodell greifbarer als eine Zaehlvorgabe.
-  return "Each of the " + n + " characters from the reference images (" + namesList + ") appears in exactly ONE vignette across the whole scene, never duplicated. This is not a stylistic preference but a fact about the scene: all of it happens at the same moment, so the same person cannot be in two places at once — not in two rooms of the same house, not on two floors, not once indoors and once outdoors. " + gross(names[0]) + " appears only once: if you have already drawn " + names[0] + " somewhere, " + names[0] + " does not appear again anywhere else in this picture. All " + n + " of these characters must each appear at least once, clearly recognizable according to their reference image and the mapping above. None of them may be omitted.";
+  // BEREINIGT (26.09.2026, Register "doppelte Helden", Fund b): der Schlusssatz verlangte "must
+  // each appear at least once" -- das widerspricht nicht formal, aber praktisch dem "never
+  // duplicated" weiter oben: ein Bildmodell kann den letzten Satz als Erlaubnis lesen, es sei
+  // unschaedlich, jemanden zusaetzlich zu zeigen. Jetzt "exactly once ... never omitted, never
+  // duplicated" -- keine Zeile widerspricht mehr einer anderen. Dieser Codepfad ist nur ueber den
+  // expliziten Kontrollbild-Schalter /app?helden=alt erreichbar (Vorgabe ist helden=neu, siehe
+  // state.js testHelden), war zum Zeitpunkt dieser Korrektur inaktiv und wurde rein vorsorglich
+  // bereinigt, unabhaengig von der laufenden Doppelte-Helden-Untersuchung.
+  return "Each of the " + n + " characters from the reference images (" + namesList + ") appears in exactly ONE vignette across the whole scene, never duplicated. This is not a stylistic preference but a fact about the scene: all of it happens at the same moment, so the same person cannot be in two places at once — not in two rooms of the same house, not on two floors, not once indoors and once outdoors. " + gross(names[0]) + " appears only once: if you have already drawn " + names[0] + " somewhere, " + names[0] + " does not appear again anywhere else in this picture. All " + n + " of these characters must each appear EXACTLY once, clearly recognizable according to their reference image and the mapping above — never omitted, never duplicated.";
 }
 
 // NEU (21.09.2026, 2026-09-21c, nur helden=neu): Kurzfassung, weil jeder Held seinen eigenen

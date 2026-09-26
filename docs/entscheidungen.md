@@ -3970,3 +3970,230 @@ Nichts davon ist gebaut.
   ungenau (die Prüfung nennt nicht jeden Text wörtlich). Der sichere Weg ist ein Baustein-Vergleich
   wie beim Alter (2 Szenen, rund 1,60 $), erst nach dem Alter-Vergleich, einer nach dem anderen.
 
+
+---
+
+### BESTANDSAUFNAHME 26.09.2026 (Auftrag des Nutzers, „nur nachdenken, nichts bauen, keine Aufrufe"): doppelte/fehlende benannte Helden — Belege, freie Daten, Hypothesen, Testplan
+
+Auftrag: alle Belege und Vermutungen zusammentragen, prüfen, ob `session-retten.py` kostenlos
+auswertbare Daten liefert, 3–5 einzeln prüfbare Hypothesen mit vorab genannter Stichprobengröße
+formulieren und priorisieren — ausdrücklich **kein Bauauftrag**, keine Empfehlung zum sofortigen
+Umsetzen. Diese Baustelle war zuvor bewusst vertagt worden (Nutzer, 23.09.2026: „heben wir uns
+auf", siehe Abschnitt 8) und wird hiermit wieder aufgenommen.
+
+**Ausgangslage, bereits in Abschnitt 8 dieses Registers festgehalten** (nicht neu, hier nur
+zusammengefasst, damit diese Bestandsaufnahme nicht daran vorbeischreibt):
+- 23.09.: Grundlinie **29 von 63 Kandidaten, 21 von 35 Bildern** mit fehlendem oder doppeltem
+  Helden, meistbetroffen Figur C (der einzige bärtige Erwachsene).
+- Deshalb steht `heroes_found` bis zur Klärung auf **mittel**, nicht schwer.
+- Ein erster Test der Bibliotheks-Doppelgänger-Vermutung liegt **schon vor**, informell und
+  unterversorgt: 14 Kandidaten mit einem vom Blattfilter erkannten Doppelgänger-Blatt dabei
+  (43 % Dopplungsrate) gegen 14 ohne ein solches Blatt (71 %) — **Richtung entgegengesetzt** der
+  Vermutung, vom Register selbst als „Zufall, kein Befund" eingeordnet. Das ist keine Widerlegung
+  (14 gegen 14 ist weit unter jeder in dieser Sitzung für aussagekräftig gehaltenen Größenordnung,
+  siehe Abschnitt 6 unten), aber es ist auch kein Freibrief, die Bibliotheks-Erklärung für
+  plausibler zu halten als die anderen.
+- Der Blattfilter (`blattfilter=an`) ist **im Grundstand aus** — abgeschaltet, weil er mit nur
+  3–4 von 13 Blättern den Stil-Anker schwächte (Abschnitt 9).
+
+#### 1. Beweislage, in drei Kategorien — wie vom Nutzer gefordert
+
+**A) Gemessen** (mit Zahl, nachvollziehbar, auch wenn teils zu klein für eine Aussage):
+
+| Messung | Ergebnis | Fundstelle |
+|---|---|---|
+| Grundlinie 23.09. | 29/63 Kandidaten, 21/35 Bilder mit Verstoß | Abschnitt 8 |
+| Blattfilter-Vergleich 23.09. (n=14 vs 14) | 43 % vs 71 %, Richtung entgegengesetzt, „Zufall, kein Befund" | Abschnitt 8 |
+| Sammelblatt Lauf 1, 25.09. (offen gewürfelt) | normal 8/10 ohne Beanstandung, Sammelblatt 5/10 | `sammelblatt-20260925T1846.json` |
+| Sammelblatt Lauf 2, 25.09. (Komposition fest `overview_cutaway`) | normal 3/9, Sammelblatt 5/9 | `sammelblatt-20260925T1939-2.json` |
+| beide Läufe zusammen, Arm „normal" | 7/13 ohne Beanstandung (54 %) — nahe an der 23.09-Rate | s.o. |
+| Komposition offen vs. `overview_cutaway`, verbliebene Produktkandidaten + Testarm „normal" | 7/10 vs. 11/17, **p = 1,0** — kein Unterschied | Abschnitt 17, Maßstabsblatt-Bereich |
+| Rauschkontrolle: identische Setups an zwei Tagen | deutlich messbare Differenz allein durch Tagesrauschen | Abschnitt 17, „ZURÜCKGEZOGEN 25.09.2026" |
+
+**B) Berichtet, nicht mehr nachprüfbar:**
+- Die 23.09-Grundlinie selbst (29/63, 21/35) ist nur noch als **Zahl im Text** vorhanden — die
+  Rohdaten lagen in `docs/ref/sitzung.json`, die Datei ist gitignored und wurde am 24.09. vom
+  Kundendurchlauf überschrieben (Abschnitt „EINSCHÄTZUNG 25.09.2026" zum Maßstabsblatt).
+- Der Positions-Test-Befund vom 19.09. („die Dopplung im Berg-Bild ist echt — identische Frisur
+  UND identisches Punkteshirt, keine Bibliotheksfigur"): nur als Beschreibung im Register,
+  Branch `positions-test` (Commit 7901d2f) enthält die Prompt-Änderung, nicht das Bild selbst
+  (keine Bilddateien im Repo, Nutzer-Regel).
+
+**C) Reiner Verdacht (kein Datenpunkt):**
+- Verify verwechselt eine Bibliotheksfigur mit einem benannten Helden (H1 unten).
+- Referenzbild-Volumen verwässert „einmal genannt" (H3 unten).
+- Negations-only-Formulierung wirkt schwächer als eine positive, zählbare Zuweisung (H4 unten).
+- Die Bibliotheks-Lookalikes selbst verursachen **echte** Mehrfachzeichnung, nicht nur eine
+  Prüf-Verwechslung (H2 unten) — sitzt genau genommen zwischen B und C: einmal schwach gemessen
+  (s.o.), nicht bestätigt, nicht widerlegt.
+
+#### 2. Zwei Code-Funde aus dieser Analyse
+
+**a) `backgroundLibraryInstruction()`** (Bildprompt, Bibliotheks-Block) weist das Bildmodell aktiv
+an, vier bis sechs Bibliotheksfiguren **erkennbar dieselbe Person** wirken zu lassen — wörtlich:
+
+> „…pick four to six of the people shown on these sheets and draw them into this scene, all of
+> them in the middle distance… Keep each of them recognisably the same person in hair, build and
+> colour combination…"
+
+Das ist fast dasselbe Vokabular („recognisably the same person"), mit dem an anderer Stelle die
+Wiedererkennbarkeit der **benannten** Helden sichergestellt werden soll. Kein Beleg für H1 oder H2,
+aber der Grund, warum beide Hypothesen naheliegen: das Bildmodell bekommt den Auftrag, Ähnlichkeit
+über mehrere Figuren hinweg herzustellen, ausgerechnet in dem Merkmalsraum (Frisur, Statur,
+Farbkombination), an dem auch `heroes_found` die Helden erkennt.
+
+**b) `allCharactersRule()`** — der Kontrollbild-Pfad hinter `/app?helden=alt` (Vorgabe ist
+`helden=neu`, siehe `state.js`, `testHelden: null` → `heldenNeu` ist standardmäßig `true`; der
+Pfad war zum Zeitpunkt dieses Fundes **inaktiv**). Der Text verlangte „never duplicated" und endete
+zwei Sätze später mit „must each appear **at least once** … None of them may be omitted" — das
+widerspricht sich nicht formal, aber praktisch: der letzte Satz vor Prompt-Ende kann als Erlaubnis
+gelesen werden, eine Figur zusätzlich zu zeigen. **Heute bereinigt** (unabhängig von der laufenden
+Untersuchung, wie vom Nutzer verlangt): der Schlusssatz heißt jetzt „must each appear **exactly**
+once … never omitted, never duplicated." Commit folgt gleich.
+
+**Nebenbefund beim Lesen der beiden echten Produktsitzungen (siehe Abschnitt 4):** In **beiden**
+noch lokal vorhandenen Sitzungen mit `heldenInfo` (Weihnachten, Urlaub) steht `filterAn: false`
+(Blattfilter aus, wie in Abschnitt 9 dokumentiert) und `haetteEntfernt` listet jeweils 5–7 Blätter,
+die der Filter — wäre er an — wegen Ähnlichkeit zu einem benannten Helden entfernt hätte, z. B.
+„Figur 5 (erwachsen/w/braun) gleicht the woman from reference image 4". Das ist **keine neue
+Messung** (die 14-vs-14-Zahl oben ist die einzige vorhandene), zeigt aber, dass der Rohstoff für
+eine Verwechslung — Bibliotheksfiguren, die einem Helden ähnlich beschrieben sind — in beiden
+verfügbaren echten Sitzungen routinemäßig vorhanden war.
+
+#### 3. Wortlaut der Heldenfrage in `buildVerifyPrompt()` (nachgereicht, war letztes Mal wegen einer Geräte-Trennung nicht zu belegen)
+
+Punkt 1 der Prüfung, wörtlich (`pipeline.js`, aktuelle Fassung):
+
+> „1. HELDEN, ZAEHLUNG: Geh das Bild Raum für Raum beziehungsweise Bereich für Bereich
+> systematisch durch und zähle für JEDE der N benannten Figuren EINZELN, wie oft sie im Bild
+> vorkommt. Eine Figur gilt als dieselbe, wenn Frisur, Haarfarbe und das wichtigste Kleidungsstück
+> übereinstimmen — auch wenn sie etwas anderes tut oder in einem anderen Raum steht. Antworte im
+> Feld heroes_found mit einer Liste von N ganzen Zahlen… 0 heißt, die Figur fehlt, 1 heißt genau
+> einmal vorhanden, 2 oder mehr heißt mehrfach. Rate nicht — wenn du unsicher bist, zähle lieber
+> ein zweites Mal. Doppelte Figuren zerstören ein Suchbild, das ist der wichtigste Punkt dieser
+> ganzen Prüfung."
+
+Wichtig für H1: Das „gilt als dieselbe"-Kriterium (Frisur + Haarfarbe + wichtigstes
+Kleidungsstück) ist **exakt** der Merkmalsraum, in dem `backgroundLibraryInstruction()` (Fund a)
+Bibliotheksfiguren dem Helden ähnlich machen soll. Punkt 2 (Ähnlichkeit, `heroes_ok`) fragt separat
+und weich („grob passend"), zählt aber nicht in `heroes_found` hinein.
+
+`buildHeldenPruefPrompt()` (die kurze Nachprüfung nach einer Stift-Korrektur) verwendet laut
+Code-Kommentar bewusst „so nah wie möglich" denselben Wortlaut wie Punkt 1 und 11 — für H1 gilt
+also dasselbe Risiko an beiden Prüf-Stellen.
+
+#### 4. Freie Daten: was `session-retten.py` hergibt, und ob die Frage damit entscheidbar ist
+
+Das Skript ist rein lesend (steht so im eigenen Kopf), zieht alle `session:*`-Schlüssel aus
+Upstash (90 Tage TTL, `SESSION_TTL_SECONDS`), `--sichere-alle` legt jede Sitzung mit
+Bild-URL als eigene, zeitgestempelte Datei ab — kostet keinen Modellaufruf, nur ein paar
+KV-Anfragen.
+
+**Blockiert:** Das Skript braucht `KV_REST_API_URL` und `KV_REST_API_TOKEN` aus den
+Vercel-Projekteinstellungen. Diese liegen mir nicht vor — wie bei den fal- und
+Anthropic-Schlüsseln lese und rufe ich hier nichts auf, was Zugangsdaten braucht, die der Nutzer
+hält. Der Pull ist also noch **nicht** gelaufen. Um ihn auszuführen, entweder `KV_REST_API_URL`
+und `KV_REST_API_TOKEN` exportieren und mir Bescheid geben, oder das Skript selbst laufen lassen
+und die Dateien aus `dev-tools/session-sicherung/` bereitstellen.
+
+**Was ohne den Pull bereits auswertbar war** (die beiden noch lokal vorhandenen Produktsitzungen
+`docs/ref/sitzung.json` und `docs/ref/sitzung-neu.json`, plus die beiden Sammelblatt-Rohdaten
+`docs/ref/sammelblatt-2026*.json` — Letztere aus der Testseite, nicht aus echten Kundensitzungen,
+aber mit denselben `Pipeline.generateImage()`/`verifyImage()`-Aufrufen erzeugt):
+
+| | Anzahl |
+|---|---|
+| Kandidaten mit `heroes_found` insgesamt | 48 |
+| davon Dopplungs-Meldung (Wert ≥ 2) | 15 (in 13 Bildern) |
+| davon Fehl-Meldung (Wert = 0) | 16 |
+
+Die Komposition steht am gespeicherten Bild weiterhin nicht als eigenes Feld, ist aber aus der
+gespeicherten `instruction` rekonstruierbar (Methode am 25.09. validiert, s. Abschnitt 17).
+
+**Ehrliche Zahl zur Entscheidbarkeit** (Fisher, α = 0,05, 80 % Power, wie in Abschnitt 6 unten
+hergeleitet): um eine Halbierung der Verstoßrate (46 % → 23 %) zuverlässig zu erkennen, braucht es
+rund **66 Bilder je Vergleichsarm** bei bildweiser Zählung, rund **25** bei heldweiser Zählung.
+**Ob die freien 90-Tage-Daten das für H2/H3/H5 hergeben, kann ich erst nach dem Pull sagen** — wie
+viele Sitzungen mit Bild-URL in Upstash tatsächlich noch stehen (gegenüber bereits abgelaufenen),
+ist unbekannt, bis das Skript läuft. Das ist die noch offene Zahl aus Auftragspunkt 3.
+
+#### 5. H1-Bilderliste (Auftrag Punkt 2) — was lokal vorliegt, ohne den KV-Pull
+
+**Wichtige Einschränkung:** Das ist keine Auswahl von 20 — es ist die **vollständige Liste** aller
+Dopplungs-Meldungen, die sich ohne den KV-Pull überhaupt finden lassen (13 Bilder, 15 Meldungen,
+aus 4 lokalen Dateien). Für die georderten ~20 fehlt der Pull aus Abschnitt 4.
+
+| Quelle | Kontext | Bild / Runde | betroffener Held | gemeldet | Bild-URL |
+|---|---|---|---|---|---|
+| `sitzung.json` | echte Kundensitzung | Weihnachten, Kandidat 2 | Alfons | 2 | https://v3b.fal.media/files/b/0aab9cb2/_SfUY4ryhgD4zpqdFobpd_uLLzvXnF.jpg |
+| „ | „ | Weihnachten, Kandidat 2 | Alex | 2 | (dasselbe Bild wie oben) |
+| `sitzung-neu.json` | echte Kundensitzung | Urlaub, Kandidat 2 | Moritz | 2 | https://v3b.fal.media/files/b/0aab8e38/FatbocMUNHb9V3AuSRNsa_jUE9GUsB.jpg |
+| `sammelblatt-…1846.json` | Testseite, normal | Runde 3 (open) | A | 2 | https://v3b.fal.media/files/b/0aabdfab/2T8-E9yd5kLlMUnitCL36_iZhI78p1.jpg |
+| „ | Testseite, Sammelblatt | Runde 8 (overview_cutaway) | C | 2 | https://v3b.fal.media/files/b/0aabdff2/LibfSdY5mjLbMRofuERir_XV1LlVj1.jpg |
+| „ | Testseite, normal | Runde 10 (open) | A | 2 | https://v3b.fal.media/files/b/0aabe005/F6qzszqLUWv9l_HSS_5Tn_CThNr7sA.jpg |
+| `sammelblatt-…1939-2.json` | Testseite, normal | Runde 2 (overview_cutaway) | A | 2 | https://v3b.fal.media/files/b/0aabe0ff/zMH8cb60L8s2ZHnj4dBeL_bXcxBL2W.jpg |
+| „ | „ | Runde 2 (overview_cutaway) | C | 2 | (dasselbe Bild wie oben) |
+| „ | Testseite, Sammelblatt | Runde 2 (overview_cutaway) | A | 2 | https://v3b.fal.media/files/b/0aabe104/kZEUNkPOiAMidls_nwPcx_epTpvl8b.jpg |
+| „ | Testseite, normal | Runde 3 (overview_cutaway) | A | 2 | https://v3b.fal.media/files/b/0aabe10a/PfBBRBYCak9VBkud8lCnx_0xOL9hn0.jpg |
+| „ | Testseite, normal | Runde 7 (overview_cutaway) | A | 2 | https://v3b.fal.media/files/b/0aabe139/btOzUhua8R-Ud3fChUYPq_WaFysd5q.jpg |
+| „ | Testseite, normal | Runde 8 (overview_cutaway) | A | **4** | https://v3b.fal.media/files/b/0aabe149/EulLrLapI2b3tjn7z90Bj_fvKA7K9e.jpg |
+| „ | „ | Runde 8 (overview_cutaway) | C | 2 | (dasselbe Bild wie oben) |
+| „ | Testseite, normal | Runde 9 (overview_cutaway) | A | 2 | https://v3b.fal.media/files/b/0aabe157/sZ8UbWZcJui_IZY6Z0RvA_4xSG8bTJ.jpg |
+| „ | Testseite, Sammelblatt | Runde 9 (overview_cutaway) | A | 2 | https://v3b.fal.media/files/b/0aabe15c/Jeu4ChWjQ-kTODHBCUk3R_Zy8pTF9L.jpg |
+
+Zwei Bilder mit **zwei** gemeldeten Helden gleichzeitig (Weihnachten K2: Alfons und Alex;
+Sammelblatt-Lauf-2-Runde-8-normal: A vierfach UND C zweifach). Die `fal.media`-URLs sind laut
+Fund vom 24.09. rund 90 Tage gültig; die älteste hier (Urlaub, 23.09.) läuft also nicht vor Ende
+Dezember ab.
+
+#### 6. Fünf Hypothesen — einzeln prüfbar, mit Stand aus Abschnitt 1/2
+
+- **H1 — Verify-Fehlalarm:** Das Prüfmodell zählt eine ähnliche Bibliotheksfigur fälschlich als
+  zweites Vorkommen des Helden. Reiner Verdacht (C), kostenlos prüfbar (Sichtprüfung der Liste
+  oben durch den Nutzer).
+- **H2 — echte Dopplung durch Bibliotheks-Anweisung:** `backgroundLibraryInstruction()` (Fund a)
+  erzeugt tatsächlich eine zusätzliche, dem Helden ähnliche Figur im Bild. Einmal schwach
+  gemessen (14 vs. 14, Richtung dagegen, keine Aussagekraft), nicht bestätigt, nicht widerlegt.
+- **H3 — Referenzbild-Volumen:** Viele Referenzbilder insgesamt (Helden + Bibliothek) verwässern,
+  was „einmal genannt" im Prompt noch bedeutet. Reiner Verdacht (C), keine eigene Messung bisher.
+- **H4 — Negation wirkt schwächer als Zuweisung:** „never duplicated" ist ein Verbot, keine
+  positive, zählbare Zuweisung — dieselbe Art Lektion wie beim Falz („der Prompt beschreibt das
+  Bild, nie das Verbotene"). Reiner Verdacht (C).
+- **H5 — Komposition:** bereits getestet (zwei Sammelblatt-Läufe, p = 1,0 zwischen offen und
+  `overview_cutaway`), **nicht bestätigt**. Nur noch über die freien Daten (Abschnitt 4)
+  weiterverfolgbar, kein neuer bezahlter Test vorgeschlagen.
+
+#### 7. Kosten/Stichprobenplan je Hypothese (Zahl vor dem Test, wie gefordert)
+
+| Hypothese | Prüfmethode | Stichprobe (vorab) | geschätzte Kosten | bezahlt? |
+|---|---|---|---|---|
+| H1 | Sichtprüfung der 13-Bilder-Liste durch den Nutzer | 13 (alle vorhandenen), ~20 nach dem Pull | 0 $ | nein |
+| Freie Kreuztabellen H2/H3/H5 | `session-retten.py --sichere-alle` + Auswertung | alle 90-Tage-Sitzungen mit Bild-URL, Zahl erst nach Pull bekannt | 0 $ | nein |
+| H2 | Bildvergleich mit/ohne `backgroundLibraryInstruction()`-Block | ~66 Bilder je Arm (bildweise) bzw. ~25 (heldweise) für Halbierung, 80 % Power | rund 66×2×0,15 $ ≈ 20 $ (bildweise) bzw. ~7,50 $ (heldweise) | ja |
+| H3 | Bildvergleich mit reduzierter Bibliotheksblatt-Zahl | gleiche Größenordnung wie H2 | vergleichbar | ja |
+| H4 | Bildvergleich Verbotssatz vs. positive Zuweisungsformel | gleiche Größenordnung wie H2 | vergleichbar | ja |
+| H5 | keine neue Messreihe, nur Neuauswertung der freien Daten | — | 0 $ | nein |
+
+#### 8. Priorisierung
+
+1. **H1 zuerst**, kostenlos — Nutzer prüft die Liste in Abschnitt 5 und sagt, ob es echte
+   Dopplungen oder Prüf-Verwechslungen sind. Das entscheidet, ob die Prüfung oder der Bildprompt
+   das eigentliche Problem ist.
+2. **Freier Pull + Kreuztabellen für H2/H3/H5**, kostenlos, parallel zu 1 — blockiert auf
+   `KV_REST_API_URL`/`KV_REST_API_TOKEN` (Abschnitt 4).
+3. **H2**, bezahlt, wartet auf 1 und 2 — plausibelster Mechanismus, günstig zu beheben, falls
+   bestätigt (Bibliotheksblock entschärfen), aber schon einmal schwach negativ angetestet.
+4. **H4**, bezahlt, wartet auf 1 und 2.
+5. **H3** nur als Zusatz-Arm zu einem H2-Test, kein eigener Testlauf.
+6. **H5** nur Neuauswertung der freien Daten, kein neuer bezahlter Test.
+
+#### 9. Status dieser Bestandsaufnahme
+
+- Fund b) ist heute im Code behoben (`pipeline.js`, `allCharactersRule()`), Commit folgt gleich
+  nach diesem Eintrag.
+- Die H1-Liste (Abschnitt 5) ist geliefert, aber kleiner als die georderten ~20 — 13 Bilder, 15
+  Meldungen, das vollständige lokal Vorhandene ohne KV-Pull.
+- Die Kreuztabellen für H2/H3/H5 stehen aus, ebenso blockiert auf den KV-Zugangsdaten.
+- Der Wortlaut von `buildVerifyPrompt()` ist nachgereicht (Abschnitt 3).
+- Nichts an dieser Bestandsaufnahme wurde gebaut oder bezahlt aufgerufen. Die Auswahl, welche
+  Hypothese zuerst geprüft wird, trifft der Nutzer.
