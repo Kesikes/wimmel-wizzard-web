@@ -4197,3 +4197,178 @@ Dezember ab.
 - Der Wortlaut von `buildVerifyPrompt()` ist nachgereicht (Abschnitt 3).
 - Nichts an dieser Bestandsaufnahme wurde gebaut oder bezahlt aufgerufen. Die Auswahl, welche
   Hypothese zuerst geprüft wird, trifft der Nutzer.
+
+---
+
+### KREUZTABELLEN 26.09.2026 (Auftrag des Nutzers): H2/H3/H5 aus den 34 geretteten Sitzungen — nur Auswertung, nichts gebaut, keine bezahlten Aufrufe
+
+Auftrag: aus dem am selben Tag gelaufenen `session-retten.py --sichere-alle`-Pull (Ordner
+`dev-tools/session-sicherung/`) Kreuztabellen für H2 (Bibliotheks-Doppelgänger), H3
+(Referenzblatt-Anzahl) und H5 (Komposition, Neuauswertung) bauen, bild- und heldweise, mit der
+Zahl vorab (66 bzw. 25 je Arm) und einem klaren Wort dazu, ob H2/H3/H5 damit bestätigt, widerlegt
+oder weiterhin unentscheidbar sind. H1 (Sichtprüfung) ist ausdrücklich nicht Teil dieses Auftrags.
+
+**Wichtigstes Ergebnis vorweg, bevor die Zahlen kommen: Der auffälligste Rohbefund (H5) erweist
+sich bei genauerem Hinsehen als Artefakt des Prompt-Standes, nicht als Kompositionswirkung — Details
+in Abschnitt 3.**
+
+#### 0. Datengrundlage und Bereinigung (Auftragspunkt 4)
+
+Gepullt wurden **30 Dateien**. Nach Bereinigung bleiben **17 eindeutige Sitzungen**:
+
+| Verworfen | Anzahl | Grund |
+|---|---|---|
+| `:vorher`-Stände | 9 | siehe unten |
+| ältere Pulls derselben Sitzung (19.09., 9 Tage vor dem 26.09.-Pull erneut gezogen) | 4 | siehe unten |
+| **verworfen gesamt** | **13** | |
+| **verbleibend** | **17** | je eine Datei pro Sitzung |
+
+**Regel und Begründung:** `session.js` legt vor jedem Speichern eine Sicherung des bisherigen
+Stands unter dem Schlüssel `session:<id>:vorher` an (Zeile 142: „eine Kopie des bisherigen
+Stands, bevor er ersetzt wird … Eine Generation zurück reicht"). Ein `:vorher`-Stand ist also per
+Konstruktion **immer eine Generation älter** als der zugehörige Stand ohne Suffix — nie ein
+eigenständiger Fall, sondern derselbe Verlauf, nur einen Schritt zurück. Vier Sitzungs-IDs
+(`d8b0a400…`, `ddb03aec…`, `1f002917…`, `5fca8570…`) wurden außerdem sowohl am 19.09. als auch am
+26.09. gezogen — dieselbe Sitzung, neun Tage auseinander. **Regel:** Je Basis-Sitzungs-ID zählt
+nur die neueste, nicht-`:vorher`-Version. Alles andere wäre entweder derselbe Bildbestand doppelt
+(die ältere Momentaufnahme ist in der neueren enthalten oder von ihr überholt) oder ein Stand, der
+laut Code nie der aktuelle war.
+
+**Datenmenge nach Bereinigung:** 17 Sitzungen, **73 Bilder**, **148 Kandidaten**, davon **106**
+mit auswertbarem `verify.heroes_found` (42 ohne — gescheiterte Erzeugung, `verifyStatus`
+„ungeprüft" oder eine Prüf-Fassung ohne das Feld). Das ergibt **267 heldweise Datensätze**
+(Kandidat × Held). Bei 17 von 73 Bildern war eine `instruction` vorhanden, aber keinem der fünf
+`COMPOSITION_TYPES`-Texte eindeutig zuordenbar (ältere Prompt-Fassung oder unvollständig
+gespeichert) — diese Bilder fehlen entsprechend in der Komposition-Spalte.
+
+#### 1. Kritischer Befund zur Datenqualität, bevor die Kreuztabellen zählen (bitte zuerst lesen)
+
+Die 17 Sitzungen wurden zwischen **16.09. und 24.09.2026** gespeichert (`savedAt`) und tragen
+**`bildFassung`-Stempel von `2026-09-19i` bis `2026-09-23a`**, dazu 31 Kandidaten ganz ohne
+Fassungs-Stempel. Das ist die gesamte Kalibrierungsphase der „Grundstand"-Entscheidung
+(21.09.2026, Abschnitt 9), nicht ein einheitlicher, aktueller Produktstand.
+
+**Der Beweis, dass das mehr als eine Formalie ist:** In den Rohdaten stehen **38 Kandidaten mit
+Komposition `cutaway` und Bild-Titel „Stadt"** sowie **6 mit „Berg"**. Das ist nach der seit
+21.09.2026 geltenden Regel **unmöglich** — `querschnittVerboten()` verbietet Querschnitt-Typen für
+Berg und Stadt „auch nicht über den Testschalter" (Abschnitt 9). Nachgeprüft anhand der
+`bildFassung`-Stempel: **alle** Stadt/Berg-Cutaway-Kandidaten stammen aus den Fassungen
+`2026-09-20b` bis `2026-09-21g` — **vor** der Grundstand-Fassung. Schränkt man auf die einzigen
+beiden eindeutig nach dem Grundstand liegenden Fassungen ein (`2026-09-21j`, `2026-09-23a`,
+zusammen 21 Kandidaten), bleiben nur **2** Cutaway-Kandidaten übrig, beide „Weihnachten" — genau
+wie es die aktuelle Regel vorsieht.
+
+**Folge:** Ein simpler Vergleich „Komposition X gegen Komposition Y" über den gesamten Datensatz
+vergleicht in Wahrheit größtenteils **verschiedene Prompt-Stände aus der acht Tage langen
+Tuning-Phase**, nicht nur verschiedene Kompositionen bei sonst gleichem Prompt — genau die
+Verwechslung, vor der die 90-%- und 4b-Regeln dieses Registers warnen sollen. Das betrifft H5 am
+stärksten (Cutaway ≈ Stadt/Berg-Altfassungen), H2 und H3 schwächer (dort variieren
+`hatte_lookalike` und `ref_anzahl` auch **innerhalb** desselben Themas, siehe jeweils unten) — aber
+keine der drei Kreuztabellen ist frei davon. Die folgenden Zahlen werden trotzdem vollständig
+berichtet, wie beauftragt, mit dieser Einschränkung an jeder Stelle, an der sie zum Tragen kommt.
+
+#### 2. H2 — Dopplungsrate mit vs. ohne dem Filter zufolge ähnlichem Bibliotheksblatt
+
+`filterAn` steht in **keinem einzigen** der 45 Kandidaten mit `heldenInfo` auf `true` — der
+Blattfilter war in der gesamten Stichprobe durchgehend aus (Abschnitt 9: Vorgabe ist aus). Ein
+direkter An/Aus-Vergleich ist damit **nicht möglich**; wie schon am 23.09. (Abschnitt 8) tritt an
+seine Stelle, ob der Filter — wäre er an gewesen — mindestens ein Blatt entfernt **hätte**
+(`haetteEntfernt` nicht leer).
+
+| | bildweise | heldweise |
+|---|---|---|
+| mit Doppelgänger-Blatt | 8/31 (26 %) | 12/84 (14 %) |
+| ohne | 10/14 (71 %) | 13/42 (31 %) |
+| Fisher p | 0,0075 | 0,0341 |
+| n je Arm | 31 / 14 | 84 / 42 |
+| Schwelle (66 bzw. 25) | **nicht erreicht** | **erreicht** |
+
+**Richtung: entgegengesetzt der Hypothese**, in beiden Zählweisen — Bilder MIT einem erkannten
+Doppelgänger-Blatt zeigen **weniger** Dopplungen, nicht mehr. Das ist dieselbe Richtung wie beim
+ersten, viel kleineren Test vom 23.09. (43 % vs. 71 %, Abschnitt 8) — jetzt mit einer heldweisen
+Stichprobe, die die vorab genannte Schwelle **erreicht**, und mit einem Ergebnis, das (heldweise)
+statistisch auffällig ist (p = 0,034). Anders als bei H5 (Abschnitt 3) variiert `hatte_lookalike`
+auch **innerhalb** desselben Bild-Themas (z. B. Stadt: 10 ohne, 6 mit), ist also nicht einfach ein
+Fassungs-Artefakt.
+
+**Verdikt H2: nicht bestätigt.** Kein Beleg dafür, dass ein dem Filter zufolge ähnliches
+Bibliotheksblatt die Dopplungsrate erhöht — im Gegenteil, zwei unabhängige Messungen (23.09. und
+diese) zeigen konsistent die Gegenrichtung. Das ist (Beobachtungsdaten, kein Experiment) keine
+Widerlegung im strengen Sinn und keine Bestätigung, dass Doppelgänger-Blätter schützen — nur, dass
+der ursprüngliche Verdacht zweimal keine Stütze findet.
+
+#### 3. H3 — Dopplungsrate nach Referenzblatt-Anzahl
+
+Die tatsächliche Spanne in den Daten ist mit **5, 6 oder 7** Referenzblättern (Helden + gewählte
+Bibliotheksblätter) viel schmaler als für ein Dreier-Raster („wenig/mittel/viel") gedacht — bei
+nur 2 Kandidaten mit 5 Blättern wird daraus eine Zwei-Klassen-Einteilung: **≤ 6** gegen **7**.
+
+| | bildweise | heldweise |
+|---|---|---|
+| ≤ 6 Referenzblätter | 14/31 (45 %) | 21/84 (25 %) |
+| 7 Referenzblätter | 4/14 (29 %) | 4/42 (10 %) |
+| Fisher p | 0,343 | 0,057 |
+| n je Arm | 31 / 14 | 84 / 42 |
+| Schwelle (66 bzw. 25) | **nicht erreicht** | **erreicht** |
+
+Auch hier: Richtung **entgegengesetzt** der Hypothese (mehr statt weniger Referenzblätter geht mit
+niedrigerer, nicht höherer Dopplungsrate einher), heldweise knapp **über** der üblichen
+0,05-Schwelle. `ref_anzahl` variiert ebenfalls innerhalb desselben Themas (Berg: 5, 6 und 7 alle
+vertreten).
+
+**Verdikt H3: weiterhin unentscheidbar**, tendenziell eher gegen als für die Hypothese. p = 0,057
+ist zu nah an 0,05, um es als „kein Unterschied" zu verbuchen, aber auch zu weit außerhalb, um
+etwas zu behaupten. Die schmale Spanne (5–7) bedeutet außerdem: **die Hypothese wurde nie in
+einem Bereich getestet, der sie wirklich prüfen würde** (z. B. 10 gegenüber 3 Blättern) — die
+vorhandenen Daten können sie kaum verwerfen, weil sie sie kaum unterschiedlich genug abbilden.
+
+#### 4. H5 — Komposition (Neuauswertung einer bereits getesteten Hypothese)
+
+| | bildweise | heldweise |
+|---|---|---|
+| offen | 6/40 (15 %) | 7/101 (7 %) |
+| `cutaway` | 27/56 (48 %) | 38/148 (26 %) |
+| Fisher p | 0,0009 | 0,0001 |
+| n je Arm | 40 / 56 | 101 / 148 |
+| Schwelle (66 bzw. 25) | nicht erreicht | **erreicht** |
+
+Zusätzlich: offen vs. `overview_cutaway` (die schon am 25.09. getestete engere Hypothese): 6/40
+(15 %) vs. 0/6 (0 %), p = 0,58, n viel zu klein — **unverändert nicht bestätigt**, deckt sich mit
+dem Ergebnis vom 25.09. Querschnitt-Familie (cutaway/gridhouse/overview_cutaway) gegen
+offen-Familie: 27/62 (44 %) vs. 6/42 (14 %), p = 0,0024, Schwelle bildweise nicht erreicht.
+
+**Das ist der stärkste Rohbefund dieser ganzen Auswertung — und er zerfällt bei der Kontrolle aus
+Abschnitt 1.** `cutaway` besteht zu 38 von 56 aus Stadt- und zu 6 von 56 aus Berg-Bildern, alle aus
+Vor-Grundstand-Fassungen (`2026-09-20b`–`21g`); nur 12 von 56 sind Weihnachten, die einzige Kulisse,
+die `cutaway` heute noch tragen darf. Schränkt man auf die beiden eindeutig aktuellen Fassungen
+(`21j`, `23a`) ein, bleiben von ursprünglich 106 nur **21 Kandidaten**, `cutaway` schrumpft auf
+**2** — die Schwelle ist damit meilenweit außer Reichweite, und die verbliebenen zwei
+`cutaway`-Bilder sind (richtigerweise) beide Weihnachten. Der beobachtete Unterschied ist damit
+weit überwiegend ein Unterschied zwischen **Stadt/Berg auf einem inzwischen verbotenen, alten
+Prompt-Stand** und **allem anderen**, keine Kompositionswirkung bei sonst gleichem Prompt.
+
+**Verdikt H5: aus diesen Daten NICHT entscheidbar — trotz erreichter heldweiser Stichprobenschwelle.**
+Das ist die wichtigste methodische Lehre dieser Auswertung: **die vorab genannte Zahl (25 bzw. 66)
+prüft nur, ob genug Fälle da sind, um Zufallsrauschen auszuschließen — sie prüft nicht, ob die
+verglichenen Gruppen sich sonst gleichen.** Hier tun sie das nicht: „offen" und „cutaway" stammen
+größtenteils aus verschiedenen Kalenderwochen und verschiedenen Prompt-Fassungen. Die engere,
+bereits am 25.09. eigens dafür getestete Hypothese (`overview_cutaway`, einheitlicher Prompt-Stand,
+Komposition festgelegt statt gewürfelt) bleibt der verlässlichere Befund und bleibt bei **p = 1,0,
+nicht bestätigt**.
+
+#### 5. Zusammenfassung
+
+| Hypothese | Rohbefund | Bestätigt / widerlegt / unentscheidbar |
+|---|---|---|
+| H2 (Bibliotheks-Doppelgänger) | Richtung entgegengesetzt, heldweise Schwelle erreicht, p = 0,034 | **nicht bestätigt** (zwei unabhängige Messungen in dieselbe Gegenrichtung) |
+| H3 (Referenzblatt-Anzahl) | Richtung entgegengesetzt, p = 0,057 (heldweise) | **weiterhin unentscheidbar**, Werte-Spanne zu schmal für einen echten Test |
+| H5 (Komposition) | starker Rohbefund (p = 0,0001 heldweise), aber Fassungs-/Themen-Artefakt (Kontrolle Abschnitt 3) | **aus diesen Daten nicht entscheidbar**; engere Hypothese (`overview_cutaway`, sauber getestet) bleibt bei p = 1,0, nicht bestätigt |
+
+Nichts davon ist eine Umsetzungsempfehlung — welche Hypothese als Nächstes mit einem sauberen,
+einheitlichen Prompt-Stand getestet wird (oder ob überhaupt), entscheidet der Nutzer.
+
+**Anhang, Fundstellen:** Auswertungsskript und Zwischenstände lagen nur lokal auf dem Gerät des
+Nutzers (`/tmp/analyse_doppelte_helden.py`, `/tmp/crosstabs2.py`), nicht im Repository — reine
+Auswertung, kein Artefakt dieses Auftrags. Rohdatenquelle: `dev-tools/session-sicherung/*.json`,
+gezogen 26.09.2026, nicht Teil des Commits (Ordner ist laut `session-retten.py` bewusst nicht
+fürs Repository gedacht).
