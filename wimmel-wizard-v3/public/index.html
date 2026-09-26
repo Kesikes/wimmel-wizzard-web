@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Wimmel Wizard — Wimmelbilder aus eurem Leben</title>
-<meta name="description" content="Personalisierte Wimmelbücher aus euren Familiengeschichten und Fotos. Finde die fünf Punkte im Bild und erfahre, wie es funktioniert." />
+<meta name="description" content="Personalisierte Wimmelbücher aus euren Familiengeschichten und Fotos. Eure Erlebnisse haben mehr verdient als noch ein Fotobuch. Kostenlos loswimmeln." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;500;600;700&family=Caveat:wght@600&display=swap" rel="stylesheet" />
@@ -27,6 +27,14 @@
   .lp-row.found { background: var(--yellow); box-shadow: 3px 3px 0 var(--ink); }
   .lp-chip { min-height: 44px; padding: 11px 15px; border: 3px solid var(--ink); cursor: pointer; font-family: 'Archivo Black', sans-serif; font-size: 13px; text-transform: uppercase; letter-spacing: -.01em; background: var(--paper); color: var(--ink); box-shadow: 2px 2px 0 var(--ink); }
   .lp-chip.on { background: var(--red); color: var(--paper); box-shadow: 4px 4px 0 var(--ink); }
+  .lp-faq-btn { position: absolute; right: 14px; bottom: 16px; z-index: 3; background: var(--yellow); color: var(--ink); border: 4px solid var(--ink); box-shadow: 4px 5px 0 var(--ink); font-size: 14px; letter-spacing: -.01em; padding: 11px 15px; transform: rotate(-2deg); }
+  .lp-faq-btn:hover { color: var(--ink); background: var(--paper); }
+  .lp-faq-cat { margin: 22px 0 2px; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; display: inline-block; background: var(--ink); color: var(--paper); padding: 4px 9px; transform: rotate(-1.5deg); }
+  #faq { scroll-margin-top: 90px; }
+  /* mobil: rotes Laufband ragt 30px ins Bild -> Button hoeher setzen */
+  .lp-hero-scroll .lp-faq-btn { bottom: 50px; }
+  .lp-products { display: flex; flex-direction: column; gap: 14px; }
+  @media (min-width: 1024px) { .lp-products { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; max-width: 1100px; } #produkte { padding: 40px 32px 44px; } }
   .lp-step-row { display: flex; gap: 12px; align-items: flex-start; padding: 16px 0; border-top: 3px solid var(--paper-a80); }
   /* NEU (07.09.2026, "Header auch auf der Landingpage fixieren"): gleiches Prinzip wie
      #app-header in css/app.css -- position:fixed statt sticky, auf Mobil an die 430px-
@@ -52,12 +60,17 @@
        sich nur "klebrig" zu verhalten. Logo-Groesse/Schriftgroesse/Sup-Groesse (30px/12px/7px)
        jetzt exakt identisch zu #app-header in app.html (Dashboard-Seite) uebernommen -- vorher
        minimal groesser (32px/13px/8px), Nutzer-Vorgabe war exakte Uebereinstimmung. -->
-  <header id="lp-header" class="lp-header" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px;">
+  <!-- GEAENDERT (Feinschliff 26.09.2026, Punkt 1): CTA "Los!" -> "kostenlos / loswimmeln"
+       (zweizeilig). Header hat jetzt eine feste Hoehe (56px), der groessere Button ist oben
+       ausgerichtet und ragt bewusst nach unten aus dem schwarzen Balken ins Hero-Bild hinein
+       (overflow sichtbar). syncLpHeaderSpacing() misst offsetHeight = die festen 56px, der
+       Ueberhang zaehlt also nicht mit -- genau gewollt. Neigung -2deg unveraendert. -->
+  <header id="lp-header" class="lp-header" style="display: flex; align-items: center; gap: 8px; padding: 0 12px; height: 56px; overflow: visible;">
     <a href="/" style="display:flex; align-items:center; gap:8px; margin-right:auto; text-decoration:none; color: var(--paper);">
       <img src="/assets/wizard-badge.webp" alt="" style="width: 30px; height: 30px; flex: none; transform: rotate(-6deg);" />
       <span class="h-black" style="font-size: 12px; letter-spacing: -.01em;">Wimmel&nbsp;Wizard<sup style="font-size: 7px; vertical-align: super;">™</sup></span>
     </a>
-    <a href="/app" class="h-black" style="flex: none; background: var(--red); color: var(--paper); font-size: 12px; padding: 10px 13px; border: 3px solid var(--paper); transform: rotate(-2deg); min-height: 40px; display: flex; align-items: center;">Los!</a>
+    <a href="/app" class="h-black lp-cta" style="flex: none; align-self: flex-start; margin-top: 10px; background: var(--red); color: var(--paper); font-size: 17px; line-height: 1.02; letter-spacing: -.01em; text-align: center; padding: 13px 18px 15px; border: 3px solid var(--paper); transform: rotate(-2deg); box-shadow: 4px 5px 0 var(--ink); display: flex; flex-direction: column; align-items: center; position: relative; z-index: 2;"><span style="font-size: .72em; letter-spacing: .06em;">kostenlos</span><span>loswimmeln</span></a>
   </header>
 
   <!-- Hero (mobil: horizontal scrollbar) -->
@@ -66,13 +79,16 @@
       <div class="lp-hero-track">
         <img src="/assets/hero-wimmelhaus.webp" alt="Wimmelbild: Haus, Erzählmaschine und Post – tippe die Punkte an" style="width: 100%; height: 100%; object-fit: cover; display: block;" />
         <div id="pins-hero"></div>
+        <!-- NEU (Feinschliff 26.09.2026, Punkt 4): sitzt am rechten Ende des Scroll-Tracks, taucht
+             also erst auf, wenn man ganz durchgescrollt hat. -->
+        <a href="#faq" class="h-black lp-faq-btn">noch Fragen?</a>
       </div>
     </div>
 
     <div style="position: absolute; top: 12px; left: 12px; right: 12px; pointer-events: none;">
       <p class="h-black" style="margin: 0 0 7px; display: inline-block; background: var(--yellow); border: 3px solid var(--ink); font-size: 10px; letter-spacing: .08em; padding: 5px 9px; transform: rotate(-2deg);">Wimmelbilder aus eurem Leben</p>
-      <h1 class="h-black" style="font-size: 40px; line-height: .88; letter-spacing: -.045em; text-align: left; max-width: 94%; color: var(--paper); text-shadow: 3px 3px 0 var(--ink), -2px -2px 0 var(--ink), 2px -2px 0 var(--ink), -2px 2px 0 var(--ink);">Euer Alltag<br />hat mehr verdient<br /><span style="color: var(--yellow);">als<br />noch ein<br />Fotobuch.</span></h1>
-      <p class="caveat" style="margin: 14px 0 0; max-width: 94%; font-size: 22px; line-height: 1.12; color: var(--paper); text-shadow: 2px 2px 0 var(--ink), -1px -1px 0 var(--ink), 1px -1px 0 var(--ink), -1px 1px 0 var(--ink);">Finde die fünf Punkte im Bild<br />und erfahre wie es funktioniert.</p>
+      <h1 class="h-black" style="font-size: 36px; line-height: .88; letter-spacing: -.045em; text-align: left; max-width: 94%; color: var(--paper); text-shadow: 3px 3px 0 var(--ink), -2px -2px 0 var(--ink), 2px -2px 0 var(--ink), -2px 2px 0 var(--ink);">Eure Erlebnisse<br />haben mehr<br />verdient <span style="color: var(--yellow);">als<br />noch ein<br />Fotobuch.</span></h1>
+      <p class="caveat" style="margin: 14px 0 0; max-width: 94%; font-size: 22px; line-height: 1.12; color: var(--paper); text-shadow: 2px 2px 0 var(--ink), -1px -1px 0 var(--ink), 1px -1px 0 var(--ink), -1px 1px 0 var(--ink);"><span style="font-size: 27px; color: var(--yellow);">So funktioniert's</span><br />Scrolle nach links und<br />klicke auf die Zahlen</p>
     </div>
     <!-- BUGFIX/Design (Nutzer-Rückmeldung): der "antippen & wischen"-Button wirkte wie ein
          eigenständiges UI-Element statt einem Hinweis. Jetzt ein reiner, pulsierender Pfeil am
@@ -106,12 +122,14 @@
     <div style="position: relative; height: 740px; overflow: hidden;">
       <img src="/assets/hero-wimmelhaus.webp" alt="Wimmelbild: Haus, Erzählmaschine und Post" style="width: 100%; height: 100%; object-fit: cover; object-position: center; display: block;" />
       <div id="pins-hero-desktop"></div>
+      <a href="#faq" class="h-black lp-faq-btn">noch Fragen?</a>
       <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 60%; background: linear-gradient(to right, rgba(26,26,24,.74), rgba(26,26,24,.3) 66%, rgba(26,26,24,0)); pointer-events: none;"></div>
       <div style="position: absolute; left: 0; top: 0; width: 56%; padding: 46px 0 0 44px; pointer-events: none;">
         <p class="h-black" style="margin: 0 0 14px; display: inline-block; background: var(--yellow); border: 3px solid var(--ink); font-size: 12px; letter-spacing: .08em; padding: 7px 11px; transform: rotate(-2deg);">Wimmelbilder aus eurem Leben</p>
-        <h1 class="h-black" style="font-size: 64px; line-height: .88; white-space: nowrap; letter-spacing: -.045em; color: var(--paper); text-shadow: 4px 4px 0 var(--ink), -2px -2px 0 var(--ink), 2px -2px 0 var(--ink), -2px 2px 0 var(--ink);">Euer Alltag<br />hat mehr verdient<br />als <span style="color: var(--yellow);">noch ein<br />Fotobuch.</span></h1>
-        <p class="caveat" style="margin: 22px 0 0; max-width: 460px; font-size: 30px; line-height: 1.1; color: var(--paper); text-shadow: 2px 2px 0 var(--ink);">Finde die fünf Punkte im Bild<br />und erfahre wie es funktioniert.</p>
-        <p class="h-black" style="margin: 20px 0 0; display: inline-flex; align-items: center; gap: 10px; background: var(--ink); padding: 9px 13px; font-size: 11px; letter-spacing: .12em; color: var(--yellow);"><span>↗</span> anklicken, in beliebiger Reihenfolge</p>
+        <h1 class="h-black" style="font-size: 58px; line-height: .88; white-space: nowrap; letter-spacing: -.045em; color: var(--paper); text-shadow: 4px 4px 0 var(--ink), -2px -2px 0 var(--ink), 2px -2px 0 var(--ink), -2px 2px 0 var(--ink);">Eure Erlebnisse<br />haben mehr verdient<br />als <span style="color: var(--yellow);">noch ein<br />Fotobuch.</span></h1>
+        <!-- Desktop: ganzes Bild sichtbar, nichts zu scrollen -- daher "Klicke auf die Zahlen im Bild"
+             statt "Scrolle nach links..." (mobile Formulierung). -->
+        <p class="caveat" style="margin: 22px 0 0; max-width: 460px; font-size: 30px; line-height: 1.1; color: var(--paper); text-shadow: 2px 2px 0 var(--ink);"><span style="font-size: 36px; color: var(--yellow);">So funktioniert's</span><br />Klicke auf die Zahlen im Bild</p>
       </div>
     </div>
     <!-- NEU (Sammel-Runde 09.09.2026, Punkt A1): zweites, schwarzes Gegen-Laufband ÜBER dem roten --
@@ -145,18 +163,7 @@
     </div>
   </section>
 
-  <!-- Suchprotokoll Desktop: zweispaltig, links sticky Erklaerspalte, rechts Fundkarten-Raster -->
-  <section class="desktop-only desktop-wrap" style="padding: 54px 32px 70px; display: grid; grid-template-columns: 380px 1fr; gap: 54px; align-items: start;">
-    <div style="position: sticky; top: 108px;">
-      <h2 class="h-black" style="margin: 0 0 10px; font-size: 40px; line-height: .9; letter-spacing: -.04em;">Das<br />Suchprotokoll.</h2>
-      <p class="caveat" style="margin: 0 0 20px; font-size: 24px; line-height: 1.1;">jeder Punkt, den du gefunden hast, landet hier. rechts weiterlesen.</p>
-      <div style="position: relative; background: var(--yellow); border: 4px solid var(--ink); box-shadow: 7px 8px 0 var(--ink); padding: 20px 20px 20px 76px;">
-        <img src="/assets/wizard-badge.webp" alt="" style="position: absolute; left: -16px; bottom: -8px; width: 84px; animation: wob 4s ease-in-out infinite;" />
-        <p class="caveat" style="font-size: 23px; line-height: 1.12;">am Desktop siehst du das ganze Bild auf einmal – mobil wischt man sich durch. beides gut.</p>
-      </div>
-    </div>
-    <div id="pins-log-desktop" style="display: grid; grid-template-columns: 1fr 1fr; gap: 18px;"></div>
-  </section>
+  <!-- Suchprotokoll Desktop entfernt (Feinschliff 26.09.2026, Punkt 5). -->
 
   <!-- Bottom Sheet (Fundpunkt-Details) -->
   <div id="sheet-backdrop" class="lp-sheet-backdrop hidden"></div>
@@ -222,16 +229,38 @@
     </div>
   </a>
 
-  <!-- Suchprotokoll (mobil) -- übernimmt jetzt den Stil des entfernten "Drei Schritte"-Blocks
-       (schwarzer Hintergrund, große gelbe Zahlen-Typografie), siehe Kommentar dort. -->
-  <section class="mobile-only" style="margin-top: 12px; background: var(--ink); color: var(--paper); padding: 26px 14px 30px;">
-    <h2 class="h-black" style="margin: 0 0 4px; font-size: 22px; line-height: .95; letter-spacing: -.03em;">Dein Suchprotokoll</h2>
-    <p class="caveat" style="margin: 0 0 6px; font-size: 19px; line-height: 1.15; color: var(--paper-a75);">so läuft's ab, in fünf Schritten.</p>
-    <div id="pins-log" style="display: flex; flex-direction: column; gap: 4px;"></div>
+  <!-- GEAENDERT (Feinschliff 26.09.2026, Punkt 5): Suchprotokoll komplett gestrichen. Der
+       schwarze Kasten bleibt und traegt jetzt die Produkte (Karten aus dem frueheren blauen
+       "Was kostet der Spaß?"-Block hierher verschoben). Nicht mehr mobile-only. Headline vorlaeufig
+       "So kommt's dann raus…" (Nutzer-Vorschlag, endgueltige Headline wird nachgereicht). -->
+  <section id="produkte" style="margin-top: 12px; background: var(--ink); color: var(--paper); padding: 26px 14px 30px;">
+    <h2 class="h-black" style="margin: 0 0 4px; font-size: 26px; line-height: .95; letter-spacing: -.03em;">So kommt's<br /><span style="color: var(--yellow);">dann raus…</span></h2>
+    <p class="caveat" style="margin: 0 0 18px; font-size: 20px; line-height: 1.12; color: var(--paper-a75);">entscheiden musst du erst, wenn du dein erstes Bild gesehen hast. wirklich.</p>
+    <div class="lp-products">
+        <div style="color: var(--ink); display:flex; gap:12px; align-items:center; border:4px solid var(--ink); padding:14px; background: var(--paper); transform: rotate(-1.32deg); box-shadow: 4px 5px 0 var(--yellow);">
+          <div style="flex:1; min-width:0;"><h3 class="h-black" style="font-size:17px; letter-spacing:-.02em; margin:0 0 3px;">Poster</h3><p style="font-size:13px; line-height:1.4; font-weight:500; margin:0;">ab 1 Wimmelbild, verschiedene Größen, mit oder ohne Rahmen</p></div>
+          <span class="h-black" style="flex:none; font-size:16px; background: var(--ink); color: var(--paper); padding:6px 9px; transform: rotate(2.2deg);">ab 19 €</span>
+        </div>
+        <div style="color: var(--ink); display:flex; gap:12px; align-items:center; border:4px solid var(--ink); padding:14px; background: var(--paper); transform: rotate(.96deg); box-shadow: -4px 5px 0 var(--red);">
+          <div style="flex:1; min-width:0;"><h3 class="h-black" style="font-size:17px; letter-spacing:-.02em; margin:0 0 3px;">Wimmelbuch</h3><p style="font-size:13px; line-height:1.4; font-weight:500; margin:0;">ab 2 Wimmelbildern, verschiedene Größen, Softcover und Softseiten</p></div>
+          <span class="h-black" style="flex:none; font-size:16px; background: var(--ink); color: var(--paper); padding:6px 9px; transform: rotate(-1.6deg);">ab 29 €</span>
+        </div>
+        <!-- Stufe 3: echtes Overlay statt nur gedaempfter Karte -- siehe Modul-Kommentar oben. -->
+        <div style="color: var(--ink); position:relative; border:4px solid var(--ink); padding:14px; background: var(--paper); transform: rotate(-.5deg); box-shadow: 4px 5px 0 var(--yellow); overflow:hidden;">
+          <div style="color: var(--ink); display:flex; gap:12px; align-items:center; opacity:.3;">
+            <div style="flex:1; min-width:0;"><h3 class="h-black" style="font-size:17px; letter-spacing:-.02em; margin:0 0 3px;">Wimmelbuch</h3><p style="font-size:13px; line-height:1.4; font-weight:500; margin:0;">ab 5 Wimmelbildern, verschiedene Größen, Kartonseiten</p></div>
+            <span class="h-black" style="flex:none; font-size:16px; background: var(--ink); color: var(--paper); padding:6px 9px; transform: rotate(2deg);">ab 49 €</span>
+          </div>
+          <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background: rgba(242,237,225,.55);">
+            <span class="h-black" style="font-size:13px; letter-spacing:.06em; text-transform:uppercase; background: rgba(26,26,24,.9); color: var(--paper); padding:8px 14px; transform: rotate(-3deg); box-shadow: 3px 4px 0 var(--ink);">Coming Soon</span>
+          </div>
+        </div>
+      </div>
+    <p class="caveat" style="margin: 20px 0 0; font-size: 21px; line-height: 1.1; text-align: center; color: var(--yellow);">Jedes Buch ein Unikat.</p>
   </section>
 
   <!-- NEU (Live-Test 06.09.2026, Punkt 5): "WizzelWim stellt sich vor" -- Uebergangs-Abschnitt
-       zwischen Suchprotokoll und "Wofuer", nutzt dasselbe Sprechblasen-Asset wie die Abschluss-CTA
+       zwischen Produkt-Kasten (frueher Suchprotokoll) und "Wofuer", nutzt dasselbe Sprechblasen-Asset wie die Abschluss-CTA
        weiter unten (wizard-speechbubble.webp). Nutzer-Vorgabe: NUR die kurze Begruessung kommt in
        die Sprechblase selbst, der eigentliche Erklaersatz steht daneben, nicht hineingequetscht.
        Ueberlagerungs-Position/Schriftgroesse fuer den Blasentext ist proportional von der
@@ -292,15 +321,15 @@
   <section style="padding: 26px 14px 0;">
     <div style="position: relative; display: flow-root; border: 4px solid var(--ink); background: var(--paper); padding: 18px 16px; transform: rotate(.7deg); box-shadow: -6px 7px 0 var(--red);">
       <span class="h-black" style="position: absolute; top: -13px; left: 12px; background: var(--ink); color: var(--paper); font-size: 10px; letter-spacing: .1em; padding: 4px 9px;">Abteilung für unbequeme Ehrlichkeit</span>
-      <p class="h-black" style="margin: 6px 0 0; font-size: 22px; line-height: 1; letter-spacing: -.03em;">Das dauert länger als 3 Minuten.</p>
+      <!-- GEAENDERT (Feinschliff 26.09.2026, Punkt 6): drei nummerierte Ehrlichkeits-Punkte statt
+           einer Headline + zwei Absaetzen. Punkt 2 = bestehender Text, unveraendert. -->
+      <p class="h-black" style="margin: 6px 0 0; font-size: 20px; line-height: 1; letter-spacing: -.03em;"><span style="color: var(--red);">1.</span> WizzelWim ist eine KI.</p>
       <img src="/assets/wizard-on-book.webp" alt="" style="float: right; width: 176px; margin: 4px -6px 6px 16px; shape-outside: url(/assets/wizard-on-book.webp); shape-margin: 12px;" />
-      <p style="margin: 10px 0 0; font-size: 14px; line-height: 1.5;">Ehrlich. Ein Wimmelbild ist ein kleines Kunstwerk. Jeder Schritt kostet nur ein paar Minuten – aber es sind halt mehrere. Du kannst jederzeit aufhören und später weitermachen. Wir speichern automatisch, weil wir keine Monster sind.</p>
-      <!-- NEU (Sammel-Runde 09.09.2026, Punkt A4): Phase-1/Pilot-Hinweis im selben ehrlichen,
-           unaufgeregten Ton wie der Absatz darueber -- bewusst in DIESER Karte statt eines eigenen
-           neuen Blocks, weil "unbequeme Ehrlichkeit" thematisch exakt passt. Identischer Text auch
-           im Zaubern-Ladebildschirm (szene.js, Punkt D22) -- an EINER Stelle formuliert, an zwei
-           Stellen eingesetzt. -->
-      <p style="margin: 10px 0 0; font-size: 14px; line-height: 1.5;">Jeder fängt erst mal klein an. Wenn wir merken, dass euch unser Produkt gefällt, verbessern wir es kontinuierlich und werden bald auch größere, wimmligere Bilder anbieten können.</p>
+      <p style="margin: 8px 0 0; font-size: 14px; line-height: 1.5;">Und KI kann auch mal Quatsch bauen – deshalb gibt's den Stift, mit dem ihr Details korrigieren könnt. Und weil KI Energie kostet, kostet sie leider auch Geld, bei jedem Schritt – die Generierung eurer ersten drei Figuren und eures ersten Wimmelbildes schenken wir euch trotzdem. Wollt ihr mehr, müssen wir dann doch ein Konto anlegen, ihr ladet einmal 5&nbsp;€ drauf – die euch bei der Bestellung aber wieder voll angerechnet werden.</p>
+      <p class="h-black" style="margin: 18px 0 0; font-size: 20px; line-height: 1; letter-spacing: -.03em;"><span style="color: var(--red);">2.</span> Es dauert.</p>
+      <p style="margin: 8px 0 0; font-size: 14px; line-height: 1.5;">Ehrlich. Ein Wimmelbild ist ein kleines Kunstwerk. Jeder Schritt kostet nur ein paar Minuten – aber es sind halt mehrere. Du kannst jederzeit aufhören und später weitermachen. Wir speichern automatisch, weil wir keine Monster sind.</p>
+      <p class="h-black" style="margin: 18px 0 0; font-size: 20px; line-height: 1; letter-spacing: -.03em;"><span style="color: var(--red);">3.</span> Wir fangen klein an.</p>
+      <p style="margin: 8px 0 0; font-size: 14px; line-height: 1.5;">Aktuell gibt's ein Format, einen Stil, eine Handvoll Figuren. Absicht, nicht Mangel. Größere, wimmligere Bilder und mehr Produkte kommen – stay tuned.</p>
     </div>
   </section>
 
@@ -329,44 +358,11 @@
     </div>
   </section>
 
-  <!-- Preise -->
-  <!-- GEAENDERT (Sammel-Runde 11.09.2026, "Kleinere Änderung, Preis-/Produkttexte"): komplett neue
-       3-Stufen-Copy -- Preise jetzt als "ab X €" (verschiedene Größen/Optionen je Stufe, kein
-       Festpreis mehr), Stufe 2 UND 3 beide "Wimmelbuch" genannt (Unterscheidung ueber die
-       Beschreibung: Bilderzahl/Seitenmaterial), Stufe 3 per echtem Overlay (nicht nur gedaempfte
-       Karte + Eck-Badge wie zuvor) als "nur ein Ausblick, noch nicht bestellbar" markiert -- die
-       Karte selbst bleibt dahinter sichtbar (Vorgeschmack), aber durch das Overlay optisch und
-       tatsaechlich (kein Link/Button, war auf der Landingpage ohnehin nie klickbar) nicht
-       antippbar/bestellbar. Gleiche Copy + gleiches Overlay-Muster jetzt auch auf dem "Und
-       jetzt?"-Screen (entscheidung.js TIERS) wiederholt. -->
-  <section style="margin-top: 40px; background: var(--blue); border-top: 4px solid var(--ink); border-bottom: 4px solid var(--ink); padding: 26px 14px 28px;">
-    <h2 class="h-black" style="margin: 0 0 4px; font-size: 28px; line-height: .9; letter-spacing: -.04em;">Was kostet<br />der Spaß?</h2>
-    <p class="caveat" style="margin: 0 0 18px; font-size: 20px; line-height: 1.1;">entscheiden musst du erst, wenn du dein erstes Bild gesehen hast. wirklich.</p>
-    <div style="display: flex; flex-direction: column; gap: 12px;">
-      <div style="display:flex; gap:12px; align-items:center; border:4px solid var(--ink); padding:14px; background: var(--paper); transform: rotate(-1.32deg); box-shadow: 4px 5px 0 var(--ink);">
-        <div style="flex:1; min-width:0;"><h3 class="h-black" style="font-size:17px; letter-spacing:-.02em; margin:0 0 3px;">Poster</h3><p style="font-size:13px; line-height:1.4; font-weight:500; margin:0;">ab 1 Wimmelbild, verschiedene Größen, mit oder ohne Rahmen</p></div>
-        <span class="h-black" style="flex:none; font-size:16px; background: var(--ink); color: var(--paper); padding:6px 9px; transform: rotate(2.2deg);">ab 19 €</span>
-      </div>
-      <div style="display:flex; gap:12px; align-items:center; border:4px solid var(--ink); padding:14px; background: var(--paper); transform: rotate(.96deg); box-shadow: -4px 5px 0 var(--ink);">
-        <div style="flex:1; min-width:0;"><h3 class="h-black" style="font-size:17px; letter-spacing:-.02em; margin:0 0 3px;">Wimmelbuch</h3><p style="font-size:13px; line-height:1.4; font-weight:500; margin:0;">ab 2 Wimmelbildern, verschiedene Größen, Softcover und Softseiten</p></div>
-        <span class="h-black" style="flex:none; font-size:16px; background: var(--ink); color: var(--paper); padding:6px 9px; transform: rotate(-1.6deg);">ab 29 €</span>
-      </div>
-      <!-- Stufe 3: echtes Overlay statt nur gedaempfter Karte -- siehe Modul-Kommentar oben. -->
-      <div style="position:relative; border:4px solid var(--ink); padding:14px; background: var(--paper); transform: rotate(-.5deg); box-shadow: 4px 5px 0 var(--ink); overflow:hidden;">
-        <div style="display:flex; gap:12px; align-items:center; opacity:.3;">
-          <div style="flex:1; min-width:0;"><h3 class="h-black" style="font-size:17px; letter-spacing:-.02em; margin:0 0 3px;">Wimmelbuch</h3><p style="font-size:13px; line-height:1.4; font-weight:500; margin:0;">ab 5 Wimmelbildern, verschiedene Größen, Kartonseiten</p></div>
-          <span class="h-black" style="flex:none; font-size:16px; background: var(--ink); color: var(--paper); padding:6px 9px; transform: rotate(2deg);">ab 49 €</span>
-        </div>
-        <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background: rgba(242,237,225,.55);">
-          <span class="h-black" style="font-size:13px; letter-spacing:.06em; text-transform:uppercase; background: rgba(26,26,24,.9); color: var(--paper); padding:8px 14px; transform: rotate(-3deg); box-shadow: 3px 4px 0 var(--ink);">Coming Soon</span>
-        </div>
-      </div>
-    </div>
-    <p class="caveat" style="margin: 18px 0 0; font-size: 21px; line-height: 1.1; text-align: center;">Jedes Buch ein Unikat.</p>
-  </section>
+  <!-- Blauer Preisblock "Was kostet der Spaß?" entfernt (Feinschliff 26.09.2026, Punkt 5) --
+       die Produktkarten stehen jetzt im schwarzen Produkt-Kasten weiter oben. -->
 
   <!-- FAQ -->
-  <section style="padding: 26px 14px 0;">
+  <section id="faq" style="padding: 26px 14px 0;">
     <h2 class="h-black" style="margin: 0 0 10px; font-size: 25px; line-height: .92; letter-spacing: -.035em;">Fragen. Antworten.<br /><span style="color: var(--red);">Kein Marketing.</span></h2>
     <div id="faq-list" style="display: flex; flex-direction: column;"></div>
   </section>

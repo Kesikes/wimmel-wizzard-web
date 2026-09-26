@@ -1,6 +1,6 @@
 /* ==========================================================================
    Wimmel Wizard v3 — Landingpage-Logik
-   Fundpunkte, Bottom-Sheet, Suchprotokoll, Anlass-Auswahl, FAQ-Akkordeon.
+   Fundpunkte, Bottom-Sheet, Anlass-Auswahl, FAQ-Akkordeon (kategorisiert).
    Texte wörtlich aus referenz/Landingpage-v4-OatlyWimmel.dc.html.
    ========================================================================== */
 
@@ -18,7 +18,7 @@ const PINS = [
   { x: 59, y: 72, mark: "3", kicker: "Punkt 3 von 5", title: "Ich zeichne. Ihr meckert.", rowTitle: "Zaubern und Nachbessern",
     body: "Ich probiere mehrere Varianten, ihr wählt die beste. Passt noch was nicht? Mit dem Stift markieren, neu zaubern – der Rest bleibt genau, wie er ist." },
   { x: 63, y: 46, mark: "4", kicker: "Punkt 4 von 5", title: "Dann geht's in den Druck.", rowTitle: "Wie das Buch entsteht",
-    body: "Gedruckt und gebunden in Deutschland, mit eurer Widmung vorne drin. Kein Copy-Shop-Charme – echtes Hardcover." },
+    body: "Gedruckt und gebunden in Deutschland, mit eurer Widmung vorne drin. Kein Copy-Shop-Charme." },
   { x: 88, y: 32, mark: "5", kicker: "Punkt 5 von 5", title: "Und dann kommt Post.", rowTitle: "Vom Drucker zu euch",
     body: "Ab da liegt es auf dem Couchtisch, und jemand sucht eine halbe Stunde die Katze." }
 ];
@@ -44,20 +44,43 @@ const OCCASIONS = [
   { key: "einfachso", label: "Einfach so", line: "Einfach so. Mein Favorit. Ein Samstag wie jeder andere – genau deshalb lohnt er sich als Buch." }
 ];
 
-// GEAENDERT (Sammel-Runde 11.09.2026, Punkt 1: "Textversprechen entfernen, kein Feature bauen" --
-// betrifft laut Nutzer-Vorgabe ausdruecklich beide Wege, nicht nur einen). Die erste FAQ-Antwort
-// machte fuer den Foto-Weg dasselbe falsche "zwei bis drei Vorschläge, du tippst den besten an"-
-// Versprechen wie der jetzt korrigierte Hinweistext im Foto-Panel (siehe charakter.js
-// buildFotoPanel()) -- tatsaechlich liefert die Generierung (Foto- UND Merkmale-Weg) immer genau
-// EIN Ergebnis, keine Auswahl. Jetzt durch eine zutreffende Beschreibung ersetzt, die zugleich das
-// neue "Nachschärfen"-Feature (Punkt 2, gezielte Freitext-Korrektur statt Neu-Wuerfeln) erwaehnt --
-// der "Ohne Foto"-Teil der Antwort war schon vorher zutreffend und blieb unveraendert.
-const FAQS = [
-  { q: "Sieht mein Kind wirklich aus wie mein Kind?", a: "Mit Foto am ehesten: Ich zeichne daraus eine Wimmelstil-Version. Ohne Foto geht auch – dann wählst du Haare, Frisur, Kleidung. Passt etwas nicht, kannst du gezielt nachschärfen (\"T-Shirt blau statt gelb\") oder komplett neu zaubern. So oft du willst." },
-  { q: "Muss ich Fotos hochladen?", a: "Nein. Fotos sind der schnellste Weg, aber nie Pflicht. Was du hochlädst, wird nur für dein Bild benutzt und danach gelöscht. Kein Training, kein Weiterverkauf, kein Kleingedrucktes." },
-  { q: "Wie lange dauert ein Bild?", a: "Deine Eingaben: ein paar Minuten. Das Zeichnen: zwei bis fünf. Ich probiere mehrere Varianten und zeige dir nur die, die was geworden ist. Du kannst dabei weggehen — ich zeichne weiter, auch wenn du das Handy weglegst." },
-  { q: "Kann ich am fertigen Bild noch was ändern?", a: "Ja. Mit dem Stift im Bild markieren, was weg soll. Einzelne Situationen neu zaubern. Der Rest der Szene bleibt genau so." },
-  { q: "Was, wenn mir ein Bild schon reicht?", a: "Dann nimmst du das Poster und bist fertig. Völlig richtige Entscheidung. Wir schicken dir dann keine sieben Mails." }
+// GEAENDERT (Feinschliff 26.09.2026, Punkt 7): FAQ komplett neu, jetzt nach Kategorien gruppiert
+// (Akkordeon je Frage, Kategorie-Label darueber). openFaq in AppState bleibt ein flacher Index ueber
+// alle SICHTBAREN Fragen. "draft: true" = Platzhalter, wird NICHT gerendert (Versanddauer wird von
+// Matthias vor Launch verifiziert -- danach draft entfernen).
+// Hinweis: interner Stilname darf nirgends kundenseitig auftauchen -- immer "WizzelWim-Stil".
+const FAQ_GROUPS = [
+  { cat: "Produkt & Stil", items: [
+    { q: "Was genau ist der Wimmel Wizard und wie funktioniert er?", a: "WizzelWim verwandelt eure Familie in ein echtes Wimmelbild – gezeichnet von einer KI, aber komplett individuell: eure Gesichter, eure Geschichten, eure Details zum Suchen und Entdecken. Kein Stockbild, keine Vorlage mit ausgetauschtem Namen." },
+    { q: "Gibt es auch andere Stile?", a: "Aktuell gibt's genau einen: den waschechten WizzelWim-Stil – die Welt, in der WizzelWim und seine Familie zuhause sind. Bewusst, nicht aus Mangel – wir wollen den einen Stil erstmal richtig gut können, bevor wir mehr draufpacken. Weitere Stile sind aber geplant, stay tuned." },
+    { q: "Gibt es auch andere Produkte?", a: "Aktuell: Poster, Mini-Wimmelbuch und Wimmelbuch. Mehr Formate kommen – siehe oben, wir fangen bewusst klein an." },
+    { q: "Wie viele Personen kann ich einbauen (auch Haustiere, Omas, Opas)?", a: "Bis zu 5 Figuren – da ist alles dabei, Geschwister, Eltern, Omas, Opas oder das Haustier." },
+    { q: "Wie viele Bilder/Seiten hat ein Wimmelbuch eigentlich?", a: "Maximal 6 Wimmelbilder ergeben ein Buch mit 16 Seiten – mehr geht aktuell nicht, dafür wird jedes einzelne mit voller Sorgfalt gezaubert." }
+  ]},
+  { cat: "Ablauf & Nutzung", items: [
+    { q: "Muss ich mich anmelden?", a: "Nein. Ihr könnt direkt loslegen, ohne Konto. Erst wenn ihr über das kostenlose Kontingent hinaus wollt, legen wir gemeinsam ein Konto an – damit euer Guthaben nicht verloren geht, falls ihr Browser oder Gerät wechselt." },
+    { q: "Muss ich Fotos hochladen?", a: "Nein. Ihr könnt ein Foto hochladen – oder eure Familie einfach über Merkmale beschreiben (Haare, Kleidung, Besonderheiten). Beides führt zum gleichen schönen Ergebnis." },
+    { q: "Wie lange dauert es, bis mein Wimmelbild/Buch fertig ist?", a: "Pro Wimmelbild rechnet WizzelWim realistisch mit 2 bis 4 Minuten – wir lassen jedes Bild lieber zweimal prüfen, statt es hastig rauszuhauen. Dauert es mal deutlich länger, ist wahrscheinlich etwas schiefgelaufen – meldet euch dann gerne bei uns." },
+    { q: "Kann ich mein Wimmelbild noch ändern, nachdem es fertig ist?", a: "Ja. Mit dem Stift könnt ihr direkt im Bild markieren, was weg soll oder neu gezaubert werden soll. Pro Wimmelbild habt ihr dafür 2x „komplett neu zaubern“, 2x Änderung an einer Figur und 2x Änderung an einer Szene." },
+    { q: "Was, wenn mir das Ergebnis nicht gefällt?", a: "Den Stil seht ihr schon ganz am Anfang, bevor irgendwas kostet. Gefällt er euch nicht, könnt ihr jederzeit aufhören – die ersten Versuche sind ja kostenlos. Ein einmal aufgeladenes Guthaben können wir allerdings nicht zurückerstatten: Die Generierung kostet uns in dem Moment schon etwas, ganz unabhängig vom Ergebnis. Das ist ein Risiko, das wir gemeinsam tragen." },
+    { q: "Auf welchem Gerät kann ich weitermachen – geht das auch auf dem Handy und später am PC?", a: "In der kostenlosen Phase läuft alles anonym über euren Browser – darin bleibt euer Fortschritt gespeichert, dafür seid ihr ohne Anmeldung sofort startklar. Schließt ihr den Browser oder wechselt das Gerät, ist der Stand in dieser Phase weg. Sobald ihr ein Konto anlegt, könnt ihr auf jedem Gerät weitermachen." }
+  ]},
+  { cat: "Preis & Bezahlung", items: [
+    { q: "Was bedeutet „kostenlos loswimmeln“?", a: "Die Generierung eurer ersten drei Figuren und eures ersten Wimmelbildes ist komplett kostenlos – kein Konto, keine Zahlungsdaten nötig. Erst danach geht's ans Aufladen." },
+    { q: "Was kostet es am Ende wirklich – gibt es versteckte Kosten?", a: "Nein. Der Endpreis steht fest, bevor ihr bestellt – und euer aufgeladenes Guthaben wird euch dabei voll angerechnet." },
+    { q: "Wie setzt sich der Preis eines Produkts zusammen?", a: "Ehrlich gesagt: nicht aus einer fetten Marge. Jedes Bild wird wirklich neu gezaubert, und Zaubern kostet – die KI, die eure Figuren und Wimmelbilder erschafft, läuft nicht umsonst. Dazu kommen die echte Produktion (Druck, Papier, Bindung), laufende Betriebskosten und die Mehrwertsteuer. Am Ende bleibt uns davon deutlich weniger übrig, als man denken könnte – aber dafür bekommt ihr auch kein Namensschild auf einer Vorlage, sondern ein wirklich individuelles Werk." }
+  ]},
+  { cat: "Versand & Lieferung", items: [
+    { q: "Wird das Buch wirklich gedruckt, oder bekomme ich nur eine Datei?", a: "Echt gedruckt und zu euch nach Hause geschickt – keine Datei zum Selbstausdrucken." },
+    { draft: true, q: "Wie lange dauert der Versand, und kommt es pünktlich zu einem bestimmten Anlass an?", a: "Rechnet mit ca. 5 Werktagen." }
+  ]},
+  { cat: "Verschenken", items: [
+    { q: "Kann ich das Ganze auch verschenken, ohne dass die beschenkte Person selbst etwas einrichten muss?", a: "Ja – mit unserem Gutschein. Ihr wählt eine Stufe, verschickt ihn digital oder als Karte per Post, und die beschenkte Person steigt direkt mit fertigem Guthaben ein." }
+  ]},
+  { cat: "Daten & Datenschutz", items: [
+    { q: "Was passiert mit meinen Daten?", a: "Eure Daten liegen auf Servern in der EU, DSGVO-konform. Nichts wird verkauft oder weitergegeben." },
+    { q: "Was passiert mit meinen Fotos, nachdem das Bild fertig ist? Werden sie gelöscht?", a: "Ja. Ein hochgeladenes Foto wird ausschließlich für euer Wimmelbild verwendet und danach automatisch gelöscht." }
+  ]}
 ];
 
 (function initLanding() {
@@ -83,27 +106,7 @@ const FAQS = [
     });
   }
 
-  // Stil (05.09.2026) vom entfernten "Drei Schritte"-Block übernommen: große gelbe Nummer +
-  // Titel/Beschreibung auf dunklem Grund, statt der vorherigen kompakten Icon-Zeile. "gefunden"/
-  // "offen"-Unterscheidung bleibt (kleines Tag rechts), damit der Hunt-Charakter erhalten bleibt.
-  function renderPinsLog() {
-    const wrap = document.getElementById("pins-log");
-    wrap.innerHTML = "";
-    PINS.forEach((p, i) => {
-      const found = S.data.foundPins.includes(i);
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.style.cssText = "display:flex;gap:12px;align-items:flex-start;width:100%;text-align:left;background:none;border:0;border-top:3px solid var(--paper-a80);padding:16px 0;cursor:pointer;color:var(--paper);";
-      btn.innerHTML =
-        '<span class="h-black" style="font-size:36px;line-height:.8;flex:none;width:44px;color:' + (found ? "var(--yellow)" : "var(--paper-a45)") + ';">' + (found ? "✓" : String(i + 1).padStart(2, "0")) + "</span>" +
-        '<span style="flex:1;min-width:0;">' +
-          '<span class="h-black" style="display:block;font-size:16px;letter-spacing:-.02em;margin:0 0 4px;color:' + (found ? "var(--paper)" : "var(--paper-a75)") + ';">' + p.rowTitle + "</span>" +
-          '<span class="h-black" style="display:inline-block;font-size:9px;letter-spacing:.1em;color:' + (found ? "var(--yellow)" : "var(--paper-a45)") + ';">' + (found ? "gefunden" : "noch offen") + "</span>" +
-        "</span>";
-      btn.addEventListener("click", () => openPin(i));
-      wrap.appendChild(btn);
-    });
-  }
+  // renderPinsLog()/renderPinsLogDesktop() entfernt (Feinschliff 26.09.2026: Suchprotokoll gestrichen).
 
   function renderPinsHeroDesktop() {
     const wrap = document.getElementById("pins-hero-desktop");
@@ -122,24 +125,6 @@ const FAQS = [
       btn.textContent = found ? "✓" : p.mark;
       btn.addEventListener("click", () => openPin(i));
       wrap.appendChild(btn);
-    });
-  }
-
-  function renderPinsLogDesktop() {
-    const wrap = document.getElementById("pins-log-desktop");
-    if (!wrap) return;
-    wrap.innerHTML = "";
-    PINS.forEach((p, i) => {
-      const found = S.data.foundPins.includes(i);
-      const card = document.createElement("div");
-      card.style.cssText = "border:4px solid var(--ink);background:" + (found ? "var(--yellow)" : "var(--paper)") + ";box-shadow:6px 7px 0 var(--ink);padding:22px;transform:rotate(" + pinRot(i) + "deg);cursor:pointer;";
-      card.innerHTML =
-        '<span style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border:3px solid var(--ink);font-family:\'Archivo Black\',sans-serif;font-size:15px;' +
-        (found ? "background:var(--ink);color:var(--yellow);" : "background:var(--blue);color:var(--ink);") + '">' + (found ? "✓" : p.mark) + "</span>" +
-        '<p class="h-black" style="margin:14px 0 6px;font-size:21px;line-height:1;letter-spacing:-.03em;">' + p.title + "</p>" +
-        '<p style="margin:0;font-size:15px;line-height:1.5;">' + p.body + "</p>";
-      card.addEventListener("click", () => openPin(i));
-      wrap.appendChild(card);
     });
   }
 
@@ -170,12 +155,19 @@ const FAQS = [
     document.getElementById("sheet-kicker").textContent = p.kicker;
     document.getElementById("sheet-title").textContent = p.title;
     document.getElementById("sheet-body").textContent = p.body;
+    // GEAENDERT (Feinschliff 26.09.2026, Punkt 4): beim letzten Punkt (Punkt 5) bzw. wenn alle
+    // gefunden sind, gibt es nur noch "Schließen" -- der fruehere "Loswimmeln"-Button entfaellt
+    // (der CTA steht zentral im Header). Sonst weiterhin "Weitersuchen" + "Nächster Punkt".
     const nextIdx = PINS.findIndex((_, idx) => !S.data.foundPins.includes(idx));
+    const isLast = i === PINS.length - 1 || nextIdx === -1;
     const nextBtn = document.getElementById("sheet-next");
-    nextBtn.textContent = nextIdx === -1 ? "Loswimmeln" : "Nächster Punkt";
-    nextBtn.style.background = nextIdx === -1 ? "var(--yellow)" : "var(--red)";
-    nextBtn.style.color = nextIdx === -1 ? "var(--ink)" : "var(--paper)";
-    nextBtn.onclick = () => (nextIdx === -1 ? closeSheet() : openPin(nextIdx));
+    const closeBtn = document.getElementById("sheet-close");
+    closeBtn.textContent = isLast ? "Schließen" : "Weitersuchen";
+    nextBtn.classList.toggle("hidden", isLast);
+    nextBtn.textContent = "Nächster Punkt";
+    nextBtn.style.background = "var(--red)";
+    nextBtn.style.color = "var(--paper)";
+    nextBtn.onclick = () => openPin(nextIdx);
     document.getElementById("sheet").classList.remove("hidden");
     document.getElementById("sheet-backdrop").classList.remove("hidden");
   }
@@ -213,33 +205,45 @@ const FAQS = [
   function renderFaq() {
     const wrap = document.getElementById("faq-list");
     wrap.innerHTML = "";
-    FAQS.forEach((f, i) => {
-      const open = S.data.openFaq === i;
-      const row = document.createElement("div");
-      row.style.borderBottom = "3px solid var(--ink)";
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.style.cssText = "width:100%;display:flex;gap:12px;align-items:center;justify-content:space-between;text-align:left;background:none;border:0;padding:15px 0;font-family:'Archivo',sans-serif;font-size:15px;font-weight:700;color:var(--ink);cursor:pointer;min-height:48px;";
-      btn.innerHTML = "<span>" + f.q + "</span><span style=\"flex:none;font-family:'Archivo Black',sans-serif;font-size:22px;line-height:1;color:var(--red);transition:transform .2s ease;transform:rotate(" + (open ? 45 : 0) + "deg);\">+</span>";
-      const answer = document.createElement("p");
-      answer.style.cssText = "overflow:hidden;padding-right:28px;font-size:14px;line-height:1.5;transition:max-height .22s ease,opacity .18s ease,margin .22s ease;" +
-        (open ? "max-height:420px;opacity:1;margin:-4px 0 16px;" : "max-height:0;opacity:0;margin:0;");
-      answer.textContent = f.a;
-      btn.addEventListener("click", () => {
-        S.update({ openFaq: S.data.openFaq === i ? -1 : i });
-        renderFaq();
+    let i = -1;
+    FAQ_GROUPS.forEach((g) => {
+      const visible = g.items.filter((f) => !f.draft);
+      if (!visible.length) return;
+      const catWrap = document.createElement("div");
+      const cat = document.createElement("p");
+      cat.className = "h-black lp-faq-cat";
+      cat.textContent = g.cat;
+      catWrap.appendChild(cat);
+      wrap.appendChild(catWrap);
+      visible.forEach((f) => {
+        i++;
+        const idx = i;
+        const open = S.data.openFaq === idx;
+        const row = document.createElement("div");
+        row.style.borderBottom = "3px solid var(--ink)";
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.setAttribute("aria-expanded", open ? "true" : "false");
+        btn.style.cssText = "width:100%;display:flex;gap:12px;align-items:center;justify-content:space-between;text-align:left;background:none;border:0;padding:15px 0;font-family:'Archivo',sans-serif;font-size:15px;font-weight:700;color:var(--ink);cursor:pointer;min-height:48px;";
+        btn.innerHTML = "<span>" + f.q + "</span><span style=\"flex:none;font-family:'Archivo Black',sans-serif;font-size:22px;line-height:1;color:var(--red);transition:transform .2s ease;transform:rotate(" + (open ? 45 : 0) + "deg);\">+</span>";
+        const answer = document.createElement("p");
+        answer.style.cssText = "overflow:hidden;padding-right:28px;font-size:14px;line-height:1.5;transition:max-height .22s ease,opacity .18s ease,margin .22s ease;" +
+          (open ? "max-height:600px;opacity:1;margin:-4px 0 16px;" : "max-height:0;opacity:0;margin:0;");
+        answer.textContent = f.a;
+        btn.addEventListener("click", () => {
+          S.update({ openFaq: S.data.openFaq === idx ? -1 : idx });
+          renderFaq();
+        });
+        row.appendChild(btn);
+        row.appendChild(answer);
+        wrap.appendChild(row);
       });
-      row.appendChild(btn);
-      row.appendChild(answer);
-      wrap.appendChild(row);
     });
   }
 
   function renderAll() {
     renderPinsHero();
-    renderPinsLog();
     renderPinsHeroDesktop();
-    renderPinsLogDesktop();
     renderCounter();
   }
 
