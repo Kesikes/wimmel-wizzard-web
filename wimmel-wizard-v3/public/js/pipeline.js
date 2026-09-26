@@ -3717,7 +3717,19 @@ function buildHeldenPruefPrompt(helden) {
   ].join(" ");
 }
 
-function buildVerifyPrompt(heroSpecs, phaseId, compositionId) {
+// GEAENDERT (26.09.2026, Register "H1-ERGEBNIS 26.09.2026", Punkt 3 -- Vorschlag aus der
+// Sichtpruefung des Nutzers, 9 von 12 Fehlalarme): optionaler 4. Parameter heroesAbgleich,
+// default false/undefined. OHNE ihn (also ueberall im aktuellen Live-Pfad -- der einzige
+// Aufrufer buildSceneComposeInputs() setzt ihn nicht) ist dieser Codepfad BYTE-IDENTISCH zur
+// vorherigen Fassung. NUR mit heroesAbgleich===true (gedacht fuer Testaufrufe von aussen,
+// dev-tools, gegen bereits gespeicherte Bilder -- kein Bild-Neugenerieren, keine
+// Live-Aktivierung ohne Freigabe des Nutzers): Punkt 1 verlangt vier explizite
+// Uebereinstimmungs-Kriterien statt der bisherigen, im H1-Verwechslungsfall nachweislich zu
+// locker angewendeten Formulierung, und ein neues Pflichtfeld heroes_abgleich zwingt das
+// Modell, jeden Verdachtsfall (heroes_found >= 2) explizit durchzurechnen statt nur eine Zahl
+// zu nennen -- dieselbe Technik wie bei shaded_of_ten/blank_of_ten/figures_est ("das Modell
+// zaehlt/benennt, der Code bewertet").
+function buildVerifyPrompt(heroSpecs, phaseId, compositionId, heroesAbgleich) {
   const phase = SCENE_PHASES[phaseId] || SCENE_PHASES[ACTIVE_SCENE_PHASE];
   const querschnitt = compositionId === "cutaway" || compositionId === "gridhouse";
   const n = heroSpecs.length;
@@ -3731,6 +3743,16 @@ function buildVerifyPrompt(heroSpecs, phaseId, compositionId) {
       heroSpecs.map((s, i) => "Bild " + (i + 2) + " = " + s.name).join(", ") +
       ". Diese Referenzbilder zeigen dir auch, wie der geforderte Zeichenstil aussieht."
     : "";
+  // Register "H1-ERGEBNIS 26.09.2026", Punkt 3 (Vorschlag, nur aktiv mit heroesAbgleich===true):
+  const heldenKriteriumSatz = heroesAbgleich
+    ? "Eine Figur gilt NUR dann als dieselbe wie eine andere im Bild, wenn ALLE VIER folgenden Punkte übereinstimmen: (1) Frisur (Form und Länge), (2) Haarfarbe, (3) die ART des wichtigsten Kleidungsstücks (z. B. Hose, Rock, Kleid, Latzhose), UND (4) dessen Farbe UND Schnitt/Länge (z. B. kurz oder lang, eng oder weit) -- genau wie auf dem zugehörigen Referenzbild. Schon eine einzige Abweichung bei Punkt 4 (z. B. eine andere Hosenlänge oder -farbe) bedeutet KEINE Übereinstimmung, selbst wenn Frisur und Haarfarbe passen. Bevor du eine Figur ein zweites Mal zählst, vergleiche für JEDES vermutete weitere Vorkommen einzeln alle vier Punkte gegen das erste (oder das Referenzbild) und benenne knapp, was genau übereinstimmt und was nicht. Zähle nur, wenn du bei allen vier Punkten \"stimmt überein\" notieren kannst -- bei nur einer Abweichung sind es zwei verschiedene Figuren, keine Dopplung, auch wenn sie sich ähnlich sehen."
+    : "Eine Figur gilt als dieselbe, wenn Frisur, Haarfarbe und das wichtigste Kleidungsstück übereinstimmen -- auch wenn sie etwas anderes tut oder in einem anderen Raum steht.";
+  const heldenAbgleichFeldSatz = heroesAbgleich
+    ? " Steht bei heroes_found irgendwo eine Zahl größer/gleich 2, fülle zusätzlich das Feld heroes_abgleich mit einem kurzen Eintrag JE vermutetem weiteren Vorkommen: \"<Figur>, Vorkommen <n>: Frisur <gleich/anders>, Haarfarbe <gleich/anders>, Kleidungsstück-Art <gleich/anders>, Farbe/Schnitt <gleich/anders>\". Weichen Farbe/Schnitt oder die Art ab, zähle diese Figur NICHT als zusätzliches Vorkommen -- korrigiere dann heroes_found entsprechend nach unten, bevor du antwortest."
+    : "";
+  const heldenJsonSchemaSatz = heroesAbgleich
+    ? "Antworte NUR als JSON-Objekt mit genau diesen dreizehn Feldern, notiz immer als LETZTES: {\"heroes_found\": [Zahlen], \"heroes_x\": [Zahlen], \"heroes_ok\": true/false, \"heroes_abgleich\": \"Text (leer, wenn kein heroes_found-Wert >= 2 ist)\", \"shaded_of_ten\": Zahl, \"blank_of_ten\": Zahl, \"depth_ratio\": Zahl, \"scale_est\": Zahl, \"heads_ok\": true/false, \"figures_est\": Zahl, \"mouths_of_ten\": Zahl, \"logic_ok\": true/false, \"no_text_ok\": true/false, \"notiz\": \"kurzer Text\"}."
+    : "Antworte NUR als JSON-Objekt mit genau diesen zwölf Feldern, notiz immer als LETZTES: {\"heroes_found\": [Zahlen], \"heroes_x\": [Zahlen], \"heroes_ok\": true/false, \"shaded_of_ten\": Zahl, \"blank_of_ten\": Zahl, \"depth_ratio\": Zahl, \"scale_est\": Zahl, \"heads_ok\": true/false, \"figures_est\": Zahl, \"mouths_of_ten\": Zahl, \"logic_ok\": true/false, \"no_text_ok\": true/false, \"notiz\": \"kurzer Text\"}.";
   const parts = [
     "Du prüfst ein Wimmelbild für ein Kinderbuch gegen eine feste Stilvorgabe. Das ERSTE Bild ist die zu bewertende Szene." + refMapping,
     "Beantworte genau diese zehn Punkte:",
@@ -3742,7 +3764,7 @@ function buildVerifyPrompt(heroSpecs, phaseId, compositionId) {
     // der Code bewertet. heroes_found ist eine Liste mit einer Zahl je Figur; jede Zahl ungleich 1
     // ist ein schwerer Verstoss (fehlt oder doppelt). heroes_ok beurteilt nur noch die
     // Aehnlichkeit derer, die da sind.
-    "1. HELDEN, ZAEHLUNG: Geh das Bild Raum für Raum beziehungsweise Bereich für Bereich systematisch durch und zähle für JEDE der " + n + " benannten Figuren (" + names + ") EINZELN, wie oft sie im Bild vorkommt. Eine Figur gilt als dieselbe, wenn Frisur, Haarfarbe und das wichtigste Kleidungsstück übereinstimmen -- auch wenn sie etwas anderes tut oder in einem anderen Raum steht. Antworte im Feld heroes_found mit einer Liste von " + n + " ganzen Zahlen, in genau der Reihenfolge der Referenzbilder (" + names + "): 0 heißt, die Figur fehlt, 1 heißt genau einmal vorhanden, 2 oder mehr heißt mehrfach. Rate nicht -- wenn du unsicher bist, zähle lieber ein zweites Mal. Doppelte Figuren zerstören ein Suchbild, das ist der wichtigste Punkt dieser ganzen Prüfung.",
+    "1. HELDEN, ZAEHLUNG: Geh das Bild Raum für Raum beziehungsweise Bereich für Bereich systematisch durch und zähle für JEDE der " + n + " benannten Figuren (" + names + ") EINZELN, wie oft sie im Bild vorkommt. " + heldenKriteriumSatz + " Antworte im Feld heroes_found mit einer Liste von " + n + " ganzen Zahlen, in genau der Reihenfolge der Referenzbilder (" + names + "): 0 heißt, die Figur fehlt, 1 heißt genau einmal vorhanden, 2 oder mehr heißt mehrfach. Rate nicht -- wenn du unsicher bist, zähle lieber ein zweites Mal. Doppelte Figuren zerstören ein Suchbild, das ist der wichtigste Punkt dieser ganzen Prüfung." + heldenAbgleichFeldSatz,
     "2. HELDEN, ÄHNLICHKEIT: Passen die Figuren, die du gefunden hast, grob zu ihrem Referenzbild? Verglichen werden nur GROBE Merkmale: Frisur/Haarform, Haarfarbe, wichtigstes Kleidungsstück samt Farbe, Altersstufe (Kind / Erwachsener / älterer Mensch). Kleinstdetails wie Sommersprossen, Streifenmuster oder Knöpfe sind ausdrücklich KEIN Grund für ein Nein. heroes_ok ist nur dann false, wenn eine gefundene Figur klar nicht zu ihrem Referenzbild passt oder so verdeckt, klein oder abgewandt ist, dass du es nicht beurteilen kannst. Ob eine Figur fehlt oder doppelt vorkommt, gehört NICHT hierher -- das steckt schon in der Zählung oben.",
     "Wo die Figuren im Bild stehen, ist bei beiden Punkten ausdrücklich FREI: eine benannte Figur darf vorne groß, im Mittelgrund oder weiter hinten und klein im Bild stehen, auch abseits vom Zentrum. Das ist so gewollt -- Suchen gehört zum Spiel, und dass du sie erst suchen musstest, ist kein Verstoß. Schreib bei einer Zahl ungleich 1 oder bei heroes_ok false ins Feld notiz, welche Figur betroffen ist und was du gesehen hast.",
 
@@ -3810,7 +3832,7 @@ function buildVerifyPrompt(heroSpecs, phaseId, compositionId) {
     // Falzstreifen 46,5–53,5 und zeigt es im Panel.
     "11. LAGE DER BENANNTEN FIGUREN (nur Messung, wird nicht bewertet): Gib für JEDE der " + n + " benannten Figuren (" + names + "), in derselben Reihenfolge wie bei heroes_found, an, wo ihre Körpermitte waagerecht im Bild steht: 0 ist der linke Bildrand, 100 der rechte, 50 die genaue Mitte. Kommt eine Figur mehrmals vor, nimm die Stelle, an der sie am deutlichsten zu sehen ist; fehlt sie, schreib -1. Antworte im Feld heroes_x mit einer Liste von " + n + " ganzen Zahlen.",
 
-    "Antworte NUR als JSON-Objekt mit genau diesen zwölf Feldern, notiz immer als LETZTES: {\"heroes_found\": [Zahlen], \"heroes_x\": [Zahlen], \"heroes_ok\": true/false, \"shaded_of_ten\": Zahl, \"blank_of_ten\": Zahl, \"depth_ratio\": Zahl, \"scale_est\": Zahl, \"heads_ok\": true/false, \"figures_est\": Zahl, \"mouths_of_ten\": Zahl, \"logic_ok\": true/false, \"no_text_ok\": true/false, \"notiz\": \"kurzer Text\"}.",
+    heldenJsonSchemaSatz,
     // NEU (18.09.2026): notiz. Grund: der Prompt verlangte an zwei Stellen eine Begruendung ("nenne,
     // welche Figur du meinst"), das Antwortformat liess aber nur die acht Wertungsfelder zu -- die
     // Begruendung ging also jedes Mal verloren. Sichtbar wurde das, als bei einem Bild zwei von drei
