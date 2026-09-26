@@ -18,6 +18,7 @@ const { createCharacterJob } = require("./_lib/char-job-engine");
 const { checkRateLimit } = require("./_lib/rate-limit");
 const { MAX_PROMPT_ZEICHEN } = require("./_lib/grenzen");
 const { deckelErlaubt } = require("./_lib/kosten-deckel");
+const { figurenErlaubtUndGebucht } = require("./_lib/free-tier");
 const { logFalError } = require("./_lib/fal-queue");
 
 // Job-Aufbewahrung in KV: an fal.ai's eigener ~1h-Ergebnis-Aufbewahrung orientiert (siehe
@@ -38,13 +39,18 @@ module.exports = async (req, res) => {
   // NEU (23.09.2026): Tagesdeckel, siehe kosten-deckel.js.
   if (!(await deckelErlaubt(req, res, "figur"))) return;
 
+  const body = req.body || {};
+  // NEU (26.09.2026, Baustein A "Free-Tier-Grenzen & Aenderungs-Deckel", siehe api/_lib/free-tier.js):
+  // Figuren-Kontingent -- bucht atomar VOR dem fal.ai-Aufruf, weil jede Generierung zaehlt (auch
+  // "Neu zeichnen", auch ein spaeter fehlschlagender Versuch).
+  if (!(await figurenErlaubtUndGebucht(req, res, body.sessionId))) return;
+
   const FAL_KEY = process.env.FAL_KEY;
   if (!FAL_KEY) {
     res.status(500).json({ error: "Server-Fehler: FAL_KEY ist im Vercel-Projekt nicht gesetzt." });
     return;
   }
 
-  const body = req.body || {};
   const prompt = String(body.prompt || "").trim();
   if (!prompt) {
     res.status(400).json({ error: "Kein Prompt übergeben.", vorAufruf: true });

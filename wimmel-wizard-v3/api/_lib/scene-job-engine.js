@@ -36,6 +36,9 @@ const {
   logFalError, VERIFY_MAX_VERSUCHE, compareSeverity,
 } = require("./fal-queue");
 const { richterUrteil, stilTorUrteil, RICHTER_MODELL } = require("./richter");
+// NEU (26.09.2026, Baustein A "Free-Tier-Grenzen", siehe api/_lib/free-tier.js): das Wimmelbild-
+// Kontingent wird HIER gebucht, nicht beim Start -- siehe Kommentar an bilderBuchen() unten.
+const { bilderBuchen } = require("./free-tier");
 
 // SCENE_MODEL: identisch zum Default-Endpoint in api/fal-proxy.js fuer kind==="scene" mit gesetztem
 // imageUrl (useProModel default true fuer Szenen, siehe dortiger Kommentar "nano-banana-pro/edit ...
@@ -107,7 +110,7 @@ function sceneGenerateBody(instruction, editImageUrl, styleRefUrls, seed) {
 // die ersten 2 Kandidaten (analog zu composeSceneImage()s "immer 2 parallele Kandidaten" in
 // pipeline.js). SPEICHERT NICHTS selbst in KV (macht der Aufrufer, api/scene-job-start.js) -- gleiches
 // Prinzip wie createCharacterJob().
-async function createSceneJob({ jobId, instruction, verifyPrompt, editImageUrl, styleRefUrls, heroRefUrls, figuresBand, richter, richterRefUrl, stilTor, FAL_KEY }) {
+async function createSceneJob({ jobId, instruction, verifyPrompt, editImageUrl, styleRefUrls, heroRefUrls, figuresBand, richter, richterRefUrl, stilTor, FAL_KEY, sessionId }) {
   const seedA = Math.floor(Math.random() * 1e9);
   const seedB = Math.floor(Math.random() * 1e9);
   const [reqA, reqB] = await Promise.all([
@@ -119,6 +122,11 @@ async function createSceneJob({ jobId, instruction, verifyPrompt, editImageUrl, 
   const now = Date.now();
   return {
     jobId, instruction, verifyPrompt, editImageUrl, styleRefUrls: styleRefUrls || [],
+    // NEU (26.09.2026, Baustein A "Free-Tier-Grenzen"): reist nur mit, damit advanceSceneJob() bei
+    // Erfolg weiss, fuer welche Session das Wimmelbild-Kontingent gebucht werden soll (siehe
+    // bilderBuchen()-Aufruf am Ende dieser Datei). Fehlt sie (aeltere Clients), bucht bilderBuchen()
+    // still nichts -- siehe istGueltigeSessionId()-Pruefung in api/_lib/free-tier.js.
+    sessionId: sessionId || null,
     // NEU (Verify-Blindspot-Fix 16.09.2026): separat mitgefuehrt, NUR fuer den Verify-Abgleich in
     // advanceSceneJob() unten -- siehe Kommentar bei buildVerifyPrompt() in pipeline.js.
     heroRefUrls: heroRefUrls || [],
@@ -341,6 +349,16 @@ async function advanceSceneJob(job, { FAL_KEY, ANTHROPIC_KEY }) {
     }
   }
 
+  // NEU (26.09.2026, Baustein A "Free-Tier-Grenzen", siehe api/_lib/free-tier.js): genau HIER,
+  // nicht beim Start, weil nur ein tatsaechlich zugestelltes Bild zaehlt (Abschnitt 2.2 des
+  // Auftrags) -- und "done" ist seit der Notloesungs-Regelung (23.09.2026, siehe finalizeJob()
+  // oben) der einzige Erfolgs-Endzustand, der IMMER ein Bild an die Kundin ausliefert. Diese
+  // Stelle wird je Job genau einmal erreicht: advanceSceneJob() kehrt oben sofort zurueck, wenn
+  // status bereits nicht mehr "in_progress" ist, ein bereits abgeschlossener Job durchlaeuft den
+  // Rest der Funktion also nie ein zweites Mal.
+  if (next.status === "done") {
+    await bilderBuchen(next.sessionId);
+  }
   next.updatedAt = Date.now();
   return next;
 }

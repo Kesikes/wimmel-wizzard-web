@@ -15,6 +15,7 @@ const { MAX_PROMPT_ZEICHEN } = require("./_lib/grenzen");
 const { createSceneJob } = require("./_lib/scene-job-engine");
 const { checkRateLimit } = require("./_lib/rate-limit");
 const { deckelErlaubt } = require("./_lib/kosten-deckel");
+const { bilderErlaubt } = require("./_lib/free-tier");
 const { logFalError } = require("./_lib/fal-queue");
 
 const JOB_TTL_SECONDS = 60 * 60;
@@ -38,13 +39,19 @@ module.exports = async (req, res) => {
   // IP und bremst eine einzelne Kundin; dieser Deckel bremst die Summe. Siehe kosten-deckel.js.
   if (!(await deckelErlaubt(req, res, "szene"))) return;
 
+  const body = req.body || {};
+  // NEU (26.09.2026, Baustein A "Free-Tier-Grenzen", siehe api/_lib/free-tier.js): Wimmelbild-
+  // Kontingent -- reine Vorab-Pruefung (kein Buchen hier), gebucht wird erst bei echtem Erfolg in
+  // scene-job-engine.js (advanceSceneJob(), Uebergang nach status "done"), siehe dortiger
+  // Kommentar. Verhindert trotzdem, dass ein bereits ausgeschoepftes Kontingent ueberhaupt erst
+  // einen teuren Job lostreten kann.
+  if (!(await bilderErlaubt(req, res, body.sessionId))) return;
+
   const FAL_KEY = process.env.FAL_KEY;
   if (!FAL_KEY) {
     res.status(500).json({ error: "Server-Fehler: FAL_KEY ist im Vercel-Projekt nicht gesetzt." });
     return;
   }
-
-  const body = req.body || {};
   const instruction = String(body.instruction || "").trim();
   const verifyPrompt = String(body.verifyPrompt || "").trim();
   const editImageUrl = body.editImageUrl;
@@ -130,7 +137,7 @@ module.exports = async (req, res) => {
     return;
   }
   try {
-    const job = await createSceneJob({ jobId, instruction, verifyPrompt, editImageUrl, styleRefUrls, heroRefUrls, figuresBand, richter, richterRefUrl, stilTor, FAL_KEY });
+    const job = await createSceneJob({ jobId, instruction, verifyPrompt, editImageUrl, styleRefUrls, heroRefUrls, figuresBand, richter, richterRefUrl, stilTor, FAL_KEY, sessionId: body.sessionId });
     await kvSetJson("scenejob:" + jobId, job, JOB_TTL_SECONDS);
     res.status(200).json({ jobId });
   } catch (e) {

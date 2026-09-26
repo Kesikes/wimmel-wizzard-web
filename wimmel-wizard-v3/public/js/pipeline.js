@@ -4101,9 +4101,14 @@ async function composeCharacterImage(generate) {
 // GEAENDERT (23.09.2026): anzahl waehlt die Zahl der Kandidaten -- ohne Angabe wie bisher 2,
 // anzahl=1 fuer "Noch einmal zeichnen".
 async function startCharacterJob(prompt, anzahl) {
+  // NEU (26.09.2026, Baustein A "Free-Tier-Grenzen", siehe api/_lib/free-tier.js): sessionId
+  // mitschicken, damit der Server das Figuren-Kontingent JE SESSION zaehlen kann (vorher ging sie
+  // nur an api/session.js fuer Speichern/Laden). AppState.data.sessionId existiert immer -- siehe
+  // newSessionId() in state.js, wird beim allerersten Laden erzeugt.
+  const sessionId = (window.AppState && AppState.data && AppState.data.sessionId) || null;
   const resp = await fetch("/api/char-job-start", {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(anzahl === 1 ? { prompt, anzahl: 1 } : { prompt }),
+    body: JSON.stringify(anzahl === 1 ? { prompt, anzahl: 1, sessionId } : { prompt, sessionId }),
   });
   const data = await parseJsonResponse(resp);
   if (!resp.ok || data.error) throw new Error(data.error || ("Start-Fehler " + resp.status));
@@ -4243,10 +4248,13 @@ async function startSceneJob({ jobId, instruction, verifyPrompt, editImageUrl, s
   // gesetzt war, und das Panel zeigte folgerichtig keinen Richter-Abschnitt. Eine Angabe, die man
   // entgegennimmt und dann nicht weiterreicht, ist schlimmer als gar keine: sie sieht von aussen
   // aus, als waere sie angekommen.
+  // NEU (26.09.2026, Baustein A "Free-Tier-Grenzen", siehe api/_lib/free-tier.js): sessionId
+  // mitschicken, damit der Server das Wimmelbild-Kontingent JE SESSION zaehlen kann.
+  const sessionId = (window.AppState && AppState.data && AppState.data.sessionId) || null;
   const resp = await fetch("/api/scene-job-start", {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ jobId: jobId || null, instruction, verifyPrompt, editImageUrl, styleRefUrls, heroRefUrls, figuresBand,
-      richter: !!richter, richterRefUrl: richterRefUrl || null, stilTor: !!stilTor }),
+      richter: !!richter, richterRefUrl: richterRefUrl || null, stilTor: !!stilTor, sessionId }),
   });
   const data = await parseJsonResponse(resp);
   if (!resp.ok || data.error) {
