@@ -33,8 +33,18 @@
   #faq { scroll-margin-top: 90px; }
   /* mobil: rotes Laufband ragt 30px ins Bild -> Button hoeher setzen */
   .lp-hero-scroll .lp-faq-btn { bottom: 50px; }
-  .lp-products { display: flex; flex-direction: column; gap: 14px; }
-  @media (min-width: 1024px) { .lp-products { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; max-width: 1100px; } #produkte { padding: 40px 32px 44px; } }
+  /* Produkt-Kacheln (Feedback 26.09.2026): quadratisch, seitlich scrollbar mit Snap. Kachelbreite
+     ~72% auf dem Handy, damit die naechste Kachel sichtbar angeschnitten ist ("es gibt mehr"). */
+  .lp-products { display: flex; gap: 18px; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; margin: 0 -14px; padding: 10px 14px 22px; scroll-padding: 0 14px; }
+  .lp-prod { flex: 0 0 72%; max-width: 280px; aspect-ratio: 1 / 1; scroll-snap-align: start; position: relative; display: flex; flex-direction: column; border: 4px solid var(--ink); background: var(--paper); color: var(--ink); overflow: hidden; }
+  .lp-prod-img { flex: 1; min-height: 0; border-bottom: 4px solid var(--ink); background: repeating-linear-gradient(-45deg, var(--desk), var(--desk) 10px, var(--paper) 10px, var(--paper) 20px); display: flex; align-items: center; justify-content: center; }
+  .lp-prod-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .lp-prod-img .ph { font-family: 'Caveat', cursive; font-weight: 600; font-size: 20px; color: var(--ink-a55); }
+  .lp-prod-body { padding: 10px 12px 12px; }
+  .lp-prod-body h3 { font-size: 17px; letter-spacing: -.02em; margin: 0 0 2px; }
+  .lp-prod-body p { font-size: 12px; line-height: 1.35; font-weight: 500; margin: 0; }
+  .lp-prod-price { position: absolute; top: 10px; right: 10px; font-size: 15px; background: var(--ink); color: var(--paper); padding: 5px 8px; }
+  @media (min-width: 1024px) { #produkte { padding: 40px 32px 44px; } .lp-products { margin: 0 -32px; padding: 10px 32px 26px; scroll-padding: 0 32px; } .lp-prod { flex-basis: 300px; max-width: 300px; } }
   .lp-step-row { display: flex; gap: 12px; align-items: flex-start; padding: 16px 0; border-top: 3px solid var(--paper-a80); }
   /* NEU (07.09.2026, "Header auch auf der Landingpage fixieren"): gleiches Prinzip wie
      #app-header in css/app.css -- position:fixed statt sticky, auf Mobil an die 430px-
@@ -87,7 +97,7 @@
 
     <div style="position: absolute; top: 12px; left: 12px; right: 12px; pointer-events: none;">
       <p class="h-black" style="margin: 0 0 7px; display: inline-block; background: var(--yellow); border: 3px solid var(--ink); font-size: 10px; letter-spacing: .08em; padding: 5px 9px; transform: rotate(-2deg);">Wimmelbilder aus eurem Leben</p>
-      <h1 class="h-black" style="font-size: 36px; line-height: .88; letter-spacing: -.045em; text-align: left; max-width: 94%; color: var(--paper); text-shadow: 3px 3px 0 var(--ink), -2px -2px 0 var(--ink), 2px -2px 0 var(--ink), -2px 2px 0 var(--ink);">Eure Erlebnisse<br />haben mehr<br />verdient <span style="color: var(--yellow);">als<br />noch ein<br />Fotobuch.</span></h1>
+      <h1 class="h-black" style="font-size: 36px; line-height: .88; letter-spacing: -.045em; text-align: left; max-width: 94%; color: var(--paper); text-shadow: 3px 3px 0 var(--ink), -2px -2px 0 var(--ink), 2px -2px 0 var(--ink), -2px 2px 0 var(--ink);">Eure<br />Erlebnisse<br />haben mehr<br />verdient<br /><span style="color: var(--yellow);">als noch ein<br />Fotobuch.</span></h1>
       <p class="caveat" style="margin: 14px 0 0; max-width: 94%; font-size: 22px; line-height: 1.12; color: var(--paper); text-shadow: 2px 2px 0 var(--ink), -1px -1px 0 var(--ink), 1px -1px 0 var(--ink), -1px 1px 0 var(--ink);"><span style="font-size: 27px; color: var(--yellow);">So funktioniert's</span><br />Scrolle nach links und<br />klicke auf die Zahlen</p>
     </div>
     <!-- BUGFIX/Design (Nutzer-Rückmeldung): der "antippen & wischen"-Button wirkte wie ein
@@ -126,7 +136,7 @@
       <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 60%; background: linear-gradient(to right, rgba(26,26,24,.74), rgba(26,26,24,.3) 66%, rgba(26,26,24,0)); pointer-events: none;"></div>
       <div style="position: absolute; left: 0; top: 0; width: 56%; padding: 46px 0 0 44px; pointer-events: none;">
         <p class="h-black" style="margin: 0 0 14px; display: inline-block; background: var(--yellow); border: 3px solid var(--ink); font-size: 12px; letter-spacing: .08em; padding: 7px 11px; transform: rotate(-2deg);">Wimmelbilder aus eurem Leben</p>
-        <h1 class="h-black" style="font-size: 58px; line-height: .88; white-space: nowrap; letter-spacing: -.045em; color: var(--paper); text-shadow: 4px 4px 0 var(--ink), -2px -2px 0 var(--ink), 2px -2px 0 var(--ink), -2px 2px 0 var(--ink);">Eure Erlebnisse<br />haben mehr verdient<br />als <span style="color: var(--yellow);">noch ein<br />Fotobuch.</span></h1>
+        <h1 class="h-black" style="font-size: 58px; line-height: .88; white-space: nowrap; letter-spacing: -.045em; color: var(--paper); text-shadow: 4px 4px 0 var(--ink), -2px -2px 0 var(--ink), 2px -2px 0 var(--ink), -2px 2px 0 var(--ink);">Eure<br />Erlebnisse<br />haben mehr<br />verdient<br /><span style="color: var(--yellow);">als noch ein<br />Fotobuch.</span></h1>
         <!-- Desktop: ganzes Bild sichtbar, nichts zu scrollen -- daher "Klicke auf die Zahlen im Bild"
              statt "Scrolle nach links..." (mobile Formulierung). -->
         <p class="caveat" style="margin: 22px 0 0; max-width: 460px; font-size: 30px; line-height: 1.1; color: var(--paper); text-shadow: 2px 2px 0 var(--ink);"><span style="font-size: 36px; color: var(--yellow);">So funktioniert's</span><br />Klicke auf die Zahlen im Bild</p>
@@ -231,31 +241,38 @@
 
   <!-- GEAENDERT (Feinschliff 26.09.2026, Punkt 5): Suchprotokoll komplett gestrichen. Der
        schwarze Kasten bleibt und traegt jetzt die Produkte (Karten aus dem frueheren blauen
-       "Was kostet der Spaß?"-Block hierher verschoben). Nicht mehr mobile-only. Headline vorlaeufig
-       "So kommt's dann raus…" (Nutzer-Vorschlag, endgueltige Headline wird nachgereicht). -->
+       "Was kostet der Spaß?"-Block hierher verschoben). Nicht mehr mobile-only. Headline "Unsere Produkte". -->
   <section id="produkte" style="margin-top: 12px; background: var(--ink); color: var(--paper); padding: 26px 14px 30px;">
-    <h2 class="h-black" style="margin: 0 0 4px; font-size: 26px; line-height: .95; letter-spacing: -.03em;">So kommt's<br /><span style="color: var(--yellow);">dann raus…</span></h2>
-    <p class="caveat" style="margin: 0 0 18px; font-size: 20px; line-height: 1.12; color: var(--paper-a75);">entscheiden musst du erst, wenn du dein erstes Bild gesehen hast. wirklich.</p>
+    <!-- GEAENDERT (Feedback 26.09.2026): Headline "Unsere Produkte"; Produkte als quadratische,
+         seitlich scrollbare Kacheln mit Bildplatz (Bilder liefert Matthias nach). -->
+    <h2 class="h-black" style="margin: 0 0 4px; font-size: 26px; line-height: .95; letter-spacing: -.03em;">Unsere <span style="color: var(--yellow);">Produkte</span></h2>
+    <p class="caveat" style="margin: 0 0 10px; font-size: 20px; line-height: 1.12; color: var(--paper-a75);">entscheiden musst du erst, wenn du dein erstes Bild gesehen hast. wirklich.</p>
     <div class="lp-products">
-        <div style="color: var(--ink); display:flex; gap:12px; align-items:center; border:4px solid var(--ink); padding:14px; background: var(--paper); transform: rotate(-1.32deg); box-shadow: 4px 5px 0 var(--yellow);">
-          <div style="flex:1; min-width:0;"><h3 class="h-black" style="font-size:17px; letter-spacing:-.02em; margin:0 0 3px;">Poster</h3><p style="font-size:13px; line-height:1.4; font-weight:500; margin:0;">ab 1 Wimmelbild, verschiedene Größen, mit oder ohne Rahmen</p></div>
-          <span class="h-black" style="flex:none; font-size:16px; background: var(--ink); color: var(--paper); padding:6px 9px; transform: rotate(2.2deg);">ab 19 €</span>
+      <div class="lp-prod" style="transform: rotate(-1.3deg); box-shadow: 5px 6px 0 var(--yellow);">
+        <!-- Produktbild folgt: Platzhalter ersetzen durch <img src="/assets/produkt-poster.webp" alt="Poster" /> -->
+        <div class="lp-prod-img"><span class="ph">Bild folgt</span></div>
+        <div class="lp-prod-body"><h3 class="h-black">Poster</h3><p>ab 1 Wimmelbild, verschiedene Größen, mit oder ohne Rahmen</p></div>
+        <span class="h-black lp-prod-price" style="transform: rotate(2.2deg);">ab 19 €</span>
+      </div>
+      <div class="lp-prod" style="transform: rotate(1deg); box-shadow: -5px 6px 0 var(--red);">
+        <!-- Produktbild folgt: Platzhalter ersetzen durch <img src="/assets/produkt-wimmelbuch.webp" alt="Wimmelbuch" /> -->
+        <div class="lp-prod-img"><span class="ph">Bild folgt</span></div>
+        <div class="lp-prod-body"><h3 class="h-black">Wimmelbuch</h3><p>ab 2 Wimmelbildern, verschiedene Größen, Softcover und Softseiten</p></div>
+        <span class="h-black lp-prod-price" style="transform: rotate(-1.6deg);">ab 29 €</span>
+      </div>
+      <!-- Stufe 3: noch nicht bestellbar -- Inhalt gedaempft + "Coming Soon"-Overlay. -->
+      <div class="lp-prod" style="transform: rotate(-.6deg); box-shadow: 5px 6px 0 var(--yellow);">
+        <div style="display: contents;">
+          <div class="lp-prod-img" style="opacity: .3;"><span class="ph">Bild folgt</span></div>
+          <div class="lp-prod-body" style="opacity: .3;"><h3 class="h-black">Wimmelbuch</h3><p>ab 5 Wimmelbildern, verschiedene Größen, Kartonseiten</p></div>
+          <span class="h-black lp-prod-price" style="transform: rotate(2deg); opacity: .3;">ab 49 €</span>
         </div>
-        <div style="color: var(--ink); display:flex; gap:12px; align-items:center; border:4px solid var(--ink); padding:14px; background: var(--paper); transform: rotate(.96deg); box-shadow: -4px 5px 0 var(--red);">
-          <div style="flex:1; min-width:0;"><h3 class="h-black" style="font-size:17px; letter-spacing:-.02em; margin:0 0 3px;">Wimmelbuch</h3><p style="font-size:13px; line-height:1.4; font-weight:500; margin:0;">ab 2 Wimmelbildern, verschiedene Größen, Softcover und Softseiten</p></div>
-          <span class="h-black" style="flex:none; font-size:16px; background: var(--ink); color: var(--paper); padding:6px 9px; transform: rotate(-1.6deg);">ab 29 €</span>
-        </div>
-        <!-- Stufe 3: echtes Overlay statt nur gedaempfter Karte -- siehe Modul-Kommentar oben. -->
-        <div style="color: var(--ink); position:relative; border:4px solid var(--ink); padding:14px; background: var(--paper); transform: rotate(-.5deg); box-shadow: 4px 5px 0 var(--yellow); overflow:hidden;">
-          <div style="color: var(--ink); display:flex; gap:12px; align-items:center; opacity:.3;">
-            <div style="flex:1; min-width:0;"><h3 class="h-black" style="font-size:17px; letter-spacing:-.02em; margin:0 0 3px;">Wimmelbuch</h3><p style="font-size:13px; line-height:1.4; font-weight:500; margin:0;">ab 5 Wimmelbildern, verschiedene Größen, Kartonseiten</p></div>
-            <span class="h-black" style="flex:none; font-size:16px; background: var(--ink); color: var(--paper); padding:6px 9px; transform: rotate(2deg);">ab 49 €</span>
-          </div>
-          <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background: rgba(242,237,225,.55);">
-            <span class="h-black" style="font-size:13px; letter-spacing:.06em; text-transform:uppercase; background: rgba(26,26,24,.9); color: var(--paper); padding:8px 14px; transform: rotate(-3deg); box-shadow: 3px 4px 0 var(--ink);">Coming Soon</span>
-          </div>
+        <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background: rgba(242,237,225,.45);">
+          <span class="h-black" style="font-size:13px; letter-spacing:.06em; background: rgba(26,26,24,.9); color: var(--paper); padding:8px 14px; transform: rotate(-3deg); box-shadow: 3px 4px 0 var(--ink);">Coming Soon</span>
         </div>
       </div>
+    </div>
+    <p class="caveat" style="margin: 0; font-size: 18px; color: var(--paper-a75); text-align: right;">wisch dich durch →</p>
     <p class="caveat" style="margin: 20px 0 0; font-size: 21px; line-height: 1.1; text-align: center; color: var(--yellow);">Jedes Buch ein Unikat.</p>
   </section>
 
