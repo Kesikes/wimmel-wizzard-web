@@ -4716,3 +4716,32 @@ halte ich ohnehin keinen fal- oder Anthropic-Schlüssel.
    Regel) — Entscheidung des Nutzers, nicht von Cowork.
 
 Kein Bild neu generiert, kein fal-Aufruf gemacht, keine Live-Aktivierung — wie angeordnet.
+
+### AUFTRAG "heroes_abgleich" — Nachtrag 26.09.2026: Testlauf an Netzwerk-Policy gescheitert, nicht an Architektur
+
+Nach der Freigabe des Nutzers für einen einmaligen, eng begrenzten fal-Aufruf und Erhalt des
+`FAL_KEY` habe ich den Testlauf vorbereitet (12 Bildfälle aus der H1-Sichtprüfung, extrahiert aus
+`dev-tools/session-sicherung/` und `docs/ref/sammelblatt-*.json`; je Fall zwei Aufrufe — alter und
+neuer Punkt-1-Wortlaut, gleiches Modell `google/gemini-2.5-pro`, gleicher Tag) und ausgeführt.
+
+**Ergebnis: alle 24 Aufrufe scheiterten vor Erreichen von fal.ai.** Sowohl aus der Cowork-Cloud-
+Umgebung als auch aus der Shell auf dem Rechner des Nutzers lehnt der Egress-Proxy die Verbindung
+zu `fal.run` mit **HTTP 403 ("organization policy")** ab — noch vor jedem Login/Schlüssel-Check.
+**Keine Kosten entstanden** (die Ablehnung passiert vor dem eigentlichen fal.ai-Aufruf, wie bei
+jedem gescheiterten Aufruf in diesem Projekt). Der `FAL_KEY`-Wert wurde ausschließlich inline als
+Umgebungsvariable verwendet, in keine Datei geschrieben und ist nirgendwo im Repo verblieben.
+
+**Einordnung:** Das ist ein härterer Befund als der Architektur-Befund von vorhin (kein
+fal-unabhängiger Verify-Pfad) — hier verhindert eine **Netzwerk-Policy auf Organisationsebene**
+jeden fal.ai-Aufruf durch mich, unabhängig von Schlüssel oder Nutzer-Freigabe im Chat. Die
+einmalige Chat-Freigabe konnte diese Sperre nicht umgehen, weil sie auf einer anderen Ebene sitzt
+(Netzwerk-Administration, nicht Konversation).
+
+**Damit bleibt als einziger Weg zu einem echten Testergebnis:** der Nutzer führt den Testlauf in
+seiner EIGENEN Umgebung aus (außerhalb dieser Cowork-Sitzung, z. B. eigenes Terminal/eigener
+Rechner ohne diese Proxy-Sperre). Ich kann das fertige Skript (Extraktion der 12 Bildfälle +
+Prompt-Aufbau mit `heroesAbgleich`-Flag + die beiden fal-Aufrufe je Fall) bereitstellen, sobald
+gewünscht. Alternativ: die manuelle Sichtprüfung durch mich selbst (Option 2 von vorhin), die von
+keiner Netzwerk-Policy betroffen ist.
+
+Kein Bild neu generiert, keine Live-Aktivierung, kein Geld ausgegeben.
