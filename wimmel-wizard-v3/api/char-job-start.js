@@ -18,7 +18,8 @@ const { createCharacterJob } = require("./_lib/char-job-engine");
 const { checkRateLimit } = require("./_lib/rate-limit");
 const { MAX_PROMPT_ZEICHEN } = require("./_lib/grenzen");
 const { deckelErlaubt } = require("./_lib/kosten-deckel");
-const { figurenErlaubtUndGebucht } = require("./_lib/free-tier");
+const { figurenErlaubtUndGebucht, bezahltStatus } = require("./_lib/free-tier");
+const { neuZaubernBezahltErlaubtUndGebucht } = require("./_lib/aenderungs-deckel");
 const { logFalError } = require("./_lib/fal-queue");
 
 // Job-Aufbewahrung in KV: an fal.ai's eigener ~1h-Ergebnis-Aufbewahrung orientiert (siehe
@@ -44,6 +45,19 @@ module.exports = async (req, res) => {
   // Figuren-Kontingent -- bucht atomar VOR dem fal.ai-Aufruf, weil jede Generierung zaehlt (auch
   // "Neu zeichnen", auch ein spaeter fehlschlagender Versuch).
   if (!(await figurenErlaubtUndGebucht(req, res, body.sessionId))) return;
+
+  // NEU (26.09.2026, Baustein B "Änderungs-Deckel", siehe api/_lib/aenderungs-deckel.js): der
+  // ZUSÄTZLICHE Pro-Element-Deckel für "komplett neu zaubern" IN DER BEZAHLTEN PHASE (2× je Figur,
+  // unabhängig vom globalen Figuren-Kontingent oben). anzahl===1 ist bereits das bestehende Signal
+  // für "Neu zeichnen" (siehe weiter unten bei createCharacterJob) -- body.elementId ist die
+  // personId, die charakter.js/pipeline.js nur bei diesem Aufruf mitschicken (siehe
+  // Pipeline.startCharacterJob()). In der Gratis-Phase gibt es diesen Zusatz-Deckel laut Auftrag
+  // ausdrücklich NICHT (dort schon über den Figuren-Zähler oben begrenzt) -- deshalb nur bei
+  // bezahlt===true geprüft.
+  if (Number(body.anzahl) === 1) {
+    const bezahlt = await bezahltStatus(body.sessionId);
+    if (bezahlt && !(await neuZaubernBezahltErlaubtUndGebucht(req, res, body.sessionId, "figur", body.elementId))) return;
+  }
 
   const FAL_KEY = process.env.FAL_KEY;
   if (!FAL_KEY) {

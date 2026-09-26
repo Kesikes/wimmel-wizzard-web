@@ -2241,6 +2241,10 @@ function penSafeImageUrl(url) {
 // loesen kann, bekommen einen Satz, der sagt, WAS SIE TUN KANN; alles andere bleibt der bisherige
 // allgemeine Satz -- inklusive der technischen Meldung, denn die braucht Matthias im Support.
 function penFehlerText(e) {
+  // NEU (26.09.2026, Baustein B "Änderungs-Deckel"): ein erreichter Deckel ist kein technischer
+  // Fehlschlag -- der Text aus Abschnitt 7 des Auftrags steht schon fuer sich, ohne
+  // "nochmal versuchen?"-Framing.
+  if (e && e.keinUpsell) return String((e && e.message) || e);
   const roh = (e && e.message) ? String(e.message) : String(e);
   const status = (e && e.httpStatus) || (roh.match(/\b(4\d\d|5\d\d)\b/) || [])[1];
   if (String(status) === "413" || /too large|entity too large|payload/i.test(roh)) {
@@ -2386,6 +2390,12 @@ async function applyPenEdit({ image, canvas, img, mark, mode, errorId, applyBtn,
   buttons.forEach((b) => { b.disabled = true; });
   if (applyBtn) { applyBtn.dataset.prevText = applyBtn.textContent; applyBtn.textContent = "Wird bearbeitet …"; }
   try {
+    // NEU (26.09.2026, Baustein B "Änderungs-Deckel", siehe api/_lib/aenderungs-deckel.js): EINMAL
+    // je Klick auf "Anwenden" pruefen/buchen, BEVOR die eigentliche Korrektur beginnt (die intern
+    // bis zu drei fal-proxy-Aufrufe ausloesen kann -- "Versetzen" plus ein automatischer zweiter
+    // Versuch) -- das Stift-Werkzeug ist die "Änderung" aus Abschnitt 3 des Auftrags fuer Szenen,
+    // unabhaengig vom Wimmelbild-Zähler aus Baustein A.
+    await Pipeline.aenderungErlaubt("szene", image.id);
     // NEU (Punkt 13): ein eingetippter Änderungswunsch ist echter Nutzer-Freitext -- vor dem
     // Versenden geprüft, gleiches fail-closed-Prinzip wie beim Chat-Freitext (Punkt B8, siehe
     // moderateText()-Aufrufstellen in charakter.js/entscheidung.js/szene.js sendChatTurn()).

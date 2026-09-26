@@ -4122,18 +4122,26 @@ async function composeCharacterImage(generate) {
 // aufgerufen.
 // GEAENDERT (23.09.2026): anzahl waehlt die Zahl der Kandidaten -- ohne Angabe wie bisher 2,
 // anzahl=1 fuer "Noch einmal zeichnen".
-async function startCharacterJob(prompt, anzahl) {
+async function startCharacterJob(prompt, anzahl, elementId) {
   // NEU (26.09.2026, Baustein A "Free-Tier-Grenzen", siehe api/_lib/free-tier.js): sessionId
   // mitschicken, damit der Server das Figuren-Kontingent JE SESSION zaehlen kann (vorher ging sie
   // nur an api/session.js fuer Speichern/Laden). AppState.data.sessionId existiert immer -- siehe
   // newSessionId() in state.js, wird beim allerersten Laden erzeugt.
   const sessionId = (window.AppState && AppState.data && AppState.data.sessionId) || null;
+  // NEU (26.09.2026, Baustein B "Änderungs-Deckel", siehe api/_lib/aenderungs-deckel.js): elementId
+  // (die personId) NUR bei "Neu zeichnen" (anzahl===1) mitschicken -- char-job-start.js braucht sie
+  // ausschliesslich fuer den zusaetzlichen Pro-Element-Deckel in der bezahlten Phase, eine normale
+  // Erstgenerierung ist kein "neu zaubern" und darf davon nie betroffen sein.
   const resp = await fetch("/api/char-job-start", {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(anzahl === 1 ? { prompt, anzahl: 1, sessionId } : { prompt, sessionId }),
+    body: JSON.stringify(anzahl === 1 ? { prompt, anzahl: 1, sessionId, elementId: elementId || null } : { prompt, sessionId }),
   });
   const data = await parseJsonResponse(resp);
-  if (!resp.ok || data.error) throw new Error(data.error || ("Start-Fehler " + resp.status));
+  if (!resp.ok || data.error) {
+    const err = new Error(data.error || ("Start-Fehler " + resp.status));
+    if (data.keinUpsell === true) err.keinUpsell = true;
+    throw err;
+  }
   if (!data.jobId) throw new Error("Start-Antwort hatte keine jobId.");
   return data.jobId;
 }
@@ -4232,7 +4240,7 @@ function waitWithVisibilityWakeup(ms) {
 async function runCharacterJobPolling(prompt, opts) {
   opts = opts || {};
   const intervalMs = opts.intervalMs || 7000;
-  const jobId = opts.existingJobId || await startCharacterJob(prompt, opts.anzahl);
+  const jobId = opts.existingJobId || await startCharacterJob(prompt, opts.anzahl, opts.elementId);
   if (opts.onJobId) opts.onJobId(jobId);
   for (;;) {
     if (opts.signal && opts.signal.aborted) throw new Error("Abgebrochen.");
@@ -4441,6 +4449,29 @@ function resizeImageToDataUri(file, maxDim, quality) {
 /* ---------------- fal-proxy-Client ---------------- */
 // generateImage(prompt, kind, {seed, editImageUrl, styleRefUrls, extra}) -> {url, seed}
 // kind: "char" | "scene". Wirft bei Fehlern (Aufrufer faengt ab, siehe Screens).
+// NEU (26.09.2026, Baustein B "Änderungs-Deckel", siehe api/_lib/aenderungs-deckel.js): aufgerufen
+// von charakter.js (applyCharEdit()) und szene.js (applyPenEdit()) GENAU EINMAL je Klick auf
+// "Anwenden", BEVOR die eigentliche(n) generateImage()-Anfrage(n) losgehen -- eine einzelne
+// Änderung aus Kundinnensicht kann intern mehrere fal-proxy-Aufrufe ausloesen (siehe Kommentar in
+// api/aenderung-start.js), soll aber nur EINMAL gegen den Deckel zaehlen. Wirft bei Ablehnung einen
+// Error mit err.keinUpsell (Abschnitt 4 des Auftrags: bei diesem Deckel kein "Konto anlegen"-CTA),
+// damit Aufrufer ihn von den Kontingent-Fehlern aus free-tier.js unterscheiden koennen.
+async function aenderungErlaubt(elementTyp, elementId) {
+  const sessionId = (window.AppState && AppState.data && AppState.data.sessionId) || null;
+  const resp = await fetch("/api/aenderung-start", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sessionId, elementTyp, elementId }),
+  });
+  const data = await parseJsonResponse(resp);
+  if (!resp.ok || data.error) {
+    const err = new Error(data.error || ("Änderungs-Deckel-Fehler " + resp.status));
+    if (data.keinUpsell === true) err.keinUpsell = true;
+    if (data.grenze != null) err.grenze = data.grenze;
+    throw err;
+  }
+  return true;
+}
+
 async function generateImage(prompt, kind, opts) {
   opts = opts || {};
   const resp = await fetch("/api/fal-proxy", {
@@ -4790,7 +4821,7 @@ window.Pipeline = {
   kontextInstruction, photoStyleInstruction, traitBitFromPhotoDescription, describePhotoTraits,
   PEN_INSTRUCTION_REMOVE, PEN_INSTRUCTION_REDO, PEN_INSTRUCTION_FIGUR, PEN_INSTRUCTION_FIGUR_OHNE_MARKE, PEN_ZWEI_BILDER, penBildAnweisung,
   buildHeldenPruefPrompt,
-  resizeImageToDataUri, generateImage, generateImageWithRetry, verifyImage, countViolations,
+  resizeImageToDataUri, generateImage, generateImageWithRetry, verifyImage, countViolations, aenderungErlaubt,
   richterReferenzUrl, SCENE_PHASES, ACTIVE_SCENE_PHASE, DEPTH_MIN_RATIO, SCALE_MIN_FIT, PROMPT_VERSION, PROMPT_LABEL, promptFingerprint, BILD_FASSUNG, PRUEF_FASSUNG, bildFingerprint, pruefFingerprint, heroRef, HERO_REF_START, lichtBlock, lichtKeywords, VERIFY_MAX_VERSUCHE, PRUEF_VERHALTEN, severityOf, compareSeverity, isGoodEnough,
   COMPOSITION_TYPES, pickComposition, querschnittVerboten, chatOrtTyp, chatOrtId, layerSizeText,
   HERO_ACTION_LIBRARY, pickHeroActions, shuffledPool,

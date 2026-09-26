@@ -1203,6 +1203,11 @@ async function neuZeichnen(person, buttons) {
   try {
     const result = await Pipeline.runCharacterJobPolling(prompt, {
       anzahl: 1,
+      // NEU (26.09.2026, Baustein B "Änderungs-Deckel"): elementId, damit char-job-start.js den
+      // zusaetzlichen Pro-Element-Deckel fuer "komplett neu zaubern" in der bezahlten Phase pruefen
+      // kann (siehe api/_lib/aenderungs-deckel.js). Wirkungslos, solange bezahltStatus() (noch)
+      // immer false liefert.
+      elementId: person.id,
       onJobId: (jobId) => AppState.updatePerson(person.id, { pendingJobId: jobId, pendingSceneDescription: person.sceneDescription || null, charPrompt: prompt }),
     });
     charGenBusy = false;
@@ -1215,7 +1220,10 @@ async function neuZeichnen(person, buttons) {
     charGenBusy = false;
     AppState.updatePerson(person.id, { pendingJobId: null, pendingSceneDescription: null });
     setBusyButtons(aktive, false);
-    zeig("Neu zeichnen hat nicht geklappt: " + ((e && e.message) ? e.message : String(e)) + " — nochmal versuchen?");
+    // NEU (26.09.2026, Baustein B "Änderungs-Deckel"): siehe gleiche Begründung bei applyCharEdit().
+    zeig((e && e.keinUpsell)
+      ? String((e && e.message) || e)
+      : "Neu zeichnen hat nicht geklappt: " + ((e && e.message) ? e.message : String(e)) + " — nochmal versuchen?");
   }
 }
 
@@ -1232,6 +1240,11 @@ async function applyCharEdit(person, buttons) {
   const activeButtons = (buttons || []).filter(Boolean);
   activeButtons.forEach((b) => { b.dataset.prevText = b.textContent; b.disabled = true; b.textContent = "Wird bearbeitet …"; b.style.opacity = "0.75"; });
   try {
+    // NEU (26.09.2026, Baustein B "Änderungs-Deckel", siehe api/_lib/aenderungs-deckel.js): EINMAL
+    // je Klick auf "Anwenden" pruefen/buchen, BEVOR die eigentliche Korrektur beginnt -- "Detail
+    // ändern" ist die "Änderung" aus Abschnitt 3 des Auftrags, unabhaengig vom Figuren-Zähler aus
+    // Baustein A.
+    await Pipeline.aenderungErlaubt("figur", person.id);
     const flagged = await Pipeline.moderateText(text);
     if (flagged) {
       charGenBusy = false;
@@ -1262,6 +1275,14 @@ async function applyCharEdit(person, buttons) {
     charGenBusy = false;
     setBusyButtons(activeButtons, false);
     const el = charGenErrorEl("char-edit-error");
-    if (el) { el.textContent = "Bearbeiten hat nicht geklappt: " + (e && e.message ? e.message : String(e)) + " — nochmal versuchen?"; el.style.display = "block"; }
+    // NEU (26.09.2026, Baustein B "Änderungs-Deckel"): ein erreichter Deckel ist kein technischer
+    // Fehlschlag -- "nochmal versuchen?" waere hier irrefuehrend, der Text aus Abschnitt 7 des
+    // Auftrags steht schon fuer sich.
+    if (el) {
+      el.textContent = (e && e.keinUpsell)
+        ? String((e && e.message) || e)
+        : "Bearbeiten hat nicht geklappt: " + (e && e.message ? e.message : String(e)) + " — nochmal versuchen?";
+      el.style.display = "block";
+    }
   }
 }
