@@ -4477,3 +4477,156 @@ Stil-Tor oder D-Richter, weil nur `heroes_found` gebraucht wird. 115 Bilder je A
 
 **Kein Bauauftrag, keine Empfehlung, ob und wann dieser Test laufen soll — das entscheidet der
 Nutzer.** Nichts an diesem Eintrag wurde gebaut oder bezahlt aufgerufen.
+
+---
+
+### H1-ERGEBNIS 26.09.2026 (Sichtprüfung des Nutzers) und Prüfkriterium-Reparatur — Vorschlag, kein Bau, keine Aufrufe
+
+**Hinweis vorweg:** Die Nachricht kündigte „Details je Bild liegen bei" an — diese Datei/Liste ist
+bei mir nicht angekommen (uploads-Ordner geprüft, nichts Neues außer einem irrelevanten alten
+Zwischenstand von einem früheren Auftrag). Dieser Eintrag verarbeitet daher nur die im Text
+selbst gegebenen Zahlen und die zwei benannten Einzelfälle. Bitte die Datei nachreichen, falls die
+bildgenaue Zuordnung (welches der 12/13 Bilder welches Urteil bekam) ins Register soll — das würde
+diesen Eintrag ergänzen, nicht ersetzen.
+
+**Kleine Diskrepanz, nur der Vollständigkeit halber:** Die Bestandsaufnahme vom 26.09. listete
+**13** Bilder mit gemeldeter Dopplung; hier ist von **12** geprüften die Rede. Ohne die
+Einzelbild-Liste kann ich nicht sagen, welches der 13 nicht geprüft wurde oder ob sich zwei
+Meldungen auf dasselbe Bild bezogen (zwei der 13 Zeilen betrafen ja bereits je ein Bild mit zwei
+gemeldeten Helden) — das klärt sich mit der nachgereichten Liste von selbst.
+
+#### 1. Ergebnis der Sichtprüfung (12 Bilder)
+
+| Urteil | Anzahl | Anteil |
+|---|---|---|
+| Fehlalarm (im Bild nur einmal vorhanden) | 9 | 75 % |
+| Verwechslung (zwei ähnliche, aber laut Kriterium verschiedene Figuren) | 2 | 17 % |
+| echte Dopplung | 1 | 8 % |
+
+Bei n = 12 ist das eine grobe Zahl — Wilson-95-%-Intervall für die 75 % Fehlalarm: **47 % bis
+91 %**. Die Größenordnung („die meisten gemeldeten Dopplungen sind keine") steht damit, die genaue
+Ziffer nicht.
+
+**Zwei Auffälligkeiten, wie vom Nutzer benannt:**
+
+- Die einzige **echte** Dopplung betraf **zwei Helden gleichzeitig** in einer echten
+  Kundensitzung (Weihnachten) — deckt sich mit dem Befund vom 19.09. (Heldin dreimal, in drei
+  Räumen, Abschnitt 8: „identische Frisur UND identisches Punkteshirt, also dieselbe Figur"). Bei
+  n = 1 ist das keine Bestätigung eines Musters „echte Sitzungen sind anfälliger als Testläufe" —
+  aber es ist die zweite unabhängige Beobachtung, dass eine bestätigte Dopplung gehäuft **mehrere**
+  Helden im selben Bild betrifft, nicht nur einen. Festgehalten, nicht weiterverfolgt (kein neuer
+  Hypothesen-Slot dafür beauftragt).
+- Eine der beiden Verwechslungen hatte laut Notiz **andere Hosen** (lang statt kurz). Nach dem
+  eigenen Kriterium in `buildVerifyPrompt()` Punkt 1 („Frisur, Haarfarbe und das wichtigste
+  Kleidungsstück übereinstimmen") hätte das **nicht** als Dopplung zählen dürfen — das
+  Kleidungsstück selbst (Hose) stimmt zwar als Kategorie, aber nicht in Länge/Schnitt. **Das ist
+  keine Frage der Kriteriumsstrenge, sondern der Anwendung**: Das Modell wendet sein eigenes,
+  schriftlich gegebenes Kriterium nicht zuverlässig an — dieselbe Art Befund wie beim Stil-Tor
+  (Abschnitt „BEFUND 22.09.2026", Münder-Frage) und bei den früheren Eindrucks-Feldern
+  (`heroes_ok`, `mouths_ok` vor der Umstellung auf Zählen): eine Ja/Nein- bzw.
+  Gleich/Verschieden-Frage über mehrere Merkmale hinweg wird geraten, nicht durchgerechnet.
+
+#### 2. Einordnung: was bedeutet das für die 46-%-Grundlinie (23.09., 29/63)?
+
+**Wichtig zuerst: die 46 % zählen fehlende UND doppelte Helden zusammen** (Abschnitt 8). Die
+Sichtprüfung hat **nur die Dopplungs-Meldungen** geprüft, keine Fehlmeldungen (`heroes_found = 0`)
+— ob dort ebenfalls falsch gezählt wird, ist **unbekannt** und durch diesen Auftrag nicht berührt.
+Jede Neuschätzung unten gilt deshalb nur für den Dopplungs-Anteil.
+
+Aus dem eigenen, am 26.09. gebauten Kreuztabellen-Datensatz (106 Kandidaten, derselbe
+Fassungs-Vorbehalt wie dort): reine Dopplungsrate bildweise **31,1 % (33/106)**. Wendet man den in
+der Sichtprüfung gefundenen Anteil „nicht wirklich dieselbe Figur" darauf an:
+
+| Maßstab | Anteil „echt" | korrigierte Dopplungsrate |
+|---|---|---|
+| streng (nur die 1/12 echte Dopplung zählt) | 8 % | **≈ 2,6 %** |
+| großzügig (echte Dopplung + Verwechslung, 3/12) | 25 % | **≈ 7,8 %** |
+
+**Die im Bild selbst tatsächlich vorhandene Dopplungsrate liegt vermutlich eher bei 3–8 % als bei
+31 % — und erst recht nicht bei den historisch zitierten 46 %,** die ohnehin die Fehlmeldungen mit
+einschlossen. Rechnet man das in die kombinierte Zahl zurück (nur der „nur Dopplung"-Anteil, 21 von
+106 Kandidaten, ändert sich; die 12 Kandidaten mit **zusätzlich** einer Fehlmeldung bleiben über
+diese unabhängig vom Dopplungsbefund als „auffällig" stehen):
+
+| | kombinierte Rate |
+|---|---|
+| bisher (Rohzahl, dieser Datensatz) | 52,8 % |
+| historisch zitiert (23.09., andere Stichprobe) | 46 % |
+| korrigiert, streng | **≈ 35 %** |
+| korrigiert, großzügig | **≈ 38 %** |
+
+**Die eigentliche Neuigkeit hier ist eine Verschiebung, keine reine Entwarnung:** Von der
+kombinierten Rate war der Dopplungs-Anteil vermutlich stets der kleinere, stärker überschätzte
+Teil. Der **Fehlend**-Anteil (33 % in diesem Datensatz) ist nie auf Fehlalarme geprüft worden und
+bleibt jetzt, nach der Korrektur, der **größere unbekannte Rest** des Problems — nicht die
+Dopplung. Wer als Nächstes Messkapazität einsetzt, sollte das mitbedenken: die lauteste Zahl
+(„fast jedes zweite Bild") war zu einem erheblichen Teil ein Mess-Artefakt, nicht ein Bild-Artefakt.
+
+#### 3. Vorschlag: geschärfte Fassung von Punkt 1 in `buildVerifyPrompt()`
+
+**Jetzt** (Auszug, Kriterium-Satz):
+
+> „Eine Figur gilt als dieselbe, wenn Frisur, Haarfarbe und das wichtigste Kleidungsstück
+> übereinstimmen — auch wenn sie etwas anderes tut oder in einem anderen Raum steht."
+
+**Zwei Schwachstellen, beide oben belegt:** (a) „das wichtigste Kleidungsstück übereinstimmen" ist
+uneindeutig — stimmt die Art (Hose) schon als „übereinstimmend", oder muss Farbe und Schnitt/Länge
+mit dabei sein? Der Verwechslungsfall zeigt: das Modell hat es als „übereinstimmend" gewertet, obwohl
+Länge/Schnitt abwichen. (b) Das Kriterium wird als **stiller Eindruck** angewendet, nicht
+nachvollziehbar durchgerechnet — genau das Muster, das an anderer Stelle (Stil-Tor, `heroes_ok`
+vor 19.09.) schon zum Umbau „das Modell zählt/benennt, der Code bewertet" geführt hat.
+
+**Vorschlag (beide Schwachstellen adressiert):**
+
+> „Eine Figur gilt NUR dann als dieselbe wie eine andere im Bild, wenn ALLE VIER folgenden Punkte
+> übereinstimmen: (1) Frisur (Form und Länge), (2) Haarfarbe, (3) die ART des wichtigsten
+> Kleidungsstücks (z. B. Hose, Rock, Kleid, Latzhose), UND (4) dessen Farbe UND Schnitt/Länge (z. B.
+> kurz oder lang, eng oder weit) — genau wie auf dem zugehörigen Referenzbild. Schon eine einzige
+> Abweichung bei Punkt 4 (z. B. eine andere Hosenlänge oder -farbe) bedeutet KEINE Übereinstimmung,
+> selbst wenn Frisur und Haarfarbe passen. Bevor du eine Figur ein zweites Mal zählst, vergleiche
+> für JEDES vermutete weitere Vorkommen einzeln alle vier Punkte gegen das erste (oder das
+> Referenzbild) und benenne knapp, was genau übereinstimmt und was nicht. Zähle nur, wenn du bei
+> allen vier Punkten „stimmt überein" notieren kannst — bei nur einer Abweichung sind es zwei
+> verschiedene Figuren, keine Dopplung, auch wenn sie sich ähnlich sehen."
+
+**Zusätzlich, um die Anwendung zu erzwingen statt nur zu erbitten** (die eigentliche Lehre aus dem
+Verwechslungsfall — das Kriterium stand schon da, wurde aber nicht durchgerechnet): ein neues,
+verpflichtendes Feld im Antwortformat, **nur auszufüllen, wenn irgendein `heroes_found`-Wert ≥ 2
+ist**:
+
+> „Steht bei heroes_found irgendwo eine Zahl ≥ 2, fülle zusätzlich das Feld
+> `heroes_abgleich` mit einem kurzen Eintrag JE vermutetem weiteren Vorkommen: „<Figur>, Vorkommen
+> <n>: Frisur <gleich/anders>, Haarfarbe <gleich/anders>, Kleidungsstück-Art <gleich/anders>,
+> Farbe/Schnitt <gleich/anders>". Weichen Farbe/Schnitt oder die Art ab, zähle diese Figur NICHT
+> als zusätzliches Vorkommen — korrigiere dann heroes_found entsprechend nach unten, bevor du
+> antwortest."
+
+Das erzwingt eine explizite Zwischenfrage je Verdachtsfall, bevor die Zahl feststeht — dieselbe
+Technik, mit der `shaded_of_ten`/`blank_of_ten`/`figures_est` das Raten schon einmal durch Zählen
+ersetzt haben. **Das ist ein Formulierungsvorschlag zur Diskussion, nicht im Code geändert.**
+
+#### 4. Einordnung: Priorität H4 vs. Prüf-Reparatur
+
+**Prüf-Reparatur zuerst, H4 danach — mit einer nachgerechneten Begründung, keiner Behauptung:**
+Der H4-Testplan vom 26.09. ist auf eine Halbierung von 31,1 % auf 15,6 % ausgelegt (115 Bilder je
+Arm). Mit der jetzt plausibleren Baseline von 3–8 % sähe dieselbe Rechnung so aus:
+
+| angenommene Baseline | n je Arm für eine Halbierung |
+|---|---|
+| 31 % (alter Plan) | 115 |
+| 8 % (großzügige Korrektur) | 552 |
+| 5 % | 905 |
+| 2,6 % (strenge Korrektur) | 1.847 |
+
+**Ein H4-Test JETZT liefe gegen eine vermutlich falsche, zu hohe Baseline** — er wäre entweder
+grob unterdimensioniert (115 Bilder reichen nicht mehr, wenn die wahre Rate bei 5–8 % statt 31 %
+liegt) oder er würde weiterhin das Prüf-Rauschen mitmessen statt die Bildwirkung: Ein Teil dessen,
+was `heroes_found ≥ 2` heute meldet, ist Prüf-Fehlalarm, nicht Bildinhalt — eine Änderung am
+Generierungsprompt (H4) kann diesen Anteil gar nicht senken, weil er nicht im Bild entsteht.
+**Ohne eine reparierte Prüfung würde ein H4-Ergebnis nicht zeigen können, ob die neue Formulierung
+wirkt oder nur zufällig anders geraten wird.**
+
+Das ist eine Einordnung, keine Empfehlung — die Entscheidung, was zuerst umgesetzt wird (falls
+überhaupt), trifft der Nutzer.
+
+Nichts an diesem Eintrag ist gebaut oder bezahlt aufgerufen worden.
