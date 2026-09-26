@@ -4630,3 +4630,46 @@ Das ist eine Einordnung, keine Empfehlung — die Entscheidung, was zuerst umges
 überhaupt), trifft der Nutzer.
 
 Nichts an diesem Eintrag ist gebaut oder bezahlt aufgerufen worden.
+
+---
+
+### NACHTRAG 26.09.2026: H1-Sichtprüfung bildgenau, und Korrektur der eigenen 13-vs-12-Zählung
+
+Nachgereicht vom Nutzer: die bildgenaue Liste zum Eintrag „H1-ERGEBNIS 26.09.2026" oben.
+
+| # | Held(en) | Quelle | Bild-URL | Urteil | Notiz |
+|---|---|---|---|---|---|
+| 1 | Alfons + Alex | Weihnachten, echte Sitzung, Kandidat 2 | [Bild](https://v3b.fal.media/files/b/0aab9cb2/_SfUY4ryhgD4zpqdFobpd_uLLzvXnF.jpg) | **echte Dopplung** | es sind sogar zwei Helden doppelt |
+| 2 | Moritz | Urlaub, echte Sitzung, Kandidat 2 | [Bild](https://v3b.fal.media/files/b/0aab8e38/FatbocMUNHb9V3AuSRNsa_jUE9GUsB.jpg) | Fehlalarm | keine Dopplung sichtbar |
+| 3 | A | Testseite normal, Runde 3 (open) | [Bild](https://v3b.fal.media/files/b/0aabdfab/2T8-E9yd5kLlMUnitCL36_iZhI78p1.jpg) | Fehlalarm | keine Dopplung sichtbar |
+| 4 | C | Testseite Sammelblatt, Runde 8 (overview_cutaway) | [Bild](https://v3b.fal.media/files/b/0aabdff2/LibfSdY5mjLbMRofuERir_XV1LlVj1.jpg) | Fehlalarm | keine Dopplung sichtbar |
+| 5 | A | Testseite normal, Runde 10 (open) | [Bild](https://v3b.fal.media/files/b/0aabe005/F6qzszqLUWv9l_HSS_5Tn_CThNr7sA.jpg) | Fehlalarm | keine Dopplung sichtbar |
+| 6 | A + C | Testseite normal, Runde 2 (overview_cutaway) | [Bild](https://v3b.fal.media/files/b/0aabe0ff/zMH8cb60L8s2ZHnj4dBeL_bXcxBL2W.jpg) | **Verwechslung** | hat eine lange Hose statt einer kurzen |
+| 7 | A | Testseite Sammelblatt, Runde 2 (overview_cutaway) | [Bild](https://v3b.fal.media/files/b/0aabe104/kZEUNkPOiAMidls_nwPcx_epTpvl8b.jpg) | Fehlalarm | keine Dopplung sichtbar |
+| 8 | A | Testseite normal, Runde 3 (overview_cutaway) | [Bild](https://v3b.fal.media/files/b/0aabe10a/PfBBRBYCak9VBkud8lCnx_0xOL9hn0.jpg) | Fehlalarm | keine Dopplung sichtbar |
+| 9 | A | Testseite normal, Runde 7 (overview_cutaway) | [Bild](https://v3b.fal.media/files/b/0aabe139/btOzUhua8R-Ud3fChUYPq_WaFysd5q.jpg) | Fehlalarm | keine Dopplung sichtbar |
+| 10 | A (4×) + C | Testseite normal, Runde 8 (overview_cutaway) | [Bild](https://v3b.fal.media/files/b/0aabe149/EulLrLapI2b3tjn7z90Bj_fvKA7K9e.jpg) | Fehlalarm | keine Dopplung sichtbar |
+| 11 | A | Testseite normal, Runde 9 (overview_cutaway) | [Bild](https://v3b.fal.media/files/b/0aabe157/sZ8UbWZcJui_IZY6Z0RvA_4xSG8bTJ.jpg) | Fehlalarm | keine Dopplung sichtbar |
+| 12 | A | Testseite Sammelblatt, Runde 9 (overview_cutaway) | [Bild](https://v3b.fal.media/files/b/0aabe15c/Jeu4ChWjQ-kTODHBCUk3R_Zy8pTF9L.jpg) | **Verwechslung** | keine Notiz mitgeliefert |
+
+9 Fehlalarm, 2 Verwechslung, 1 echte Dopplung — deckt sich exakt mit den zuvor gemeldeten
+Aggregatzahlen (75 % / 17 % / 8 %).
+
+**Auffälligster Einzelfall: Zeile 10.** `heroes_found` meldete dort A **viermal** und C zweimal —
+der höchste Einzelwert in der ganzen Stichprobe — und der Nutzer sieht im Bild trotzdem **keine
+Dopplung**. Das ist der bisher deutlichste Beleg dafür, dass die rohe Zahl in `heroes_found` keine
+verlässliche Aussage über den Bildinhalt ist: nicht nur „2 statt 1" kann ein Fehlalarm sein,
+sondern auch „4 statt 1".
+
+**Korrektur der eigenen 13-vs-12-Zählung, wie vom Nutzer aufgelöst:** Die Bestandsaufnahme
+(Commit `171214d`) führte 15 Meldungs-Zeilen, von denen drei ausdrücklich als „(dasselbe Bild wie
+oben)" markiert waren (Alex im Weihnachten-Bild, C in Runde 2, C in Runde 8) — 15 − 3 = **12**
+eindeutige Bilder, nicht 13. Die „13" in den Abschnitten 5 und 9 jener Bestandsaufnahme war ein
+**eigener Zählfehler** an dieser Stelle (die drei „dasselbe Bild"-Zeilen wurden beim
+Zusammenzählen nicht konsequent herausgerechnet), kein zusätzliches, unentdecktes Bild. Damit ist
+die Stichprobe für H1 vollständig: 12 von 12 gemeldeten Dopplungsbildern sind jetzt bildgenau
+geprüft, nichts fehlt mehr.
+
+Die Einordnung, die Baseline-Neuschätzung und der Formulierungsvorschlag aus dem vorigen Eintrag
+(„H1-ERGEBNIS 26.09.2026") ändern sich durch diese Klarstellung nicht — sie beruhten bereits auf
+den korrekten Aggregatzahlen 9/2/1.
