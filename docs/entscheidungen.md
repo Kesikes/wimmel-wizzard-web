@@ -4372,3 +4372,108 @@ Nutzers (`/tmp/analyse_doppelte_helden.py`, `/tmp/crosstabs2.py`), nicht im Repo
 Auswertung, kein Artefakt dieses Auftrags. Rohdatenquelle: `dev-tools/session-sicherung/*.json`,
 gezogen 26.09.2026, nicht Teil des Commits (Ordner ist laut `session-retten.py` bewusst nicht
 fürs Repository gedacht).
+
+---
+
+### PRÄZISIERUNG UND TESTPLAN 26.09.2026 (Auftrag): H4 — schadet die verbleibende Negation, oder ist sie neutral? Nur Plan, nichts gebaut, keine Aufrufe
+
+Vom Nutzer vorab richtig eingeordnet und hier bestätigt: `heldEinmalSatz()` (ein positiver,
+zählbarer Satz je Held, „X appears only once and is the only … in the picture …") ist seit dem
+21.09.-Branch aktiv und war damit schon Teil der 23.09-Grundlinie. H4 in der ursprünglichen
+Fassung („Zuweisung statt Verbot") ist also bereits beantwortet: die Zuweisung allein hat nicht
+gereicht, die Dopplungsrate blieb hoch. Präzisierte Frage: schadet die parallel weiterlaufende
+Negation (`allCharactersRuleKurz()`) aktiv, oder ist sie neutral — lohnt es sich, sie durch eine
+rein positive Formulierung zu ersetzen?
+
+#### 1. Codepfad bestätigt: beide Bausteine landen gemeinsam im Prompt
+
+Geprüft in `pipeline.js`, aktiver Pfad (`PROMPT_AUFBAU = "alt"`, Zeile 4543 — der alternative
+Aufbau `scenePromptNeu()` ist unverändert abgeschaltet, siehe Abschnitt zu B30/B31 weiter oben im
+Register):
+
+- Zeile 3459: `if (heroBits && heldenNeu) sentences.push(heroSpecs.map((s, i) => heldEinmalSatz(s, i, heroSpecs)).join(" "));`
+- Zeile 3494: `sentences.push(heldenNeu ? allCharactersRuleKurz(heroSpecs) : allCharactersRule(heroSpecs));`
+
+`heroBits` (Zeile 3443) ist ein aus `heroSpecs.map(...).join("; ")` gebautes, nichtleeres
+Ergebnis, sobald mindestens ein benannter Held existiert — was bei jedem Szenen-Prompt mit
+Helden der Fall ist. `heldenNeu` ist seit dem 21.09.-Grundstand die Vorgabe (`state.js`,
+`testHelden: null` → `heldenNeu = true`, Abschnitt 9). **Bestätigt, nicht widerlegt:** In jeder
+Szene mit `helden=neu` (also im gesamten aktuellen Produkt) landen `heldEinmalSatz()` je Held
+UND `allCharactersRuleKurz()` gemeinsam im selben Prompt, Ersteres knapp vor, Letzteres am
+Prompt-Ende (Abschnitt „Wichtig zur Strenge" u. Ä. dazwischen).
+
+#### 2. Vorschlag: `allCharactersRuleKurz()` ohne Negation (Entwurf, kein Umbau)
+
+**Jetzt** (Negationswörter fett):
+
+> „All N characters from the reference images appear, **none** of them twice: it all happens at
+> one moment, and **nobody** can be in two places at once, **not even** in two rooms of one
+> house."
+
+**Vorschlag**, im selben Stil wie `heldEinmalSatz()` (positive Zähl-Aussage statt Verbot,
+physische Begründung bleibt, aber als Folge formuliert statt als Verbot):
+
+> „All N characters from the reference images appear exactly once each, each one at exactly the
+> single place already given to them above: this whole picture is one single moment, and one
+> single moment gives each of them exactly one place in it — one room of a house included."
+
+Geändert: „none of them twice" → „exactly once each" (Zähl-Zusage statt Verneinung); „nobody can
+be in two places at once" → „one single moment gives each of them exactly one place" (dieselbe
+physische Begründung, aber als das, was IST, nicht als das, was NICHT sein darf); „not even in
+two rooms of one house" → „one room of a house included" (dieselbe Ausnahme-Klarstellung, ohne
+„not"). Länge und Informationsgehalt bewusst gleich gehalten, damit ein Unterschied im Ergebnis
+nicht an einer Nebensache (Länge, fehlender Inhalt) liegen kann. **Das ist ein Entwurf zur
+Diskussion, kein Auftrag an mich selbst — nichts davon ist im Code geändert.**
+
+#### 3. Testplan (Zahl vor dem Test, wie in der Bestandsaufnahme vom 26.09. verlangt)
+
+**Erst die Metrik klarstellen, sonst wird die falsche Zahl verglichen:** Die oft zitierten
+„~46 %" (Abschnitt 8, 29/63) zählen **fehlende UND doppelte** Helden zusammen. H4 betrifft aber
+nur die Formulierung gegen **Dopplung** — `allCharactersRuleKurz()` sagt nichts über fehlende
+Helden. Die richtige Baseline ist die **reine Dopplungsrate**, nicht die kombinierte. Aus dem
+eigenen, am 26.09. gebauten Datensatz (17 Sitzungen, Kreuztabellen-Auftrag, mit dem dort
+dokumentierten Fassungs-Vorbehalt): **33 von 106 Kandidaten bildweise (31 %)**, **45 von 267
+heldweise (17 %)**.
+
+**Korrektur einer eigenen früheren Zahl:** In der Bestandsaufnahme vom 26.09. hatte ich für die
+heldweise Schwelle „~25" genannt — das war mit der kombinierten 46 %-Rate grob geschätzt, nicht
+für die tatsächliche (niedrigere) heldweise Dopplungsrate nachgerechnet. Mit der korrekten,
+niedrigeren Rate (17 % statt 46 %) braucht eine Halbierung heldweise **mehr**, nicht weniger
+Fälle, weil der absolute Unterschied kleiner wird. Nachgerechnet (Fisher-Näherung über die
+Normalapproximation für zwei Anteile, α = 0,05 zweiseitig, 80 % Power):
+
+| | Baseline (reine Dopplung) | Ziel (Halbierung) | n je Arm |
+|---|---|---|---|
+| bildweise | 31,1 % (33/106) | 15,6 % | **115** |
+| heldweise | 16,9 % (45/267) | 8,4 % | **243** (korrigiert von der zu niedrig geschätzten „~25") |
+
+**Die bildweise Zahl ist die bindende:** Im vorhandenen Datensatz kommen im Schnitt **2,52 Helden
+je Kandidat** vor (267/106). 115 Bilder je Arm ergeben damit rechnerisch rund 290 heldweise
+Datensätze je Arm — mehr als die 243 benötigten. Wer also 115 Bilder je Arm und Fassung erzeugt,
+erreicht **beide** Schwellen gleichzeitig, sofern die Testfiguren im selben Bereich liegen (2–3
+benannte Helden je Szene, wie im vorhandenen Datensatz).
+
+**Kostenschätzung:** Je Bild ein Szenen-Aufruf (`nano-banana-pro/edit`, 0,15 $) plus ein
+Prüf-Aufruf (openrouter/vision, 0,01 $) = 0,16 $/Bild — wie beim Sammelblatt-Testaufbau, ohne
+Stil-Tor oder D-Richter, weil nur `heroes_found` gebraucht wird. 115 Bilder je Arm × 2 Fassungen
+(aktuell/neu) = 230 Bilder → **rund 37 $** (36,80 $).
+
+**Auflagen, direkt aus der Lehre der Kreuztabellen vom selben Tag (Abschnitt „KREUZTABELLEN
+26.09.2026", Punkt 1):**
+
+1. **Ein einziger, fest gehaltener Prompt-Stand** für beide Fassungen — nur der eine Satz
+   (`allCharactersRuleKurz()`) unterscheidet sich, sonst nichts (keine Vermischung mehrerer
+   `bildFassung`-Stände wie beim H5-Fehlschluss).
+2. **Gepaarte Runden**, wie beim Sammelblatt-Testaufbau: dieselbe Situation, dasselbe Thema,
+   dieselbe gewürfelte (oder bewusst verteilte) Komposition für beide Fassungen einer Runde, damit
+   Thema/Komposition nicht erneut zur Nebenvariablen wird.
+3. **Feste Heldenzahl über den ganzen Testlauf** (z. B. 3, wie beim bisherigen
+   Sammelblatt-Testfiguren-Set A/B/C), damit die 2,52-Helden-Annahme oben nicht durch schwankende
+   Heldenzahl unterlaufen wird.
+4. **Rohdaten timestamped und nicht überschreibend** ablegen, wie bei `blatt-stiltor.js` und den
+   Sammelblatt-Läufen.
+5. **Stichprobe vorab fest**, kein Zwischen-Auswerten mit vorzeitigem Abbruch bei einem
+   „guten" Zwischenstand (peeking) — das würde den ausgerechneten α-Wert unterlaufen.
+
+**Kein Bauauftrag, keine Empfehlung, ob und wann dieser Test laufen soll — das entscheidet der
+Nutzer.** Nichts an diesem Eintrag wurde gebaut oder bezahlt aufgerufen.
