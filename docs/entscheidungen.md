@@ -4673,3 +4673,46 @@ geprüft, nichts fehlt mehr.
 Die Einordnung, die Baseline-Neuschätzung und der Formulierungsvorschlag aus dem vorigen Eintrag
 („H1-ERGEBNIS 26.09.2026") ändern sich durch diese Klarstellung nicht — sie beruhten bereits auf
 den korrekten Aggregatzahlen 9/2/1.
+
+### AUFTRAG "heroes_abgleich umsetzen und an gesicherten Daten testen" 26.09.2026 — Schritt 1 erledigt, Schritt 2 (Test) blockiert
+
+**Schritt 1 (Code): erledigt.** `buildVerifyPrompt()` in `pipeline.js` hat jetzt einen optionalen
+4. Parameter `heroesAbgleich` (Commit `426100f`). Ohne ihn (der einzige Aufrufer,
+`buildSceneComposeInputs()`, setzt ihn nicht) ist die Funktion **byte-identisch** zur vorherigen
+Fassung — per direktem Vergleich getestet (Node, alter und neuer Funktionskörper gegen dieselbe
+Eingabe), nicht nur angenommen. Mit `heroesAbgleich===true`:
+- Punkt 1 verlangt die vier expliziten Kriterien aus dem letzten Registereintrag (Frisur,
+  Haarfarbe, Kleidungsstück-ART, Farbe/Schnitt) statt „das wichtigste Kleidungsstück
+  übereinstimmen".
+- Ein neues Pflichtfeld `heroes_abgleich` (nur auszufüllen, wenn ein `heroes_found`-Wert ≥ 2 ist)
+  zwingt eine Zwischenrechnung je Verdachtsfall, statt einer stillen Eindrucks-Zahl.
+- Kein Aufrufer im Live-Pfad setzt den Parameter — die Änderung ist inert, bis jemand sie
+  absichtlich mit `true` aufruft.
+
+**Schritt 2 (Test): blockiert, Architektur-Befund statt Ergebnis.** Ich habe den Aufrufpfad
+`verifyImage()` → `/api/fal-proxy` (`mode:"verify"`) → `fal.run/openrouter/router/vision`
+nachgeprüft, nicht nur erinnert (`fal-proxy.js`, Zeile ~154–218). Befund: **jeder Verify-Aufruf in
+dieser Codebasis läuft über fal.ai, ausnahmslos.** `ALLOWED_VERIFY_MODELS` erlaubt testweise die
+Wahl von `anthropic/claude-sonnet-4.5` statt der Standardmodelle (`google/gemini-2.5-pro`/
+`-flash`) — aber alle drei laufen über denselben fal.ai-Endpoint und denselben `FAL_KEY`. Es gibt
+in diesem Code **keinen zweiten, fal-unabhängigen Verify-Weg**, auch nicht mit dem Claude-Modell.
+
+Das heißt: „reine Claude-API-Kosten fürs Prüfmodell, kein fal-Aufruf" ist mit der bestehenden
+Codebasis so nicht umsetzbar — selbst die Wahl des Claude-Modells für die Prüfung wäre technisch
+ein fal.ai-Aufruf (fal.run, FAL_KEY), kein direkter Anthropic-API-Aufruf. Das kollidiert mit der
+stehenden Regel „kein fal.ai-Aufruf jeglicher Art ohne vorherige Freigabe" — und unabhängig davon
+halte ich ohnehin keinen fal- oder Anthropic-Schlüssel.
+
+**Optionen (keine davon umgesetzt, Entscheidung offen):**
+1. Der Nutzer lässt den Test selbst laufen (eigener `FAL_KEY`), z. B. per kleinem Skript gegen
+   `fal.run/openrouter/router/vision` mit `verifyModel` seiner Wahl, gegen die bereits
+   gespeicherten Bild-URLs aus `dev-tools/session-sicherung/`. Cowork bereitet das Skript vor,
+   ruft es aber nicht selbst auf.
+2. Manuelle Sichtprüfung der Stichprobe durch Cowork selbst (kein API-Aufruf, keine Kosten) — als
+   Mensch/Claude-Proxy dafür, ob das geschärfte Kriterium die bekannten Fehlalarme wegräumt.
+   Ausdrücklich NICHT dasselbe wie ein Test des tatsächlichen Produktions-Prüfmodells (anderes
+   Modell, keine Automatisierung, nur die schon vorhandene kleine Stichprobe).
+3. Eine eng begrenzte fal-Freigabe extra für diesen einen Testlauf (Ausnahme von der stehenden
+   Regel) — Entscheidung des Nutzers, nicht von Cowork.
+
+Kein Bild neu generiert, kein fal-Aufruf gemacht, keine Live-Aktivierung — wie angeordnet.
