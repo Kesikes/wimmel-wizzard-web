@@ -53,7 +53,7 @@ const FAQ_GROUPS = [
   { cat: "Produkt & Stil", items: [
     { q: "Was genau ist der Wimmel Wizard und wie funktioniert er?", a: "WizzelWim verwandelt eure Familie in ein echtes Wimmelbild – gezeichnet von einer KI, aber komplett individuell: eure Gesichter, eure Geschichten, eure Details zum Suchen und Entdecken. Kein Stockbild, keine Vorlage mit ausgetauschtem Namen." },
     { q: "Gibt es auch andere Stile?", a: "Aktuell gibt's genau einen: den waschechten WizzelWim-Stil – die Welt, in der WizzelWim und seine Familie zuhause sind. Bewusst, nicht aus Mangel – wir wollen den einen Stil erstmal richtig gut können, bevor wir mehr draufpacken. Weitere Stile sind aber geplant, stay tuned." },
-    { q: "Gibt es auch andere Produkte?", a: "Aktuell: Poster, Mini-Wimmelbuch und Wimmelbuch. Mehr Formate kommen – siehe oben, wir fangen bewusst klein an." },
+    { q: "Gibt es auch andere Produkte?", a: "Aktuell: das Kinderzimmerposter (DIN A2), das Wimmelbuch klein (DIN A6, Softcover) und bald das Wimmelbuch groß (DIN A4, Hardcover). Mehr Formate kommen – siehe oben, wir fangen bewusst klein an." },
     { q: "Wie viele Personen kann ich einbauen (auch Haustiere, Omas, Opas)?", a: "Bis zu 5 Figuren – da ist alles dabei, Geschwister, Eltern, Omas, Opas oder das Haustier." },
     { q: "Wie viele Bilder/Seiten hat ein Wimmelbuch eigentlich?", a: "Maximal 6 Wimmelbilder ergeben ein Buch mit 16 Seiten – mehr geht aktuell nicht, dafür wird jedes einzelne mit voller Sorgfalt gezaubert." }
   ]},

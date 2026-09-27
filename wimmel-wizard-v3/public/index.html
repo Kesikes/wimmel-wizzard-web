@@ -39,6 +39,16 @@
   .lp-prod { flex: 0 0 72%; max-width: 280px; aspect-ratio: 1 / 1; scroll-snap-align: start; position: relative; display: flex; flex-direction: column; border: 4px solid var(--ink); background: var(--paper); color: var(--ink); overflow: hidden; }
   .lp-prod-img { flex: 1; min-height: 0; border-bottom: 4px solid var(--ink); background: repeating-linear-gradient(-45deg, var(--desk), var(--desk) 10px, var(--paper) 10px, var(--paper) 20px); display: flex; align-items: center; justify-content: center; }
   .lp-prod-img img { width: 100%; height: 100%; object-fit: contain; display: block; background: #fff; }
+  /* Bildwechsel je Produkt-Kachel (27.09.2026): Bilder uebereinander, Ueberblendung per Klasse "on",
+     Takt im Inline-Skript am Seitenende. Freigestellte Produktbilder "contain",
+     Kinderzimmer-Szenen "cover". */
+  .lp-slides { position: relative; overflow: hidden; }
+  .lp-slides img { position: absolute; inset: 0; opacity: 0; transition: opacity .8s ease; }
+  .lp-slides img.on { opacity: 1; }
+  .lp-slides img.fit-cover { object-fit: cover; }
+  .lp-dots { position: absolute; left: 10px; bottom: 8px; display: flex; gap: 5px; z-index: 2; }
+  .lp-dots i { width: 8px; height: 8px; border: 2px solid var(--ink); background: var(--paper); }
+  .lp-dots i.on { background: var(--ink); }
   .lp-prod-img:has(img) { background: #fff; }
   .lp-prod-img .ph { font-family: 'Caveat', cursive; font-weight: 600; font-size: 20px; color: var(--ink-a55); }
   .lp-prod-body { padding: 10px 12px 12px; }
@@ -250,20 +260,20 @@
     <p class="caveat" style="margin: 0 0 10px; font-size: 20px; line-height: 1.12; color: var(--paper-a75);">entscheiden musst du erst, wenn du dein erstes Bild gesehen hast. wirklich.</p>
     <div class="lp-products">
       <div class="lp-prod" style="transform: rotate(-1.3deg); box-shadow: 5px 6px 0 var(--yellow);">
-        <div class="lp-prod-img"><img src="/assets/produkt-poster.webp" alt="Kinderzimmerposter" loading="lazy" /></div>
-        <div class="lp-prod-body"><h3 class="h-black">Kinderzimmerposter</h3><p>ab 1 Wimmelbild, verschiedene Größen, mit oder ohne Rahmen</p></div>
+        <div class="lp-prod-img lp-slides"><img src="/assets/produkt-poster.webp" alt="Kinderzimmerposter" class="fit-contain on" loading="lazy" /><img src="/assets/produkt-poster-2.webp" alt="Kinderzimmerposter gerahmt im Kinderzimmer" class="fit-cover" loading="lazy" /><img src="/assets/produkt-poster-3.webp" alt="Kinderzimmerposter an der Wand" class="fit-cover" loading="lazy" /><span class="lp-dots"><i class="on"></i><i></i><i></i></span></div>
+        <div class="lp-prod-body"><h3 class="h-black">Kinderzimmerposter</h3><p>DIN A2, ab 1 Wimmelbild, mit oder ohne Rahmen</p></div>
         <span class="h-black lp-prod-price" style="transform: rotate(2.2deg);">ab 19 €</span>
       </div>
       <div class="lp-prod" style="transform: rotate(1deg); box-shadow: -5px 6px 0 var(--red);">
-        <div class="lp-prod-img"><img src="/assets/produkt-wimmelbuch-softcover.webp" alt="Wimmelbuch Softcover" loading="lazy" /></div>
-        <div class="lp-prod-body"><h3 class="h-black">Wimmelbuch</h3><p>ab 2 Wimmelbildern, verschiedene Größen, Softcover und Softseiten</p></div>
+        <div class="lp-prod-img lp-slides"><img src="/assets/produkt-wimmelbuch-softcover.webp" alt="Wimmelbuch klein" class="fit-contain on" loading="lazy" /><img src="/assets/produkt-wimmelbuch-softcover-2.webp" alt="Wimmelbuch klein auf dem Kindertisch" class="fit-cover" loading="lazy" /><img src="/assets/produkt-wimmelbuch-softcover-3.webp" alt="Vater und Sohn beim Wimmeln im Wimmelbuch klein" class="fit-cover" loading="lazy" /><span class="lp-dots"><i class="on"></i><i></i><i></i></span></div>
+        <div class="lp-prod-body"><h3 class="h-black">Wimmelbuch klein</h3><p>ab 2 Wimmelbildern, DIN A6, Softcover und Softseiten</p></div>
         <span class="h-black lp-prod-price" style="transform: rotate(-1.6deg);">ab 29 €</span>
       </div>
       <!-- Stufe 3: noch nicht bestellbar -- Inhalt gedaempft + "Coming Soon"-Overlay. -->
       <div class="lp-prod" style="transform: rotate(-.6deg); box-shadow: 5px 6px 0 var(--yellow);">
         <div style="display: contents;">
-          <div class="lp-prod-img" style="opacity: .3;"><img src="/assets/produkt-wimmelbuch-hardcover.webp" alt="Wimmelbuch mit Kartonseiten" loading="lazy" /></div>
-          <div class="lp-prod-body" style="opacity: .3;"><h3 class="h-black">Wimmelbuch</h3><p>ab 5 Wimmelbildern, verschiedene Größen, Kartonseiten</p></div>
+          <div class="lp-prod-img lp-slides" style="opacity: .3;"><img src="/assets/produkt-wimmelbuch-hardcover.webp" alt="Wimmelbuch groß" class="fit-contain on" loading="lazy" /><img src="/assets/produkt-wimmelbuch-hardcover-2.webp" alt="Wimmelbuch groß auf dem Kindertisch" class="fit-cover" loading="lazy" /><img src="/assets/produkt-wimmelbuch-hardcover-3.webp" alt="Mutter und Tochter beim Wimmeln im Wimmelbuch groß" class="fit-cover" loading="lazy" /><span class="lp-dots"><i class="on"></i><i></i><i></i></span></div>
+          <div class="lp-prod-body" style="opacity: .3;"><h3 class="h-black">Wimmelbuch groß</h3><p>ab 5 Wimmelbildern, DIN A4, Hardcover</p></div>
           <span class="h-black lp-prod-price" style="transform: rotate(2deg); opacity: .3;">ab 49 €</span>
         </div>
         <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background: rgba(242,237,225,.45);">
@@ -416,5 +426,23 @@
 <script src="js/state.js"></script>
 <script src="js/helpers.js"></script>
 <script src="js/landing.js"></script>
+<script>
+  /* Bildwechsel in den Produkt-Kacheln: alle 3,2 s naechstes Bild, Kacheln leicht versetzt.
+     Bei "weniger Bewegung" (Systemeinstellung) kein automatischer Wechsel. */
+  (function () {
+    if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    document.querySelectorAll(".lp-slides").forEach(function (box, n) {
+      var imgs = box.querySelectorAll("img"), dots = box.querySelectorAll(".lp-dots i"), i = 0;
+      if (imgs.length < 2) return;
+      setTimeout(function () {
+        setInterval(function () {
+          imgs[i].classList.remove("on"); if (dots[i]) dots[i].classList.remove("on");
+          i = (i + 1) % imgs.length;
+          imgs[i].classList.add("on"); if (dots[i]) dots[i].classList.add("on");
+        }, 3200);
+      }, n * 700);
+    });
+  })();
+</script>
 </body>
 </html>
