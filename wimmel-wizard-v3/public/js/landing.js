@@ -18,7 +18,7 @@ const PINS = [
   { x: 59, y: 72, mark: "3", kicker: "Punkt 3 von 5", title: "Ich zeichne. Ihr meckert.", rowTitle: "Zaubern und Nachbessern",
     body: "Ich probiere mehrere Varianten, ihr wählt die beste. Passt noch was nicht? Mit dem Stift markieren, neu zaubern – der Rest bleibt genau, wie er ist." },
   { x: 63, y: 46, mark: "4", kicker: "Punkt 4 von 5", title: "Dann geht's in den Druck.", rowTitle: "Wie das Buch entsteht",
-    body: "Gedruckt und gebunden in Deutschland, mit eurer Widmung vorne drin. Kein Copy-Shop-Charme." },
+    body: "Gedruckt und gebunden bei unserer Partnerdruckerei, mit eurer Widmung vorne drin und Rätseln hinten drin. Kein Copy-Shop-Charme." },
   { x: 88, y: 32, mark: "5", kicker: "Punkt 5 von 5", title: "Und dann kommt Post.", rowTitle: "Vom Drucker zu euch",
     body: "Ab da liegt es auf dem Couchtisch, und jemand sucht eine halbe Stunde die Katze." }
 ];
@@ -51,11 +51,11 @@ const OCCASIONS = [
 // Hinweis: interner Stilname darf nirgends kundenseitig auftauchen -- immer "WizzelWim-Stil".
 const FAQ_GROUPS = [
   { cat: "Produkt & Stil", items: [
-    { q: "Was genau ist der Wimmel Wizard und wie funktioniert er?", a: "WizzelWim verwandelt eure Familie in ein echtes Wimmelbild – gezeichnet von einer KI, aber komplett individuell: eure Gesichter, eure Geschichten, eure Details zum Suchen und Entdecken. Kein Stockbild, keine Vorlage mit ausgetauschtem Namen." },
+    { q: "Was genau ist der Wimmel Wizard und wie funktioniert er?", a: "Der Wimmel Wizard verwandelt eure Familie in ein echtes Wimmelbild – gezeichnet von einer KI, aber komplett individuell: eure Gesichter, eure Geschichten, eure Details zum Suchen und Entdecken. Kein Stockbild, keine Vorlage mit ausgetauschtem Namen." },
     { q: "Gibt es auch andere Stile?", a: "Aktuell gibt's genau einen: den waschechten WizzelWim-Stil – die Welt, in der WizzelWim und seine Familie zuhause sind. Bewusst, nicht aus Mangel – wir wollen den einen Stil erstmal richtig gut können, bevor wir mehr draufpacken. Weitere Stile sind aber geplant, stay tuned." },
-    { q: "Gibt es auch andere Produkte?", a: "Aktuell: das Kinderzimmerposter (DIN A2), das Wimmelbuch klein (DIN A6, Softcover) und bald das Wimmelbuch groß (DIN A4, Hardcover). Mehr Formate kommen – siehe oben, wir fangen bewusst klein an." },
+    { q: "Gibt es auch andere Produkte?", a: "Genau zwei: das Wimmelheft (A5, 4 Wimmelbilder, 18 Seiten) und das Wimmelbuch (A4 Hardcover, 7 Wimmelbilder, 24 Seiten). Bewusst nicht mehr – wir wollen zwei Dinge richtig gut machen, statt zehn halb." },
     { q: "Wie viele Personen kann ich einbauen (auch Haustiere, Omas, Opas)?", a: "Bis zu 5 Figuren – da ist alles dabei, Geschwister, Eltern, Omas, Opas oder das Haustier." },
-    { q: "Wie viele Bilder/Seiten hat ein Wimmelbuch eigentlich?", a: "Maximal 6 Wimmelbilder ergeben ein Buch mit 16 Seiten – mehr geht aktuell nicht, dafür wird jedes einzelne mit voller Sorgfalt gezaubert." }
+    { q: "Was ist alles drin?", a: "Im Wimmelheft 4 Wimmelbilder, im Wimmelbuch 7. Dazu in beiden: eine Doppelseite, auf der sich eure Figuren vorstellen, Rätsel zum Weitersuchen, eure Widmung und hinten die Lösungen. Im Wimmelbuch gibt's zwei Rätsel-Doppelseiten: ein Fehlerbild und eine Ausschnittsuche." }
   ]},
   { cat: "Ablauf & Nutzung", items: [
     { q: "Muss ich mich anmelden?", a: "Nein. Ihr könnt direkt loslegen, ohne Konto. Erst wenn ihr über das kostenlose Kontingent hinaus wollt, legen wir gemeinsam ein Konto an – damit euer Guthaben nicht verloren geht, falls ihr Browser oder Gerät wechselt." },
@@ -68,14 +68,17 @@ const FAQ_GROUPS = [
   { cat: "Preis & Bezahlung", items: [
     { q: "Was bedeutet „kostenlos loswimmeln“?", a: "Die Generierung eurer ersten drei Figuren und eures ersten Wimmelbildes ist komplett kostenlos – kein Konto, keine Zahlungsdaten nötig. Erst danach geht's ans Aufladen." },
     { q: "Was kostet es am Ende wirklich – gibt es versteckte Kosten?", a: "Nein. Der Endpreis steht fest, bevor ihr bestellt – und euer aufgeladenes Guthaben wird euch dabei voll angerechnet." },
+    { q: "Kann ich noch etwas dazubestellen?", a: "Ja, beim Bestellen: alle Wimmelbilder zusätzlich digital in Druckqualität (9,90 €) oder ein zweites Exemplar für Oma und Opa – das Wimmelbuch für 29,90 €, das Wimmelheft für 19,90 €, jeweils inklusive Versand." },
     { q: "Wie setzt sich der Preis eines Produkts zusammen?", a: "Ehrlich gesagt: nicht aus einer fetten Marge. Jedes Bild wird wirklich neu gezaubert, und Zaubern kostet – die KI, die eure Figuren und Wimmelbilder erschafft, läuft nicht umsonst. Dazu kommen die echte Produktion (Druck, Papier, Bindung), laufende Betriebskosten und die Mehrwertsteuer. Am Ende bleibt uns davon deutlich weniger übrig, als man denken könnte – aber dafür bekommt ihr auch kein Namensschild auf einer Vorlage, sondern ein wirklich individuelles Werk." }
   ]},
   { cat: "Versand & Lieferung", items: [
     { q: "Wird das Buch wirklich gedruckt, oder bekomme ich nur eine Datei?", a: "Echt gedruckt und zu euch nach Hause geschickt – keine Datei zum Selbstausdrucken." },
+    { q: "Was kostet der Versand?", a: "Nichts extra. Der Versand nach Deutschland, Österreich und in die Schweiz ist im Preis enthalten." },
+    // draft bleibt, bis Peecho die Lieferzeiten bestaetigt hat.
     { draft: true, q: "Wie lange dauert der Versand, und kommt es pünktlich zu einem bestimmten Anlass an?", a: "Rechnet mit ca. 5 Werktagen." }
   ]},
   { cat: "Verschenken", items: [
-    { q: "Kann ich das Ganze auch verschenken, ohne dass die beschenkte Person selbst etwas einrichten muss?", a: "Ja – mit unserem Gutschein. Ihr wählt eine Stufe, verschickt ihn digital oder als Karte per Post, und die beschenkte Person steigt direkt mit fertigem Guthaben ein." }
+    { q: "Kann ich das Ganze auch verschenken, ohne dass die beschenkte Person selbst etwas einrichten muss?", a: "Ja – mit unserem Gutschein für das Wimmelheft oder das Wimmelbuch. Ihr bekommt ihn als PDF zum Ausdrucken oder Weiterschicken, und die beschenkte Person zaubert ihr Buch dann selbst – mit eurem Geschenk als Guthaben." }
   ]},
   { cat: "Daten & Datenschutz", items: [
     { q: "Was passiert mit meinen Daten?", a: "Eure Daten liegen auf Servern in der EU, DSGVO-konform. Nichts wird verkauft oder weitergegeben." },
