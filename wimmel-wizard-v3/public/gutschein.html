@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Gutschein verschenken — Wimmel Wizard</title>
-<meta name="description" content="Verschenke ein personalisiertes Wimmelbuch: Gutschein für Poster oder Mini-Wimmelbuch, unkompliziert per Anfrage." />
+<meta name="description" content="Verschenke ein personalisiertes Wimmelbuch: Gutschein für das Wimmelheft oder das Wimmelbuch, versandkostenfrei, unkompliziert per Anfrage." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;500;600;700&family=Caveat:wght@600&display=swap" rel="stylesheet" />
@@ -63,6 +63,10 @@
 
     <h2 class="h-black" style="margin: 0 0 12px; font-size: 20px; letter-spacing: -.02em;">Welcher Gutschein?</h2>
     <div id="gs-options" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 26px;"></div>
+    <!-- PLATZHALTER (16.10.2026): Einloesedatum traegt Matthias nach. Bis dahin auskommentiert --
+         zum Aktivieren [DATUM] ersetzen und die Kommentarzeichen entfernen.
+    <p class="h-black" style="margin: -12px 0 26px; display: inline-block; background: var(--yellow); border: 3px solid var(--ink); font-size: 13px; letter-spacing: .04em; padding: 7px 11px; transform: rotate(-1deg);">Einlösbar ab [DATUM]</p>
+    -->
 
     <h2 class="h-black" style="margin: 0 0 12px; font-size: 20px; letter-spacing: -.02em;">Deine Angaben</h2>
     <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px;">
@@ -96,8 +100,9 @@
   var CONTACT_EMAIL = "hallo@wimmel-wizard.de"; // TODO: durch echte Kontakt-Adresse ersetzen
 
   var OPTIONS = [
-    { id: "poster", label: "Poster-Gutschein", desc: "1 Wimmelbild, DIN A2", price: "29 €" },
-    { id: "buch", label: "Mini-Wimmelbuch-Gutschein", desc: "2 Bilder + Charakterseite, 8 Seiten, Softcover", price: "49 €" }
+    // GEAENDERT (Sortiment-Beschluss 16.10.2026): genau zwei Gutscheine, feste Preise.
+    { id: "heft", label: "Wimmelheft-Gutschein", desc: "4 Wimmelbilder, A5, 18 Seiten, versandkostenfrei", price: "29,90 €" },
+    { id: "buch", label: "Wimmelbuch-Gutschein", desc: "7 Wimmelbilder, A4 Hardcover, 24 Seiten, versandkostenfrei", price: "49,90 €" }
   ];
   var selected = "buch";
 
