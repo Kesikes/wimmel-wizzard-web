@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Datenschutzerklärung — Wimmel Wizard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;500;600;700&family=Caveat:wght@600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/css/main.css" />
+<link rel="stylesheet" href="/css/gutschein.css" />
+</head>
+<body>
+<div class="app-shell" id="app">
+  <!-- PLATZHALTER-RECHTSTEXT — NEU (Paket 1, Teil H, 18.10.2026). Inhalt liefert Matthias (Anwalt).
+       WICHTIG: Diese Zeichenfolge "PLATZHALTER-RECHTSTEXT" (hier im Kommentar UND im gelben
+       Kasten) ist der Schalter: solange sie auf einer der vier Rechtsseiten steht, bleibt Stripe
+       im Testmodus (api/_lib/gutschein-config.js: rechtsseitenFertig()). Beim Einsetzen des echten
+       Textes diesen Kommentar und den gelben Kasten komplett entfernen. -->
+  <header id="lp-header" class="lp-header">
+    <a href="/" class="lp-logo"><img src="/assets/wizard-badge.webp" alt="" /><span class="h-black">Wimmel&nbsp;Wizard<sup style="font-size: 7px; vertical-align: super;">™</sup></span></a>
+    <a href="/app" class="h-black lp-cta">Los!</a>
+  </header>
+  <div class="gs-wrap gs-recht">
+    <div class="gs-platzhalter"><b>Platzhalter – Text folgt</b><p>Diese Seite ist noch nicht fertig: Der endgültige Text kommt vom Anwalt. Solange hier PLATZHALTER-RECHTSTEXT steht, läuft die Bezahlung ausschließlich im Stripe-Testmodus.</p></div>
+    <p class="h-black gs-kicker gelb">Rechtliches</p>
+    <h1 class="h-black">Datenschutzerklärung</h1>
+    <p class="caveat" style="font-size: 20px; margin: 0 0 18px;">Was wir speichern, warum, und wie lange</p>
+    <h2>1. Verantwortlicher</h2>
+<p>[Name, Anschrift, E-Mail – siehe Impressum.]</p>
+<h2>2. Gutscheinkauf</h2>
+<p>[Text vom Anwalt. Verarbeitete Daten: E-Mail-Adresse und Name der Käuferin (von Stripe übermittelt), Name der/des Beschenkten, Widmung, optional E-Mail der Empfängerin und Wunschdatum, Zahlungsdaten ausschließlich bei Stripe (Stripe Payments Europe Ltd., Irland – Auftragsverarbeitung/eigene Verantwortlichkeit), Speicherung des Gutscheins bis zur Einlösung bzw. Erstattung plus gesetzliche Aufbewahrungsfristen, Speicherort Upstash (Redis, Region EU), E-Mail-Versand über Resend.]</p>
+<h2>3. Keine Cookies, keine Werbe-Tracker</h2>
+<p>[Die Gutschein-Seiten setzen keine Cookies und nutzen kein Local Storage. Zähler je Verkaufsquelle (utm_source) werden ohne Personenbezug geführt. Anonyme Freitext-Antworten („Was hat dich überzeugt?“ / „Was hat gefehlt?“) werden ohne Zuordnung zu einer Person gespeichert.]</p>
+<h2>4. App (Figuren und Wimmelbilder)</h2>
+<p>[Bestehende Texte zur App – Datenschutz-Hinweise aus der Landingpage übernehmen und vom Anwalt prüfen lassen.]</p>
+<h2>5. Ihre Rechte</h2>
+<p>[Auskunft, Berichtigung, Löschung, Einschränkung, Datenübertragbarkeit, Widerspruch, Beschwerderecht bei einer Aufsichtsbehörde.]</p>
+    <p class="gs-klein" style="margin-top: 26px;">Stand: [Datum]</p>
+  </div>
+  <footer class="gs-footer">
+    <div class="inner">
+      <nav><a href="/impressum">Impressum</a><a href="/datenschutz">Datenschutz</a><a href="/agb">AGB</a><a href="/widerrufsbelehrung">Widerrufsbelehrung</a><a href="/">Zur Startseite</a></nav>
+      <p style="margin: 0;">Wimmel Wizard · gedruckt in der EU · Hund inklusive</p>
+    </div>
+  </footer>
+</div>
+</body>
+</html>

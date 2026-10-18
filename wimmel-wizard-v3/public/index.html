@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Wimmel Wizard — Wimmelbilder aus eurem Leben</title>
-<meta name="description" content="Personalisierte Wimmelbücher aus euren Familiengeschichten und Fotos. Eure Erlebnisse haben mehr verdient als noch ein Fotobuch. Kostenlos loswimmeln." />
+<meta name="description" content="Wimmel Wizard zaubert aus euren Familiengeschichten ein persönliches Wimmelbuch – eure Familie als Figuren, gedruckt und versandkostenfrei nach Hause geschickt." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;500;600;700&family=Caveat:wght@600&display=swap" rel="stylesheet" />
@@ -168,7 +168,7 @@
          hoch wie das rote (5px statt 10px Padding). Ausserdem jetzt klickbar zur echten
          Gutschein-Seite (gutschein.html) statt des bisherigen "#verschenken"-Platzhalterankers --
          siehe dort, Punkt "Gutschein-Seite". -->
-    <a href="gutschein.html" style="display: block; text-decoration: none;" aria-label="Ideal auch als Geschenk – hier geht es zum Gutschein">
+    <a href="/gutschein" style="display: block; text-decoration: none;" aria-label="Ideal auch als Geschenk – hier geht es zum Gutschein">
       <div class="ticker-wrap" style="background: var(--ink); color: var(--paper); border-top: 4px solid var(--ink); border-bottom: 4px solid var(--ink); padding: 5px 0;">
         <div class="ticker-track ticker-yellow-rev" style="font-size: 12px; letter-spacing: .04em;">
           <span>Ideal auch als Geschenk ✦ Hier geht es zum Gutschein ✦ Ideal auch als Geschenk ✦ Hier geht es zum Gutschein ✦&nbsp;</span>
@@ -241,7 +241,7 @@
   <!-- GEAENDERT (Sammel-Runde 10.09.2026): Schriftgroesse 13px statt 10px -- exakt identisch zum
        roten Band darueber (Nutzer-Vorgabe, siehe gleichlautender Kommentar bei der Desktop-Version
        oben). Verlinkt jetzt auf die echte Gutschein-Seite statt des Platzhalterankers. -->
-  <a href="gutschein.html" class="mobile-only" style="display: block; text-decoration: none;" aria-label="Ideal auch als Geschenk – hier geht es zum Gutschein">
+  <a href="/gutschein" class="mobile-only" style="display: block; text-decoration: none;" aria-label="Ideal auch als Geschenk – hier geht es zum Gutschein">
     <div class="ticker-wrap" style="background: var(--ink); color: var(--paper); border-top: 4px solid var(--ink); border-bottom: 4px solid var(--ink); padding: 7px 0;">
       <div class="ticker-track ticker-yellow-rev" style="font-size: 12px; letter-spacing: .04em;">
         <span>Ideal auch als Geschenk ✦ Hier geht es zum Gutschein ✦ Ideal auch als Geschenk ✦ Hier geht es zum Gutschein ✦&nbsp;</span>
@@ -417,15 +417,20 @@
          nach der Preise-Sektion weiter oben auf derselben Seite ist der Hinweis redundant geworden,
          jetzt nur noch der Konto-Hinweis. -->
     <p class="caveat" style="margin: 18px 0 0; font-size: 19px; line-height: 1.15;">Kein Konto notwendig.</p>
-    <a href="gutschein.html" style="display: inline-block; margin-top: 10px; font-size: 14px; font-weight: 600; color: var(--paper);">Lieber verschenken? Gutschein →</a>
+    <a href="/gutschein" style="display: inline-block; margin-top: 10px; font-size: 14px; font-weight: 600; color: var(--paper);">Lieber verschenken? Gutschein →</a>
   </section>
 
+  <!-- GEAENDERT (Paket 1, Teil H, 18.10.2026): echte Rechtsseiten statt leerer #-Anker (der
+       Datenschutz-Link zeigte vorher ins Leere). Seiten unter public/rechts/, Rewrites in
+       vercel.json. Kontakt: PLATZHALTER-Adresse, siehe kontaktEmail() in gutschein-config.js. -->
   <footer style="padding: 20px 14px 40px; background: var(--ink); color: var(--paper-a60); font-size: 12px; line-height: 1.7;">
     <div style="display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 12px;">
-      <a href="#impressum" style="color: var(--paper);">Impressum</a>
-      <a href="#datenschutz" style="color: var(--paper);">Datenschutz</a>
-      <a href="#agb" style="color: var(--paper);">AGB</a>
-      <a href="#kontakt" style="color: var(--paper);">Kontakt</a>
+      <a href="/impressum" style="color: var(--paper);">Impressum</a>
+      <a href="/datenschutz" style="color: var(--paper);">Datenschutz</a>
+      <a href="/agb" style="color: var(--paper);">AGB</a>
+      <a href="/widerrufsbelehrung" style="color: var(--paper);">Widerrufsbelehrung</a>
+      <a href="/gutschein" style="color: var(--paper);">Gutschein</a>
+      <a href="mailto:hallo@wimmelwizard.de" style="color: var(--paper);">Kontakt</a>
     </div>
     <p style="margin: 0;">Wimmel Wizard · gedruckt in der EU · Hund inklusive</p>
   </footer>

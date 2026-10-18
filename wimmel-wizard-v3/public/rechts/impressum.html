@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Impressum — Wimmel Wizard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;500;600;700&family=Caveat:wght@600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/css/main.css" />
+<link rel="stylesheet" href="/css/gutschein.css" />
+</head>
+<body>
+<div class="app-shell" id="app">
+  <!-- PLATZHALTER-RECHTSTEXT — NEU (Paket 1, Teil H, 18.10.2026). Inhalt liefert Matthias (Anwalt).
+       WICHTIG: Diese Zeichenfolge "PLATZHALTER-RECHTSTEXT" (hier im Kommentar UND im gelben
+       Kasten) ist der Schalter: solange sie auf einer der vier Rechtsseiten steht, bleibt Stripe
+       im Testmodus (api/_lib/gutschein-config.js: rechtsseitenFertig()). Beim Einsetzen des echten
+       Textes diesen Kommentar und den gelben Kasten komplett entfernen. -->
+  <header id="lp-header" class="lp-header">
+    <a href="/" class="lp-logo"><img src="/assets/wizard-badge.webp" alt="" /><span class="h-black">Wimmel&nbsp;Wizard<sup style="font-size: 7px; vertical-align: super;">™</sup></span></a>
+    <a href="/app" class="h-black lp-cta">Los!</a>
+  </header>
+  <div class="gs-wrap gs-recht">
+    <div class="gs-platzhalter"><b>Platzhalter – Text folgt</b><p>Diese Seite ist noch nicht fertig: Der endgültige Text kommt vom Anwalt. Solange hier PLATZHALTER-RECHTSTEXT steht, läuft die Bezahlung ausschließlich im Stripe-Testmodus.</p></div>
+    <p class="h-black gs-kicker gelb">Rechtliches</p>
+    <h1 class="h-black">Impressum</h1>
+    <p class="caveat" style="font-size: 20px; margin: 0 0 18px;">Anbieterkennzeichnung nach § 5 DDG</p>
+    <h2>Angaben zum Anbieter</h2>
+<p>[Firma / Name]<br>[Straße Hausnummer]<br>[PLZ Ort]<br>Deutschland</p>
+<h2>Kontakt</h2>
+<p>E-Mail: [E-Mail-Adresse]<br>Telefon: [optional]</p>
+<h2>Vertretungsberechtigt</h2>
+<p>[Name]</p>
+<h2>Registereintrag / Umsatzsteuer</h2>
+<p>[Handelsregister, Registernummer – falls vorhanden]<br>Umsatzsteuer-Identifikationsnummer gemäß § 27a UStG: [USt-IdNr.]</p>
+<h2>Verbraucherstreitbeilegung</h2>
+<p>[Hinweis zur Teilnahme/Nichtteilnahme an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle – Formulierung vom Anwalt.]</p>
+    <p class="gs-klein" style="margin-top: 26px;">Stand: [Datum]</p>
+  </div>
+  <footer class="gs-footer">
+    <div class="inner">
+      <nav><a href="/impressum">Impressum</a><a href="/datenschutz">Datenschutz</a><a href="/agb">AGB</a><a href="/widerrufsbelehrung">Widerrufsbelehrung</a><a href="/">Zur Startseite</a></nav>
+      <p style="margin: 0;">Wimmel Wizard · gedruckt in der EU · Hund inklusive</p>
+    </div>
+  </footer>
+</div>
+</body>
+</html>
