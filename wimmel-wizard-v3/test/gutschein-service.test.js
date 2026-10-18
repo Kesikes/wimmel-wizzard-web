@@ -303,6 +303,27 @@ test("statusZuSession, Feedback, Teilen-Zähler, Statistik", async () => {
   assert.equal(s.je_quelle.direkt.bezahlt, 2);
 });
 
+test("Stripe: Checkout-Parameter ohne payment_method_types (API 2026-09-30), kein SEPA, optional PMC", () => {
+  delete process.env.STRIPE_PMC_ID;
+  const p = stripeLib.checkoutSessionParameter({ produkt: "buch", entwurfId: "e1", quelle: "pinterest" });
+  assert.equal(p.payment_method_types, undefined, "payment_method_types gibt es nicht mehr");
+  assert.equal(p.payment_method_configuration, undefined);
+  assert.deepEqual(p.excluded_payment_method_types, ["sepa_debit"]);
+  assert.equal(p.mode, "payment");
+  assert.equal(p.allow_promotion_codes, true);
+  assert.equal(p.line_items[0].price_data.unit_amount, 4990);
+  assert.match(p.success_url, /\/gutschein\/danke\?session_id=\{CHECKOUT_SESSION_ID\}$/);
+  assert.match(p.cancel_url, /abgebrochen=1&utm_source=pinterest$/);
+  assert.equal(p.metadata.entwurf_id, "e1");
+  process.env.STRIPE_PMC_ID = "pmc_123";
+  try { assert.equal(stripeLib.checkoutSessionParameter({ produkt: "heft", entwurfId: "e2" }).payment_method_configuration, "pmc_123"); }
+  finally { delete process.env.STRIPE_PMC_ID; }
+  const kodiert = stripeLib.formKodieren(p);
+  assert.match(kodiert, /excluded_payment_method_types%5B0%5D=sepa_debit/);
+  assert.doesNotMatch(kodiert, /(^|&)payment_method_types%5B/);
+  assert.throws(() => stripeLib.checkoutSessionParameter({ produkt: "poster", entwurfId: "x" }), /unbekanntes Produkt/);
+});
+
 test("Stripe-Helfer: Formkodierung und Webhook-Signatur", () => {
   assert.equal(stripeLib.formKodieren({ a: 1, b: { c: "x y" }, d: ["p", "q"], e: [{ f: 2 }] }), "a=1&b%5Bc%5D=x%20y&d%5B0%5D=p&d%5B1%5D=q&e%5B0%5D%5Bf%5D=2");
   const body = JSON.stringify({ id: "evt_1", type: "x" });

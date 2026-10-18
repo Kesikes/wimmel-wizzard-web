@@ -43,15 +43,20 @@ async function anfrage(methode, pfad, daten, opts) {
   return json;
 }
 
-// checkoutSessionAnlegen({ produkt, entwurfId, email? }) -> Session-Objekt (url, id)
-async function checkoutSessionAnlegen({ produkt, entwurfId, quelle }) {
+// checkoutSessionParameter({ produkt, entwurfId, quelle }) -> die Parameter der Checkout-Session
+// (getrennt von der Anfrage, damit die Tests sie prüfen können, ohne Stripe zu rufen).
+// GEÄNDERT (18.10.2026, erster Live-Test gegen API 2026-09-30.endive): payment_method_types gibt
+// es beim Anlegen nicht mehr (400). Zahlarten kommen jetzt dynamisch aus dem Dashboard; optional
+// eine Payment-Method-Configuration (STRIPE_PMC_ID). Kein SEPA (Briefing: deckt Dez -> Jan nicht,
+// Rückbuchungsrisiko) über excluded_payment_method_types — unabhängig davon, was im Dashboard an ist.
+function checkoutSessionParameter({ produkt, entwurfId, quelle }) {
   const p = cfg.PRODUKTE[produkt];
   if (!p) throw new Error("unbekanntes Produkt");
   const site = cfg.siteUrl();
-  return anfrage("POST", "/checkout/sessions", {
+  const params = {
     mode: "payment",
     locale: "de",
-    payment_method_types: cfg.stripeZahlarten(),
+    excluded_payment_method_types: ["sepa_debit"],
     line_items: [{ quantity: 1, price_data: { currency: "eur", unit_amount: p.wert_cent, product_data: { name: p.stripe_name, description: p.kurz + " · " + cfg.VERSAND_SATZ } } }],
     allow_promotion_codes: true,                        // Rabattcodes aus dem Stripe-Dashboard (J2)
     success_url: site + "/gutschein/danke?session_id={CHECKOUT_SESSION_ID}",
@@ -60,7 +65,15 @@ async function checkoutSessionAnlegen({ produkt, entwurfId, quelle }) {
     payment_intent_data: { metadata: { entwurf_id: entwurfId, produkt: p.id }, description: p.stripe_name },
     // E-Mail ist bei Stripe Checkout immer Pflicht; wir sammeln sie bewusst nicht doppelt ein.
     expires_at: Math.floor(Date.now() / 1000) + 60 * 60, // 1 Stunde
-  }, { idempotenz: "checkout-" + entwurfId });
+  };
+  const pmc = cfg.stripePmcId();
+  if (pmc) params.payment_method_configuration = pmc;
+  return params;
+}
+
+// checkoutSessionAnlegen({ produkt, entwurfId, quelle }) -> Session-Objekt (url, id)
+async function checkoutSessionAnlegen(args) {
+  return anfrage("POST", "/checkout/sessions", checkoutSessionParameter(args), { idempotenz: "checkout-" + args.entwurfId });
 }
 
 async function sessionHolen(id) { return anfrage("GET", "/checkout/sessions/" + encodeURIComponent(id)); }
@@ -112,4 +125,4 @@ function signaturBauen(rawBody, secret, t) {
   return "t=" + ts + ",v1=" + crypto.createHmac("sha256", secret).update(ts + "." + rawBody).digest("hex");
 }
 
-module.exports = { formKodieren, anfrage, checkoutSessionAnlegen, sessionHolen, paymentIntentHolen, promotionCodeHolen, erstatten, webhookPruefen, signaturBauen };
+module.exports = { formKodieren, anfrage, checkoutSessionParameter, checkoutSessionAnlegen, sessionHolen, paymentIntentHolen, promotionCodeHolen, erstatten, webhookPruefen, signaturBauen };

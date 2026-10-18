@@ -34,7 +34,7 @@ und sind deshalb ein Commit; J2 (Rabattcodes) steckt serverseitig in B.
 | `STRIPE_WEBHOOK_SECRET_TEST` | `whsec_…` vom Test-Webhook-Endpoint | – | ja |
 | `STRIPE_SECRET_KEY_LIVE` | – | `sk_live_…` | vor Live |
 | `STRIPE_WEBHOOK_SECRET_LIVE` | – | `whsec_…` vom Live-Webhook-Endpoint | vor Live |
-| `STRIPE_ZAHLARTEN` | optional, Standard `card,paypal`; `card`, falls PayPal im Dashboard noch nicht aktiv ist | wie Test | nein |
+| `STRIPE_PMC_ID` | optional: `pmc_…` (Payment-Method-Configuration aus dem Dashboard) für einen eigenen Zahlarten-Satz; sonst gelten die Dashboard-Einstellungen. SEPA ist im Code ausgeschlossen. (Seit 18.10.2026 abends: `STRIPE_ZAHLARTEN` entfällt, API 2026-09-30 kennt `payment_method_types` nicht mehr) | wie Test | nein |
 | `GUTSCHEIN_SIGNIER_SCHLUESSEL` | langer Zufallswert (z. B. `openssl rand -hex 32`) | **anderer** Zufallswert | ja – ohne ihn keine PDF-/Widerrufs-Links |
 | `SITE_URL` | `https://wimmel-wizard-v3.vercel.app` (Fallback, wenn leer) | `https://wimmelwizard.de` (ohne Schrägstrich) | ja – steht in Mails, PDF, QR |
 | `RESEND_API_KEY` | vorhanden | vorhanden | ja |
@@ -48,7 +48,7 @@ und sind deshalb ein Commit; J2 (Rabattcodes) steckt serverseitig in B.
 **Im Stripe-Dashboard einrichten (Test UND Live getrennt):**
 - Webhook-Endpoint `{SITE_URL}/api/stripe-webhook`, Events `checkout.session.completed` und
   `checkout.session.async_payment_succeeded` → Signing Secret in `STRIPE_WEBHOOK_SECRET_*`.
-- PayPal unter Settings → Payment methods aktivieren (sonst `STRIPE_ZAHLARTEN=card`).
+- Zahlarten (Karte, Apple Pay, Google Pay, PayPal) unter Settings → Payment methods aktivieren – dynamische Zahlungsmethoden, kein Code nötig.
 - Rabattcodes: Products → Coupons → Promotion code anlegen (Betrag/Prozent, Stückzahl, Ablauf) – J2.
 
 **Vercel:** Der Umbau bringt das Projekt auf **13 Serverless Functions** (vorher 10) – das Hobby-Limit
@@ -138,7 +138,7 @@ von 12 ist überschritten, der Deploy braucht **Vercel Pro** (wird laut Auftrag 
       Falls Vercel das beim Deploy bemängelt: zwei Einträge daraus machen bzw. nur `api/_assets/**`
       (die Rechtsseiten-Prüfung fällt dann automatisch auf die HTTP-Variante zurück, das PDF ohne
       Illustration läuft ebenfalls).
-- [ ] PayPal im Stripe-Dashboard aktivieren – sonst `STRIPE_ZAHLARTEN=card`.
+- [ ] Zahlarten im Stripe-Dashboard aktivieren (Karte, Apple Pay, Google Pay, PayPal).
 - [ ] Resend: Domain verifizieren, Absender `MAIL_ABSENDER` festlegen.
 - [ ] `docs/gutschein-mailtexte.md` liefern → Texte in `gutschein-mails.js` einsetzen.
 - [ ] Rechtstexte vom Anwalt einsetzen (Marker entfernen) → dann `STRIPE_MODUS=live`.

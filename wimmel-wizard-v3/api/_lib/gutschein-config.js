@@ -150,13 +150,15 @@ async function stripeSchluessel() {
     webhookSecret: process.env["STRIPE_WEBHOOK_SECRET" + suffix] || "",
   };
 }
-// Zahlarten im Checkout (Auftrag Abschnitt B): Karte (Apple Pay/Google Pay kommen bei Stripe
-// Checkout automatisch mit der Karte) + PayPal, KEIN SEPA. PayPal muss im Stripe-Dashboard
-// aktiviert sein, sonst lehnt Stripe die Session ab — dann hier per Umgebungsvariable
-// STRIPE_ZAHLARTEN=card vorübergehend auf Karte beschränken.
-function stripeZahlarten() {
-  const roh = process.env.STRIPE_ZAHLARTEN || "card,paypal";
-  return roh.split(",").map((s) => s.trim()).filter(Boolean).filter((s) => s !== "sepa_debit");
+// Zahlarten im Checkout (GEÄNDERT 18.10.2026, erster Live-Test): Stripe-API 2026-09-30 kennt
+// payment_method_types beim Anlegen einer Checkout-Session nicht mehr — Zahlarten werden
+// dynamisch über das Stripe-Dashboard gesteuert (Settings -> Payment methods: Karte, Apple Pay,
+// Google Pay, PayPal dort aktivieren). Optional STRIPE_PMC_ID: eine Payment-Method-Configuration
+// (pmc_…) aus dem Dashboard, die als payment_method_configuration mitgegeben wird — damit lässt
+// sich für den Gutschein-Checkout ein eigener Satz Zahlarten festlegen. "Kein SEPA" (Briefing)
+// bleibt über excluded_payment_method_types in stripe.js verankert.
+function stripePmcId() {
+  return process.env.STRIPE_PMC_ID || "";
 }
 
 // Signierschlüssel für Widerrufs- und PDF-Links (HMAC). Pflicht im Betrieb; ohne ihn gibt es keine
@@ -243,7 +245,7 @@ module.exports = {
   QUELLEN, quelleNormalisieren, GEFEHLT_OPTIONEN,
   RECHTSSEITEN, PLATZHALTER_MARKER, rechtsseitenStatus, rechtsseitenFertig,
   siteUrl, kontaktEmail, mailAbsender, instagramUrl,
-  stripeModus, stripeSchluessel, stripeZahlarten, signierSchluessel,
+  stripeModus, stripeSchluessel, stripePmcId, signierSchluessel,
   berlinDatum, einloesefrist, erstattungsstichtag, widerrufAblauf, datumDeutsch, euro,
   oeffentlicheConfig,
 };
