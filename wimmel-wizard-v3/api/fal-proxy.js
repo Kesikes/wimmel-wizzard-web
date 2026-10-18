@@ -93,6 +93,7 @@ async function fetchFalWithRetry(url, options, maxRetries) {
 const { checkRateLimit } = require("./_lib/rate-limit");
 // NEU (Auftrag 3 Teil 0, 18.10.2026): Sitzungs-/Job-Pflicht, siehe api/_lib/sitzung.js.
 const { sitzungErforderlich } = require("./_lib/sitzung");
+const format = require("./_lib/format");
 const { MAX_PROMPT_ZEICHEN } = require("./_lib/grenzen");
 const { deckelErlaubt, deckelBuchen } = require("./_lib/kosten-deckel");
 const { logFalError, mediaLifecycleHeaders } = require("./_lib/fal-queue");
@@ -429,8 +430,10 @@ module.exports = async (req, res) => {
         // komponierten Vordergrund-Vignetten gefaehrdet. Siehe auch SAFE_MARGIN_RULE in pipeline.js
         // (Kompositions-Regel, die die aeusseren oberen/unteren ~6% bewusst unkritisch haelt). Der
         // eigentliche Pixel-Beschnitt 16:9->2:1 ist NICHT Teil dieser Aenderung, siehe offener Punkt.
-        aspect_ratio: testAspectRatio || (kind === "char" ? "3:4" : "16:9"),
-        resolution: testResolution || (kind === "char" ? "1K" : "4K"),
+        // GEAENDERT (Auftrag 3 Teil 3, 18.10.2026): Szenen 3:2 und Aufloesung per Schalter, beides
+        // aus api/_lib/format.js -- identisch zu scene-job-engine.js (eine Stelle).
+        aspect_ratio: testAspectRatio || (kind === "char" ? "3:4" : format.SZENE_ASPECT_RATIO),
+        resolution: testResolution || (kind === "char" ? "1K" : format.szenenAufloesung()),
         // GEAENDERT (17.09.2026, D4): fuer SZENEN jetzt JPEG statt PNG -- volle Begruendung samt
         // Gegenargument siehe api/_lib/scene-job-engine.js bei output_format. Dieser Pfad erzeugt
         // die Szenen-Bearbeitungen des Stift-Werkzeugs, also ebenfalls Druckbilder in 4K.
@@ -452,7 +455,7 @@ module.exports = async (req, res) => {
         output_format: "png",
         image_size: kind === "char"
           ? { width: 768, height: 1024 }
-          : (testImageWidth && testImageHeight ? { width: testImageWidth, height: testImageHeight } : { width: 1024, height: 576 }),
+          : (testImageWidth && testImageHeight ? { width: testImageWidth, height: testImageHeight } : { width: 1152, height: 768 }), // 3:2 (Auftrag 3 Teil 3)
         ...(seed !== undefined ? { seed } : {}),
       };
   const falEndpoint = imageUrl

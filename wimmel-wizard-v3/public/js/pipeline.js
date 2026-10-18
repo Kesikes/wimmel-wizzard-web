@@ -20,6 +20,16 @@
    einem eigenen Folge-Schritt, nach Klärung dieser zwei Punkte.
    ========================================================================== */
 
+// NEU (Auftrag 3 Teil 3, 18.10.2026): public/js/format.js (DRUCK, randProzent) wird im Browser VOR
+// dieser Datei geladen (app.html). Die dev-tools laden pipeline.js in Node ohne app.html -- dort
+// wird format.js hier nachgeladen, damit SAFE_MARGIN_RULE unten dieselben Zahlen hat.
+if (typeof DRUCK === "undefined" && typeof require === "function" && typeof __dirname === "string") {
+  (function () {
+    var quelle = require("fs").readFileSync(require("path").join(__dirname, "format.js"), "utf8");
+    new Function(quelle + "\n;Object.assign(globalThis, { DRUCK: DRUCK, randProzent: randProzent });")();
+  })();
+}
+
 /* ---------------- Deutsch→Englisch-Übersetzung für Prompt-Fragmente ----------------
    1:1 aus wimmel-wizzard-mvp.html übernommen (DICT/BREAKERS/translate()). */
 
@@ -1452,7 +1462,8 @@ var ACTIVE_SCENE_PHASE = "phase1";
 // in den Kompositionstypen, aendert sich die Pruefsumme -- ohne dass jemand daran denken muss.
 // Das von Hand gepflegte Datum bleibt als lesbare Ergaenzung daneben stehen; verlassen tun wir uns
 // auf die Pruefsumme.
-var PROMPT_LABEL = "2026-09-23a";
+// GEAENDERT (Auftrag 3 Teil 3, 18.10.2026): neue Fassung -- Rand rundum (SAFE_MARGIN_RULE), 3:2.
+var PROMPT_LABEL = "2026-10-18a";
 
 // FNV-1a, 32 Bit. Bewusst kein crypto.subtle: das ist asynchron, und diese Kennung soll ohne
 // Umstand synchron beim Laden feststehen. Kollisionen sind hier belanglos -- es geht nicht um
@@ -2157,8 +2168,10 @@ function backgroundCharAssetUrl(name) {
 // Jetzt ist das Basisbild eine leere Flaeche in Papierfarbe im Zielformat, und ALLE Heldenblaetter
 // sind gleichberechtigte Referenzen dahinter. Das Bild traegt bewusst keine Information: 1920x1080
 // reicht, das Modell erzeugt ohnehin 4K, die Leinwand liefert nur Format und Farbe.
+// GEAENDERT (Auftrag 3 Teil 3, 18.10.2026): Leinwand im erzeugten Format 3:2 (1536x1024, gleiche
+// Papierfarbe wie die bisherige 16:9-Datei, die fuer alte Tests liegen bleibt).
 function sceneBaseCanvasUrl() {
-  return window.location.origin + assetPath("leere-leinwand-16x9.jpg");
+  return window.location.origin + assetPath("leere-leinwand-3x2.jpg");
 }
 
 // STIL-REFERENZ fuer den D-Richter (siehe api/_lib/richter.js). Das Bauernhofbild vom 18.09.2026
@@ -2553,7 +2566,11 @@ const EMOTION_WORDS_RULE = "Do not use any emotion or facial-expression words fo
 // fuer Druck klaeren") nichts Wichtiges kappt. Ergaenzt, nicht ersetzt FILL_EMPTY_SPACE_RULE oben --
 // der Rand darf weiterhin mit Hintergrund-Fuellung (Himmel/Boden/Wasser) belegt werden, nur eben
 // nichts, das wichtig ist.
-const SAFE_MARGIN_RULE = "Keep the outer 6% of the image at the very top and the outer 6% at the very bottom as a low-priority safety margin: fine for sky, ground, water, a ceiling, a bare floor or incidental background filler, but never place a named hero's vignette or an important, eye-catching gag there. Everything important belongs in the vertical band between those two margins.";
+// GEAENDERT (Auftrag 3 Teil 3, 18.10.2026): Rand rundum statt nur oben/unten -- das Druckformat ist
+// jetzt 1,414:1 (Doppelseite DIN hochkant), erzeugt wird 3:2, beschnitten wird seitlich; dazu der
+// 10-mm-Sicherheitsrand von Peecho. Zahlen aus public/js/format.js (DRUCK), Herleitung in
+// api/_lib/format.js.
+const SAFE_MARGIN_RULE = "Keep the outer " + randProzent(DRUCK.randObenUnten) + "% of the image at the very top and at the very bottom, and the outer " + randProzent(DRUCK.randSeitlich) + "% at the far left and at the far right, as a low-priority safety margin: fine for sky, ground, water, a ceiling, a bare floor or incidental background filler, but never place a named hero's vignette or an important, eye-catching gag there, and never let a named character touch those margins. Everything important belongs inside the frame those four margins leave free.";
 
 // NEU: explizite Bild-zu-Name-Zuordnung (Spezifikation Abschnitt 2: "Reference image 1 shows
 // [Name]: [Merkmale]... für jedes Bild einzeln, nicht nur eine allgemeine Liste"). heroSpecs[i]
@@ -4804,7 +4821,7 @@ function scenePromptNeu({ heroSpecs, theme, situations, bgCharacterCount, phase,
   // B27 Innen/Aussen nur mit Haus
   if (mitHaus || blockAlt("B27")) S.push(INDOOR_OUTDOOR_RULE);
   // B28 Sicherheitsrand
-  S.push(blockAlt("B28") ? SAFE_MARGIN_RULE : "Keep the outer 6% at the top and bottom free of named characters and important gags.");
+  S.push(blockAlt("B28") ? SAFE_MARGIN_RULE : "Keep the outer " + randProzent(DRUCK.randObenUnten) + "% at the top and bottom and the outer " + randProzent(DRUCK.randSeitlich) + "% at the left and right free of named characters and important gags.");
   // B29 Gefuehlswoerter: EIN Satz (Nutzer: nur streichen, wenn stripEmotionWords() ALLES filtert --
   // tut es nicht: nur eine Wortliste, und Ortsnamen aus dem Chat laufen nicht hindurch)
   S.push(blockAlt("B29") ? EMOTION_WORDS_RULE : "Describe no character with emotion or facial-expression words; show feelings only through pose and gesture.");

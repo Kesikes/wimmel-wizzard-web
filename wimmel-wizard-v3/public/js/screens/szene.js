@@ -52,54 +52,42 @@ function goZaubernFresh() {
   Router.goScreen("zaubern");
 }
 
-// NEU (Nutzer-Auftrag 16.09.2026, offener Punkt "16:9→2:1-Beschnitt-Schritt fuer Druck"): das
-// Druck-Endformat ist 296x148mm = 2:1 (siehe Kommentar bei SAFE_MARGIN_RULE/DEPTH_COHERENCE_RULE in
-// pipeline.js), generiert wird aber 16:9 (aspect_ratio-Limit von nano-banana-pro/edit, siehe
-// fal-proxy.js) -- bisher gab es NIRGENDS im Code eine Stelle, die den spaeteren Beschnitt oben/unten
-// tatsaechlich zeigt oder anwendet, das Ergebnis-Bild wurde 1:1 im vollen 16:9 angezeigt. Nutzer-
-// Entscheidung: der Zuschnitt soll SOFORT in der Vorschau sichtbar sein ("keine Ueberraschung beim
-// Buch"), nicht erst in einem separaten, noch zu bauenden Export-Schritt.
-// UMSETZUNG: rein visueller CSS-Crop (aspect-ratio-Box + overflow:hidden + zentriertes <img>), KEIN
-// Canvas-Pixel-Zuschnitt -- das volle 16:9-Bild bleibt technisch vollstaendig erhalten (image.src
-// unveraendert), nur der sichtbare Ausschnitt aendert sich. Bewusst so gewaehlt, weil das bestehende
-// Stift-Editing (setupFreehand()/captureAnnotatedImage() unten) direkt auf dem vollen Bild rechnet --
-// ein echter Pixel-Crop haette dort die Koordinaten-Mathematik zwischen sichtbarem Canvas und
-// nachgeladenem Vollbild durcheinandergebracht. Die neue aeussere "crop viewport"-Box clippt das
-// bestehende imgWrap (Bild + Canvas + Stift-Tag, intern UNVERAENDERT) nur visuell/per Klick-Bereich --
-// canvas.getBoundingClientRect() (siehe setupFreehand()) liefert weiterhin die Groesse des VOLLEN
-// Bildes, genau wie vorher, nur eben teilweise durch overflow:hidden verdeckt. Kein Funktionsverlust,
-// keine Aenderung an der Editier-Logik noetig.
-// Mathe: 16:9 = 1,7778:1, Ziel 2:1 -- Hoehe schrumpft um (0,5625-0,5)/0,5625 = 11,1% relativ zur
-// Originalhoehe, zentriert je 5,56% oben/unten entfernt. Das liegt bequem innerhalb der bereits
-// reservierten 6%+6%-Sicherheitsraender (SAFE_MARGIN_RULE, pipeline.js) -- der Zuschnitt frisst also
-// planmaessig nur den ohnehin dafuer vorgesehenen Rand, keine echten Bildinhalte.
-const PRINT_ASPECT_RATIO = "2 / 1";
-// buildCropViewport(inner): nimmt das bestehende imgWrap (Bild+Canvas+Tag, unveraendert) und packt es
-// in eine aeussere, auf das Druckformat fixierte Box. inner wird absolut zentriert (top:50%,
-// translateY(-50%)) -- bei einem 16:9-Bild in einer 2:1-Box ragt es oben/unten gleichmaessig ueber
-// den sichtbaren Bereich hinaus, overflow:hidden auf der aeusseren Box blendet genau diesen Ueberhang
-// aus. borderTop/borderBottom/background wandern von imgWrap hierher, damit der schwarze Rahmen den
-// SICHTBAREN (beschnittenen) Bereich einrahmt statt des vollen Bildes.
-// BUGFIX (18.09.2026, nach dem ersten echten Testbild: "in der Desktop-App wurde mir das fertige
-// Bild NICHT angezeigt"). width:100% ist hier NICHT kosmetisch, sondern zwingend. Der einzige Inhalt
-// dieser Box ist "inner", und das ist position:absolute -- die Box hat damit von sich aus null
-// Inhaltsbreite. Mobil faellt das nicht auf: dort ist sie ein normales Block-Element und nimmt
-// automatisch die volle Breite des Abschnitts ein. Im Desktop-Layout haengt sie dagegen in einer
-// Flex-Spalte (buildErgebnisAnsicht(), .erg-bild auf dem Desktop), und ein Flex-Kind ohne Breitenangabe wird auf seine
-// Inhaltsbreite geschrumpft -- gemessen im Nachbau: 8 x 8 Pixel (nur der Rahmen), Bild 0 x 0. Das
-// Bild war also die ganze Zeit korrekt im DOM und trotzdem unsichtbar. Mit width:100% misst
-// derselbe Nachbau 1008 x 508 Pixel. Hat nichts mit dem Wechsel auf JPEG zu tun.
-function buildCropViewport(inner, extraStyle) {
+// GEAENDERT (Auftrag 3 Teil 3, 18.10.2026, Sortiment-Beschluss): Druckformat 1,414:1 (Doppelseite
+// DIN hochkant) statt 2:1, erzeugt wird 3:2 statt 16:9, der Beschnitt passiert jetzt SEITLICH
+// (je 2,9 % links/rechts) statt oben/unten. Zahlen aus public/js/format.js (DRUCK). Die Vorschau
+// zeigt genau den Ausschnitt, der gedruckt wird: eine auf das Druckformat fixierte Box, in der das
+// Bild "cover" sitzt -- gemessen am echten Seitenverhaeltnis des geladenen Bilds (aeltere 16:9-
+// Bilder aus Testsitzungen werden ebenfalls passend beschnitten, dann oben/unten). Das volle Bild
+// bleibt technisch erhalten (image.src unveraendert), nur die Anzeige schneidet. Bild, Stift-Canvas
+// und Etikett skalieren als Einheit (inner), die Stift-Koordinaten bleiben bildbezogen.
+// (Historie: 16.09.2026 16:9 -> 2:1 mit Beschnitt oben/unten; BUGFIX 18.09.2026 width:100% noetig,
+// weil inner absolut positioniert ist und die Box sonst im Desktop-Flex-Layout auf 0 schrumpft.)
+const PRINT_ASPECT_RATIO = DRUCK.cssAspectRatio;
+function buildCropViewport(inner, extraStyle, img) {
   const viewport = h("div", { style: Object.assign({
     position: "relative", overflow: "hidden", aspectRatio: PRINT_ASPECT_RATIO, width: "100%",
     borderTop: "4px solid var(--ink)", borderBottom: "4px solid var(--ink)", background: "var(--ink)",
   }, extraStyle || {}) });
   inner.style.position = "absolute";
-  inner.style.left = "0";
-  inner.style.top = "50%";
-  inner.style.width = "100%";
-  inner.style.transform = "translateY(-50%)";
   viewport.appendChild(inner);
+  // cover-Anpassung: breiter als die Box -> Breite ueber 100 %, seitlich zentriert (der Normalfall
+  // 3:2 in 1,414:1); schmaler -> Hoehe ueber 100 %, vertikal zentriert (alte 16:9-Bilder).
+  function anpassen(verhaeltnis) {
+    const box = DRUCK.seitenverhaeltnis;
+    if (verhaeltnis >= box) {
+      const breite = (verhaeltnis / box) * 100;
+      inner.style.width = breite + "%"; inner.style.height = "auto";
+      inner.style.left = (-(breite - 100) / 2) + "%"; inner.style.top = "0"; inner.style.transform = "none";
+    } else {
+      inner.style.width = "100%"; inner.style.height = "auto";
+      inner.style.left = "0"; inner.style.top = "50%"; inner.style.transform = "translateY(-50%)";
+    }
+  }
+  anpassen(DRUCK.erzeugtVerhaeltnis);
+  if (img) {
+    const messen = () => { if (img.naturalWidth && img.naturalHeight) anpassen(img.naturalWidth / img.naturalHeight); };
+    if (img.complete) messen(); else img.addEventListener("load", messen, { once: true });
+  }
   return viewport;
 }
 // GEAENDERT (Sammel-Runde 10.09.2026, Punkt "alle Kacheln im unausgewaehlten Zustand dieselbe
@@ -1858,8 +1846,8 @@ function buildErgebnisAnsicht(s, image) {
   const penTag = h("span", { class: "h-black erg-stift-etikett" }, (s.penMode === "redo") ? (s.penFigurId ? (penStriche.art === "weg" ? "hier stand sie" : "die kommt hierher") : "das hier neu") : "das da weg");
   penTag.classList.toggle("hidden", !s.penOn);
   zoomEbene.appendChild(penTag);
-  // 16:9 -> 2:1-Druckbeschnitt-Vorschau, siehe buildCropViewport().
-  const crop = buildCropViewport(imgBox);
+  // Druckbeschnitt-Vorschau (3:2 -> 1,414:1, seitlich), siehe buildCropViewport().
+  const crop = buildCropViewport(imgBox, null, img);
   crop.classList.add("erg-crop");
   bildSpalte.appendChild(crop);
   // NEU (18.10.2026, Paket 1 Teil J, Teilen-Loop): unter dem ERSTEN Wimmelbild der Sitzung ein

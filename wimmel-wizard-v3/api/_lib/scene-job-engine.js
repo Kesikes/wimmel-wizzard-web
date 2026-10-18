@@ -39,6 +39,7 @@ const { richterUrteil, stilTorUrteil, RICHTER_MODELL } = require("./richter");
 // NEU (26.09.2026, Baustein A "Free-Tier-Grenzen", siehe api/_lib/free-tier.js): das Wimmelbild-
 // Kontingent wird HIER gebucht, nicht beim Start -- siehe Kommentar an bilderBuchen() unten.
 const { bilderBuchen } = require("./free-tier");
+const format = require("./format");
 
 // SCENE_MODEL: identisch zum Default-Endpoint in api/fal-proxy.js fuer kind==="scene" mit gesetztem
 // imageUrl (useProModel default true fuer Szenen, siehe dortiger Kommentar "nano-banana-pro/edit ...
@@ -79,8 +80,10 @@ function sceneGenerateBody(instruction, editImageUrl, styleRefUrls, seed) {
   return {
     prompt: instruction,
     image_urls: [editImageUrl, ...(styleRefUrls || [])],
-    aspect_ratio: "16:9",
-    resolution: "4K",
+    // GEAENDERT (Auftrag 3 Teil 3, 18.10.2026): 3:2 statt 16:9 und Aufloesung ueber den Schalter --
+    // beides aus api/_lib/format.js (eine Stelle, Herleitung dort).
+    aspect_ratio: format.SZENE_ASPECT_RATIO,
+    resolution: format.szenenAufloesung(),
     // GEAENDERT (17.09.2026, D4 "4K-Problem"): PNG -> JPEG fuer SZENEN.
     // Messung an der einzigen echten Originaldatei, die vorliegt (Bild 1 der Bewertung): 5504x3072
     // Pixel, 19,5 MB als PNG. Genau diese Datei haengt der Ergebnis-Screen unveraendert in ein
