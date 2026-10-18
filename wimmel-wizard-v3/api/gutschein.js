@@ -5,6 +5,8 @@
 //   GET  ?mode=config                 Produkte, Preise, Wortlaute für die Seiten (aus gutschein-config.js)
 //   GET  ?mode=pdf&token=…            Gutschein-PDF, bei Bedarf neu erzeugt (signierter Token)
 //   GET  ?mode=statistik&key=…        Zähler/Feedback für Matthias (GUTSCHEIN_ADMIN_SCHLUESSEL)
+//   GET  ?mode=chipfiguren&key=…      Kuration (Auftrag 3 Teil 5): alle Figuren der Figuren-DB mit Bild-URL
+//   GET  ?mode=chipfigur-verwerfen&key=…&schluessel=…   eine Figur aus der DB werfen (Eintrag + Datei)
 //   POST { mode: "checkout", … }      Entwurf speichern, Stripe-Checkout anlegen -> { url }
 //   POST { mode: "status", session_id } Danke-Seite fragt, ob der Webhook durch ist
 //   POST { mode: "pruefen", code }    /einloesen: gültig? Produkt, Wert, Frist — kein Statuswechsel
@@ -45,6 +47,23 @@ module.exports = async (req, res) => {
         if (!key || req.query.key !== key) { res.status(401).json({ error: "Nicht erlaubt." }); return; }
         res.setHeader("Cache-Control", "no-store");
         res.status(200).json(await service.statistik());
+        return;
+      }
+      // Auftrag 3 Teil 5: Kuration der gemeinsamen Chip-Figuren -- hier, damit keine weitere
+      // Serverless-Funktion entsteht (gleicher Admin-Schluessel wie die Statistik).
+      if (mode === "chipfiguren" || mode === "chipfigur-verwerfen") {
+        const key = process.env.GUTSCHEIN_ADMIN_SCHLUESSEL;
+        if (!key || req.query.key !== key) { res.status(401).json({ error: "Nicht erlaubt." }); return; }
+        res.setHeader("Cache-Control", "no-store");
+        const db = require("./_lib/chip-figuren").mitDeps();
+        if (mode === "chipfiguren") {
+          const figuren = await db.liste();
+          res.status(200).json({ anzahl: figuren.length, figuren });
+          return;
+        }
+        const schluessel = String(req.query.schluessel || "").trim();
+        if (!schluessel) { res.status(400).json({ error: "schluessel fehlt." }); return; }
+        res.status(200).json({ schluessel, verworfen: await db.verwerfen(schluessel) });
         return;
       }
       res.status(400).json({ error: "Unbekannter mode." });

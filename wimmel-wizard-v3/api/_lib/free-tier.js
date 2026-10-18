@@ -137,6 +137,42 @@ async function figurenErlaubtUndGebucht(req, res, sessionId) {
   return true;
 }
 
+// chipFigurErlaubtUndGebucht(req, res, sessionId): das Tor fuer einen TREFFER aus der gemeinsamen
+// Figuren-Datenbank (Auftrag 3 Teil 5, api/char-job-start.js). Ein Treffer kostet keinen
+// fal.ai-Aufruf und zaehlt deshalb NICHT gegen das Figuren-Kontingent oben (FIGUREN_GRATIS 3),
+// sondern gegen einen eigenen Zaehler mit der Grenze FIGUREN_GRATIS_CHIPS (5) -- in der Gratis- wie
+// in der bezahlten Phase (FIGUREN_HART ist dieselbe Zahl). Gleiches Muster wie
+// figurenErlaubtUndGebucht(): atomar buchen, bei Ueberschreitung zuruecknehmen, fail-open.
+function chipFigurenKey(sessionId) { return "freitier:figuren_chips:" + sessionId; }
+async function chipFigurErlaubtUndGebucht(req, res, sessionId) {
+  if (!istGueltigeSessionId(sessionId)) {
+    res.status(400).json({ error: "Ungültige oder fehlende sessionId." });
+    return false;
+  }
+  const grenze = FIGUREN_GRATIS_CHIPS;
+  const key = chipFigurenKey(sessionId);
+  let stand;
+  try {
+    stand = await kvIncrWithExpiry(key, TTL);
+  } catch (e) {
+    return true; // fail-open
+  }
+  if (!Number.isFinite(stand)) return true;
+  if (stand > grenze) {
+    await kvCommandSafe(["decr", key]);
+    res.status(403).json({
+      error: "Eure fünf Figuren aus dem Figuren-Regal sind gezaubert! Für weitere braucht's ein Konto und 5 € Guthaben — angerechnet, sobald ihr bestellt.",
+      vorAufruf: true,
+      kontingent: "figuren_chips",
+      stand: grenze,
+      grenze,
+      grenzeArt: "gratis",
+    });
+    return false;
+  }
+  return true;
+}
+
 // bilderErlaubt(req, res, sessionId): DAS TOR für api/scene-job-start.js. Anders als bei Figuren
 // wird HIER NICHT gebucht (nur gelesen) — das Buchen passiert erst bei echtem Erfolg, siehe
 // bilderBuchen() unten und Kopfkommentar. Ein technisch fehlgeschlagener oder verworfener
@@ -190,5 +226,5 @@ async function bilderBuchen(sessionId) {
 module.exports = {
   FIGUREN_GRATIS, FIGUREN_GRATIS_CHIPS, FIGUREN_HART, BILDER_GRATIS, BILDER_HART,
   istGueltigeSessionId, bezahltStatus, fotoErlaubt, FOTO_GESPERRT_TEXT,
-  figurenErlaubtUndGebucht, bilderErlaubt, bilderBuchen,
+  figurenErlaubtUndGebucht, chipFigurErlaubtUndGebucht, bilderErlaubt, bilderBuchen,
 };

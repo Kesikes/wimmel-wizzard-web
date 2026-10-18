@@ -8,8 +8,30 @@
 // braucht nur ein paar schnelle fal.ai-Statusabfragen, niemals mehrere Minuten.
 const { kvGetJson, kvSetJson, kvTryLock, kvUnlock } = require("./_lib/kv");
 const { advanceCharacterJob } = require("./_lib/char-job-engine");
+const chipFiguren = require("./_lib/chip-figuren");
 
 const JOB_TTL_SECONDS = 60 * 60;
+
+// chipFigurAblegen(job) -> job (Auftrag 3 Teil 5, 18.10.2026): genau einmal, wenn ein Job mit
+// Chip-Schluessel fertig ist. Abgelegt wird nur ein Blatt OHNE Verstoesse -- ein Blatt mit
+// Maengeln darf nicht die gemeinsame Figur fuer alle werden (die Kundin behaelt es trotzdem).
+// Wirft nie: das Ablegen ist Zugabe, nicht Voraussetzung fuer die Zustellung.
+async function chipFigurAblegen(job) {
+  if (!job || job.status !== "done" || !job.chipSchluessel || job.chipGespeichert) return job;
+  const next = Object.assign({}, job, { chipGespeichert: true });
+  if (next.resultViolations !== 0 || !next.resultUrl) { next.chipAbgelegt = false; next.chipGrund = "verstoesse"; return next; }
+  try {
+    const r = await chipFiguren.mitDeps().ablegen({ schluessel: next.chipSchluessel, bildUrl: next.resultUrl, prompt: next.prompt, seed: next.resultSeed, verify: next.resultVerify });
+    next.resultUrlFal = next.resultUrl;
+    next.resultUrl = r.url;
+    next.chipAbgelegt = r.neu;
+  } catch (e) {
+    next.chipAbgelegt = false;
+    next.chipGrund = e && e.message ? e.message : String(e);
+    try { console.error("[CHIPFIGUR] Ablegen fehlgeschlagen (" + next.chipSchluessel + "): " + next.chipGrund); } catch (err) { /* egal */ }
+  }
+  return next;
+}
 
 module.exports = async (req, res) => {
   if (req.method !== "GET") {
@@ -53,6 +75,12 @@ module.exports = async (req, res) => {
         try {
           const frisch = await kvGetJson("charjob:" + jobId);
           job = await advanceCharacterJob(frisch || job, { FAL_KEY });
+          // NEU (Auftrag 3 Teil 5, 18.10.2026): ist der Job gerade fertig geworden und traegt er
+          // einen Chip-Schluessel (char-job-start.js, kein Treffer), wird das fehlerfreie Blatt
+          // jetzt in den eigenen Speicher kopiert und fuer alle eingetragen. resultUrl zeigt danach
+          // auf unseren Endpunkt (dauerhaft -- fal.media verfaellt nach 90 Tagen). Scheitert das
+          // Ablegen, behaelt die Kundin ihr Blatt unter der fal-URL; nur die DB geht leer aus.
+          job = await chipFigurAblegen(job);
           await kvSetJson("charjob:" + jobId, job, JOB_TTL_SECONDS);
         } finally {
           await kvUnlock(sperre);
@@ -69,3 +97,4 @@ module.exports = async (req, res) => {
 
   res.status(200).json({ job });
 };
+module.exports.chipFigurAblegen = chipFigurAblegen;

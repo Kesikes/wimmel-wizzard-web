@@ -16,8 +16,11 @@ Umgesetzt und committet (Details in `docs/auftrag3-rueckmeldung-2026-10-18.md`):
   (`SZENEN_AUFLOESUNG`, Standard 4K bis zum Vergleich: `dev-tools/aufloesung-2k-test.js`)
 - Foto-Figuren erst nach Aufladen/Gutschein: Karte gesperrt, Server lehnt ab, Test-Schalter
 - Gutschein-Feinschliff (Wasserzeichen, Mail-Grammatik, Live-Domain als Fallback)
-- **Offen:** Chip-Figuren-Datenbank (Teil 5) wartet auf die Speicher-Entscheidung (Vercel Blob
-  empfohlen), Alter-Stufen im Schlüssel und die charNote-Regel; Schlüssel-Modul liegt bereit.
+- Chip-Figuren-Datenbank (Teil 5): Vercel Blob (privat, `wimmel-wizard-figuren`) + Upstash;
+  gleiche Chips ohne Notiz → gleiche Figur ohne fal-Aufruf (bis 5 je Sitzung gratis), kein Treffer →
+  live und danach für alle abgelegt; Altersstufen ≤5/6–9/10–13/14+; „Noch einmal zeichnen“ bei
+  Regal-Figuren erst bezahlt; Kuration über `?mode=chipfiguren` / `chipfigur-verwerfen`.
+  **Offen:** Live-Test gegen den echten Store (Cowork hat kein Netz dorthin).
 
 ---
 

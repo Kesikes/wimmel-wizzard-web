@@ -28,6 +28,30 @@ module.exports = async (req, res) => {
   }
 
   const url = typeof req.query.url === "string" ? req.query.url : "";
+
+  // NEU (Auftrag 3 Teil 5, 18.10.2026): ?blob=<pfad> liefert eine Datei aus unserem PRIVATEN
+  // Vercel-Blob-Store (api/_lib/speicher.js) aus -- das ist die einzige oeffentliche Adresse der
+  // gemeinsamen Chip-Figuren (figuren/chips/...), fuer Browser UND fal.ai als Referenzbild. Kommt
+  // stattdessen ?url=<unsere eigene Proxy-URL mit blob=...> (sammelblattBauen() in pipeline.js
+  // packt jede Figuren-URL in den Proxy), wird sie hier ausgepackt statt uns selbst aufzurufen.
+  // Nur Pfade in den bekannten Ordnern (speicher.pfadGueltig), nie beliebige Dateien.
+  const speicher = require("./_lib/speicher");
+  const blobPfad = typeof req.query.blob === "string" ? req.query.blob : speicher.pfadAusUrl(url);
+  if (blobPfad) {
+    if (!speicher.pfadGueltig(blobPfad)) { res.status(400).json({ error: "Ungültiger Speicherpfad." }); return; }
+    try {
+      const datei = await speicher.lesen(blobPfad);
+      if (!datei) { res.status(404).json({ error: "Datei nicht gefunden." }); return; }
+      res.setHeader("Content-Type", datei.contentType);
+      // Pfade sind eindeutig (Zeit + Zufall je Datei, nie ueberschrieben) -> lang und immutable cachebar.
+      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      res.status(200).send(datei.bytes);
+    } catch (e) {
+      res.status(502).json({ error: "Speicher-Zugriff fehlgeschlagen: " + (e && e.message ? e.message : String(e)) });
+    }
+    return;
+  }
+
   const ALLOWED_HOST = /^https:\/\/([a-z0-9-]+\.)*fal\.(media|run)\//i;
   if (!ALLOWED_HOST.test(url)) {
     res.status(400).json({ error: "Ungültige oder nicht erlaubte Bild-URL." });

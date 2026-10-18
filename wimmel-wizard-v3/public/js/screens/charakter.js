@@ -284,6 +284,28 @@ function hairPhraseEn(s, isPet) {
   return [length && length.en, texture && texture.en, color && color.en, isPet ? "fur" : "hair"].filter(Boolean).join(" ");
 }
 
+// NEU (Auftrag 3 Teil 5, 18.10.2026): die Chip-Werte fuer die gemeinsame Figuren-Datenbank
+// (api/_lib/chip-figuren.js baut daraus den Schluessel). NUR ohne Notiz -- eine Figur mit Notiz wird
+// live erzeugt und bleibt in dieser Sitzung (Entscheidung Matthias 18.10.2026). Fehlt ein Haar-/
+// Fell-Chip, liefert der Server keinen Schluessel und zeichnet live -- hier wird nichts geprueft.
+function chipDatenFuerDb(s, person, isPet) {
+  if ((s.charNote || "").trim()) return null;
+  const colorSet = isPet ? FUR_COLORS : HAIR_COLORS;
+  const patternSet = isPet ? FUR_PATTERN : HAIR_TEXTURE;
+  const color = s.charHairColor != null ? colorSet[s.charHairColor] : null;
+  const texture = s.charHairTexture != null ? patternSet[s.charHairTexture] : null;
+  const length = s.charHairLength != null ? HAIR_LENGTH[s.charHairLength] : null;
+  return {
+    rolle: isPet ? "pet" : person.role,
+    tierart: isPet ? (person.role || "pet") : undefined,
+    alter: person.age,
+    haarfarbe: color ? color.en : "",
+    haarform: texture ? texture.en : "",
+    haarlaenge: length ? length.en : "",
+    besonderheit: s.charBesonderheit || "",
+  };
+}
+
 // NEU (Sammel-Runde 10.09.2026, Punkt C5+C6). Zwei zusammenhaengende Robustheits-Luecken in
 // generateCharacterImage()/generateCharacterImageFromPhoto():
 // C5 (Fehlermeldungs-Anker robust gegen Navigation): vorher wurde "errorP" (per
@@ -408,6 +430,8 @@ async function generateCharacterImage(person, buttons) {
     // eine gesetzte pendingJobId und setzt das Polling automatisch fort, statt einen Fehler zu
     // zeigen oder (schlimmer) eine zweite, parallele Generierung zu starten.
     const result = await Pipeline.runCharacterJobPolling(prompt, {
+      // Teil 5: Chip-Werte fuer die Figuren-Datenbank (null bei Notiz -> live, nicht abgelegt).
+      chips: chipDatenFuerDb(s, person, isPet),
       // NEU (23.09.2026): der Figuren-Prompt wird an der Person gespeichert -- das ist alles, was
       // "Noch einmal zeichnen" spaeter braucht (rund 1,5 KB je Figur). Das FOTO wird weiterhin
       // NICHT gespeichert: im Prompt steht nur die daraus gezogene Textbeschreibung, genau wie in
@@ -461,6 +485,10 @@ async function generateExtraViewsAndFinish(person, frontResult, sceneDescription
   AppState.updatePerson(person.id, {
     imageUrl: frontResult.url, imageSeed: frontResult.seed, sceneDescription,
     pendingJobId: null, pendingSceneDescription: null,
+    // Teil 5: stammt das Blatt aus der gemeinsamen Figuren-Datenbank (oder wurde dort abgelegt)?
+    // Jeder andere Weg (Foto, Detail aendern, Neu zeichnen) setzt das zurueck -- ab dann ist es
+    // eine Figur dieser Sitzung.
+    chipSchluessel: frontResult.chipSchluessel || null, chipTreffer: !!frontResult.chipTreffer,
     imageUrlSide: vorhanden.imageUrlSide || null,
     imageUrlBack: vorhanden.imageUrlBack || null,
     imageUrlThreeQuarter: vorhanden.imageUrlThreeQuarter || null,
@@ -1069,18 +1097,28 @@ Screens.charakterblatt = {
     // das hier wuerfelt die ganze Figur neu. Ohne gespeicherten Prompt (Figuren von vor dem
     // 23.09.2026) steht der Knopf da, sagt aber beim Druck ehrlich, dass er es nicht kann --
     // besser als ein Knopf, der still nichts tut oder gar nicht erst erscheint.
+    // NEU (Auftrag 3 Teil 5, 18.10.2026): Figuren aus der gemeinsamen Figuren-Datenbank (Chips
+    // ohne Notiz) bekommen in der Gratis-Phase KEIN "Noch einmal zeichnen" -- das Blatt ist fuer
+    // alle dasselbe, ein Wuerfeln kostet einen Live-Lauf. Stattdessen der Hinweis: Merkmale aendern.
+    // Bezahlt ist es erlaubt; das Ergebnis bleibt dann in dieser Sitzung (Server legt anzahl=1 nie ab).
+    if (neuZeichnenGesperrt(person)) {
+      btnRow.appendChild(h("div", {
+        style: { flex: "1", minHeight: "50px", display: "flex", alignItems: "center", padding: "6px 10px", border: "3px dashed rgba(26,26,24,.35)", fontSize: "11.5px", lineHeight: "1.35", color: "rgba(26,26,24,.75)" },
+      }, "Noch einmal zeichnen? Ändert einfach die Merkmale — dann zeichne ich eine neue Figur."));
+    } else {
     btnRow.appendChild(h("button", {
       type: "button", class: "h-black",
       style: { flex: "1", minHeight: "50px", background: "var(--paper)", border: "3px solid var(--ink)", fontSize: "13px", color: "inherit" },
       onClick: (ev) => neuZeichnen(person, [ev.currentTarget]),
     }, "Noch einmal zeichnen"));
+    }
     // Zusatztexte unter der Knopfreihe: sie sagen, WANN welcher Knopf der richtige ist. Das ist der
     // eigentliche Fix -- ein besserer Name allein raeumt die Verwechslung nicht aus.
     const btnHinweis = h("div", { style: { display: "flex", gap: "10px", marginTop: "6px" } });
     btnHinweis.appendChild(h("p", { style: { flex: "1", margin: "0", fontSize: "11px", lineHeight: "1.35", color: "rgba(26,26,24,.65)" } },
       "T-Shirt-Farbe, Brille, Frisur — alles andere bleibt genau so."));
     btnHinweis.appendChild(h("p", { style: { flex: "1", margin: "0", fontSize: "11px", lineHeight: "1.35", color: "rgba(26,26,24,.65)" } },
-      "ganz neu würfeln, wenn die Zeichnung selbst nicht passt."));
+      neuZeichnenGesperrt(person) ? "diese Figur kommt aus dem Figuren-Regal — gleich für alle, die diese Merkmale wählen." : "ganz neu würfeln, wenn die Zeichnung selbst nicht passt."));
     btnHinweis.appendChild(h("p", { style: { flex: "1", margin: "0" } }, ""));
     btnRow.appendChild(h("button", {
       type: "button", class: "h-black", style: { flex: "1", minHeight: "50px", background: "var(--ink)", color: "var(--paper)", border: "3px solid var(--ink)", fontSize: "13px" },
@@ -1228,11 +1266,20 @@ function buildCharEditPanel(person) {
 // und drueckt lieber noch einmal, als zwei zu bezahlen.
 // Die Zusatz-Ansichten und die Blattbeschreibung entstehen danach neu (generateExtraViewsAndFinish),
 // sonst gehoerten sie zum alten Bild.
+// neuZeichnenGesperrt(person): Teil 5 -- Figur aus der Figuren-Datenbank UND Gratis-Phase.
+function neuZeichnenGesperrt(person) {
+  return !!(person && person.chipSchluessel) && !(AppState.data && AppState.data.bezahlt);
+}
 async function neuZeichnen(person, buttons) {
   if (charGenBusy) return;
   const el = charGenErrorEl("char-neu-error");
   const zeig = (t) => { const e = charGenErrorEl("char-neu-error"); if (e) { e.textContent = t; e.style.display = "block"; } };
   if (el) el.style.display = "none";
+  if (neuZeichnenGesperrt(person)) {
+    // Auch ueber den Stil-Kasten ("Ja, noch einmal zeichnen") erreichbar -- gleiche Regel.
+    zeig("Diese Figur kommt aus unserem Figuren-Regal. Ändert einfach die Merkmale — dann zeichne ich eine neue.");
+    return;
+  }
   const prompt = person.charPrompt;
   if (!prompt) {
     // Ehrlich statt still: diese Figur ist vor dem 23.09.2026 entstanden, ihr Prompt wurde damals

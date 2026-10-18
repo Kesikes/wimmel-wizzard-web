@@ -4,8 +4,8 @@ Stand: 18.10.2026 (abends) · Umsetzung: Claude (Cowork) · Grundlage: Cowork-Au
 `docs/sortiment-beschluss-2026-10-16.md`, `docs/gutschein-briefing-2026-10-18.md`
 
 Alles committet, nichts gepusht. Nur App-/Backend-Dateien angefasst (api/**, public/js/**, app.html,
-ein neues Asset), keine Landingpage-Dateien. Tests: `cd wimmel-wizard-v3 && npm test` → 52 grün.
-**Teil 5 (Chip-Datenbank) ist bis zur Speicher-Entscheidung vorbereitet, nicht gebaut** (Abschnitt 6).
+ein neues Asset), keine Landingpage-Dateien. Tests: `cd wimmel-wizard-v3 && npm test` → 61 grün.
+**Teil 5 (Chip-Datenbank) ist nach den Entscheidungen vom 18.10. abends gebaut** (Abschnitt 6.4).
 
 ---
 
@@ -18,7 +18,8 @@ ein neues Asset), keine Landingpage-Dateien. Tests: `cd wimmel-wizard-v3 && npm 
 | `60bbc32` | 1+2 Produktlogik, Kontingente | `public/js/produkte.js` (neu), `state.js`, `entscheidung.js`, `checkout.js`, `dashboard.js`, `app-shell.js`, `app.html`, `free-tier.js`, `test/produkte.test.js` | Client-Produkte gegen Server-Config, Dashboard-Sätze, Kontingente; Dashboard/Und-jetzt/Bestellen headless gerendert |
 | `e3b088f` | 3 Format 3:2 / 1,414, 2K-Schalter | `api/_lib/format.js` + `public/js/format.js` (neu), `scene-job-engine.js`, `fal-proxy.js`, `pipeline.js`, `szene.js`, `assets/leere-leinwand-3x2.jpg` (neu), `dev-tools/aufloesung-2k-test.js` (neu), `test/format.test.js` | Konstanten Server = Client, Engine/Proxy nutzen sie, Schalter; Testskript im TROCKEN-Modus gegen eine gesicherte Sitzung gelaufen |
 | `89ee133` | 4 Foto-Sperre | `charakter.js`, `fal-proxy.js`, `free-tier.js`, `pipeline.js`, `state.js`, `app-shell.js`, `gutschein-service.js`, `gutschein.js`, `test/foto-sperre.test.js` | 403 vor jedem fal-Aufruf, Test-Schalter, Zähler; beide Zustände headless gerendert |
-| (dieser) | 5 Vorbereitung + Docs | `api/_lib/chip-figuren.js` (neu, nur Schlüssel), `test/chip-figuren.test.js`, dieses Doc, Fortschritt | Schlüssel-Normalisierung, Wertevorrat = Chip-Listen in charakter.js |
+| `1b74875` | 5 Vorbereitung + Docs | `api/_lib/chip-figuren.js` (neu, nur Schlüssel), `test/chip-figuren.test.js`, dieses Doc, Fortschritt | Schlüssel-Normalisierung, Wertevorrat = Chip-Listen in charakter.js |
+| (dieser) | 5 Chip-Figuren-Datenbank | `api/_lib/speicher.js` (neu), `chip-figuren.js`, `free-tier.js`, `char-job-start.js`, `char-job-status.js`, `image-proxy.js`, `gutschein.js`, `pipeline.js`, `charakter.js`, `test/speicher.test.js` (neu), `test/chip-figuren.test.js` | 9 Tests (Blob-REST-Form, Pfadregeln, DB ablegen/treffer/verwerfen, Wettlauf, Treffer-Pfad bis Zähler 5, Ablegen nach „done“); Figurenblatt headless in drei Zuständen |
 
 ---
 
@@ -175,6 +176,55 @@ Merkmale“), bezahlt erlaubt und Ergebnis nur in der Sitzung · Kuratieren: `GE
 /api/gutschein?mode=chipfigur-verwerfen&key=…&schluessel=…` mit Admin-Schlüssel · optional Vorwärm-
 Skript mit Anzahl/Kosten vorab.
 
+### 6.4 Gebaut (18.10.2026 abends, nach deinen Entscheidungen)
+
+**Entscheidungen:** Vercel Blob, Store `wimmel-wizard-figuren` (fra1, PRIVATE) · Alter in Stufen
+≤5 / 6–9 / 10–13 / 14+ · mit Notiz live und nicht in die DB, ohne Notiz aus der DB · kein Vorwärmen ·
+Ordner `figuren/`, `originale/`, `druck/`.
+
+**Speicher `api/_lib/speicher.js`** – reine `fetch()`-Aufrufe, kein Paket; Form aus `@vercel/blob`
+2.8.2 abgelesen (API-Version 13): Schreiben `PUT https://vercel.com/api/blob/?pathname=…` mit
+`authorization: Bearer`, `x-vercel-blob-store-id`, `x-vercel-blob-access: private`, `x-content-type`,
+`x-add-random-suffix: 0`, `x-allow-overwrite: 0`; Lesen `GET https://{storeId}.private.blob.vercel-storage.com/{pfad}`
+mit Bearer-Token; Löschen `POST …/delete {urls}`. Store-ID aus `BLOB_STORE_ID` oder aus dem Token.
+Pfade nur in den drei Ordnern (`pfadGueltig`), nie `..`. Da der Store privat ist, liefert
+`api/image-proxy.js?blob=<pfad>` die Dateien aus (lange, immutable cachebar – jede Datei hat einen
+eindeutigen Pfad `figuren/chips/<schlüssel>/<zeit>-<zufall>.png`). Diese Proxy-URL ist auch das, was
+fal.ai als Helden-Referenz holt. `sammelblattBauen()` packt Figuren-URLs in `?url=` – der Proxy packt
+die eigene Adresse wieder aus statt sich selbst aufzurufen.
+
+**Datenbank** (Upstash): `chipfigur:{schlüssel}` Hash (`pfad`, `prompt`, `seed`, `erzeugt_am`, `treffer`,
+`verify`), Set `chipfiguren:alle`. Schlüssel jetzt mit Altersstufe: `girl|6-9|blonde|straight|long|gummistiefel`.
+Kinder-Kombinationen: 2 × 4 × 324 = **2 592**, Menschen gesamt **3 888** (statt 12 960).
+
+**Ablauf** (`char-job-start.js` / `char-job-status.js`):
+- Client (`charakter.js`) schickt `chips` nur bei Erst-Erzeugung **ohne Notiz**; `pipeline.js` reicht sie durch.
+- **Treffer:** Job sofort `done` mit der gespeicherten Figur, kein fal.ai-Aufruf; eigener Zähler
+  `freitier:figuren_chips:{sid}` bis `FIGUREN_GRATIS_CHIPS` (5), das Figuren-Kontingent (3) bleibt unberührt;
+  Trefferzähler in der DB hochgezählt. Stopptext: „Eure fünf Figuren aus dem Figuren-Regal …“.
+- **Kein Treffer:** live wie bisher; der Job merkt sich den Schlüssel. Beim Poll, der den Job auf `done`
+  setzt, wird das Blatt von fal.media in den Store kopiert, eingetragen und `resultUrl` auf die
+  Proxy-URL umgebogen (dauerhaft statt 90 Tage). Abgelegt wird nur ein Blatt **ohne Verstöße**
+  (`resultViolations === 0`); mit Verstößen behält die Kundin ihr Blatt, die DB bleibt leer.
+  Wettlauf zweier Sitzungen: `HSETNX` – der Erste gewinnt, der Zweite löscht seine Datei wieder.
+- Plausibilitätsprüfung vor dem Ablegen (`passtZumPrompt`): Rolle, Haar-/Fellphrase und Stilschwanz müssen
+  im Client-Prompt stehen – sonst kein Eintrag (ein manipulierter Client soll nicht für alle hinterlegen).
+- „Noch einmal zeichnen“ (anzahl 1) geht nie an die DB. Detail ändern / Foto / Neu zeichnen setzen
+  `chipSchluessel` an der Person zurück – ab dann ist es eine Figur dieser Sitzung.
+
+**Client:** Figur aus dem Regal **und** Gratis-Phase → kein „Noch einmal zeichnen“-Knopf, stattdessen
+„Ändert einfach die Merkmale — dann zeichne ich eine neue Figur.“ (auch der Stil-Kasten läuft auf diesen
+Hinweis). Bezahlt (`AppState.bezahlt`, `/app?bezahlt=an`) ist der Knopf da; Ergebnis bleibt in der Sitzung.
+
+**Kuration** (Admin-Schlüssel, in `api/gutschein.js`, keine neue Funktion):
+`GET /api/gutschein?mode=chipfiguren&key=…` → alle Figuren mit Bild-URL, Treffern, Datum;
+`GET /api/gutschein?mode=chipfigur-verwerfen&key=…&schluessel=girl|6-9|…` → Eintrag + Datei weg, die
+nächste Kundin mit diesen Chips erzeugt live neu (und legt wieder ab).
+
+**Nicht in Cowork testbar (Netz):** der echte Blob-Store. Erster Live-Test: in der App eine Chip-Figur
+ohne Notiz zeichnen, dann `?mode=chipfiguren` aufrufen – ein Eintrag mit `image-proxy?blob=…`-URL, das Bild
+muss im Browser laden. Dann in einer zweiten Sitzung dieselben Chips: sofort fertig, `chipTreffer:true`.
+
 ## 7. Teil 6 – Feinschliff Gutschein
 
 - Wasserzeichen: ein dezenter Schriftzug „Wimmel Wizard · {Code}“ am unteren Rand (18 % Deckung), keine
@@ -194,10 +244,14 @@ Skript mit Anzahl/Kosten vorab.
 | `SZENEN_AUFLOESUNG` | `2K` oder `4K` für Szenen | `4K` (nach dem Vergleich auf `2K`) |
 | `TEST_BEZAHLT_SESSION_IDS` | Session-IDs (oder `*`), die als bezahlt gelten – nur zum Testen | leer |
 | `FAL_PROXY_TEST_TOKEN` | Header `x-test-token` für manuelle fal-proxy-Aufrufe ohne Sitzung | leer |
+| `BLOB_READ_WRITE_TOKEN` | Vercel Blob (Integration setzt sie); Store-ID steckt im Token | gesetzt |
+| `BLOB_STORE_ID` | optional, sonst aus dem Token | gesetzt |
+| `BLOB_WEBHOOK_PUBLIC_KEY` | von der Integration gesetzt, derzeit unbenutzt (keine Blob-Webhooks) | – |
 
 ## 9. Offene Punkte
 
-- [ ] Entscheidung Speicher (6.3), Alter im Schlüssel (6.1), charNote-Regel (6.2) → dann Teil 5 bauen.
+- [x] Entscheidung Speicher (6.3), Alter im Schlüssel (6.1), charNote-Regel (6.2) → Teil 5 gebaut (6.4).
+- [ ] Teil 5 live prüfen (6.4, letzter Absatz): Blob-Store erreichbar, Bild über `image-proxy?blob=` ladbar, Treffer in zweiter Sitzung.
 - [ ] 2K-Vergleich laufen lassen (Abschnitt 4), dann `SZENEN_AUFLOESUNG=2K`.
 - [ ] `/assets/foto-vorher.webp` und `foto-nachher.webp` liefern.
 - [ ] Entscheidungsregister: Prompt-Fassung `2026-10-18a` (Rand rundum, 3:2) eintragen.
