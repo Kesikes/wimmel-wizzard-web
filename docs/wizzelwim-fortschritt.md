@@ -7,6 +7,20 @@ werden muss, und was warten kann. Es wird bei größeren Meilensteinen fortgesch
 
 ---
 
+## 🛠️ Auftrag 3 (18.10.2026 abends): App auf das Sortiment umgebaut
+
+Umgesetzt und committet (Details in `docs/auftrag3-rueckmeldung-2026-10-18.md`):
+- `/api/fal-proxy` nur noch mit bekannter Sitzung/Job (403 sonst), zweiter Zähler je Sitzung
+- Produktlogik heft/buch (feste Preise, 4/7 Bilder), Dashboard-Sätze, Kontingent 7 Bilder
+- Szenen 3:2 → Druck 1,414:1 (Beschnitt seitlich), Rand rundum im Prompt, 2K-Schalter
+  (`SZENEN_AUFLOESUNG`, Standard 4K bis zum Vergleich: `dev-tools/aufloesung-2k-test.js`)
+- Foto-Figuren erst nach Aufladen/Gutschein: Karte gesperrt, Server lehnt ab, Test-Schalter
+- Gutschein-Feinschliff (Wasserzeichen, Mail-Grammatik, Live-Domain als Fallback)
+- **Offen:** Chip-Figuren-Datenbank (Teil 5) wartet auf die Speicher-Entscheidung (Vercel Blob
+  empfohlen), Alter-Stufen im Schlüssel und die charNote-Regel; Schlüssel-Modul liegt bereit.
+
+---
+
 ## 🎟️ Neu seit 18.10.2026: Paket 1 „Gutscheine verkaufen" ist gebaut
 
 Vor dem fertigen Produkt kommt der Gutschein (Validierungstest, Weihnachts-Geschenkpfad), siehe
@@ -64,6 +78,7 @@ Erstattungs-Batch (Paket 3), Sortiments-Umbau der App, Peecho.
 - [ ] Bildwahl verbindlich machen — Mechanik nur als Idee, nicht gebaut.
 - [ ] 90-Tage-Haltbarkeit bei fal — gekaufte Bilder brauchen spätestens beim
       Kauf einen eigenen Speicherort, sonst nach 3 Monaten nicht mehr druckbar.
+      Speicher-Vorschlag (Vercel Blob / R2) liegt vor (Auftrag-3-Rückmeldung, 6.3).
 - [ ] Chat-Weg-Robustheit — Sperre gegen fehlende Wünsche greift, aber die
       Ursache (Modell lässt Situationen oft weg) ist unverstanden.
 
