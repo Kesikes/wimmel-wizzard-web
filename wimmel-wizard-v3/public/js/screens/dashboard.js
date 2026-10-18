@@ -9,14 +9,12 @@
    Referenz — es gibt (anders als bei Personen) kein festes Bild-Roster.
    ========================================================================== */
 
-const IMAGE_TARGET = 5;
-// NEU (22.09.2026, Nutzer-Befund "Wimmelbilder 34 von 5"): Zaehler und Vorschau bei mehr Bildern
-// als dem Buchumfang. IMAGE_TARGET ist der groesste Buchumfang (5 Bilder, Konzeptpapier
-// Abschnitt 3). Darueber zeigt der Zaehler die echte Zahl ohne "von 5", der Ring bleibt voll, und
-// der Text sagt, dass nicht alle ins Buch passen. WELCHE Bilder ins Buch kommen, ist eine offene
-// Produktfrage (Register, Abschnitt 15) -- hier wird nichts versprochen.
-function bilderZaehler(n) { return n > IMAGE_TARGET ? String(n) : n + "/" + IMAGE_TARGET; }
-function bilderStand(n) { return n > IMAGE_TARGET ? n + " (ins Buch passen höchstens " + IMAGE_TARGET + ")" : n + " von " + IMAGE_TARGET; }
+// GEAENDERT (Auftrag 3 Teil 1, 18.10.2026): Bildziel aus produkte.js -- der Ring laeuft erst auf das
+// Wimmelheft (4) zu, danach auf das Wimmelbuch (7). Darueber zeigt der Zaehler die echte Zahl, der
+// Ring bleibt voll, der Satz sagt, dass nur 7 ins Buch passen (bilderSatz()).
+const IMAGE_TARGET = BILDER_MAX;
+function bilderZaehler(n) { const ziel = bilderZielFuer(n).bilder; return n > IMAGE_TARGET ? String(n) : n + "/" + ziel; }
+function bilderStand(n) { return bilderSatz(n); }
 
 Screens.dashboard = {
   render(root) {
@@ -106,7 +104,7 @@ Screens.dashboard = {
 
     const doneImages = AppState.doneImagesCount();
     cards.appendChild(buildBlockCard({
-      ring: Math.min(100, Math.round((doneImages / IMAGE_TARGET) * 100)),
+      ring: Math.min(100, Math.round((doneImages / bilderZielFuer(doneImages).bilder) * 100)),
       ringLabel: bilderZaehler(doneImages),
       shadow: "var(--ink)",
       title: "Wimmelbilder",
@@ -242,7 +240,7 @@ function buildDesktopDashboard(s, notice) {
   stand.appendChild(h("p", { class: "h-black", style: { margin: "0 0 12px", fontSize: "12px", letterSpacing: ".08em" } }, "Stand jetzt"));
   stand.appendChild(standRow("Figuren", dDoneChars + " von " + dTotalChars));
   stand.appendChild(standRow("Wimmelbilder", bilderStand(dDoneImages)));
-  stand.appendChild(standRow("Produkt", TIERS[s.tier].name + " · " + TIERS[s.tier].price));
+  stand.appendChild(standRow("Produkt", produkt(s.tier).name + " · " + produkt(s.tier).preis));
   stand.appendChild(h("p", { class: "caveat", style: { margin: "12px 0 0", fontSize: "20px", lineHeight: "1.1" } }, "nichts davon ist verbindlich."));
   aside.appendChild(stand);
   grid.appendChild(aside);
@@ -316,8 +314,8 @@ function bildBody(s, doneImages) {
   const label = lastDone && lastDone.title ? "„" + lastDone.title + "“" : "ein Bild";
   // GEAENDERT (22.09.2026): "zuletzt fertig" statt "X ist fertig" -- bei mehreren Bildern mit
   // verschiedenen Themen war unklar, welches gemeint ist. Ab dem Buchumfang ein ehrlicher Zusatz.
-  if (doneImages > IMAGE_TARGET) return doneImages + " Bilder gezaubert, zuletzt " + label + ". Ins Buch passen höchstens " + IMAGE_TARGET + ".";
-  return "Zuletzt fertig: " + label + ". Nächste Szene wartet.";
+  if (doneImages > IMAGE_TARGET) return doneImages + " Bilder gezaubert, zuletzt " + label + ". " + bilderSatz(doneImages);
+  return "Zuletzt fertig: " + label + ". " + bilderSatz(doneImages);
 }
 
 function standRow(label, value) {

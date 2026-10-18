@@ -6,7 +6,7 @@
 // ZWEI ZÄHLER, VOLLSTÄNDIG UNABHÄNGIG VONEINANDER (Abschnitt 2 des Auftrags — kein gemeinsamer
 // Gate-Check, siehe dortiges Beispiel: Figuren und Wimmelbilder laufen komplett getrennt):
 //   Figuren:      3 kostenlos, 5 hart (auch nach Bezahlung)
-//   Wimmelbilder: 1 kostenlos, 6 hart (auch nach Bezahlung)
+//   Wimmelbilder: 1 kostenlos, 7 hart (auch nach Bezahlung; seit 18.10.2026, vorher 6)
 //
 // FIGUREN (Abschnitt 2.1): JEDE Generierung zählt, auch "Neu zeichnen" (komplette
 // Neu-Generierung derselben Figur zählt wie eine zusätzliche) und auch ein technisch
@@ -34,10 +34,17 @@
 // Baustein C fertig und testbar sein (siehe Abschnitt 0/10 des Auftrags, Reihenfolge A→B→C→D).
 const { kvIncrWithExpiry, kvCommandSafe } = require("./kv");
 
+// GEAENDERT (Auftrag 3 Teil 2, 18.10.2026, Sortiment-Beschluss): BILDER_HART 6 -> 7, damit das
+// Wimmelbuch (genau 7 Bilder) erreichbar ist. BILDER_GRATIS bleibt 1.
+// NEU: FIGUREN_GRATIS_CHIPS = 5 -- Chip-Figuren aus der gemeinsamen Figuren-Datenbank (Teil 5)
+// zaehlen bis zu dieser Zahl NICHT als bezahlte Figuren; FIGUREN_GRATIS (3) gilt fuer live
+// erzeugte Figuren, FIGUREN_HART (5) ist die harte Obergrenze fuer alle. Foto-Figuren gibt es nur
+// bezahlt (Teil 4, fotoErlaubt()).
 const FIGUREN_GRATIS = 3;
+const FIGUREN_GRATIS_CHIPS = 5;
 const FIGUREN_HART = 5;
 const BILDER_GRATIS = 1;
-const BILDER_HART = 6;
+const BILDER_HART = 7;
 
 // Gleiche Lebensdauer wie die anonyme Session selbst (SESSION_TTL_SECONDS in api/session.js,
 // 90 Tage) — ein Zähler, der vor der Session selbst abläuft, würde das Kontingent unbeabsichtigt
@@ -163,7 +170,7 @@ async function bilderBuchen(sessionId) {
 }
 
 module.exports = {
-  FIGUREN_GRATIS, FIGUREN_HART, BILDER_GRATIS, BILDER_HART,
+  FIGUREN_GRATIS, FIGUREN_GRATIS_CHIPS, FIGUREN_HART, BILDER_GRATIS, BILDER_HART,
   istGueltigeSessionId, bezahltStatus,
   figurenErlaubtUndGebucht, bilderErlaubt, bilderBuchen,
 };

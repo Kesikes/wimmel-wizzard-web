@@ -1,16 +1,19 @@
 /* ==========================================================================
    Wimmel Wizard v3 — Screens „Bestellen" und „Fertig" (Schritt 6)
    Texte wörtlich aus referenz/App-Flow-v4-OatlyWimmel.dc.html.
-   Hinweis: Die Bestellkarte zeigt wie in Referenz und Briefing-Text literal
-   immer „Mini-Wimmelbuch · 49 €", unabhängig von der Tier-Wahl im
-   Entscheidungsscreen (der Bottom-Bar-CTA "Jetzt bestellen · 49 €" ist in
-   beiden Quellen ebenfalls statisch) — bei Bedarf leicht auf AppState.data.tier
-   umstellbar.
+   GEAENDERT (Auftrag 3 Teil 1, 18.10.2026): die Bestellkarte zeigt das gewaehlte Produkt
+   (AppState.data.tier = "heft" | "buch") mit Umfang und Preis aus public/js/produkte.js --
+   reine Anzeige, der echte Bestell-Checkout mit Stripe/Peecho ist Paket 2/3.
    ========================================================================== */
 
 const PAYS = ["PayPal", "Kreditkarte", "Klarna", "Rechnung"];
 
 Screens.bestellen = {
+  // Bottom-Bar-Beschriftung mit dem echten Preis des gewaehlten Produkts (app-shell.js nextLabel-Muster).
+  nextLabel() {
+    const prod = produkt(AppState.data.tier);
+    return { l: "Jetzt bestellen · " + prod.preis, s: "Endpreis inkl. Versand, keine Extras" };
+  },
   render(root) {
     const s = AppState.data;
     const wrap = h("section", { class: "scr-pad" });
@@ -21,11 +24,10 @@ Screens.bestellen = {
     const orderCard = h("div", { style: { display: "flex", gap: "12px", border: "4px solid var(--ink)", background: "var(--paper)", boxShadow: "6px 7px 0 var(--ink)", padding: "14px" } });
     orderCard.appendChild(h("img", { src: assetPath("example_gardasee.webp"), alt: "Euer Wimmelbuch", style: { flex: "none", width: "96px", border: "3px solid var(--ink)", alignSelf: "flex-start" } }));
     const orderText = h("div", { style: { flex: "1", minWidth: "0" } });
-    orderText.appendChild(h("p", { class: "h-black", style: { fontSize: "16px", lineHeight: "1", letterSpacing: "-.02em" } }, "Mini-Wimmelbuch"));
-    // Sammel-Runde 09.09.2026, Punkt A3: "Hardcover" -> "Softcover" (Hardcover-Variante kommt
-    // spaeter zurueck, siehe entscheidung.js TIERS und index.html Preise-Sektion).
-    orderText.appendChild(h("p", { style: { margin: "6px 0 0", fontSize: "13px", lineHeight: "1.4" } }, "2 Wimmelbilder + Figurenseite, 8 Seiten, Softcover, mit Widmung."));
-    orderText.appendChild(h("p", { class: "h-black", style: { margin: "8px 0 0", fontSize: "20px" } }, "49 €"));
+    const prod = produkt(s.tier);
+    orderText.appendChild(h("p", { class: "h-black", style: { fontSize: "16px", lineHeight: "1", letterSpacing: "-.02em" } }, prod.name));
+    orderText.appendChild(h("p", { style: { margin: "6px 0 0", fontSize: "13px", lineHeight: "1.4" } }, prod.kurz + ", " + prod.versand + "."));
+    orderText.appendChild(h("p", { class: "h-black", style: { margin: "8px 0 0", fontSize: "20px" } }, prod.preis));
     orderCard.appendChild(orderText);
     wrap.appendChild(orderCard);
 
@@ -52,7 +54,7 @@ Screens.bestellen = {
     });
     wrap.appendChild(payWrap);
 
-    wrap.appendChild(h("p", { style: { margin: "14px 0 0", fontSize: "12px", lineHeight: "1.45", color: "rgba(26,26,24,.7)" } }, "Gedruckt und gebunden in Deutschland. Deine Daten bleiben auf deutschen Servern. Fotos sind längst gelöscht."));
+    wrap.appendChild(h("p", { style: { margin: "14px 0 0", fontSize: "12px", lineHeight: "1.45", color: "rgba(26,26,24,.7)" } }, "Gedruckt und gebunden in der EU, versandkostenfrei nach DE, AT und CH."));
 
     root.appendChild(wrap);
     function rerender() { root.innerHTML = ""; Screens.bestellen.render(root); }

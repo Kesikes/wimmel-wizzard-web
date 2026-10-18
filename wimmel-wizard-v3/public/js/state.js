@@ -149,7 +149,10 @@ const DEFAULT_STATE = {
   testKoepfe: null,
 
   // Entscheidung / Widmung / Bestellung
-  tier: 1, // 0 Poster, 1 Wimmelbuch (ab 2 Bildern), 2 Wimmelbuch (ab 5 Bildern, comingSoon -- siehe entscheidung.js TIERS)
+  // GEAENDERT (Auftrag 3 Teil 1, 18.10.2026, Sortiment-Beschluss): tier ist jetzt die Produkt-ID
+  // "heft" | "buch" (public/js/produkte.js) statt einer Stufen-Zahl. Alte Staende mit Zahl (0 Poster,
+  // 1/2 Wimmelbuch) werden in bereinigeStand() auf "buch" abgebildet.
+  tier: PRODUKT_STANDARD,
   dedication: "",
   payMethod: 0,
 
@@ -226,6 +229,8 @@ function istAnzeigbareBildquelle(src) {
 function bereinigeStand(daten) {
   if (!daten || typeof daten !== "object") return { daten: daten, entfernt: 0 };
   let entfernt = 0;
+  // Auftrag 3 Teil 1: alte Stufen-Zahl (0/1/2) oder Unbekanntes -> Produkt-ID, Standard "buch".
+  daten.tier = produktNormalisieren(daten.tier);
   if (Array.isArray(daten.images)) {
     const behalten = daten.images.filter((b) => b && istAnzeigbareBildquelle(b.src));
     entfernt += daten.images.length - behalten.length;
@@ -352,8 +357,9 @@ const AppState = {
   // Größen/Optionen je Stufe, kein einzelner Festpreis mehr). Dritte Stufe (comingSoon:true, nicht
   // auswaehlbar) bleibt defensiv im Array, damit priceForTier(2) nicht still undefined liefert,
   // falls der Tier-Index jemals doch gesetzt wird.
+  // GEAENDERT (Auftrag 3 Teil 1): feste Preise aus produkte.js, kein "ab" mehr.
   priceForTier(tier) {
-    return ["ab 19 €", "ab 29 €", "ab 49 €"][tier];
+    return produkt(tier).preis;
   },
   currentPrice() {
     return this.priceForTier(this.data.tier);

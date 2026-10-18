@@ -3,65 +3,55 @@
    Texte wörtlich aus referenz/App-Flow-v4-OatlyWimmel.dc.html.
    ========================================================================== */
 
-// GEAENDERT (Sammel-Runde 11.09.2026, "Kleinere Änderung, Preis-/Produkttexte"): komplette neue
-// Copy, identisch zur Landingpage-Preissektion (index.html) -- "ab X €" statt Festpreis (versch.
-// Größen/Optionen je Stufe), Stufe 2 UND 3 beide "Wimmelbuch" genannt (Unterscheidung ueber die
-// Beschreibung). Die alten Eck-Tags ("sofort fertig"/"alles da") sind raus -- sie bezogen sich auf
-// die alte, jetzt ueberholte Kurzbeschreibung und die Landingpage-Karten haben ohnehin nie solche
-// Tags gehabt; fuer ein einheitliches Bild jetzt genauso schlicht wie dort. comingSoon:true (Stufe
-// 3) bleibt bestehen, jetzt aber mit echtem Overlay statt nur gedaempfter Karte + Eck-Badge (siehe
-// render() unten) -- gleiches Overlay-Muster wie auf der Landingpage.
-// GEAENDERT (24.09.2026, Nutzer nach dem Kundendurchlauf: "Produkte, fuer die noch Bilder fehlen,
-// bitte ausgegraut mit einem Stoerer 'weitere Bilder' zeigen. Klick darauf fuehrt zurueck zur
-// Szene."): minBilder sagt, wie viele fertige Wimmelbilder eine Stufe braucht. Die Zahlen stehen
-// schon in den Beschreibungstexten -- sie waren nur nirgends als Zahl hinterlegt, weshalb man eine
-// Stufe waehlen konnte, fuer die die Bilder fehlen.
-const TIERS = [
-  { name: "Poster", price: "ab 19 €", body: "ab 1 Wimmelbild, verschiedene Größen, mit oder ohne Rahmen.", minBilder: 1 },
-  { name: "Wimmelbuch", price: "ab 29 €", body: "ab 2 Wimmelbildern, verschiedene Größen, Softcover und Softseiten.", minBilder: 2 },
-  { name: "Wimmelbuch", price: "ab 49 €", body: "ab 5 Wimmelbildern, verschiedene Größen, Kartonseiten.", minBilder: 5, comingSoon: true }
-];
+// GEAENDERT (Auftrag 3 Teil 1, 18.10.2026, Sortiment-Beschluss 16.10.2026): genau zwei gleichwertige
+// Karten -- Wimmelheft (genau 4 Bilder, 29,90 €) und Wimmelbuch (genau 7 Bilder, 49,90 €), beide
+// inkl. Versand DE/AT/CH. Kein Poster, kein "ab", kein "Coming Soon". Namen, Preise und Bildzahlen
+// kommen aus public/js/produkte.js (eine Stelle). Eine Karte, fuer die noch Bilder fehlen, bleibt
+// sichtbar, aber gesperrt -- ein Klick fuehrt zur Szene (Nutzer-Entscheidung 24.09.2026).
+const TIERS = PRODUKT_REIHENFOLGE.map((id) => {
+  const p = PRODUKTE[id];
+  return { id: id, name: p.name, price: p.preis, body: p.kurz + ", " + p.versand + ".", minBilder: p.bilder };
+});
 
 Screens.entscheidung = {
   render(root) {
     const s = AppState.data;
     const wrap = h("section", { class: "scr-pad" });
 
-    wrap.appendChild(h("p", { class: "kicker kicker-red", style: { transform: "rotate(1.5deg)" } }, "Zwei Bilder fertig"));
-    wrap.appendChild(h("h1", { class: "h1-scr", style: { fontSize: "31px" } }, "Und jetzt?"));
-    wrap.appendChild(h("p", { class: "caveat-sub" }, "alle drei Wege sind richtig. auch der kurze."));
-
     // NEU (24.09.2026): wie viele Bilder es schon gibt. Gezaehlt werden fertige Bilder -- nicht
     // Fehlversuche, nicht laufende Jobs.
     const fertigeBilder = (s.images || []).filter((b) => b && b.src).length;
+    wrap.appendChild(h("p", { class: "kicker kicker-red", style: { transform: "rotate(1.5deg)" } }, fertigeBilder === 1 ? "Ein Bild fertig" : fertigeBilder + " Bilder fertig"));
+    wrap.appendChild(h("h1", { class: "h1-scr", style: { fontSize: "31px" } }, "Und jetzt?"));
+    wrap.appendChild(h("p", { class: "caveat-sub" }, "beide Wege sind richtig. auch der kleine."));
     const list = h("div", { style: { display: "flex", flexDirection: "column", gap: "12px" } });
     TIERS.forEach((t, i) => {
-      const on = s.tier === i;
+      const on = s.tier === t.id;
       // fehlend > 0: Diese Stufe braucht mehr Bilder, als da sind. Sie bleibt sichtbar (damit man
       // sieht, was es gibt), ist aber nicht waehlbar -- ein Klick fuehrt zur Szene, statt nichts zu
       // tun. Eine "Coming Soon"-Stufe bleibt "Coming Soon": das ist der staerkere Grund.
       const fehlend = Math.max(0, (t.minBilder || 0) - fertigeBilder);
-      const gesperrt = !!t.comingSoon || fehlend > 0;
-      // GEAENDERT (Punkt 16 + Sammel-Runde 11.09.2026 Preis-/Produkttexte): comingSoon-Stufen sind
+      const gesperrt = fehlend > 0;
+      // (Historie: bis 18.10.2026 gab es hier zusaetzlich eine "Coming Soon"-Stufe.) Gesperrte Stufen sind
       // sichtbar, aber bewusst NICHT auswaehlbar -- ein echtes Overlay (siehe weiter unten) statt nur
       // einer gedaempften Karte + Eck-Badge macht das jetzt genauso deutlich wie auf der Landingpage
       // (index.html, Preise-Sektion, gleiches Muster). Verhindert, dass jemand versehentlich eine
       // noch nicht bestellbare Stufe waehlt und erst beim Bestellen merkt, dass nichts passiert.
       const btn = h("button", {
         type: "button",
-        disabled: !!t.comingSoon,
+        disabled: false,
         style: {
           position: "relative", display: "block", width: "100%", color: "inherit", padding: "16px", border: "4px solid var(--ink)",
           transform: "rotate(" + rot(i, ROT6_APP) + "deg)",
-          cursor: t.comingSoon ? "not-allowed" : "pointer",
+          cursor: "pointer",
           background: on ? "var(--yellow)" : "var(--paper)",
           boxShadow: on ? "6px 7px 0 var(--ink)" : "4px 5px 0 var(--ink)",
           overflow: "hidden"
         },
         // Nicht disabled, wenn nur Bilder fehlen -- der Klick soll ja etwas tun (zur Szene fuehren).
-        onClick: t.comingSoon ? null : (fehlend > 0
+        onClick: fehlend > 0
           ? () => Router.goScreen("szene")
-          : () => { AppState.update({ tier: i }); rerender(); })
+          : () => { AppState.update({ tier: t.id }); rerender(); }
       });
       const inner = h("div", { style: { opacity: gesperrt ? ".3" : "1" } });
       const top = h("span", { style: { display: "flex", alignItems: "baseline", gap: "8px" } });
@@ -70,11 +60,11 @@ Screens.entscheidung = {
       inner.appendChild(top);
       inner.appendChild(h("span", { style: { display: "block", marginTop: "7px", textAlign: "left", fontSize: "13px", lineHeight: "1.4" } }, t.body));
       btn.appendChild(inner);
-      if (t.comingSoon || fehlend > 0) {
+      if (fehlend > 0) {
         const overlay = h("div", { style: { position: "absolute", inset: "0", display: "flex", flexDirection: "column", gap: "6px", alignItems: "center", justifyContent: "center", background: "rgba(242,237,225,.55)" } });
         overlay.appendChild(h("span", { class: "h-black", style: { fontSize: "13px", letterSpacing: ".06em", textTransform: "uppercase", background: "rgba(26,26,24,.9)", color: "var(--paper)", padding: "8px 14px", transform: "rotate(-3deg)", boxShadow: "3px 4px 0 var(--ink)" } },
-          t.comingSoon ? "Coming Soon" : (fehlend === 1 ? "noch ein Bild" : "noch " + fehlend + " Bilder")));
-        if (!t.comingSoon) overlay.appendChild(h("span", { style: { fontSize: "11.5px", background: "var(--paper)", border: "2px solid var(--ink)", padding: "3px 7px" } }, "tippen \u2192 weiteres Bild zaubern"));
+          fehlend === 1 ? "noch ein Bild" : "noch " + fehlend + " Bilder"));
+        overlay.appendChild(h("span", { style: { fontSize: "11.5px", background: "var(--paper)", border: "2px solid var(--ink)", padding: "3px 7px" } }, "tippen \u2192 weiteres Bild zaubern"));
         btn.appendChild(overlay);
       }
       list.appendChild(btn);

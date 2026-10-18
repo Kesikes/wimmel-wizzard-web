@@ -28,9 +28,12 @@ const NEXT = [
   // wuerde alle nachfolgenden Eintraege um einen Index verschieben.
   { l: "Bild ansehen", s: "ich melde mich, wenn es fertig ist" },
   { l: "Bild ist fertig!", s: "nachbessern geht jederzeit noch" },
-  { l: "Mini-Wimmelbuch nehmen", s: "aufhören ist auch eine gute Wahl" },
+  // GEAENDERT (Auftrag 3 Teil 1, 18.10.2026): "Mini-Wimmelbuch nehmen" -> neutral, das gewaehlte
+  // Produkt steht auf der Karte selbst; Bestell-Knopf mit dem echten Preis aus produkte.js
+  // (siehe nextLabel() in checkout.js).
+  { l: "Dieses Produkt nehmen", s: "aufhören ist auch eine gute Wahl" },
   { l: "Weiter zur Bestellung", s: "Widmung ist freiwillig" },
-  { l: "Jetzt bestellen · 49 €", s: "Endpreis inkl. Versand, keine Extras" },
+  { l: "Jetzt bestellen", s: "Endpreis inkl. Versand, keine Extras" },
   // GEAENDERT (22.09.2026): der Satz kommt aus dem echten Speicherstand (speicherSatz()), siehe
   // renderBottomBar(). Vorher stand hier fest "wir haben alles gespeichert".
   { l: "Zurück zum Dashboard", s: null }
