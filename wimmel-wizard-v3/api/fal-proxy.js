@@ -91,6 +91,8 @@ async function fetchFalWithRetry(url, options, maxRetries) {
 }
 
 const { checkRateLimit } = require("./_lib/rate-limit");
+// NEU (Auftrag 3 Teil 0, 18.10.2026): Sitzungs-/Job-Pflicht, siehe api/_lib/sitzung.js.
+const { sitzungErforderlich } = require("./_lib/sitzung");
 const { MAX_PROMPT_ZEICHEN } = require("./_lib/grenzen");
 const { deckelErlaubt, deckelBuchen } = require("./_lib/kosten-deckel");
 const { logFalError, mediaLifecycleHeaders } = require("./_lib/fal-queue");
@@ -130,6 +132,10 @@ module.exports = async (req, res) => {
   // Zusatzansichten + mehrere Szenen samt "Nochmal zaubern"/Stift-Korrekturen + Verify-Aufrufe),
   // begrenzt aber, wie oft eine EINZELNE Quelle unser FAL_KEY-Guthaben pro Stunde verbrauchen kann.
   if (!(await checkRateLimit(req, res, { keyPrefix: "falproxy", limit: 40, windowSeconds: 3600 }))) return;
+  // NEU (Auftrag 3 Teil 0, 18.10.2026): zusaetzlich zur IP-Grenze muss der Aufruf eine dem Server
+  // bekannte Sitzung (body.sessionId) oder einen bekannten Job (body.jobId) nennen -- sonst 403.
+  // Alle Produkt-Aufrufer (pipeline.js generateImage()/verifyImage()) schicken die sessionId mit.
+  if (!(await sitzungErforderlich(req, res))) return;
   // NEU (23.09.2026): Tagesdeckel, siehe kosten-deckel.js. Gebucht wird nicht hier, sondern beim
   // tatsaechlichen Aufruf weiter unten -- hier steht nur das Tor.
   if (!(await deckelErlaubt(req, res, "stift"))) return;

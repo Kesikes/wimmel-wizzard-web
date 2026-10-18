@@ -4472,17 +4472,40 @@ async function aenderungErlaubt(elementTyp, elementId) {
   return true;
 }
 
-async function generateImage(prompt, kind, opts) {
-  opts = opts || {};
-  const resp = await fetch("/api/fal-proxy", {
+// NEU (Auftrag 3 Teil 0, 18.10.2026): api/fal-proxy.js nimmt nur noch Aufrufe mit einer dem Server
+// bekannten Sitzung an (api/_lib/sitzung.js). Die ID liegt in AppState; bekannt wird sie durch den
+// Speicherstand (app-shell.js speichert beim Start sofort). Antwortet der Server trotzdem mit
+// "Sitzung unbekannt" (z. B. erster Aufruf vor dem ersten erfolgreichen Speichern), wird EINMAL
+// gespeichert und der Aufruf wiederholt -- der Aufruf selbst hat bis dahin nichts gekostet
+// (vorAufruf).
+function aktuelleSessionId() {
+  return (window.AppState && AppState.data && AppState.data.sessionId) || null;
+}
+async function falProxyAufruf(bodyObj) {
+  const senden = () => fetch("/api/fal-proxy", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+    body: JSON.stringify(Object.assign({ sessionId: aktuelleSessionId() }, bodyObj)),
+  });
+  let resp = await senden();
+  if (resp.status === 403) {
+    const kopie = resp.clone();
+    const d = await kopie.json().catch(() => ({}));
+    if (d && d.sitzungUnbekannt && window.AppState && AppState.data) {
+      await saveSessionRemote(AppState.data.sessionId, AppState.data);
+      resp = await senden();
+    }
+  }
+  return resp;
+}
+
+async function generateImage(prompt, kind, opts) {
+  opts = opts || {};
+  const resp = await falProxyAufruf({
       prompt, kind,
       ...(opts.seed != null ? { seed: opts.seed } : {}),
       ...(opts.editImageUrl ? { imageUrl: opts.editImageUrl } : {}),
       ...(opts.styleRefUrls && opts.styleRefUrls.length ? { styleRefUrls: opts.styleRefUrls } : {}),
-    }),
   });
   const data = await parseJsonResponse(resp);
   // NEU (25.09.2026): der Fehler traegt mit, WORAN er gescheitert ist. Ohne das muss jeder Aufrufer
@@ -4528,11 +4551,7 @@ async function generateImageWithRetry(prompt, kind, opts) {
 // weiterhin gueltig (Rueckwaertskompatibel zu composeCharacterImage(), das keine Referenzbilder hat).
 async function verifyImage(imageUrl, verifyPrompt) {
   const imageUrls = Array.isArray(imageUrl) ? imageUrl.filter(Boolean) : [imageUrl];
-  const resp = await fetch("/api/fal-proxy", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ mode: "verify", imageUrls, verifyPrompt }),
-  });
+  const resp = await falProxyAufruf({ mode: "verify", imageUrls, verifyPrompt });
   const data = await parseJsonResponse(resp);
   if (!resp.ok || data.error) {
     const err = new Error(data.error || ("Verify-Fehler " + resp.status));
