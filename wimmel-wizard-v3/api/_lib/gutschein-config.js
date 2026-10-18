@@ -101,38 +101,48 @@ const RECHTSSEITEN = ["impressum", "agb", "widerrufsbelehrung", "datenschutz"];
 // echten Text einsetzt, verschwindet sie — nur daran erkennt der Server "echter Text".
 const PLATZHALTER_MARKER = "PLATZHALTER-RECHTSTEXT";
 
-function rechtsseitenStatus() {
+// rechtsseitenStatus() -> Promise<{impressum: "fertig"|"platzhalter"|"nicht lesbar", ...}>.
+// Zwei Wege, erst Datei, dann Netz: lokal (Tests, vercel dev) liegen die Seiten unter
+// public/rechts/; in der laufenden Serverless-Funktion sind sie nicht zwangsläufig mitgepackt,
+// dann wird die ÖFFENTLICH ausgelieferte Seite unter SITE_URL geholt — das ist ohnehin die
+// ehrlichere Prüfung ("was steht wirklich online?"). Ergebnis wird je Instanz 10 Minuten
+// gemerkt, damit nicht jeder Checkout vier Abrufe auslöst.
+let rechtsCache = { bis: 0, status: null };
+async function rechtsseitenStatus() {
+  if (rechtsCache.status && rechtsCache.bis > Date.now()) return rechtsCache.status;
   const fs = require("fs");
   const path = require("path");
   const ergebnis = {};
   for (const name of RECHTSSEITEN) {
-    const datei = path.join(process.cwd(), "public", "rechts", name + ".html");
-    try {
-      const txt = fs.readFileSync(datei, "utf8");
-      ergebnis[name] = txt.indexOf(PLATZHALTER_MARKER) === -1 ? "fertig" : "platzhalter";
-    } catch (e) {
-      // Datei nicht lesbar (z. B. nicht mit in die Funktion gepackt, siehe includeFiles in
-      // vercel.json): fail-safe = NICHT fertig. Lieber Testmodus als ein Live-Shop ohne Impressum.
-      ergebnis[name] = "nicht lesbar";
+    let txt = null;
+    try { txt = fs.readFileSync(path.join(process.cwd(), "public", "rechts", name + ".html"), "utf8"); } catch (e) { txt = null; }
+    if (txt === null) {
+      try {
+        const resp = await fetch(siteUrl() + "/" + name, { headers: { "User-Agent": "wimmel-wizard-rechtscheck" } });
+        if (resp.ok) txt = await resp.text();
+      } catch (e) { txt = null; }
     }
+    // Nicht lesbar = NICHT fertig (fail-safe): lieber Testmodus als ein Live-Shop ohne Impressum.
+    ergebnis[name] = txt === null ? "nicht lesbar" : (txt.indexOf(PLATZHALTER_MARKER) === -1 ? "fertig" : "platzhalter");
   }
+  rechtsCache = { bis: Date.now() + 10 * 60 * 1000, status: ergebnis };
   return ergebnis;
 }
-function rechtsseitenFertig() {
-  const st = rechtsseitenStatus();
+async function rechtsseitenFertig() {
+  const st = await rechtsseitenStatus();
   return RECHTSSEITEN.every((n) => st[n] === "fertig");
 }
 
-// stripeModus() -> "test" | "live". Live nur mit STRIPE_MODUS=live UND fertigen Rechtsseiten.
-function stripeModus() {
+// stripeModus() -> Promise<"test"|"live">. Live NUR mit STRIPE_MODUS=live UND fertigen Rechtsseiten.
+async function stripeModus() {
   const gewuenscht = String(process.env.STRIPE_MODUS || "test").toLowerCase();
   if (gewuenscht !== "live") return "test";
-  return rechtsseitenFertig() ? "live" : "test";
+  return (await rechtsseitenFertig()) ? "live" : "test";
 }
-// stripeSchluessel() -> { secret, webhookSecret, modus }. Je Modus ein eigener Satz Variablen,
-// damit nie ein Live-Schlüssel im Testbetrieb landet (oder umgekehrt).
-function stripeSchluessel() {
-  const modus = stripeModus();
+// stripeSchluessel() -> Promise<{ secret, webhookSecret, modus }>. Je Modus ein eigener Satz
+// Variablen, damit nie ein Live-Schlüssel im Testbetrieb landet (oder umgekehrt).
+async function stripeSchluessel() {
+  const modus = await stripeModus();
   const suffix = modus === "live" ? "_LIVE" : "_TEST";
   return {
     modus,
@@ -205,7 +215,7 @@ function euro(cent) {
 }
 
 // oeffentlicheConfig(): das, was die Seite braucht — ohne Schlüssel. Über /api/gutschein?mode=config.
-function oeffentlicheConfig() {
+async function oeffentlicheConfig() {
   return {
     marke: MARKE,
     produkte: Object.values(PRODUKTE).map((p) => ({ id: p.id, name: p.name, artikel: p.artikel, wert_cent: p.wert_cent, preis: euro(p.wert_cent), kurz: p.kurz, gutschein_hinweis: p.gutschein_hinweis })),
@@ -222,7 +232,7 @@ function oeffentlicheConfig() {
     site_url: siteUrl(),
     kontakt_email: kontaktEmail(),
     instagram_url: instagramUrl(),
-    stripe_modus: stripeModus(),
+    stripe_modus: await stripeModus(),
   };
 }
 

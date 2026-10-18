@@ -182,17 +182,19 @@ test("hashZuObjekt: Upstash-Liste und Objekt", () => {
   assert.equal(G.hashZuObjekt({ code: "x", bezahlt_cent: "1" }).bezahlt_cent, 1);
 });
 
-test("Livemodus-Schalter: ohne echte Rechtstexte bleibt es Testmodus", () => {
+test("Livemodus-Schalter: ohne echte Rechtstexte bleibt es Testmodus", async () => {
   const alt = process.env.STRIPE_MODUS;
   process.env.STRIPE_MODUS = "live";
   try {
     // process.cwd() ist beim Testlauf der App-Ordner: public/rechts/*.html enthalten Platzhalter
-    // (oder fehlen) -> nicht fertig -> test.
-    const st = cfg.rechtsseitenStatus();
+    // -> nicht fertig -> test. (Sobald Matthias echte Texte einsetzt, kippt dieser Test bewusst.)
+    const st = await cfg.rechtsseitenStatus();
     assert.deepEqual(Object.keys(st).sort(), ["agb", "datenschutz", "impressum", "widerrufsbelehrung"]);
-    if (!cfg.rechtsseitenFertig()) assert.equal(cfg.stripeModus(), "test");
+    if (!(await cfg.rechtsseitenFertig())) assert.equal(await cfg.stripeModus(), "test");
   } finally { if (alt === undefined) delete process.env.STRIPE_MODUS; else process.env.STRIPE_MODUS = alt; }
   process.env.STRIPE_MODUS = "test";
-  assert.equal(cfg.stripeModus(), "test");
+  assert.equal(await cfg.stripeModus(), "test");
+  const s = await cfg.stripeSchluessel();
+  assert.equal(s.modus, "test");
   delete process.env.STRIPE_MODUS;
 });

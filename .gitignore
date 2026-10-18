@@ -9,3 +9,6 @@ asset-originals-v3/stiltests-*/
 
 # Cowork-Ausgaben (Claude), nicht Teil des Repos
 Claude outputs/
+
+# Abhaengigkeiten (pdf-lib) werden von Vercel beim Deploy installiert
+node_modules/

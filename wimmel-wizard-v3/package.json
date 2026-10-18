@@ -1,0 +1,12 @@
+{
+  "name": "wimmel-wizard-v3",
+  "private": true,
+  "version": "3.0.0",
+  "description": "Wimmel Wizard v3 — Landingpage, App und Serverless-Funktionen. Einzige Abhängigkeit: pdf-lib für das Gutschein-PDF.",
+  "scripts": {
+    "test": "node --test 'test/*.test.js'"
+  },
+  "dependencies": {
+    "pdf-lib": "^1.17.1"
+  }
+}
