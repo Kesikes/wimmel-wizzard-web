@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Danke — Wimmel Wizard</title>
+<meta name="robots" content="noindex" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;500;600;700&family=Caveat:wght@600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/css/main.css" />
+<link rel="stylesheet" href="/css/gutschein.css" />
+</head>
+<body>
+<div class="app-shell" id="app">
+  <!-- NEU (Paket 1, Teil G): Danke-Seite nach Stripe Checkout. Stripe leitet hierher mit
+       ?session_id=cs_… — der Gutschein entsteht aber erst, wenn der Webhook durch ist (meist
+       1–3 s). Deshalb kurzes Polling gegen /api/gutschein mode=status. -->
+  <header id="lp-header" class="lp-header">
+    <a href="/" class="lp-logo"><img src="/assets/wizard-badge.webp" alt="" /><span class="h-black">Wimmel&nbsp;Wizard<sup style="font-size: 7px; vertical-align: super;">™</sup></span></a>
+    <a href="/app" class="h-black lp-cta">Los!</a>
+  </header>
+
+  <div class="gs-wrap">
+    <section id="warten">
+      <p class="h-black gs-kicker gelb">Zahlung angekommen</p>
+      <h1 class="h-black gs-h1">Einen Moment,<br />WizzelWim stellt<br />den Gutschein aus.</h1>
+      <div class="gs-kasten gs-warte"><span class="ring"></span><p class="gs-p" style="margin: 0;" id="warte-text">Das dauert normalerweise nur ein paar Sekunden …</p></div>
+    </section>
+
+    <section id="fertig" style="display: none;">
+      <p class="h-black gs-kicker">Danke!</p>
+      <h1 class="h-black gs-h1" id="titel">Dein Gutschein<br />ist da.</h1>
+      <p class="caveat gs-sub" id="sub">und die Mail mit dem PDF ist schon unterwegs.</p>
+
+      <div style="margin: 6px 0 22px;"><span class="h-black gs-code" id="code">WW-····-····</span></div>
+
+      <div class="gs-kasten" style="margin-bottom: 18px;">
+        <div class="gs-fakt"><span>Gutschein</span><b id="produkt">–</b></div>
+        <div class="gs-fakt"><span>Wert</span><b id="wert">–</b></div>
+        <div class="gs-fakt"><span>Einlösbar bis</span><b id="frist">–</b></div>
+        <div class="gs-fakt" id="zustellung-zeile" style="display: none;"><span>Zustellung</span><b id="zustellung">–</b></div>
+      </div>
+
+      <div class="gs-btn-reihe" style="margin-bottom: 18px;">
+        <a class="h-black gs-btn" id="pdf" href="#" target="_blank" rel="noopener">PDF herunterladen</a>
+        <button type="button" class="h-black gs-btn ink" id="teilen">Weiterleiten</button>
+      </div>
+      <p class="gs-klein" id="kopiert" style="display: none; margin: -8px 0 14px;"></p>
+      <p class="gs-p" id="einloesung-satz" style="margin-bottom: 18px;"></p>
+
+      <div class="gs-kasten gestrichelt" style="transform: rotate(-.5deg); margin-bottom: 26px;">
+        <p class="gs-p" style="margin: 0;" id="insta">Wir bauen Wimmel Wizard offen auf. Wer zuschauen will: <span id="insta-link">bald auf Instagram</span>.</p>
+      </div>
+
+      <h2 class="h-black gs-h2">Eine Frage noch</h2>
+      <p class="gs-p">Was hat dich überzeugt? Ein Satz reicht – wir lesen jede Antwort.</p>
+      <textarea class="gs-feld" id="fb-text" placeholder="z. B. die Garantie, die Idee, der Preis …"></textarea>
+      <div style="margin-top: 10px;"><button type="button" class="h-black gs-btn klein" id="fb-senden" style="max-width: 220px;">Abschicken</button></div>
+      <p class="gs-klein" id="fb-danke" style="margin-top: 8px;">Anonym – wir speichern nur den Text und das gewählte Produkt.</p>
+    </section>
+
+    <section id="problem" style="display: none;">
+      <p class="h-black gs-kicker">Hm.</p>
+      <h1 class="h-black gs-h1">Das dauert<br />gerade länger.</h1>
+      <p class="gs-p" id="problem-text">Deine Zahlung ist angekommen, der Gutschein braucht aber noch einen Moment. Die Mail mit Code und PDF kommt in jedem Fall – schau in ein paar Minuten in dein Postfach (auch im Spam-Ordner). Oder lade diese Seite gleich noch einmal.</p>
+      <div class="gs-btn-reihe" style="margin-top: 14px;"><button type="button" class="h-black gs-btn klein" onclick="location.reload()">Seite neu laden</button></div>
+      <p class="gs-klein" style="margin-top: 14px;">Wenn nach 15 Minuten nichts da ist: <a id="hilfe-mail" href="#">schreib uns</a>, mit Datum und Betrag der Zahlung.</p>
+    </section>
+  </div>
+
+  <footer class="gs-footer">
+    <div class="inner">
+      <nav>
+        <a href="/impressum">Impressum</a><a href="/datenschutz">Datenschutz</a><a href="/agb">AGB</a><a href="/widerrufsbelehrung">Widerrufsbelehrung</a><a href="#" id="gs-kontakt-link">Kontakt</a>
+      </nav>
+      <p style="margin: 0;">Wimmel Wizard · gedruckt in der EU · Hund inklusive</p>
+    </div>
+  </footer>
+</div>
+
+<script src="/js/gutschein-seiten.js"></script>
+<script>
+(function () {
+  var GS = window.GutscheinSeiten;
+  var $ = function (id) { return document.getElementById(id); };
+  var sessionId = new URLSearchParams(location.search).get("session_id") || "";
+  var CFG = null, DATEN = null;
+
+  GS.config().then(function (cfg) {
+    CFG = cfg; GS.footerFuellen(cfg);
+    $("hilfe-mail").href = "mailto:" + cfg.kontakt_email;
+    $("einloesung-satz").textContent = cfg.einloesung_ab_satz + " " + cfg.garantie_satz;
+    if (cfg.instagram_url) $("insta-link").innerHTML = '<a href="' + GS.esc(cfg.instagram_url) + '" target="_blank" rel="noopener" style="font-weight: 700; color: var(--red); text-decoration: underline;">Instagram</a>';
+  }).catch(function () {});
+
+  function zeigen(d) {
+    DATEN = d;
+    $("warten").style.display = "none";
+    $("fertig").style.display = "block";
+    $("code").textContent = d.code;
+    $("produkt").textContent = d.produkt_name + (d.empfaenger_name ? " für " + d.empfaenger_name : "");
+    $("wert").textContent = d.wert;
+    $("frist").textContent = d.einloesefrist;
+    if (d.versand_an === "empfaengerin") {
+      $("zustellung-zeile").style.display = "flex";
+      $("zustellung").textContent = d.versand_datum ? "per Mail am " + d.versand_datum : "per Mail, sofort";
+      $("sub").textContent = "die Mail mit dem PDF ist an dich unterwegs" + (d.versand_datum ? " – und am " + d.versand_datum + " an die Empfängerin." : " – und an die Empfängerin.");
+    }
+    $("pdf").href = d.pdf_url;
+    document.title = "Gutschein " + d.code + " — Wimmel Wizard";
+  }
+
+  var versuche = 0;
+  function abfragen() {
+    versuche++;
+    GS.post("status", { session_id: sessionId }).then(function (r) {
+      if (r.ungueltig) { $("warten").style.display = "none"; $("problem").style.display = "block"; $("problem-text").textContent = "Diese Seite braucht einen Link von der Bezahlseite. Wenn du gerade bezahlt hast: Die Mail mit Code und PDF kommt in jedem Fall."; return; }
+      if (r.bereit) { zeigen(r); return; }
+      if (versuche >= 30) { $("warten").style.display = "none"; $("problem").style.display = "block"; return; }
+      if (versuche === 8) $("warte-text").textContent = "Dauert heute etwas länger – wir bleiben dran …";
+      setTimeout(abfragen, versuche < 6 ? 1500 : 3000);
+    }).catch(function () {
+      if (versuche >= 30) { $("warten").style.display = "none"; $("problem").style.display = "block"; return; }
+      setTimeout(abfragen, 3000);
+    });
+  }
+  if (!sessionId) { $("warten").style.display = "none"; $("problem").style.display = "block"; }
+  else abfragen();
+
+  $("teilen").onclick = function () {
+    if (!DATEN) return;
+    var text = "Ich schenke dir " + (DATEN.produkt_name === "Wimmelheft" ? "ein Wimmelheft" : "ein Wimmelbuch") + " von Wimmel Wizard – eure Familie als Figuren! Dein Gutschein-Code: " + DATEN.code + " · " + DATEN.einloesen_url;
+    if (navigator.share) { navigator.share({ title: "Dein Wimmel Wizard Gutschein", text: text }).catch(function () {}); return; }
+    var k = $("kopiert");
+    (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(function () { k.textContent = "Text mit Code und Link kopiert – einfach einfügen."; k.style.display = "block"; })
+      .catch(function () { k.textContent = text; k.style.display = "block"; });
+  };
+
+  $("fb-senden").onclick = function () {
+    var t = $("fb-text").value.trim();
+    if (!t) return;
+    $("fb-senden").disabled = true;
+    GS.post("feedback", { art: "ueberzeugt", text: t, produkt: DATEN && DATEN.produkt_name === "Wimmelheft" ? "heft" : "buch", quelle: GS.quelle })
+      .then(function () { $("fb-danke").textContent = "Danke! Das lesen wir wirklich."; $("fb-text").value = ""; })
+      .catch(function () { $("fb-danke").textContent = "Hat gerade nicht geklappt – macht nichts."; })
+      .then(function () { $("fb-senden").disabled = false; });
+  };
+})();
+</script>
+</body>
+</html>

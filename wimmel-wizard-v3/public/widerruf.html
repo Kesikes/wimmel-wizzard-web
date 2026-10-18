@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gutscheinkauf widerrufen — Wimmel Wizard</title>
+<meta name="robots" content="noindex" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;500;600;700&family=Caveat:wght@600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/css/main.css" />
+<link rel="stylesheet" href="/css/gutschein.css" />
+</head>
+<body>
+<div class="app-shell" id="app">
+  <!-- NEU (Paket 1, Teil F): Bestätigungsseite für den Widerruf. Der Link in Mail 1 trägt einen
+       signierten Token (Code + letzter gültiger Tag). Erst der Klick auf "Ja, widerrufen" führt
+       den Widerruf aus: Status gekauft -> widerrufen, Stripe-Refund über den gezahlten Betrag,
+       Mail 7. -->
+  <header id="lp-header" class="lp-header">
+    <a href="/" class="lp-logo"><img src="/assets/wizard-badge.webp" alt="" /><span class="h-black">Wimmel&nbsp;Wizard<sup style="font-size: 7px; vertical-align: super;">™</sup></span></a>
+    <a href="/app" class="h-black lp-cta">Los!</a>
+  </header>
+
+  <div class="gs-wrap">
+    <section>
+      <p class="h-black gs-kicker">Widerruf</p>
+      <h1 class="h-black gs-h1">Gutscheinkauf<br />zurückgeben?</h1>
+      <p class="caveat gs-sub">kein Problem. kein Grund nötig.</p>
+
+      <div class="gs-kasten gs-warte" id="laden"><span class="ring"></span><p class="gs-p" style="margin: 0;">Einen Moment …</p></div>
+
+      <div id="frage" style="display: none;">
+        <div class="gs-kasten" style="margin-bottom: 16px;">
+          <div class="gs-fakt"><span>Gutschein</span><b id="code">–</b></div>
+          <div class="gs-fakt"><span>Produkt</span><b id="produkt">–</b></div>
+          <div class="gs-fakt"><span>Du bekommst zurück</span><b id="betrag">–</b></div>
+          <div class="gs-fakt"><span>Widerruf möglich bis</span><b id="bis">–</b></div>
+        </div>
+        <p class="gs-p">Mit dem Widerruf wird der Gutschein-Code sofort ungültig. Den gezahlten Betrag erstatten wir automatisch auf den Zahlungsweg, den du beim Kauf benutzt hast – je nach Bank dauert das 5–10 Werktage.</p>
+        <div class="gs-btn-reihe" style="margin-top: 14px;">
+          <button type="button" class="h-black gs-btn rot" id="ja">Ja, Kauf widerrufen</button>
+          <a class="h-black gs-btn" href="/" style="background: var(--paper);">Nein, behalten</a>
+        </div>
+        <p class="gs-fehler" id="fehler"></p>
+      </div>
+
+      <div id="ergebnis" style="display: none;">
+        <div class="gs-kasten gs-schatten-ink" id="erg-kasten" style="transform: rotate(-.6deg);">
+          <span class="h-black etikett" id="erg-etikett">Erledigt</span>
+          <p class="gs-p" id="erg-text" style="margin: 6px 0 0;"></p>
+        </div>
+        <p class="gs-klein" style="margin-top: 16px;">Fragen? <a id="kontakt" href="#">Schreib uns.</a></p>
+      </div>
+    </section>
+  </div>
+
+  <footer class="gs-footer">
+    <div class="inner">
+      <nav><a href="/impressum">Impressum</a><a href="/datenschutz">Datenschutz</a><a href="/agb">AGB</a><a href="/widerrufsbelehrung">Widerrufsbelehrung</a><a href="#" id="gs-kontakt-link">Kontakt</a></nav>
+      <p style="margin: 0;">Wimmel Wizard · gedruckt in der EU · Hund inklusive</p>
+    </div>
+  </footer>
+</div>
+
+<script src="/js/gutschein-seiten.js"></script>
+<script>
+(function () {
+  var GS = window.GutscheinSeiten;
+  var $ = function (id) { return document.getElementById(id); };
+  var token = new URLSearchParams(location.search).get("token") || "";
+  GS.config().then(function (cfg) { GS.footerFuellen(cfg); $("kontakt").href = "mailto:" + cfg.kontakt_email; }).catch(function () {});
+
+  function ergebnis(text, ok) {
+    $("laden").style.display = "none"; $("frage").style.display = "none"; $("ergebnis").style.display = "block";
+    $("erg-text").textContent = text;
+    $("erg-etikett").textContent = ok ? "Erledigt" : "Nicht möglich";
+    $("erg-kasten").classList.toggle("gs-ok", !!ok);
+    $("erg-kasten").classList.toggle("gs-nein", !ok);
+  }
+
+  if (!token) { ergebnis("Dieser Link ist unvollständig. Bitte den Widerrufs-Link aus deiner Bestätigungs-Mail benutzen.", false); return; }
+
+  GS.post("widerruf-status", { token: token }).then(function (st) {
+    if (!st.moeglich) { ergebnis(st.meldung, false); return; }
+    $("laden").style.display = "none"; $("frage").style.display = "block";
+    $("code").textContent = st.code; $("produkt").textContent = "Gutschein " + st.produkt_name; $("betrag").textContent = st.bezahlt; $("bis").textContent = st.bis;
+  }).catch(function (e) { ergebnis(e.message || "Gerade nicht erreichbar – bitte später noch einmal.", false); });
+
+  $("ja").onclick = function () {
+    var b = $("ja"); b.disabled = true; b.textContent = "Wird erledigt …";
+    GS.post("widerruf", { token: token }).then(function (r) { ergebnis(r.meldung, !!r.ok); })
+      .catch(function (e) { b.disabled = false; b.textContent = "Ja, Kauf widerrufen"; var f = $("fehler"); f.textContent = e.message || "Das hat nicht geklappt."; f.classList.add("an"); });
+  };
+})();
+</script>
+</body>
+</html>

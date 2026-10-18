@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gutschein prüfen — Wimmel Wizard</title>
+<meta name="description" content="Prüfe deinen Wimmel Wizard Gutschein: Produkt, Wert und Einlösefrist." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;500;600;700&family=Caveat:wght@600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/css/main.css" />
+<link rel="stylesheet" href="/css/gutschein.css" />
+</head>
+<body>
+<div class="app-shell" id="app">
+  <!-- NEU (Paket 1, Teil G): NUR Prüfseite. Gültig? Produkt, Wert, Frist — und der Hinweis, dass
+       ab Januar 2027 eingelöst wird. Kein Statuswechsel, kein Konto (das ist Paket 2: der Code
+       wird dann am Aufladen-Screen der App eingegeben, "Ich habe einen Gutschein"). -->
+  <header id="lp-header" class="lp-header">
+    <a href="/" class="lp-logo"><img src="/assets/wizard-badge.webp" alt="" /><span class="h-black">Wimmel&nbsp;Wizard<sup style="font-size: 7px; vertical-align: super;">™</sup></span></a>
+    <a href="/app" class="h-black lp-cta">Los!</a>
+  </header>
+
+  <div class="gs-wrap">
+    <section>
+      <p class="h-black gs-kicker gelb">Gutschein</p>
+      <h1 class="h-black gs-h1">Was steckt<br />in deinem Code?</h1>
+      <p class="caveat gs-sub">tipp ihn ein oder lass den QR-Code vom Gutschein für dich arbeiten.</p>
+      <div class="gs-reihe">
+        <label class="gs-label" for="code">Gutschein-Code</label>
+        <input class="gs-feld" id="code" placeholder="WW-XXXX-XXXX" autocomplete="off" autocapitalize="characters" spellcheck="false" style="font-family: 'Archivo Black', sans-serif; letter-spacing: .06em; text-transform: uppercase; font-size: 20px; min-height: 58px;" />
+      </div>
+      <button type="button" class="h-black gs-btn" id="pruefen">Gutschein prüfen</button>
+      <p class="gs-fehler" id="fehler"></p>
+    </section>
+
+    <section class="gs-sek" id="ergebnis" style="display: none;">
+      <div class="gs-kasten gs-schatten-ink" id="erg-kasten" style="transform: rotate(-.6deg);">
+        <span class="h-black etikett" id="erg-etikett">Gültig</span>
+        <p class="h-black" id="erg-titel" style="font-size: 20px; line-height: 1; letter-spacing: -.02em; margin: 6px 0 10px;"></p>
+        <div id="erg-fakten"></div>
+        <p class="gs-p" id="erg-text" style="margin: 12px 0 0;"></p>
+      </div>
+      <p class="gs-p" style="margin-top: 18px;" id="erg-hinweis"></p>
+      <div class="gs-btn-reihe" id="erg-knoepfe" style="margin-top: 10px;"></div>
+    </section>
+
+    <section class="gs-sek">
+      <div class="gs-kasten gestrichelt" style="transform: rotate(.4deg);">
+        <p class="gs-p" style="margin: 0;">Noch keinen Gutschein? <a href="/gutschein" style="font-weight: 700; color: var(--red); text-decoration: underline;">Hier gibt es welche</a> – für das Wimmelheft oder das Wimmelbuch, mit Garantie.</p>
+      </div>
+    </section>
+  </div>
+
+  <footer class="gs-footer">
+    <div class="inner">
+      <nav><a href="/impressum">Impressum</a><a href="/datenschutz">Datenschutz</a><a href="/agb">AGB</a><a href="/widerrufsbelehrung">Widerrufsbelehrung</a><a href="#" id="gs-kontakt-link">Kontakt</a></nav>
+      <p style="margin: 0;">Wimmel Wizard · gedruckt in der EU · Hund inklusive</p>
+    </div>
+  </footer>
+</div>
+
+<script src="/js/gutschein-seiten.js"></script>
+<script>
+(function () {
+  var GS = window.GutscheinSeiten;
+  var $ = function (id) { return document.getElementById(id); };
+  var CFG = null;
+  GS.config().then(function (cfg) { CFG = cfg; GS.footerFuellen(cfg); }).catch(function () {});
+
+  function fehler(msg) { var f = $("fehler"); f.textContent = msg || ""; f.classList.toggle("an", !!msg); }
+
+  function zeigen(r) {
+    $("ergebnis").style.display = "block";
+    var kasten = $("erg-kasten");
+    kasten.classList.toggle("gs-ok", !!r.gueltig);
+    kasten.classList.toggle("gs-nein", !r.gueltig);
+    $("erg-etikett").textContent = r.gueltig ? "Gültig" : "Nicht einlösbar";
+    $("erg-titel").textContent = r.gueltig
+      ? ("Ein " + r.produkt_name + (r.empfaenger_name ? " für " + r.empfaenger_name : "") + ".")
+      : (r.code ? r.code : "Kein gültiger Code");
+    var fakten = "";
+    if (r.produkt_name) {
+      fakten += '<div class="gs-fakt"><span>Code</span><b>' + GS.esc(r.code) + '</b></div>'
+        + '<div class="gs-fakt"><span>Gutschein</span><b>' + GS.esc(r.produkt_name) + '</b></div>'
+        + '<div class="gs-fakt"><span>Wert</span><b>' + GS.esc(r.wert) + '</b></div>'
+        + '<div class="gs-fakt"><span>Einlösbar bis</span><b>' + GS.esc(r.einloesefrist) + '</b></div>';
+    }
+    $("erg-fakten").innerHTML = fakten;
+    $("erg-text").textContent = r.meldung || "";
+    $("erg-hinweis").textContent = r.gueltig && CFG ? "Bis dahin kannst du schon einmal kostenlos loslegen: Figuren anlegen, das erste Wimmelbild zaubern – der Gutschein wird später im Konto eingelöst und schaltet den Rest frei." : "";
+    var k = $("erg-knoepfe"); k.innerHTML = "";
+    if (r.gueltig) {
+      var a = document.createElement("a"); a.className = "h-black gs-btn klein"; a.href = GS.mitQuelle("/app"); a.textContent = "Kostenlos loswimmeln"; k.appendChild(a);
+    }
+    $("ergebnis").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function pruefen() {
+    fehler("");
+    var code = $("code").value.trim();
+    if (!code) { fehler("Bitte den Code eingeben."); return; }
+    var btn = $("pruefen"); btn.disabled = true;
+    GS.post("pruefen", { code: code }).then(zeigen).catch(function (e) { fehler(e.message || "Prüfung gerade nicht möglich."); }).then(function () { btn.disabled = false; });
+  }
+  $("pruefen").onclick = pruefen;
+  $("code").addEventListener("keydown", function (e) { if (e.key === "Enter") pruefen(); });
+
+  var vorab = new URLSearchParams(location.search).get("code");
+  if (vorab) { $("code").value = vorab; pruefen(); }
+})();
+</script>
+</body>
+</html>

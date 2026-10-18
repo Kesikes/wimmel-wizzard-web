@@ -1,0 +1,141 @@
+/* ==========================================================================
+   Wimmel Wizard — Gutschein-Seiten (Paket 1, 18.10.2026)
+   /gutschein, /gutschein/danke, /einloesen, /widerruf und die Rechtsseiten.
+   Ergänzt css/main.css (Farben, Fonts, .h-black/.caveat, .app-shell). Gleiche Sprache wie die
+   Landingpage: kantige Kästen, 3–4px Tinte-Rahmen, harte Schatten, leichte Drehungen, keine
+   Rundungen. Mobil zuerst (390px), ab 1024px eine mittige Spalte.
+   ========================================================================== */
+
+.lp-header {
+  position: fixed; top: 0; left: 50%; z-index: 60; width: 100%; max-width: var(--container-max);
+  transform: translateX(-50%); background: var(--ink); color: var(--paper);
+  display: flex; align-items: center; gap: 8px; padding: 0 12px; height: 56px;
+}
+.lp-header .lp-logo { display: flex; align-items: center; gap: 8px; margin-right: auto; text-decoration: none; color: var(--paper); }
+.lp-header .lp-logo img { width: 30px; height: 30px; flex: none; transform: rotate(-6deg); }
+.lp-header .lp-logo span { font-size: 12px; letter-spacing: -.01em; }
+.lp-header .lp-cta { flex: none; background: var(--red); color: var(--paper); font-size: 12px; padding: 10px 13px; border: 3px solid var(--paper); transform: rotate(-2deg); min-height: 40px; display: flex; align-items: center; }
+
+.gs-wrap { padding: 76px 14px 0; }
+.gs-sek { padding: 26px 0 0; }
+.gs-kicker { display: inline-block; border: 3px solid var(--ink); background: var(--red); color: var(--paper); font-size: 9px; letter-spacing: .1em; padding: 5px 8px; transform: rotate(-1.5deg); margin: 0 0 8px; }
+.gs-kicker.gelb { background: var(--yellow); color: var(--ink); }
+.gs-h1 { font-size: 34px; line-height: .92; letter-spacing: -.04em; margin: 8px 0 10px; }
+.gs-h2 { font-size: 22px; line-height: .95; letter-spacing: -.03em; margin: 0 0 12px; }
+.gs-sub { font-size: 22px; line-height: 1.15; margin: 0 0 18px; }
+.gs-p { font-size: 14px; line-height: 1.5; margin: 0 0 10px; }
+.gs-klein { font-size: 12px; line-height: 1.5; color: var(--ink-a70); margin: 0; }
+
+.gs-kasten { border: 4px solid var(--ink); background: var(--paper); padding: 16px 14px; position: relative; }
+.gs-kasten.gelb { background: var(--yellow); }
+.gs-kasten.gestrichelt { border-style: dashed; border-width: 3px; background: var(--paper-a80); }
+.gs-kasten .etikett { position: absolute; top: -13px; left: 12px; background: var(--ink); color: var(--paper); font-size: 10px; letter-spacing: .1em; padding: 4px 9px; }
+.gs-schatten-ink { box-shadow: 5px 6px 0 var(--ink); }
+.gs-schatten-rot { box-shadow: -5px 6px 0 var(--red); }
+.gs-schatten-gelb { box-shadow: 5px 6px 0 var(--yellow); }
+
+/* Produktkarten */
+.gs-produkte { display: flex; flex-direction: column; gap: 18px; }
+.gs-prod { border: 4px solid var(--ink); background: var(--paper); padding: 14px; position: relative; cursor: pointer; text-align: left; width: 100%; font-family: 'Archivo', sans-serif; color: var(--ink); }
+.gs-prod.on { background: var(--yellow); }
+.gs-prod h3 { font-size: 20px; letter-spacing: -.02em; margin: 0 0 4px; padding-right: 86px; }
+.gs-prod p { font-size: 13px; line-height: 1.4; font-weight: 500; margin: 0 0 12px; padding-right: 60px; }
+.gs-prod .preis { position: absolute; top: 12px; right: 12px; font-size: 16px; background: var(--ink); color: var(--paper); padding: 6px 9px; }
+.gs-prod .knopf { display: inline-block; font-size: 12px; padding: 10px 12px; border: 3px solid var(--ink); background: var(--ink); color: var(--paper); }
+.gs-prod.on .knopf { background: var(--red); border-color: var(--ink); }
+.gs-prod .haken { display: none; position: absolute; left: -12px; top: -12px; width: 28px; height: 28px; background: var(--red); color: var(--paper); border: 3px solid var(--ink); font-size: 14px; line-height: 22px; text-align: center; }
+.gs-prod.on .haken { display: block; }
+
+/* Formular */
+.gs-feld { width: 100%; min-height: 50px; border: 3px solid var(--ink); background: #FFF; padding: 0 12px; font-family: 'Archivo', sans-serif; font-size: 16px; box-sizing: border-box; color: var(--ink); }
+textarea.gs-feld { min-height: 96px; resize: none; padding: 11px; line-height: 1.45; }
+.gs-label { display: block; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; font-weight: 700; margin: 0 0 5px; }
+.gs-zaehler { font-size: 11px; color: var(--ink-a70); text-align: right; margin: 4px 0 0; }
+.gs-zaehler.voll { color: var(--red); font-weight: 700; }
+.gs-reihe { margin: 0 0 14px; }
+.gs-option { display: flex; gap: 12px; align-items: flex-start; border: 3px solid var(--ink); padding: 12px; background: var(--paper); cursor: pointer; text-align: left; width: 100%; font-family: 'Archivo', sans-serif; color: var(--ink); margin: 0 0 8px; }
+.gs-option.on { background: var(--yellow); box-shadow: 4px 4px 0 var(--ink); }
+.gs-option .punkt { flex: none; width: 20px; height: 20px; border: 3px solid var(--ink); background: #fff; margin-top: 1px; }
+.gs-option.on .punkt { background: var(--ink); box-shadow: inset 0 0 0 3px var(--yellow); }
+.gs-option b { display: block; font-size: 14px; }
+.gs-option span { font-size: 12px; line-height: 1.4; }
+.gs-check { display: flex; gap: 12px; align-items: flex-start; font-size: 13px; line-height: 1.45; cursor: pointer; }
+.gs-check input { flex: none; width: 22px; height: 22px; margin: 0; accent-color: var(--ink); }
+.gs-check a { text-decoration: underline; font-weight: 600; }
+.gs-fehler { display: none; margin: 10px 0 0; padding: 10px 12px; border: 3px solid var(--red); background: #fff; color: var(--red); font-size: 13px; font-weight: 600; }
+.gs-fehler.an { display: block; }
+.gs-btn { display: block; width: 100%; background: var(--yellow); color: var(--ink); font-size: 17px; padding: 16px; border: 4px solid var(--ink); box-shadow: 5px 6px 0 var(--ink); cursor: pointer; text-align: center; text-decoration: none; }
+.gs-btn.ink { background: var(--ink); color: var(--paper); }
+.gs-btn.rot { background: var(--red); color: var(--paper); }
+.gs-btn.klein { font-size: 13px; padding: 12px; box-shadow: 3px 3px 0 var(--ink); }
+.gs-btn[disabled] { opacity: .55; cursor: wait; }
+.gs-btn-reihe { display: flex; gap: 10px; flex-wrap: wrap; }
+.gs-btn-reihe .gs-btn { flex: 1 1 140px; width: auto; }
+
+/* Live-Vorschau des Gutscheins (spiegelt das PDF) */
+.gs-vorschau { border: 4px solid var(--ink); background: var(--paper); padding: 14px 14px 12px; position: relative; overflow: hidden; transform: rotate(-.8deg); box-shadow: 6px 7px 0 var(--ink); }
+.gs-vorschau .wz { position: absolute; left: -10%; top: 36%; width: 120%; text-align: center; font-size: 28px; letter-spacing: .02em; color: var(--ink); opacity: .05; transform: rotate(-14deg); pointer-events: none; white-space: nowrap; }
+.gs-vorschau .kopf { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; }
+.gs-vorschau .kopf .k { font-size: 9px; letter-spacing: .1em; padding: 4px 7px; background: var(--yellow); border: 2px solid var(--ink); }
+.gs-vorschau .kopf .m { font-size: 10px; letter-spacing: .04em; }
+.gs-vorschau .titel { font-size: 20px; line-height: .98; letter-spacing: -.03em; margin: 0 0 8px; word-break: break-word; }
+.gs-vorschau .koerper { display: flex; gap: 10px; align-items: flex-start; }
+.gs-vorschau .koerper img { width: 78px; flex: none; }
+.gs-vorschau .widmung { font-style: italic; font-size: 13px; line-height: 1.4; margin: 0 0 6px; word-break: break-word; min-height: 18px; }
+.gs-vorschau .von { font-size: 12px; margin: 0 0 8px; }
+.gs-vorschau .code { display: inline-block; background: var(--ink); color: var(--paper); font-size: 15px; letter-spacing: .06em; padding: 7px 10px; margin: 0 0 8px; }
+.gs-vorschau .fakten { font-size: 10.5px; line-height: 1.45; margin: 0; }
+.gs-vorschau .garantie { font-size: 10.5px; font-weight: 700; color: var(--red); margin: 4px 0 0; }
+.gs-vorschau .qr { position: absolute; right: 12px; bottom: 12px; width: 40px; height: 40px; border: 2px solid var(--ink); background: repeating-linear-gradient(90deg, var(--ink) 0 4px, #fff 4px 8px), #fff; background-size: 8px 8px; opacity: .35; }
+
+/* Code-Anzeige (Danke, Einlösen) */
+.gs-code { display: inline-block; background: var(--ink); color: var(--paper); font-size: 28px; letter-spacing: .06em; padding: 14px 18px; transform: rotate(-1deg); box-shadow: 5px 5px 0 var(--yellow); user-select: all; }
+.gs-fakt { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-top: 2px solid var(--ink-a15); font-size: 13px; }
+.gs-fakt b { text-align: right; }
+.gs-fakt:first-child { border-top: 0; }
+
+/* FAQ klein */
+.gs-faq details { border-top: 3px solid var(--ink); padding: 10px 0; }
+.gs-faq details:last-child { border-bottom: 3px solid var(--ink); }
+.gs-faq summary { cursor: pointer; font-family: 'Archivo Black', sans-serif; text-transform: uppercase; font-size: 13px; letter-spacing: -.01em; list-style: none; display: flex; justify-content: space-between; gap: 10px; }
+.gs-faq summary::after { content: "+"; flex: none; }
+.gs-faq details[open] summary::after { content: "–"; }
+.gs-faq p { font-size: 13px; line-height: 1.5; margin: 8px 0 0; }
+
+/* Exit-Intent-Frage */
+.gs-overlay { position: fixed; inset: 0; z-index: 80; background: rgba(26,26,24,.55); display: none; }
+.gs-overlay.an { display: block; }
+.gs-sheet { position: fixed; z-index: 90; left: 50%; bottom: 0; width: 100%; max-width: 430px; transform: translateX(-50%); background: var(--paper); color: var(--ink); border-top: 5px solid var(--ink); padding: 16px 16px 26px; display: none; animation: sheetRise .26s cubic-bezier(.2,.8,.3,1) both; }
+.gs-sheet.an { display: block; }
+.gs-sheet .gs-option { margin-bottom: 8px; }
+@keyframes sheetRise { from { transform: translate(-50%, 100%); } to { transform: translate(-50%, 0); } }
+
+/* Statusfarben */
+.gs-ok { border-color: var(--ink); background: var(--yellow); }
+.gs-nein { border-color: var(--red); }
+.gs-warte { display: flex; align-items: center; gap: 12px; }
+.gs-warte .ring { width: 28px; height: 28px; border: 4px solid var(--ink); border-top-color: var(--yellow); border-radius: 50%; animation: drehen 1s linear infinite; flex: none; }
+@keyframes drehen { to { transform: rotate(360deg); } }
+
+/* Rechtsseiten */
+.gs-recht h1 { font-size: 30px; line-height: .95; letter-spacing: -.035em; margin: 0 0 16px; }
+.gs-recht h2 { font-size: 16px; letter-spacing: -.01em; margin: 22px 0 8px; }
+.gs-recht p, .gs-recht li { font-size: 14px; line-height: 1.55; margin: 0 0 10px; }
+.gs-platzhalter { border: 4px dashed var(--red); background: var(--yellow); padding: 14px; margin: 0 0 22px; transform: rotate(-.6deg); }
+.gs-platzhalter b { display: block; font-family: 'Archivo Black', sans-serif; text-transform: uppercase; font-size: 13px; margin: 0 0 4px; }
+.gs-platzhalter p { margin: 0; font-size: 13px; }
+
+footer.gs-footer { padding: 20px 14px 40px; background: var(--ink); color: var(--paper-a60); font-size: 12px; line-height: 1.7; margin-top: 34px; }
+footer.gs-footer nav { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 12px; }
+footer.gs-footer a { color: var(--paper); }
+
+@media (min-width: 1024px) {
+  .lp-header { left: 0; width: 100%; max-width: none; transform: none; }
+  .gs-wrap { max-width: 720px; margin: 0 auto; padding-top: 90px; }
+  .gs-produkte { flex-direction: row; }
+  .gs-produkte .gs-prod { flex: 1; }
+  .gs-h1 { font-size: 48px; }
+  .gs-zwei { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+  .gs-vorschau { position: sticky; top: 90px; }
+  footer.gs-footer .inner { max-width: 720px; margin: 0 auto; }
+}

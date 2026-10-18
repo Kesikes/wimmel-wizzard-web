@@ -4,182 +4,313 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Gutschein verschenken — Wimmel Wizard</title>
-<meta name="description" content="Verschenke ein personalisiertes Wimmelbuch: Gutschein für das Wimmelheft oder das Wimmelbuch, versandkostenfrei, unkompliziert per Anfrage." />
+<meta name="description" content="Verschenke ein persönliches Wimmelbuch: Gutschein für das Wimmelheft (29,90 €) oder das Wimmelbuch (49,90 €), inkl. Versand. Nicht eingelöst? Voller Betrag automatisch zurück." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;500;600;700&family=Caveat:wght@600&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="css/main.css" />
-<style>
-  /* NEU (Sammel-Runde 10.09.2026, Gutschein-Seite): eigene, schlanke Styles fuer diese Seite --
-     bewusst NICHT css/app.css eingebunden (dessen .field/.pay-btn sind fuer die App-SPA gedacht und
-     ziehen dort einiges an Kontext mit), stattdessen ein eigenes, minimales .gs-field hier, im
-     selben visuellen Stil wie das bestehende .field (3px Rahmen, var(--ink), Archivo). */
-  .gs-field {
-    width: 100%; min-height: 50px; border: 3px solid var(--ink); background: #FFF; padding: 0 12px;
-    font-family: 'Archivo', sans-serif; font-size: 15px; box-sizing: border-box;
-  }
-  textarea.gs-field { min-height: 96px; resize: none; padding: 11px; line-height: 1.45; }
-  .gs-option { display: flex; gap: 12px; align-items: center; border: 4px solid var(--ink); padding: 14px; background: var(--paper); cursor: pointer; text-align: left; width: 100%; font-family: 'Archivo', sans-serif; }
-  .gs-option.on { background: var(--yellow); box-shadow: 4px 4px 0 var(--ink); }
-  .lp-header {
-    position: fixed; top: 0; left: 50%; z-index: 60; width: 100%; max-width: var(--container-max);
-    transform: translateX(-50%); background: var(--ink); color: var(--paper);
-  }
-  @media (min-width: 1024px) {
-    .lp-header { left: 0; width: 100%; max-width: none; transform: none; }
-    .gs-wrap { max-width: 640px; margin: 0 auto; }
-  }
-</style>
+<link rel="stylesheet" href="/css/main.css" />
+<link rel="stylesheet" href="/css/gutschein.css" />
 </head>
 <body>
 <div class="app-shell" id="app">
-
-  <!-- Identischer Header wie index.html (siehe dortiger Kommentar zur Fixierung/Groessenangleichung). -->
-  <header id="lp-header" class="lp-header" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px;">
-    <a href="/" style="display:flex; align-items:center; gap:8px; margin-right:auto; text-decoration:none; color: var(--paper);">
-      <img src="/assets/wizard-badge.webp" alt="" style="width: 30px; height: 30px; flex: none; transform: rotate(-6deg);" />
-      <span class="h-black" style="font-size: 12px; letter-spacing: -.01em;">Wimmel&nbsp;Wizard<sup style="font-size: 7px; vertical-align: super;">™</sup></span>
-    </a>
-    <a href="/app" class="h-black" style="flex: none; background: var(--red); color: var(--paper); font-size: 12px; padding: 10px 13px; border: 3px solid var(--paper); transform: rotate(-2deg); min-height: 40px; display: flex; align-items: center;">Los!</a>
+  <!-- NEU (Paket 1, Teil C, 18.10.2026): komplett neue Seite. Vorher: mailto-Anfrage im
+       Pilotbetrieb. Jetzt: echter Kauf über Stripe Checkout (api/gutschein.js mode=checkout).
+       Preise, Garantie-Satz, Beta-Satz, Produkttexte kommen zur Laufzeit aus
+       /api/gutschein?mode=config — NICHT hier abgetippt (eine Stelle: api/_lib/gutschein-config.js). -->
+  <header id="lp-header" class="lp-header">
+    <a href="/" class="lp-logo"><img src="/assets/wizard-badge.webp" alt="" /><span class="h-black">Wimmel&nbsp;Wizard<sup style="font-size: 7px; vertical-align: super;">™</sup></span></a>
+    <a href="/app" class="h-black lp-cta" id="lp-cta">Los!</a>
   </header>
 
-  <div class="gs-wrap" style="padding: 20px 14px 0;">
-    <a href="/" style="display: inline-block; margin-bottom: 14px; font-size: 13px; font-weight: 600; color: var(--ink-a70);">← zurück zu Wimmel Wizard</a>
+  <div class="gs-wrap">
+    <section>
+      <p class="h-black gs-kicker">Verschenken · ohne Rätselraten</p>
+      <h1 class="h-black gs-h1">Ein Wimmelbuch<br />mit <span style="color: var(--red);">ihrer</span> Familie drin.</h1>
+      <p class="caveat gs-sub">du verschenkst den Gutschein. sie erzählen ihre Erlebnisse, WizzelWim malt die Bilder, und das Buch kommt gedruckt nach Hause. ganz ohne Fotobuch-Fummelei.</p>
+      <div class="gs-kasten gestrichelt" style="transform: rotate(-.5deg); margin-bottom: 8px;">
+        <p class="gs-p" id="beta-satz" style="margin: 0;">…</p>
+      </div>
+    </section>
 
-    <!-- Kein ".kicker"/".kicker-red" hier -- die Klassen existieren nur in css/app.css (App-SPA),
-         diese Seite bindet bewusst nur main.css ein (wie index.html). Gleicher Look rein inline
-         nachgebaut. -->
-    <p class="h-black" style="margin: 0 0 8px; display: inline-block; border: 3px solid var(--ink); background: var(--red); color: var(--paper); font-size: 9px; letter-spacing: .1em; text-transform: uppercase; padding: 5px 8px; transform: rotate(-1.5deg);">Verschenken · ohne Umwege</p>
-    <h1 class="h-black" style="margin: 8px 0 10px; font-size: 34px; line-height: .92; letter-spacing: -.04em;">Gutschein<br />statt Rätselraten.</h1>
-    <p class="caveat" style="margin: 0 0 22px; font-size: 22px; line-height: 1.15;">ideal für alle, bei denen du nicht weißt, welches Alltagschaos sie am meisten lieben. das entscheiden sie dann selbst.</p>
+    <section class="gs-sek" id="produkte">
+      <h2 class="h-black gs-h2">Welcher Gutschein?</h2>
+      <div class="gs-produkte" id="gs-produkte"></div>
+      <p class="h-black" style="margin: 12px 0 0; font-size: 11px; letter-spacing: .04em; color: var(--ink-a70);" id="versand-satz"></p>
+    </section>
 
-    <!-- NEU (Sammel-Runde 10.09.2026): Phase-1/Pilot-Hinweis im selben ehrlichen Ton wie
-         index.html (siehe dortiger Kommentar Punkt A4) -- es gibt noch keine automatisierte
-         Zahlungs-/Gutschein-Ausgabe, daher hier bewusst eine ECHTE Anfrage per E-Mail statt eines
-         Formulars, das eine Funktion vortäuscht, die es (noch) nicht gibt. -->
-    <div style="border: 3px dashed var(--ink); background: var(--paper-a80); padding: 14px; margin-bottom: 24px; transform: rotate(-.5deg);">
-      <p style="margin: 0; font-size: 13px; line-height: 1.5;">Ehrliche Sache: wir sind noch im Pilotbetrieb, es gibt noch keinen automatischen Gutschein-Versand. Du schickst uns unten kurz deine Wahl und Daten per E-Mail, wir melden uns garantiert innerhalb von 24 Stunden mit dem fertigen Gutschein-Code.</p>
-    </div>
+    <section class="gs-sek">
+      <div class="gs-kasten gelb gs-schatten-ink" style="transform: rotate(.6deg);">
+        <span class="h-black etikett">Unsere Garantie</span>
+        <p class="h-black" style="font-size: 17px; line-height: 1.05; letter-spacing: -.02em; margin: 6px 0 8px;" id="garantie-satz">…</p>
+        <p class="gs-p" style="margin: 0;">Du zahlst heute, wir produzieren erst, wenn der Gutschein eingelöst wird. Bleibt er bis zum Stichtag liegen, bekommst du den vollen Betrag automatisch zurück – ohne dass du etwas tun musst. Und 14 Tage lang kannst du den Kauf ohnehin widerrufen.</p>
+      </div>
+    </section>
 
-    <h2 class="h-black" style="margin: 0 0 12px; font-size: 20px; letter-spacing: -.02em;">Welcher Gutschein?</h2>
-    <div id="gs-options" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 26px;"></div>
-    <!-- PLATZHALTER (16.10.2026): Einloesedatum traegt Matthias nach. Bis dahin auskommentiert --
-         zum Aktivieren [DATUM] ersetzen und die Kommentarzeichen entfernen.
-    <p class="h-black" style="margin: -12px 0 26px; display: inline-block; background: var(--yellow); border: 3px solid var(--ink); font-size: 13px; letter-spacing: .04em; padding: 7px 11px; transform: rotate(-1deg);">Einlösbar ab [DATUM]</p>
-    -->
+    <section class="gs-sek" id="personalisieren">
+      <h2 class="h-black gs-h2">Gutschein <span style="color: var(--red);">persönlich</span> machen</h2>
+      <div class="gs-zwei">
+        <div>
+          <div class="gs-reihe">
+            <label class="gs-label" for="f-von">Von</label>
+            <input class="gs-feld" id="f-von" maxlength="80" placeholder="z. B. Oma Gerda" autocomplete="name" />
+          </div>
+          <div class="gs-reihe">
+            <label class="gs-label" for="f-fuer">Für</label>
+            <input class="gs-feld" id="f-fuer" maxlength="80" placeholder="z. B. Lina, Tom und Papa" />
+          </div>
+          <div class="gs-reihe">
+            <label class="gs-label" for="f-widmung">Widmung (optional)</label>
+            <textarea class="gs-feld" id="f-widmung" placeholder="Ein paar Zeilen, die auf dem Gutschein stehen …"></textarea>
+            <p class="gs-zaehler" id="f-zaehler">0 / 200</p>
+          </div>
 
-    <h2 class="h-black" style="margin: 0 0 12px; font-size: 20px; letter-spacing: -.02em;">Deine Angaben</h2>
-    <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px;">
-      <input class="gs-field" id="gs-name" placeholder="Dein Name" aria-label="Dein Name" />
-      <input class="gs-field" id="gs-email" type="email" placeholder="Deine E-Mail-Adresse" aria-label="Deine E-Mail-Adresse" />
-      <input class="gs-field" id="gs-recipient" placeholder="Für wen ist der Gutschein? (optional)" aria-label="Empfänger, optional" />
-      <textarea class="gs-field" id="gs-message" placeholder="Nachricht, Wunschtermin oder sonst was (optional)" aria-label="Nachricht, optional"></textarea>
-    </div>
-    <p id="gs-error" style="display: none; margin: 0 0 12px; font-size: 13px; color: var(--red);"></p>
+          <p class="gs-label" style="margin-top: 6px;">Zustellung</p>
+          <button type="button" class="gs-option on" id="opt-mich" data-wert="mich">
+            <span class="punkt"></span>
+            <span><b>An mich (Standard)</b><span>Du bekommst Code und PDF per Mail und überreichst den Gutschein selbst – ausgedruckt oder weitergeleitet.</span></span>
+          </button>
+          <button type="button" class="gs-option" id="opt-empf" data-wert="empfaengerin">
+            <span class="punkt"></span>
+            <span><b>Direkt an die Empfängerin</b><span>Wir schicken den Gutschein per Mail – sofort oder an einem Wunschtag, z. B. 24.12. Du bekommst trotzdem eine Kopie.</span></span>
+          </button>
+          <div id="empf-felder" style="display: none; margin: 4px 0 10px; padding: 12px; border: 3px solid var(--ink); background: var(--paper-a80);">
+            <div class="gs-reihe">
+              <label class="gs-label" for="f-empf-email">E-Mail der Empfängerin</label>
+              <input class="gs-feld" id="f-empf-email" type="email" inputmode="email" autocomplete="off" placeholder="name@beispiel.de" />
+            </div>
+            <div class="gs-reihe" style="margin: 0;">
+              <label class="gs-label" for="f-datum">Wunschtag (leer = sofort nach dem Kauf)</label>
+              <input class="gs-feld" id="f-datum" type="date" />
+            </div>
+          </div>
+        </div>
 
-    <button type="button" id="gs-submit" class="h-black" style="display: block; width: 100%; background: var(--yellow); color: var(--ink); font-size: 17px; padding: 16px; border: 4px solid var(--ink); box-shadow: 5px 6px 0 var(--ink); cursor: pointer; margin-bottom: 10px;">Gutschein per E-Mail anfragen</button>
-    <p style="margin: 0 0 30px; font-size: 12px; line-height: 1.5; color: var(--ink-a70);">öffnet dein E-Mail-Programm mit einer vorausgefüllten Nachricht an uns — nichts wird automatisch oder im Hintergrund verschickt.</p>
+        <div style="margin-top: 12px;">
+          <p class="gs-label">So sieht der Gutschein aus</p>
+          <div class="gs-vorschau" id="vorschau" aria-live="polite">
+            <div class="wz h-black">Wimmel Wizard · Wimmel Wizard · Wimmel Wizard</div>
+            <div class="kopf"><span class="h-black k">Gutschein</span><span class="h-black m">Wimmel Wizard</span></div>
+            <p class="h-black titel" id="v-titel">Ein Wimmelbuch für euch</p>
+            <div class="koerper">
+              <img src="/assets/wizard-on-book.webp" alt="" />
+              <div style="flex: 1; min-width: 0;">
+                <p class="widmung" id="v-widmung"></p>
+                <p class="von" id="v-von"></p>
+                <span class="h-black code">WW-····-····</span>
+                <p class="fakten" id="v-fakten"></p>
+                <p class="garantie" id="v-garantie"></p>
+              </div>
+            </div>
+            <span class="qr" aria-hidden="true"></span>
+          </div>
+          <p class="gs-klein" style="margin: 14px 0 0;">Code und QR-Code erzeugen wir erst nach der Zahlung – als PDF zum Ausdrucken oder Weiterleiten.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="gs-sek" id="bezahlen">
+      <h2 class="h-black gs-h2">Bezahlen</h2>
+      <div class="gs-kasten" style="margin-bottom: 14px;">
+        <div class="gs-fakt"><span>Gutschein</span><b id="z-produkt">–</b></div>
+        <div class="gs-fakt"><span>Betrag</span><b id="z-preis">–</b></div>
+        <div class="gs-fakt"><span>Einlösbar</span><b id="z-frist">12 Monate ab Kauf</b></div>
+        <div class="gs-fakt"><span>Zahlung</span><b>Karte, Apple Pay, Google Pay, PayPal</b></div>
+      </div>
+      <label class="gs-check" style="margin-bottom: 12px;">
+        <input type="checkbox" id="f-agb" />
+        <span>Ich habe die <a href="/agb" target="_blank" rel="noopener">AGB</a> und die <a href="/widerrufsbelehrung" target="_blank" rel="noopener">Widerrufsbelehrung</a> gelesen und bin einverstanden.</span>
+      </label>
+      <p class="gs-klein" id="widerruf-satz" style="margin: 0 0 14px;"></p>
+      <button type="button" class="h-black gs-btn" id="btn-zahlen">Weiter zur Bezahlung</button>
+      <p class="gs-fehler" id="fehler"></p>
+      <p class="gs-klein" style="margin: 10px 0 0;">Die Zahlung läuft über Stripe. Deine E-Mail-Adresse gibst du dort an – dorthin schicken wir Code und PDF. Hast du einen Rabattcode? Den gibst du auf der Bezahlseite ein.</p>
+    </section>
+
+    <section class="gs-sek gs-faq">
+      <h2 class="h-black gs-h2">Kurz gefragt</h2>
+      <details><summary>Was passiert direkt nach dem Kauf?</summary><p>Du bekommst sofort eine Mail mit dem Gutschein-Code und dem PDF zum Ausdrucken. Wenn du „Direkt an die Empfängerin“ gewählt hast, geht die Mail am Wunschtag zusätzlich an sie.</p></details>
+      <details><summary>Wann kann der Gutschein eingelöst werden?</summary><p id="faq-einloesen">…</p></details>
+      <details><summary>Und wenn er nicht eingelöst wird?</summary><p id="faq-garantie">…</p></details>
+      <details><summary>Reicht der Gutschein wirklich für das ganze Buch?</summary><p>Ja. Der Wert entspricht genau dem Preis des gewählten Produkts, Versand nach Deutschland, Österreich und in die Schweiz inklusive. Wer auf das größere Produkt wechseln will, zahlt nur die Differenz. Ein Restwert bleibt als Guthaben im Konto.</p></details>
+    </section>
   </div>
 
-  <footer style="padding: 20px 14px 40px; background: var(--ink); color: var(--paper-a60); font-size: 12px; line-height: 1.7; margin-top: 20px;">
-    <div style="display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 12px;">
-      <a href="/#impressum" style="color: var(--paper);">Impressum</a>
-      <a href="/#datenschutz" style="color: var(--paper);">Datenschutz</a>
-      <a href="/#agb" style="color: var(--paper);">AGB</a>
-      <a href="/#kontakt" style="color: var(--paper);">Kontakt</a>
+  <footer class="gs-footer">
+    <div class="inner">
+      <nav>
+        <a href="/impressum">Impressum</a>
+        <a href="/datenschutz">Datenschutz</a>
+        <a href="/agb">AGB</a>
+        <a href="/widerrufsbelehrung">Widerrufsbelehrung</a>
+        <a href="#" id="gs-kontakt-link">Kontakt</a>
+      </nav>
+      <p style="margin: 0;">Wimmel Wizard · gedruckt in der EU · Hund inklusive</p>
     </div>
-    <p style="margin: 0;">Wimmel Wizard · gedruckt in der EU · Hund inklusive</p>
   </footer>
+
+  <!-- Exit-Intent-Frage (Teil I): einmal je Besuch, anonym -->
+  <div class="gs-overlay" id="exit-overlay"></div>
+  <div class="gs-sheet" id="exit-sheet" role="dialog" aria-modal="true" aria-labelledby="exit-titel">
+    <div style="width: 46px; height: 5px; background: var(--ink); margin: 0 auto 14px;"></div>
+    <p class="h-black gs-kicker gelb" style="margin-bottom: 6px;">Kurze Frage</p>
+    <h2 class="h-black" id="exit-titel" style="font-size: 22px; line-height: .98; letter-spacing: -.03em; margin: 4px 0 10px;">Was hat gefehlt?</h2>
+    <div id="exit-optionen"></div>
+    <textarea class="gs-feld" id="exit-text" placeholder="Magst du es kurz sagen? (optional)" style="display: none; min-height: 70px; margin: 0 0 8px;"></textarea>
+    <div class="gs-btn-reihe">
+      <button type="button" class="h-black gs-btn klein" id="exit-senden" style="display: none;">Abschicken</button>
+      <button type="button" class="h-black gs-btn klein" id="exit-zu" style="background: var(--paper);">Lieber nicht</button>
+    </div>
+    <p class="gs-klein" style="margin: 10px 0 0;">Anonym – wir speichern nur die Antwort, sonst nichts.</p>
+  </div>
 </div>
 
+<script src="/js/gutschein-seiten.js"></script>
 <script>
 (function () {
-  // TODO (vor echtem Launch ersetzen): noch keine feste Kontakt-Adresse im Projekt hinterlegt --
-  // Platzhalter, per Nutzer-Rueckmeldung (Sammel-Runde 10.09.2026) bewusst als Platzhalter gesetzt,
-  // nicht geraten. Klar im Code markiert, damit das vor dem echten Launch nicht uebersehen wird.
-  var CONTACT_EMAIL = "hallo@wimmel-wizard.de"; // TODO: durch echte Kontakt-Adresse ersetzen
+  var GS = window.GutscheinSeiten;
+  var $ = function (id) { return document.getElementById(id); };
+  var CFG = null;
+  var produkt = "buch";
+  var versandAn = "mich";
 
-  var OPTIONS = [
-    // GEAENDERT (Sortiment-Beschluss 16.10.2026): genau zwei Gutscheine, feste Preise.
-    { id: "heft", label: "Wimmelheft-Gutschein", desc: "4 Wimmelbilder, A5, 18 Seiten, versandkostenfrei", price: "29,90 €" },
-    { id: "buch", label: "Wimmelbuch-Gutschein", desc: "7 Wimmelbilder, A4 Hardcover, 24 Seiten, versandkostenfrei", price: "49,90 €" }
-  ];
-  var selected = "buch";
+  $("lp-cta").href = GS.mitQuelle("/app");
+  $("f-datum").min = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 
-  function syncHeaderSpacing() {
-    var header = document.getElementById("lp-header");
-    var shell = document.getElementById("app");
-    if (header && shell) shell.style.paddingTop = header.offsetHeight + "px";
-  }
-  syncHeaderSpacing();
-  window.addEventListener("resize", syncHeaderSpacing);
+  function produktObj() { return (CFG.produkte || []).filter(function (p) { return p.id === produkt; })[0] || CFG.produkte[0]; }
 
-  function renderOptions() {
-    var wrap = document.getElementById("gs-options");
+  function renderProdukte() {
+    var wrap = $("gs-produkte");
     wrap.innerHTML = "";
-    OPTIONS.forEach(function (opt) {
+    CFG.produkte.forEach(function (p, i) {
       var btn = document.createElement("button");
       btn.type = "button";
-      btn.className = "gs-option" + (selected === opt.id ? " on" : "");
-      btn.setAttribute("aria-pressed", selected === opt.id ? "true" : "false");
-      btn.onclick = function () { selected = opt.id; renderOptions(); };
-      var textWrap = document.createElement("div");
-      textWrap.style.flex = "1";
-      textWrap.style.minWidth = "0";
-      var h3 = document.createElement("h3");
-      h3.className = "h-black";
-      h3.style.cssText = "font-size:16px; letter-spacing:-.02em; margin:0 0 3px;";
-      h3.textContent = opt.label;
-      var p = document.createElement("p");
-      p.style.cssText = "font-size:13px; line-height:1.4; font-weight:500; margin:0;";
-      p.textContent = opt.desc;
-      textWrap.appendChild(h3);
-      textWrap.appendChild(p);
-      var price = document.createElement("span");
-      price.className = "h-black";
-      price.style.cssText = "flex:none; font-size:16px; background: var(--ink); color: var(--paper); padding:6px 9px;";
-      price.textContent = opt.price;
-      btn.appendChild(textWrap);
-      btn.appendChild(price);
+      btn.className = "gs-prod" + (produkt === p.id ? " on" : "");
+      btn.style.transform = "rotate(" + (i % 2 ? "1deg" : "-1.2deg") + ")";
+      btn.style.boxShadow = i % 2 ? "-5px 6px 0 var(--red)" : "5px 6px 0 var(--yellow)";
+      btn.setAttribute("aria-pressed", produkt === p.id ? "true" : "false");
+      btn.innerHTML = '<span class="h-black haken">✓</span>'
+        + '<h3 class="h-black">' + GS.esc(p.name) + '</h3>'
+        + '<p>' + GS.esc(p.kurz) + '</p>'
+        + '<span class="h-black preis">' + GS.esc(p.preis) + '</span>'
+        + '<span class="h-black knopf">' + (produkt === p.id ? "Ausgewählt" : "Als Gutschein verschenken") + '</span>';
+      btn.onclick = function () {
+        produkt = p.id; renderProdukte(); renderVorschau();
+        $("personalisieren").scrollIntoView({ behavior: "smooth", block: "start" });
+      };
       wrap.appendChild(btn);
     });
   }
-  renderOptions();
 
-  document.getElementById("gs-submit").addEventListener("click", function () {
-    var errorP = document.getElementById("gs-error");
-    var name = document.getElementById("gs-name").value.trim();
-    var email = document.getElementById("gs-email").value.trim();
-    var recipient = document.getElementById("gs-recipient").value.trim();
-    var message = document.getElementById("gs-message").value.trim();
+  function renderVorschau() {
+    var p = produktObj();
+    var von = $("f-von").value.trim(), fuer = $("f-fuer").value.trim(), widmung = $("f-widmung").value.trim();
+    $("v-titel").textContent = "Ein " + p.name + " für " + (fuer || "euch");
+    $("v-widmung").textContent = widmung ? "„" + widmung + "“" : "";
+    $("v-von").textContent = von ? "Von " + von : "";
+    $("v-fakten").textContent = p.gutschein_hinweis + " · Wert " + p.preis + " · einlösbar " + CFG.einloesefrist_monate + " Monate ab Kauf";
+    $("v-garantie").textContent = CFG.garantie_satz;
+    $("z-produkt").textContent = "Gutschein " + p.name;
+    $("z-preis").textContent = p.preis;
+    var n = widmung.length;
+    $("f-zaehler").textContent = n + " / " + CFG.widmung_max_zeichen;
+    $("f-zaehler").classList.toggle("voll", n >= CFG.widmung_max_zeichen);
+  }
 
-    if (!name || !email) {
-      errorP.textContent = "Bitte Name und E-Mail-Adresse ausfüllen, sonst können wir uns nicht bei dir melden.";
-      errorP.style.display = "block";
-      return;
-    }
-    errorP.style.display = "none";
+  function setVersand(wert) {
+    versandAn = wert;
+    $("opt-mich").classList.toggle("on", wert === "mich");
+    $("opt-empf").classList.toggle("on", wert === "empfaengerin");
+    $("opt-mich").setAttribute("aria-pressed", wert === "mich" ? "true" : "false");
+    $("opt-empf").setAttribute("aria-pressed", wert === "empfaengerin" ? "true" : "false");
+    $("empf-felder").style.display = wert === "empfaengerin" ? "block" : "none";
+  }
+  $("opt-mich").onclick = function () { setVersand("mich"); };
+  $("opt-empf").onclick = function () { setVersand("empfaengerin"); $("f-empf-email").focus(); };
 
-    var opt = OPTIONS.filter(function (o) { return o.id === selected; })[0];
-    var subject = "Gutschein-Anfrage: " + opt.label + " (" + opt.price + ")";
-    var bodyLines = [
-      "Hallo Wimmel Wizard,",
-      "",
-      "ich möchte gerne folgenden Gutschein bestellen:",
-      opt.label + " – " + opt.desc + " – " + opt.price,
-      "",
-      "Mein Name: " + name,
-      "Meine E-Mail: " + email
-    ];
-    if (recipient) bodyLines.push("Für wen: " + recipient);
-    if (message) { bodyLines.push(""); bodyLines.push("Nachricht: " + message); }
-    bodyLines.push("");
-    bodyLines.push("Danke und viele Grüße!");
+  ["f-von", "f-fuer", "f-widmung"].forEach(function (id) { $(id).addEventListener("input", function () { if (CFG) renderVorschau(); }); });
 
-    var mailto = "mailto:" + encodeURIComponent(CONTACT_EMAIL)
-      + "?subject=" + encodeURIComponent(subject)
-      + "&body=" + encodeURIComponent(bodyLines.join("\n"));
-    window.location.href = mailto;
+  function fehler(msg) { var f = $("fehler"); f.textContent = msg || ""; f.classList.toggle("an", !!msg); }
+
+  $("btn-zahlen").onclick = function () {
+    fehler("");
+    if (!CFG) return;
+    var widmung = $("f-widmung").value.trim();
+    if (widmung.length > CFG.widmung_max_zeichen) { fehler("Die Widmung darf höchstens " + CFG.widmung_max_zeichen + " Zeichen haben."); return; }
+    if (versandAn === "empfaengerin" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test($("f-empf-email").value.trim())) { fehler("Bitte eine gültige E-Mail-Adresse der Empfängerin angeben."); $("f-empf-email").focus(); return; }
+    if (!$("f-agb").checked) { fehler("Bitte bestätige AGB und Widerrufsbelehrung, dann geht es weiter."); return; }
+    var btn = $("btn-zahlen");
+    btn.disabled = true; btn.textContent = "Einen Moment …";
+    GS.post("checkout", {
+      produkt: produkt, von: $("f-von").value.trim(), fuer: $("f-fuer").value.trim(), widmung: widmung,
+      versand_an: versandAn, empfaenger_email: $("f-empf-email").value.trim(), versand_datum: $("f-datum").value,
+      agb: true, quelle: GS.quelle
+    }).then(function (r) {
+      if (r && r.url) { location.href = r.url; return; }
+      throw new Error("Keine Bezahl-URL erhalten.");
+    }).catch(function (e) {
+      fehler(e.message || "Das hat nicht geklappt. Bitte noch einmal versuchen.");
+      btn.disabled = false; btn.textContent = "Weiter zur Bezahlung";
+    });
+  };
+
+  // --- Exit-Intent (Teil I): einmal je Besuch. Desktop: Maus verlässt das Fenster nach oben.
+  //     Handy: nach dem Zurückkommen von der Bezahlseite (?abgebrochen=1) oder schnelles
+  //     Hochscrollen, nachdem man schon weit unten war. Kein Speicher, nur Variablen. ---
+  var exitGezeigt = false, warWeitUnten = false, letztesY = 0;
+  function exitZeigen() {
+    if (exitGezeigt || !CFG) return;
+    exitGezeigt = true;
+    var wrap = $("exit-optionen"); wrap.innerHTML = "";
+    var wahl = null;
+    Object.keys(CFG.gefehlt_optionen).forEach(function (key) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "gs-option";
+      b.innerHTML = '<span class="punkt"></span><span><b>' + GS.esc(CFG.gefehlt_optionen[key]) + '</b></span>';
+      b.onclick = function () {
+        wahl = key;
+        Array.prototype.forEach.call(wrap.children, function (c) { c.classList.remove("on"); });
+        b.classList.add("on");
+        $("exit-text").style.display = key === "sonstiges" ? "block" : "none";
+        $("exit-senden").style.display = "block";
+      };
+      wrap.appendChild(b);
+    });
+    $("exit-senden").onclick = function () {
+      if (!wahl) return;
+      GS.post("feedback", { art: "gefehlt", wahl: wahl, text: $("exit-text").value, quelle: GS.quelle }).catch(function () {});
+      exitSchliessen(true);
+    };
+    $("exit-zu").onclick = function () { exitSchliessen(false); };
+    $("exit-overlay").onclick = function () { exitSchliessen(false); };
+    $("exit-overlay").classList.add("an"); $("exit-sheet").classList.add("an");
+  }
+  function exitSchliessen(danke) {
+    $("exit-overlay").classList.remove("an"); $("exit-sheet").classList.remove("an");
+    if (danke) { var f = $("fehler"); f.style.borderColor = "var(--ink)"; f.style.color = "var(--ink)"; f.textContent = "Danke – das hilft uns wirklich."; f.classList.add("an"); }
+  }
+  document.addEventListener("mouseout", function (e) { if (!e.relatedTarget && e.clientY <= 0 && window.innerWidth >= 1024) exitZeigen(); });
+  window.addEventListener("scroll", function () {
+    var y = window.scrollY, tiefe = (y + window.innerHeight) / Math.max(1, document.body.scrollHeight);
+    if (tiefe > 0.55) warWeitUnten = true;
+    if (warWeitUnten && letztesY - y > 260 && y < 300) exitZeigen();
+    letztesY = y;
+  }, { passive: true });
+
+  // --- Start: Config laden, dann rendern. Zähler "Aufruf" je Quelle (ohne Personenbezug). ---
+  GS.config().then(function (cfg) {
+    CFG = cfg;
+    $("beta-satz").textContent = cfg.beta_satz;
+    $("garantie-satz").textContent = cfg.garantie_satz;
+    $("versand-satz").textContent = cfg.versand_satz.charAt(0).toUpperCase() + cfg.versand_satz.slice(1) + ".";
+    $("widerruf-satz").textContent = cfg.widerruf_satz;
+    $("faq-einloesen").textContent = cfg.einloesung_ab_satz + " Die Frist läuft " + cfg.einloesefrist_monate + " Monate ab Kaufdatum.";
+    $("faq-garantie").textContent = cfg.garantie_satz + " Die Erstattung läuft automatisch auf den Zahlungsweg, den du beim Kauf benutzt hast.";
+    GS.footerFuellen(cfg);
+    renderProdukte(); renderVorschau();
+    GS.post("aufruf", { quelle: GS.quelle }).catch(function () {});
+    if (/[?&]abgebrochen=1/.test(location.search)) setTimeout(exitZeigen, 900);
+  }).catch(function () {
+    $("beta-satz").textContent = "Die Seite lädt gerade nicht richtig – bitte einmal neu laden.";
   });
 })();
 </script>
