@@ -1862,6 +1862,10 @@ function buildErgebnisAnsicht(s, image) {
   const crop = buildCropViewport(imgBox);
   crop.classList.add("erg-crop");
   bildSpalte.appendChild(crop);
+  // NEU (18.10.2026, Paket 1 Teil J, Teilen-Loop): unter dem ERSTEN Wimmelbild der Sitzung ein
+  // Teilen-Knopf (WhatsApp, Instagram-Story, Link kopieren). Geteilt wird ein im Browser
+  // erzeugtes Bild mit sichtbarem Wasserzeichen, siehe buildTeilenLeiste().
+  if (s.images.length && s.images[0].id === image.id) bildSpalte.appendChild(buildTeilenLeiste(image));
   erg.appendChild(bildSpalte);
   const mark = setupFreehand(canvas, img, zoomEbene, image.id + "#" + (image.gewaehlt || 0) + "#" + image.src);
 
@@ -2199,6 +2203,94 @@ function loadImage(src) {
     im.onerror = () => reject(new Error("Bild konnte für die Bearbeitung nicht geladen werden."));
     im.src = src;
   });
+}
+
+// NEU (18.10.2026, Paket 1 Teil J): Teilen-Loop. Ein Bild, das die Kundin selbst weitergibt, ist
+// die billigste Werbung, die es gibt -- und die einzige, die wir im Test fahren (kein Ad-Budget).
+// Das geteilte Bild entsteht im Browser: Original ueber api/image-proxy.js (Same-Origin, sonst
+// "tainted canvas", siehe Kommentar dort), verkleinert auf max. 1600px, unten rechts ein
+// sichtbares Wasserzeichen "Wimmel Wizard · {Seite}". Dazu eine vorformulierte Nachricht mit
+// Link ?utm_source=share, damit Besuche aus dem Teilen auf der Gutschein-Seite als Quelle "share"
+// gezaehlt werden (api/_lib/gutschein-config.js QUELLEN). Zaehler: ein Klick je Sitzung
+// (api/gutschein.js mode=teilen), Gegenstueck "Sitzungen mit erstem Bild" in free-tier.js.
+const TEILEN_MAX_PX = 1600;
+function teilenSiteUrl() { return location.origin; }
+function teilenNachricht() {
+  return "Schaut mal, unser erstes Wimmelbild \u2013 mit uns als Figuren! Macht eures hier: " + teilenSiteUrl() + "/?utm_source=share";
+}
+async function teilenBildErzeugen(image) {
+  const quelle = await loadImage(penSafeImageUrl(image.src));
+  const faktor = Math.min(1, TEILEN_MAX_PX / Math.max(quelle.naturalWidth, quelle.naturalHeight));
+  const w = Math.round(quelle.naturalWidth * faktor), h = Math.round(quelle.naturalHeight * faktor);
+  const c = document.createElement("canvas");
+  c.width = w; c.height = h;
+  const ctx = c.getContext("2d");
+  ctx.drawImage(quelle, 0, 0, w, h);
+  // Wasserzeichen: Kasten in Tinte, Schrift in Papier, Groesse relativ zur Bildbreite
+  const text = "Wimmel Wizard \u00b7 " + teilenSiteUrl().replace(/^https?:\/\//, "");
+  const groesse = Math.max(18, Math.round(w * 0.024));
+  ctx.font = "bold " + groesse + "px Archivo, Arial, sans-serif";
+  const breite = ctx.measureText(text).width + groesse * 1.2;
+  const hoehe = groesse * 1.9;
+  const rand = Math.round(groesse * 0.8);
+  ctx.fillStyle = "rgba(26,26,24,.88)";
+  ctx.fillRect(w - breite - rand, h - hoehe - rand, breite, hoehe);
+  ctx.fillStyle = "#F2EDE1";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, w - breite - rand + groesse * 0.6, h - rand - hoehe / 2);
+  const blob = await new Promise((resolve) => c.toBlob(resolve, "image/jpeg", 0.9));
+  if (!blob) throw new Error("Bild konnte nicht erzeugt werden.");
+  return new File([blob], "wimmel-wizard.jpg", { type: "image/jpeg" });
+}
+function teilenZaehlen() {
+  try {
+    fetch("/api/gutschein", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode: "teilen", sessionId: AppState.data.sessionId }) }).catch(() => {});
+  } catch (e) { /* Zaehler sind nie tragend */ }
+}
+function buildTeilenLeiste(image) {
+  const box = h("div", { class: "erg-teilen", style: { margin: "12px 14px 0", padding: "12px", border: "3px solid var(--ink)", background: "var(--yellow)" } });
+  box.appendChild(h("p", { class: "caveat", style: { margin: "0 0 8px", fontSize: "20px", lineHeight: "1.1" } }, "stolz? zeig\u2019s her \u2013 mit Wasserzeichen, versteht sich."));
+  const reihe = h("div", { style: { display: "flex", gap: "8px", flexWrap: "wrap" } });
+  const status = h("p", { style: { margin: "8px 0 0", fontSize: "12px", lineHeight: "1.4", display: "none" } });
+  function melde(text) { status.textContent = text; status.style.display = text ? "block" : "none"; }
+  function knopf(label, aktion) {
+    const b = h("button", { type: "button", class: "h-black", style: { flex: "1 1 120px", minHeight: "44px", fontSize: "11.5px", cursor: "pointer", border: "3px solid var(--ink)", background: "var(--paper)", color: "var(--ink)" } }, label);
+    b.addEventListener("click", async () => {
+      b.disabled = true; melde("");
+      try { teilenZaehlen(); await aktion(); }
+      catch (e) { melde(e && e.name === "AbortError" ? "" : "Das hat gerade nicht geklappt: " + (e && e.message ? e.message : e)); }
+      finally { b.disabled = false; }
+    });
+    return b;
+  }
+  async function mitDatei(titel) {
+    const datei = await teilenBildErzeugen(image);
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [datei] })) {
+      await navigator.share({ files: [datei], title: titel, text: teilenNachricht() });
+      return true;
+    }
+    // Kein Datei-Teilen (Desktop): Bild herunterladen, Text in die Zwischenablage
+    const url = URL.createObjectURL(datei);
+    const a = document.createElement("a"); a.href = url; a.download = datei.name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    try { await navigator.clipboard.writeText(teilenNachricht()); } catch (e) { /* egal */ }
+    return false;
+  }
+  reihe.appendChild(knopf("WhatsApp", async () => {
+    const geteilt = await mitDatei("Unser Wimmelbild");
+    if (!geteilt) { window.open("https://wa.me/?text=" + encodeURIComponent(teilenNachricht()), "_blank", "noopener"); melde("Bild heruntergeladen, Text kopiert \u2013 in WhatsApp einfach anh\u00e4ngen."); }
+  }));
+  reihe.appendChild(knopf("Instagram-Story", async () => {
+    const geteilt = await mitDatei("Unser Wimmelbild");
+    if (!geteilt) melde("Bild heruntergeladen und Text kopiert \u2013 am Handy geht das direkt in die Story.");
+  }));
+  reihe.appendChild(knopf("Link kopieren", async () => {
+    await navigator.clipboard.writeText(teilenNachricht());
+    melde("Kopiert: " + teilenNachricht());
+  }));
+  box.appendChild(reihe);
+  box.appendChild(status);
+  return box;
 }
 
 // NEU (Punkt 12): baut die Same-Origin-URL fuer api/image-proxy.js aus einer fal.media/fal.run-

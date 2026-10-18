@@ -154,7 +154,11 @@ async function bilderErlaubt(req, res, sessionId) {
 async function bilderBuchen(sessionId) {
   if (!istGueltigeSessionId(sessionId)) return;
   try {
-    await kvIncrWithExpiry(bilderKey(sessionId), TTL);
+    const stand = await kvIncrWithExpiry(bilderKey(sessionId), TTL);
+    // NEU (18.10.2026, Paket 1 Teil J, Teilen-Quote): Zähler "Gratis-Sitzungen mit erstem Bild" —
+    // genau beim ERSTEN zugestellten Bild einer Sitzung, ohne Personenbezug (nur eine Zahl).
+    // Gegenstück: gz:teilen:sitzungen (Sitzungen mit Teilen-Klick, api/_lib/gutschein-service.js).
+    if (Number(stand) === 1) await kvCommandSafe(["incr", "gz:teilen:sitzungen_erstes_bild"]);
   } catch (e) { /* siehe Kommentar oben — bewusst ignoriert */ }
 }
 
