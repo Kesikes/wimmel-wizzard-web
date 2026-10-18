@@ -1,9 +1,32 @@
 # WizzelWim — Fortschritt & Fahrplan bis zum Launch
 
-**Stand: 25.09.2026** · Zielmarke Launch: November 2026
+**Stand: 18.10.2026** · Zielmarke: Gutschein-Soft-Launch Anfang November 2026 (spätestens vor 27.11.), Produkt-Beta ab Januar 2027
 
 Dieses Dokument hält fest, wo das Projekt steht, was vor dem Launch noch fertig
 werden muss, und was warten kann. Es wird bei größeren Meilensteinen fortgeschrieben.
+
+---
+
+## 🎟️ Neu seit 18.10.2026: Paket 1 „Gutscheine verkaufen" ist gebaut
+
+Vor dem fertigen Produkt kommt der Gutschein (Validierungstest, Weihnachts-Geschenkpfad), siehe
+`docs/gutschein-briefing-2026-10-18.md`. Umgesetzt und committet (7 Commits dd5b94b…76d31de),
+Details, Umgebungsvariablen, Platzhalter und Test-Checkliste in
+`docs/gutschein-paket1-rueckmeldung-2026-10-18.md`:
+
+- Stripe-Checkout (Karte/Apple Pay/Google Pay/PayPal, Rabattcodes) + Webhook mit Signaturprüfung,
+  idempotent; Gutschein-Hash in Upstash, Statuswechsel nur über `setzeStatus()` (atomar)
+- Gutschein-PDF (pdf-lib, eigener QR-Erzeuger), Mails 1/2/7 über Resend (Texte: Platzhalter),
+  Zustellung am Wunschtag per Cron, Widerruf mit Erstattung des gezahlten Betrags
+- Seiten `/gutschein` (Live-Vorschau, Exit-Intent-Frage), `/gutschein/danke`, `/einloesen` (nur
+  Prüfung), `/widerruf`, Rechtsseiten als Platzhalter (Livemodus bleibt gesperrt, bis sie echt sind)
+- Teilen-Knopf unter dem ersten Wimmelbild (Bild mit Wasserzeichen), Zähler je Quelle ohne Cookies
+- 34 Tests (`npm test` im App-Ordner), Kaufweg lokal mit Stripe-Attrappe durchgespielt
+
+**Vor dem Soft-Launch:** Vercel Pro (13 Funktionen), Umgebungsvariablen setzen, Stripe-Webhook
+anlegen, Rechtstexte + Mail-Texte einsetzen, Checkliste K im Testmodus durchklicken.
+**Nicht Teil von Paket 1:** Einlösen in der App (Paket 2, ab Januar), Erinnerungs-Mails und
+Erstattungs-Batch (Paket 3), Sortiments-Umbau der App, Peecho.
 
 ---
 
@@ -28,10 +51,11 @@ werden muss, und was warten kann. Es wird bei größeren Meilensteinen fortgesch
       bisher nur Notbehelf (Stift zum Versetzen).
 
 ### Fehlt komplett
-- [ ] **Kaufprozess** — existiert nicht. Kein `gekauftAm`, keine Rechnung, kein Versand.
+- [ ] **Kaufprozess in der App** — existiert weiterhin nicht (Paket 2/3). Der Gutschein-Kauf
+      (Stripe) steht seit 18.10., der Bestell-Checkout mit Peecho-Anbindung fehlt.
 - [ ] **Produktangebot & Preise final** — bisher nur Platzhalter; Kalkulation mit
       Versand, Zahlungsgebühren und Umsatzsteuer (7 % Bücher / 19 % Poster) fehlt.
-- [ ] **Startseite & FAQ** — noch nicht begonnen.
+- [x] **Startseite & FAQ** — steht seit Ende September (Sortiment-Anpassung 16.10., Rechtsseiten-Links 18.10.).
 - [ ] **WizzelWim als wiederkehrendes Maskottchen** — nur Konzept, weder gestaltet noch gebaut.
 
 ### Angefangen, nicht fertig
@@ -78,4 +102,4 @@ gegen den aufgeräumten Prompt (5 Szenen, 4:1) — im Register entsprechend verm
 
 ---
 
-*Zuletzt aktualisiert: 25.09.2026*
+*Zuletzt aktualisiert: 18.10.2026*
