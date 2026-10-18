@@ -6,3 +6,6 @@ dev-tools/session-sicherung/
 
 # Testbilder und Zwischenstände aus Stil-Versuchen -- gehoeren nicht ins Repo
 asset-originals-v3/stiltests-*/
+
+# Cowork-Ausgaben (Claude), nicht Teil des Repos
+Claude outputs/
