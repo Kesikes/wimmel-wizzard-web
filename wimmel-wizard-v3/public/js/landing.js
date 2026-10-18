@@ -12,7 +12,7 @@
 // dort gezeichneten Motiv passt.
 const PINS = [
   { x: 16, y: 68, mark: "1", kicker: "Punkt 1 von 5", title: "Erst kommt ihr.", rowTitle: "Wer mitspielen darf",
-    body: "Foto hochladen oder Merkmale antippen – Haare, Größe, Lieblingspulli. Jede Figur entsteht echt im Wimmelstil. Auch der Hund. Vor allem der Hund." },
+    body: "Merkmale antippen – Haare, Größe, Lieblingspulli. Oder später ein Foto hochladen. Jede Figur entsteht echt im WizzelWim-Stil. Auch der Hund. Vor allem der Hund." },
   { x: 38, y: 47, mark: "2", kicker: "Punkt 2 von 5", title: "Dann eure Geschichte.", rowTitle: "Wie du sie mir lieferst",
     body: "Kein Formular mit siebzehn Feldern. Thema wählen, ein paar Sätze tippen – oder abends beim Erzählen einfach das Mikro mitlaufen lassen. Ich mache eine Szene draus." },
   { x: 59, y: 72, mark: "3", kicker: "Punkt 3 von 5", title: "Ich zeichne. Ihr meckert.", rowTitle: "Zaubern und Nachbessern",
@@ -59,14 +59,14 @@ const FAQ_GROUPS = [
   ]},
   { cat: "Ablauf & Nutzung", items: [
     { q: "Muss ich mich anmelden?", a: "Nein. Ihr könnt direkt loslegen, ohne Konto. Erst wenn ihr über das kostenlose Kontingent hinaus wollt, legen wir gemeinsam ein Konto an – damit euer Guthaben nicht verloren geht, falls ihr Browser oder Gerät wechselt." },
-    { q: "Muss ich Fotos hochladen?", a: "Nein. Ihr könnt ein Foto hochladen – oder eure Familie einfach über Merkmale beschreiben (Haare, Kleidung, Besonderheiten). Beides führt zum gleichen schönen Ergebnis." },
+    { q: "Muss ich Fotos hochladen?", a: "Nein. Ihr startet kostenlos mit Merkmalen zum Antippen – Haare, Brille, Lieblingspulli, ganz ohne Foto. Wer möchte, kann nach dem ersten Aufladen oder mit einem Gutschein auch ein Foto nutzen. Dann wird die Figur eurem Kind noch ähnlicher." },
     { q: "Wie lange dauert es, bis mein Wimmelbild/Buch fertig ist?", a: "Pro Wimmelbild rechnet WizzelWim realistisch mit 2 bis 4 Minuten – wir lassen jedes Bild lieber zweimal prüfen, statt es hastig rauszuhauen. Dauert es mal deutlich länger, ist wahrscheinlich etwas schiefgelaufen – meldet euch dann gerne bei uns." },
     { q: "Kann ich mein Wimmelbild noch ändern, nachdem es fertig ist?", a: "Ja. Mit dem Stift könnt ihr direkt im Bild markieren, was weg soll oder neu gezaubert werden soll. Pro Wimmelbild habt ihr dafür 2x „komplett neu zaubern“, 2x Änderung an einer Figur und 2x Änderung an einer Szene." },
     { q: "Was, wenn mir das Ergebnis nicht gefällt?", a: "Den Stil seht ihr schon ganz am Anfang, bevor irgendwas kostet. Gefällt er euch nicht, könnt ihr jederzeit aufhören – die ersten Versuche sind ja kostenlos. Ein einmal aufgeladenes Guthaben können wir allerdings nicht zurückerstatten: Die Generierung kostet uns in dem Moment schon etwas, ganz unabhängig vom Ergebnis. Das ist ein Risiko, das wir gemeinsam tragen." },
     { q: "Auf welchem Gerät kann ich weitermachen – geht das auch auf dem Handy und später am PC?", a: "In der kostenlosen Phase läuft alles anonym über euren Browser – darin bleibt euer Fortschritt gespeichert, dafür seid ihr ohne Anmeldung sofort startklar. Schließt ihr den Browser oder wechselt das Gerät, ist der Stand in dieser Phase weg. Sobald ihr ein Konto anlegt, könnt ihr auf jedem Gerät weitermachen." }
   ]},
   { cat: "Preis & Bezahlung", items: [
-    { q: "Was bedeutet „kostenlos loswimmeln“?", a: "Die Generierung eurer ersten drei Figuren und eures ersten Wimmelbildes ist komplett kostenlos – kein Konto, keine Zahlungsdaten nötig. Erst danach geht's ans Aufladen." },
+    { q: "Was bedeutet „kostenlos loswimmeln“?", a: "Eure Familie per Merkmale anlegen und euer erstes Wimmelbild zaubern ist komplett kostenlos – kein Konto, keine Zahlungsdaten nötig. Erst danach geht's ans Aufladen." },
     { q: "Was kostet es am Ende wirklich – gibt es versteckte Kosten?", a: "Nein. Der Endpreis steht fest, bevor ihr bestellt – und euer aufgeladenes Guthaben wird euch dabei voll angerechnet." },
     { q: "Kann ich noch etwas dazubestellen?", a: "Ja, beim Bestellen: alle Wimmelbilder zusätzlich digital in Druckqualität (9,90 €) oder ein zweites Exemplar für Oma und Opa – das Wimmelbuch für 29,90 €, das Wimmelheft für 19,90 €, jeweils inklusive Versand." },
     { q: "Wie setzt sich der Preis eines Produkts zusammen?", a: "Ehrlich gesagt: nicht aus einer fetten Marge. Jedes Bild wird wirklich neu gezaubert, und Zaubern kostet – die KI, die eure Figuren und Wimmelbilder erschafft, läuft nicht umsonst. Dazu kommen die echte Produktion (Druck, Papier, Bindung), laufende Betriebskosten und die Mehrwertsteuer. Am Ende bleibt uns davon deutlich weniger übrig, als man denken könnte – aber dafür bekommt ihr auch kein Namensschild auf einer Vorlage, sondern ein wirklich individuelles Werk." }
@@ -81,8 +81,11 @@ const FAQ_GROUPS = [
     { q: "Kann ich das Ganze auch verschenken, ohne dass die beschenkte Person selbst etwas einrichten muss?", a: "Ja – mit unserem Gutschein für das Wimmelheft oder das Wimmelbuch. Ihr bekommt ihn als PDF zum Ausdrucken oder Weiterschicken, und die beschenkte Person zaubert ihr Buch dann selbst – mit eurem Geschenk als Guthaben." }
   ]},
   { cat: "Daten & Datenschutz", items: [
-    { q: "Was passiert mit meinen Daten?", a: "Eure Daten liegen auf Servern in der EU, DSGVO-konform. Nichts wird verkauft oder weitergegeben." },
-    { q: "Was passiert mit meinen Fotos, nachdem das Bild fertig ist? Werden sie gelöscht?", a: "Ja. Ein hochgeladenes Foto wird ausschließlich für euer Wimmelbild verwendet und danach automatisch gelöscht." }
+    // GEAENDERT (18.10.2026): ehrliche Fassung -- Bildgenerierung laeuft ueber einen US-Dienstleister (fal.ai).
+    { q: "Was passiert mit meinen Daten?", a: "Eure Angaben nutzen wir nur, um euer Wimmelbild und euer Buch zu erstellen. Zum Zeichnen arbeiten wir mit einem KI-Dienstleister zusammen, dessen Server in den USA stehen – dorthin gehen eure Beschreibungen und, falls ihr eins nutzt, das Foto. Wir verkaufen nichts und geben nichts für Werbung weiter. Alle Details stehen in der Datenschutzerklärung." },
+    // GEAENDERT (18.10.2026): automatische Loeschung ist noch nicht gebaut. Sobald Matthias die Adresse liefert,
+    // diesen Satz ans Ende der Antwort haengen: " Bis dahin löschen wir es auf Wunsch sofort: kurze Mail an [E-MAIL] genügt."
+    { q: "Was passiert mit meinen Fotos, nachdem das Bild fertig ist? Werden sie gelöscht?", a: "Ein Foto nutzen wir nur, um daraus eure Figur zu zeichnen – für nichts anderes. Eine automatische Löschung bauen wir gerade." }
   ]}
 ];
 
