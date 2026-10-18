@@ -8,7 +8,11 @@
 // Nutzerin), ausgeloest von api/fal-proxy.js bei einem erkannten fal.ai-Guthaben-/Sperr-Fehler.
 // Liegt unter _lib/, zaehlt also NICHT gegen das Vercel-Hobby-Limit von 12 Serverless Functions
 // (Underscore-Praefix-Konvention, siehe Task #19/api/_lib-Umbenennung).
-async function sendMail({ to, subject, html }) {
+// ERWEITERT (18.10.2026, Paket 1 Gutscheine): optional from (Absender, Standard bleibt WizzelWim),
+// text (Reintext-Alternative), replyTo und attachments ([{ filename, content: base64 }], Resend-
+// Format) — für die Gutschein-Mails mit PDF-Anhang und Absender "Matthias von Wimmel Wizard".
+// Alle bisherigen Aufrufer übergeben nur to/subject/html und verhalten sich unverändert.
+async function sendMail({ to, subject, html, text, from, replyTo, attachments }) {
   const RESEND_API_KEY = process.env.RESEND_API_KEY;
   if (!RESEND_API_KEY) {
     console.error("[mail] RESEND_API_KEY ist im Vercel-Projekt nicht gesetzt — E-Mail wurde NICHT verschickt:", subject);
@@ -18,7 +22,12 @@ async function sendMail({ to, subject, html }) {
     const resp = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: "Bearer " + RESEND_API_KEY, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: "WizzelWim <wizzelwim@wimmelwizard.de>", to: Array.isArray(to) ? to : [to], subject, html }),
+      body: JSON.stringify(Object.assign(
+        { from: from || "WizzelWim <wizzelwim@wimmelwizard.de>", to: Array.isArray(to) ? to : [to], subject, html },
+        text ? { text } : {},
+        replyTo ? { reply_to: replyTo } : {},
+        Array.isArray(attachments) && attachments.length ? { attachments } : {}
+      )),
     });
     if (!resp.ok) {
       const txt = await resp.text().catch(() => "");

@@ -117,4 +117,7 @@ async function kvCommandSafe(parts) {
   }
 }
 
-module.exports = { kvConfig, kvCommandSafe, kvGetJson, kvSetJson, kvIncrWithExpiry, kvTryLock, kvUnlock };
+// kvCommand selbst exportiert (18.10.2026, Paket 1 Gutscheine): api/_lib/gutschein.js braucht
+// Hash-, Set- und EVAL-Befehle, die es hier nicht als Hilfsfunktionen gibt und auch nicht geben
+// muss — der rohe Befehl reicht, und die Tests tauschen ihn gegen test/kv-mock.js aus.
+module.exports = { kvConfig, kvCommand, kvCommandSafe, kvGetJson, kvSetJson, kvIncrWithExpiry, kvTryLock, kvUnlock };
