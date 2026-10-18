@@ -88,6 +88,8 @@ test("kaufVerarbeiten: Gutschein, PDF, Mail 1, Zähler; Entwurf gelöscht", asyn
   assert.equal(u.mails[0].attachments[0].filename, "Wimmel-Wizard-Gutschein-" + r.code + ".pdf");
   assert.match(u.mails[0].html, new RegExp(cfg.GARANTIE_SATZ.replace(/[?]/g, "\\?")));
   assert.match(u.mails[0].html, /\/widerruf\?token=/);
+  assert.match(u.mails[0].html, /dein Gutschein für ein Wimmelbuch ist da/);
+  assert.doesNotMatch(u.mails[0].html, /Gutschein für Wimmelbuch/);
   assert.equal(Number(await u.kv(["get", "gz:z:bezahlt:instagram"])), 1);
   assert.equal(Number(await u.kv(["get", "gz:z:bezahlt_ohne_rabatt:instagram"])), 1);
   assert.equal(Object.keys(u.kv.dump()).filter((k) => k.startsWith("gutschein-entwurf:")).length, 0);

@@ -72,11 +72,11 @@ const GEFEHLT_OPTIONEN = {
 };
 
 // --- Seiten-URL und Kontakt ---
-// SITE_URL kommt aus der Umgebung (Test: *.vercel.app, Live: die eigene Domain). Der Fallback ist
-// die aktuelle Vercel-URL, damit der Testmodus auch ohne gesetzte Variable läuft. Kein
+// SITE_URL kommt aus der Umgebung (seit 18.10.2026 live: https://www.wimmelwizard.de). Der
+// Fallback ist die Live-Domain — damit steht nirgends mehr eine Vorschau-URL fest im Code. Kein
 // abschließender Schrägstrich.
 function siteUrl() {
-  return String(process.env.SITE_URL || "https://wimmel-wizard-v3.vercel.app").replace(/\/+$/, "");
+  return String(process.env.SITE_URL || "https://www.wimmelwizard.de").replace(/\/+$/, "");
 }
 // PLATZHALTER (Matthias füllt): Kontaktadresse, die auf Seiten, in Mails und im PDF steht.
 function kontaktEmail() {

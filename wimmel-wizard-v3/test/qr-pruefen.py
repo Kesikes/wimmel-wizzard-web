@@ -2,7 +2,7 @@
 # Läuft nicht automatisch. Aufruf im App-Ordner:  python3 test/qr-pruefen.py
 # Braucht: pip install opencv-python-headless numpy
 import json, subprocess, sys, numpy as np, cv2
-texte = ["https://wimmel-wizard-v3.vercel.app/einloesen?code=WW-AB2C-D3EF", "Hallo Wimmel Wizard!", "x", "https://wimmelwizard.de/einloesen?code=WW-ZZZZ-9999&utm_source=share&foo=bar&baz=qux&extra=1234567890", "ä€"*40, "A"*200]
+texte = ["https://www.wimmelwizard.de/einloesen?code=WW-AB2C-D3EF", "Hallo Wimmel Wizard!", "x", "https://wimmelwizard.de/einloesen?code=WW-ZZZZ-9999&utm_source=share&foo=bar&baz=qux&extra=1234567890", "ä€"*40, "A"*200]
 ok = True
 for t in texte:
     out = subprocess.check_output(["node", "-e", "const {qrMatrix}=require('./api/_lib/qr.js'); const m=qrMatrix(process.argv[1]); console.log(JSON.stringify({v:m.version,maske:m.maske,m:m.module.map(r=>Array.from(r))}))", t], cwd=".")

@@ -38,6 +38,9 @@ function knopf(url, text) {
   return '<p style="margin:18px 0;"><a href="' + esc(url) + '" style="display:inline-block;background:#FFD400;color:#1A1A18;font-weight:bold;text-decoration:none;padding:12px 18px;border:3px solid #1A1A18;">' + esc(text) + '</a></p>';
 }
 function produktName(g) { return (cfg.PRODUKTE[g.produkt] || cfg.PRODUKTE.buch).name; }
+// produktArtikel(g) -> "ein Wimmelheft" / "ein Wimmelbuch" (GEÄNDERT 18.10.2026, erster Test: "dein
+// Gutschein für Wimmelheft" war grammatisch kaputt; Artikel kommt aus der Config)
+function produktArtikel(g) { return (cfg.PRODUKTE[g.produkt] || cfg.PRODUKTE.buch).artikel; }
 function gruss(name) { return name ? "Hallo " + esc(name) + "," : "Hallo,"; }
 
 // --- Mail 1: Zahlung -> Käuferin. PDF als Anhang, Code, Garantie, Widerrufs-Link. ---
@@ -48,7 +51,7 @@ function mail1(g, pdfBase64) {
   const p = produktName(g);
   const html = rahmen(
     '<p>' + gruss(g.kaeufer_name) + '</p>'
-    + '<p>danke – dein Gutschein für ' + esc(p) + ' ist da. Das PDF zum Ausdrucken oder Weiterleiten hängt an dieser Mail, hier ist der Code:</p>'
+    + '<p>danke – dein Gutschein für ' + esc(produktArtikel(g)) + ' ist da. Das PDF zum Ausdrucken oder Weiterleiten hängt an dieser Mail, hier ist der Code:</p>'
     + codeKasten(g.code)
     + '<p><strong>Wert:</strong> ' + esc(cfg.euro(g.wert_cent)) + ' (' + esc(p) + ', ' + esc(cfg.VERSAND_SATZ) + ')<br>'
     + '<strong>Einlösbar bis:</strong> ' + esc(cfg.datumDeutsch(g.einloesefrist)) + '<br>'
@@ -64,7 +67,7 @@ function mail1(g, pdfBase64) {
   );
   const text = [
     gruss(g.kaeufer_name).replace(/&amp;/g, "&"),
-    "", "danke – dein Gutschein für " + p + " ist da. Dein Code: " + g.code,
+    "", "danke – dein Gutschein für " + produktArtikel(g) + " ist da. Dein Code: " + g.code,
     "Wert: " + cfg.euro(g.wert_cent) + " · Einlösbar bis " + cfg.datumDeutsch(g.einloesefrist),
     "Garantie: " + cfg.GARANTIE_SATZ,
     cfg.BETA_SATZ,
@@ -88,7 +91,7 @@ function mail2(g, pdfBase64) {
   const einloesenUrl = cfg.siteUrl() + "/einloesen?code=" + encodeURIComponent(g.code);
   const html = rahmen(
     '<p>' + gruss(g.empfaenger_name) + '</p>'
-    + '<p>' + esc(von) + ' schenkt dir ' + esc(cfg.PRODUKTE[g.produkt] ? cfg.PRODUKTE[g.produkt].artikel : "ein Wimmelbuch") + ' von Wimmel Wizard – eure Familie als Figuren, eure Erlebnisse als Wimmelbilder, gedruckt und nach Hause geschickt.</p>'
+    + '<p>' + esc(von) + ' schenkt dir ' + esc(produktArtikel(g)) + ' von Wimmel Wizard – eure Familie als Figuren, eure Erlebnisse als Wimmelbilder, gedruckt und nach Hause geschickt.</p>'
     + (g.widmung ? '<p style="font-style:italic;border-left:4px solid #FFD400;padding-left:12px;">„' + esc(g.widmung) + '“</p>' : '')
     + codeKasten(g.code)
     + '<p><strong>Gutschein:</strong> ' + esc(p) + ' · <strong>Einlösbar bis:</strong> ' + esc(cfg.datumDeutsch(g.einloesefrist)) + '</p>'
@@ -97,10 +100,10 @@ function mail2(g, pdfBase64) {
     + '<p>Viele Grüße<br>Matthias</p>'
     + '<p style="font-size:13px;color:#5a5a56">PS: WizzelWim, unser Zauberer, hat den Pinsel schon in der Hand.</p>'
   );
-  const text = [gruss(g.empfaenger_name).replace(/&amp;/g, "&"), "", von + " schenkt dir " + p + " von Wimmel Wizard.", (g.widmung ? "„" + g.widmung + "“" : ""), "Code: " + g.code, "Einlösbar bis " + cfg.datumDeutsch(g.einloesefrist), cfg.EINLOESUNG_AB_SATZ, einloesenUrl, "", "Viele Grüße, Matthias"].filter((z) => z !== null).join("\n");
+  const text = [gruss(g.empfaenger_name).replace(/&amp;/g, "&"), "", von + " schenkt dir " + produktArtikel(g) + " von Wimmel Wizard.", (g.widmung ? "„" + g.widmung + "“" : ""), "Code: " + g.code, "Einlösbar bis " + cfg.datumDeutsch(g.einloesefrist), cfg.EINLOESUNG_AB_SATZ, einloesenUrl, "", "Viele Grüße, Matthias"].filter((z) => z !== null).join("\n");
   return {
     to: g.empfaenger_email,
-    subject: von + " schenkt dir " + (g.produkt === "heft" ? "ein Wimmelheft" : "ein Wimmelbuch"),
+    subject: von + " schenkt dir " + produktArtikel(g),
     html, text,
     attachments: pdfBase64 ? [{ filename: "Wimmel-Wizard-Gutschein-" + g.code + ".pdf", content: pdfBase64 }] : undefined,
   };

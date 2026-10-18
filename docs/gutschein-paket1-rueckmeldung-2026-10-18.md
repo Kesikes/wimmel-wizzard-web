@@ -34,9 +34,9 @@ und sind deshalb ein Commit; J2 (Rabattcodes) steckt serverseitig in B.
 | `STRIPE_WEBHOOK_SECRET_TEST` | `whsec_…` vom Test-Webhook-Endpoint | – | ja |
 | `STRIPE_SECRET_KEY_LIVE` | – | `sk_live_…` | vor Live |
 | `STRIPE_WEBHOOK_SECRET_LIVE` | – | `whsec_…` vom Live-Webhook-Endpoint | vor Live |
-| `STRIPE_PMC_ID` | optional: `pmc_…` (Payment-Method-Configuration aus dem Dashboard) für einen eigenen Zahlarten-Satz; sonst gelten die Dashboard-Einstellungen. SEPA ist im Code ausgeschlossen. (Seit 18.10.2026 abends: `STRIPE_ZAHLARTEN` entfällt, API 2026-09-30 kennt `payment_method_types` nicht mehr) | wie Test | nein |
+| `STRIPE_PMC_ID` | optional: `pmc_…` (Payment-Method-Configuration aus dem Dashboard) für einen eigenen Zahlarten-Satz; sonst gelten die Dashboard-Einstellungen. SEPA ist im Code ausgeschlossen. | wie Test | nein |
 | `GUTSCHEIN_SIGNIER_SCHLUESSEL` | langer Zufallswert (z. B. `openssl rand -hex 32`) | **anderer** Zufallswert | ja – ohne ihn keine PDF-/Widerrufs-Links |
-| `SITE_URL` | `https://wimmel-wizard-v3.vercel.app` (Fallback, wenn leer) | `https://wimmelwizard.de` (ohne Schrägstrich) | ja – steht in Mails, PDF, QR |
+| `SITE_URL` | `https://www.wimmelwizard.de` (auch der Fallback im Code) | dito | ja – steht in Mails, PDF, QR |
 | `RESEND_API_KEY` | vorhanden | vorhanden | ja |
 | `MAIL_ABSENDER` | optional, Standard `Matthias von Wimmel Wizard <matthias@wimmelwizard.de>` – Domain muss bei Resend verifiziert sein | wie Test | nein |
 | `KONTAKT_EMAIL` | **PLATZHALTER** `hallo@wimmelwizard.de` – steht auf Seiten, in Mails, im PDF | echte Adresse | ja |

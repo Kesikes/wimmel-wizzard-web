@@ -10,15 +10,15 @@ const { sicherText, umbrechen } = require("../api/_lib/gutschein-pdf");
 process.env.GUTSCHEIN_SIGNIER_SCHLUESSEL = process.env.GUTSCHEIN_SIGNIER_SCHLUESSEL || "test-schluessel";
 
 test("QR: Größe, Finder, Timing, Versionen", () => {
-  const q = qrMatrix("https://wimmel-wizard-v3.vercel.app/einloesen?code=WW-AB2C-D3EF");
-  assert.equal(q.version, 5);
-  assert.equal(q.groesse, 37);
+  const q = qrMatrix("https://www.wimmelwizard.de/einloesen?code=WW-AB2C-D3EF");
+  assert.equal(q.version, 4);
+  assert.equal(q.groesse, 33);
   const m = q.module;
   // Finder links oben: Außenring dunkel
   for (let i = 0; i < 7; i++) { assert.equal(m[0][i], 1); assert.equal(m[6][i], 1); assert.equal(m[i][0], 1); assert.equal(m[i][6], 1); }
   assert.equal(m[7][7], 0, "Trennzone hell");
   // Timing
-  for (let i = 8; i < 29; i++) assert.equal(m[6][i], i % 2 === 0 ? 1 : 0);
+  for (let i = 8; i < q.groesse - 8; i++) assert.equal(m[6][i], i % 2 === 0 ? 1 : 0);
   // Dunkles Modul
   assert.equal(m[q.groesse - 8][8], 1);
   assert.equal(qrMatrix("x").version, 1);

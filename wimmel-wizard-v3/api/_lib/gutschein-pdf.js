@@ -107,11 +107,12 @@ async function gutscheinPdf(g) {
   seite.drawRectangle({ x: 0, y: 0, width: W, height: H, color: f(FARBE.papier) });
   seite.drawRectangle({ x: 12, y: 12, width: W - 24, height: H - 24, borderColor: f(FARBE.tinte), borderWidth: 4 });
 
-  // Wasserzeichen (diagonal, blass) — macht Kopien erkennbar, stört das Lesen nicht
+  // Wasserzeichen (GEÄNDERT 18.10.2026, erster echter Test: das diagonale lief quer über Code und
+  // "Von"-Bereich und wirkte wie ein Muster). Jetzt ein einziger, dezenter Schriftzug am unteren
+  // Rand, ohne Drehung — der Gutschein ist ein Geschenk, kein Entwurf. Die Marke + der Code
+  // bleiben als leise Spur gegen Kopien erkennbar.
   const wz = sicherText(cfg.MARKE + " · " + g.code);
-  for (let i = 0; i < 3; i++) {
-    seite.drawText(wz, { x: 60 + i * 170, y: 40 + i * 90, size: 30, font: fett, color: f(FARBE.tinte), opacity: 0.045, rotate: degrees(22) });
-  }
+  seite.drawText(wz, { x: 32, y: 40, size: 9, font: fett, color: f(FARBE.tinte), opacity: 0.18 });
 
   // Feste Plätze statt Fließsatz — damit nichts kollidiert, egal wie lang Name und Widmung sind.
   // Illustration links (x 32..160), rechte Spalte ab x=180, QR rechts unten, "So geht's" links unten.
