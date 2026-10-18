@@ -263,7 +263,10 @@ async function statusZuSession(sessionId, deps) {
     bereit: true, code: g.code, produkt_name: p.name, wert: cfg.euro(g.wert_cent), einloesefrist: cfg.datumDeutsch(g.einloesefrist),
     empfaenger_name: g.empfaenger_name || "", versand_an: g.versand_an, versand_datum: g.versand_datum ? cfg.datumDeutsch(g.versand_datum) : "",
     pdf_url: tokenLib.pdfUrl(g.code), einloesen_url: cfg.siteUrl() + "/einloesen?code=" + encodeURIComponent(g.code),
+    // Bei Rabatt (J2): Gutscheinwert bleibt die große Zahl, der gezahlte Betrag steht klein darunter
+    // (Entscheidung 18.10.2026). PDF und Mail 2 an die Empfängerin zeigen nur den Gutscheinwert.
     rabatt: !!g.rabatt_code,
+    bezahlt: g.rabatt_code ? cfg.euro(g.bezahlt_cent) : "",
   };
 }
 

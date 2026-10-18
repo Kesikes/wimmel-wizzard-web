@@ -67,4 +67,6 @@ test("PDF: erzeugt ein gültiges Dokument (nur wenn pdf-lib installiert ist)", a
   const bytes = await gutscheinPdf({ code: "WW-AB2C-D3EF", produkt: "heft", wert_cent: 2990, empfaenger_name: "Lina", kaeufer_name: "Oma", widmung: "Viel Spaß 🎉", einloesefrist: "2027-11-05" });
   assert.equal(Buffer.from(bytes.slice(0, 5)).toString(), "%PDF-");
   assert.ok(bytes.length > 20000 && bytes.length < 2000000, "Größe plausibel: " + bytes.length);
+  // Hausschriften eingebettet (Freigabe 18.10.2026): die Fontnamen stehen im PDF
+  assert.equal(require("../api/_lib/gutschein-pdf").hatHausschrift(), true, "Archivo Black + Caveat eingebettet (api/_assets/fonts, @pdf-lib/fontkit)");
 });

@@ -279,6 +279,13 @@ test("statusZuSession, Feedback, Teilen-Zähler, Statistik", async () => {
   assert.equal(st.bereit, true);
   assert.equal(st.code, code);
   assert.match(st.pdf_url, /mode=pdf&token=/);
+  assert.equal(st.bezahlt, "", "ohne Rabatt kein gezahlter Betrag");
+  const evR = await kaufMitEntwurf(u, { produkt: "heft" }, "q", { amount_total: 1990, total_details: { amount_discount: 1000 }, discounts: [{ promotion_code: "promo_9" }] });
+  await service.kaufVerarbeiten(evR, u.deps);
+  const stR = await service.statusZuSession(evR.data.object.id, u.deps);
+  assert.equal(stR.wert, "29,90 €");
+  assert.equal(stR.bezahlt, "19,90 €");
+  assert.equal(stR.rabatt, true);
   assert.equal((await service.feedbackSpeichern({ art: "ueberzeugt", text: "Die Garantie", produkt: "buch" }, u.deps)).ok, true);
   assert.equal((await service.feedbackSpeichern({ art: "gefehlt", wahl: "preis" }, u.deps)).ok, true);
   assert.equal((await service.feedbackSpeichern({ art: "gefehlt", wahl: "sonstiges", text: "Zu wenig Bilder" }, u.deps)).ok, true);
@@ -287,13 +294,13 @@ test("statusZuSession, Feedback, Teilen-Zähler, Statistik", async () => {
   assert.equal((await service.teilenZaehlen("123e4567-e89b-12d3-a456-426614174000", u.deps)).ok, true);
   assert.equal((await service.teilenZaehlen("nix", u.deps)).ok, false);
   const s = await service.statistik(u.deps);
-  assert.equal(s.gutscheine.gesamt, 1);
-  assert.equal(s.gutscheine.status.gekauft, 1);
+  assert.equal(s.gutscheine.gesamt, 2);
+  assert.equal(s.gutscheine.status.gekauft, 2);
   assert.equal(s.gefehlt.preis, 1);
   assert.equal(s.feedback_ueberzeugt[0].text, "Die Garantie");
   assert.equal(s.feedback_gefehlt[0].text, "Zu wenig Bilder");
   assert.equal(s.teilen.sitzungen_mit_teilen_klick, 1);
-  assert.equal(s.je_quelle.direkt.bezahlt, 1);
+  assert.equal(s.je_quelle.direkt.bezahlt, 2);
 });
 
 test("Stripe-Helfer: Formkodierung und Webhook-Signatur", () => {

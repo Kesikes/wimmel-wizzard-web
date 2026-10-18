@@ -2,14 +2,16 @@
 // EINZIGE npm-Abhängigkeit dieses Projekts, siehe package.json). A5 quer, im Stil der Seite:
 // Papier, Tinte, Rot, Gelb, keine Rundungen, kantige Kästen.
 //
-// SCHRIFTEN: Die Hausschriften (Archivo Black, Archivo, Caveat) sind Google Fonts unter der SIL
-// Open Font License — Einbetten in PDFs ist damit erlaubt. pdf-lib braucht zum Einbetten eigener
-// Schriften aber das Zusatzpaket @pdf-lib/fontkit, und der Auftrag erlaubt genau EIN Paket.
-// Deshalb hier die 14 PDF-Standardschriften (Helvetica/Helvetica-Bold/-Oblique), die jeder
-// Viewer mitbringt. Vorschlag siehe Rückmeldung: @pdf-lib/fontkit freigeben, dann Archivo Black
-// als Headline und Caveat für die Widmung — die Dateien dürfen eingebettet werden.
+// SCHRIFTEN (Freigabe 18.10.2026: @pdf-lib/fontkit als zweites Paket erlaubt): Archivo Black für
+// Headline, Kicker, Code und Hervorhebungen, Caveat SemiBold für die Widmung — beide Google Fonts
+// unter der SIL Open Font License (Einbetten erlaubt, Lizenztexte liegen daneben in
+// api/_assets/fonts/). Caveat liegt bei Google nur als variable Schrift vor; die statische
+// SemiBold-Instanz (wght 600, wie auf der Seite) wurde mit fontTools erzeugt. Fließtext bleibt
+// Helvetica (PDF-Standardschrift, kein Einbetten nötig). Fehlen die Schriftdateien (z. B. nicht mit
+// in die Funktion gepackt, siehe includeFiles in vercel.json), fällt alles auf Helvetica zurück —
+// das PDF kommt in jedem Fall. Embedding mit subset:true hält die Datei klein.
 // Standardschriften können nur WinAnsi-Zeichen (Umlaute, ß, €, Anführungszeichen ja — Emoji und
-// Sonderzeichen wie ✦ nein), siehe sicherText().
+// Sonderzeichen wie ✦ nein), siehe sicherText(); die eingebetteten Schriften decken dasselbe ab.
 //
 // Das PDF wird NICHT gespeichert (Auftrag): Mail 1 hängt es an, die Download-Route
 // (/api/gutschein?mode=pdf&token=…) erzeugt es bei Bedarf neu aus dem Hash.
@@ -50,6 +52,18 @@ function umbrechen(font, text, groesse, maxBreite) {
   return zeilen;
 }
 
+const fontCache = {};
+function fontBytes(datei) {
+  if (fontCache[datei] !== undefined) return fontCache[datei];
+  try { fontCache[datei] = fs.readFileSync(path.join(__dirname, "..", "_assets", "fonts", datei)); }
+  catch (e) { fontCache[datei] = null; }
+  return fontCache[datei];
+}
+
+// Nur für Tests/Diagnose: hat der letzte Lauf die Hausschriften eingebettet?
+let letzteHausschrift = false;
+function hatHausschrift() { return letzteHausschrift; }
+
 let illustrationCache = null;
 function illustrationBytes() {
   if (illustrationCache) return illustrationCache;
@@ -61,15 +75,32 @@ function illustrationBytes() {
 // gutscheinPdf(g) -> Promise<Uint8Array>. g = Gutschein-Objekt aus api/_lib/gutschein.js.
 async function gutscheinPdf(g) {
   const { PDFDocument, StandardFonts, rgb, degrees } = require("pdf-lib");
+  let fontkit = null;
+  try { fontkit = require("@pdf-lib/fontkit"); } catch (e) { fontkit = null; }
   const produkt = cfg.PRODUKTE[g.produkt] || cfg.PRODUKTE.buch;
   const doc = await PDFDocument.create();
   doc.setTitle("Wimmel Wizard Gutschein " + g.code);
   doc.setAuthor(cfg.MARKE);
   const seite = doc.addPage(A5_QUER);
   const [W, H] = A5_QUER;
-  const fett = await doc.embedFont(StandardFonts.HelveticaBold);
   const normal = await doc.embedFont(StandardFonts.Helvetica);
-  const kursiv = await doc.embedFont(StandardFonts.HelveticaOblique);
+  let fett = await doc.embedFont(StandardFonts.HelveticaBold);
+  let kursiv = await doc.embedFont(StandardFonts.HelveticaOblique);
+  let hausschrift = false;
+  if (fontkit) {
+    doc.registerFontkit(fontkit);
+    const archivo = fontBytes("ArchivoBlack-Regular.ttf"), caveat = fontBytes("Caveat-SemiBold.ttf");
+    try {
+      if (archivo) fett = await doc.embedFont(archivo, { subset: true });
+      if (caveat) kursiv = await doc.embedFont(caveat, { subset: true });
+      hausschrift = !!(archivo && caveat);
+    } catch (e) { console.error("[gutschein-pdf] Hausschrift nicht einbettbar, Helvetica: " + e.message); }
+  }
+  // Archivo Black läuft auf der Seite immer in Versalien (.h-black) — hier genauso; Caveat etwas
+  // größer, weil die Handschrift kleiner wirkt.
+  letzteHausschrift = hausschrift;
+  const versal = (t) => (hausschrift ? String(t).toUpperCase() : t);
+  const caveatGroesse = hausschrift ? 14 : 11;
   const f = (arr) => rgb(arr[0], arr[1], arr[2]);
 
   // Hintergrund + Rahmen
@@ -103,11 +134,11 @@ async function gutscheinPdf(g) {
   const kickerB = fett.widthOfTextAtSize(kickerText, 11) + 16;
   seite.drawRectangle({ x: 32, y: H - 60, width: kickerB, height: 22, color: f(FARBE.gelb), borderColor: f(FARBE.tinte), borderWidth: 2 });
   seite.drawText(kickerText, { x: 40, y: H - 54, size: 11, font: fett, color: f(FARBE.tinte) });
-  seite.drawText(sicherText(cfg.MARKE), { x: 40 + kickerB, y: H - 54, size: 11, font: fett, color: f(FARBE.tinte) });
+  seite.drawText(versal(sicherText(cfg.MARKE)), { x: 40 + kickerB, y: H - 54, size: 11, font: fett, color: f(FARBE.tinte) });
 
   // Headline (eine Zeile, bei langem Namen kleiner)
   const name = sicherText((g.empfaenger_name || "").trim());
-  const headline = sicherText(name ? "Ein " + produkt.name + " für " + name : "Ein " + produkt.name + " für euch");
+  const headline = versal(sicherText(name ? "Ein " + produkt.name + " für " + name : "Ein " + produkt.name + " für euch"));
   let hlGroesse = 24;
   while (hlGroesse > 14 && fett.widthOfTextAtSize(headline, hlGroesse) > W - 64) hlGroesse -= 1;
   seite.drawText(headline, { x: 32, y: H - 96, size: hlGroesse, font: fett, color: f(FARBE.tinte) });
@@ -116,10 +147,10 @@ async function gutscheinPdf(g) {
   const widmung = sicherText((g.widmung || "").trim());
   let y = 292;
   if (widmung) {
-    const zeilen = umbrechen(kursiv, "„" + widmung + "“", 11, rechtsB);
+    const zeilen = umbrechen(kursiv, "„" + widmung + "“", caveatGroesse, rechtsB);
     const gezeigt = zeilen.slice(0, 3);
     if (zeilen.length > 3) gezeigt[2] = gezeigt[2].replace(/\s*\S*$/, "") + " …“";
-    for (const zl of gezeigt) { seite.drawText(zl, { x: rechtsX, y, size: 11, font: kursiv, color: f(FARBE.tinte) }); y -= 14; }
+    for (const zl of gezeigt) { seite.drawText(zl, { x: rechtsX, y, size: caveatGroesse, font: kursiv, color: f(FARBE.tinte) }); y -= caveatGroesse + 3; }
   }
   const von = sicherText((g.kaeufer_name || "").trim());
   if (von) seite.drawText("Von " + von, { x: rechtsX, y: 248, size: 10.5, font: normal, color: f(FARBE.tinte) });
@@ -132,11 +163,11 @@ async function gutscheinPdf(g) {
   seite.drawText(codeText, { x: rechtsX + 14, y: 197, size: 26, font: fett, color: f(FARBE.weiss) });
 
   // Wert, Frist, Garantie
-  seite.drawText(sicherText(produkt.gutschein_hinweis + " · Wert " + cfg.euro(g.wert_cent) + " · inkl. Versand DE/AT/CH"), { x: rechtsX, y: 170, size: 10.5, font: fett, color: f(FARBE.tinte) });
+  seite.drawText(versal(sicherText(produkt.gutschein_hinweis + " · Wert " + cfg.euro(g.wert_cent) + " · inkl. Versand DE/AT/CH")), { x: rechtsX, y: 170, size: hausschrift ? 9 : 10.5, font: fett, color: f(FARBE.tinte) });
   seite.drawText(sicherText("Einlösbar bis " + cfg.datumDeutsch(g.einloesefrist) + " auf " + cfg.siteUrl().replace(/^https?:\/\//, "")), { x: rechtsX, y: 156, size: 10, font: normal, color: f(FARBE.tinte) });
   let gy = 141;
-  for (const zl of umbrechen(fett, sicherText(cfg.GARANTIE_SATZ), 9.5, rechtsBSchmal).slice(0, 2)) {
-    seite.drawText(zl, { x: rechtsX, y: gy, size: 9.5, font: fett, color: f(FARBE.rot) }); gy -= 12;
+  for (const zl of umbrechen(fett, versal(sicherText(cfg.GARANTIE_SATZ)), hausschrift ? 8.5 : 9.5, rechtsBSchmal).slice(0, 2)) {
+    seite.drawText(zl, { x: rechtsX, y: gy, size: hausschrift ? 8.5 : 9.5, font: fett, color: f(FARBE.rot) }); gy -= 12;
   }
 
   // QR rechts unten
@@ -162,4 +193,4 @@ async function gutscheinPdf(g) {
   return doc.save();
 }
 
-module.exports = { gutscheinPdf, sicherText, umbrechen };
+module.exports = { gutscheinPdf, sicherText, umbrechen, hatHausschrift };

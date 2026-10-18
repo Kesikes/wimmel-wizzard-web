@@ -38,6 +38,7 @@
       <div class="gs-kasten" style="margin-bottom: 18px;">
         <div class="gs-fakt"><span>Gutschein</span><b id="produkt">–</b></div>
         <div class="gs-fakt"><span>Wert</span><b id="wert">–</b></div>
+        <div class="gs-fakt" id="bezahlt-zeile" style="display: none; border-top: 0; padding-top: 0; margin-top: -6px;"><span></span><b id="bezahlt" style="font-weight: 500; font-size: 11px; color: var(--ink-a70);"></b></div>
         <div class="gs-fakt"><span>Einlösbar bis</span><b id="frist">–</b></div>
         <div class="gs-fakt" id="zustellung-zeile" style="display: none;"><span>Zustellung</span><b id="zustellung">–</b></div>
       </div>
@@ -101,6 +102,7 @@
     $("code").textContent = d.code;
     $("produkt").textContent = d.produkt_name + (d.empfaenger_name ? " für " + d.empfaenger_name : "");
     $("wert").textContent = d.wert;
+    if (d.rabatt && d.bezahlt) { $("bezahlt-zeile").style.display = "flex"; $("bezahlt").textContent = "bezahlt: " + d.bezahlt; }
     $("frist").textContent = d.einloesefrist;
     if (d.versand_an === "empfaengerin") {
       $("zustellung-zeile").style.display = "flex";
