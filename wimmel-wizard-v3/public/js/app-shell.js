@@ -357,6 +357,13 @@ function handleTestParams() {
   const hatStilTor = params.has("stiltor");
   // NEU (21.09.2026, 2026-09-21f): /app?koepfe=gross -- grosse runde Koepfe fuer alle Menschen.
   const hatKoepfe = params.has("koepfe");
+  // NEU (Auftrag 3 Teil 4, 18.10.2026): /app?bezahlt=an zeigt die App im bezahlten Zustand (Foto-
+  // Karte offen). Reine Anzeige -- der Server prueft ueber TEST_BEZAHLT_SESSION_IDS. Eigenstaendig,
+  // damit er die uebrigen Testschalter nicht anfasst.
+  if (params.has("bezahlt")) {
+    const w = (params.get("bezahlt") || "").trim().toLowerCase();
+    AppState.update({ bezahlt: w === "an" });
+  }
   if (!hatPhase && !hatKomposition && !hatLicht && !hatRichter && !hatHelden && !hatBlattfilter && !hatStilTor && !hatKoepfe) return;
   const phaseWert = hatPhase ? (params.get("phase") || "").trim() : null;
   const kompoWert = hatKomposition ? (params.get("komposition") || "").trim() : null;

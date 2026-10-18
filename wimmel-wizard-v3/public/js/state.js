@@ -153,6 +153,10 @@ const DEFAULT_STATE = {
   // "heft" | "buch" (public/js/produkte.js) statt einer Stufen-Zahl. Alte Staende mit Zahl (0 Poster,
   // 1/2 Wimmelbuch) werden in bereinigeStand() auf "buch" abgebildet.
   tier: PRODUKT_STANDARD,
+  // NEU (Auftrag 3 Teil 4): bezahlter Zustand FUER DIE ANZEIGE (Foto-Karte gesperrt/offen). Setzt
+  // spaeter Paket 2 (Aufladen/Gutschein); bis dahin nur der Test-Schalter /app?bezahlt=an. Die
+  // Wahrheit prueft immer der Server (free-tier.js bezahltStatus()).
+  bezahlt: false,
   dedication: "",
   payMethod: 0,
 

@@ -94,6 +94,7 @@ const { checkRateLimit } = require("./_lib/rate-limit");
 // NEU (Auftrag 3 Teil 0, 18.10.2026): Sitzungs-/Job-Pflicht, siehe api/_lib/sitzung.js.
 const { sitzungErforderlich } = require("./_lib/sitzung");
 const format = require("./_lib/format");
+const { fotoErlaubt, FOTO_GESPERRT_TEXT } = require("./_lib/free-tier");
 const { MAX_PROMPT_ZEICHEN } = require("./_lib/grenzen");
 const { deckelErlaubt, deckelBuchen } = require("./_lib/kosten-deckel");
 const { logFalError, mediaLifecycleHeaders } = require("./_lib/fal-queue");
@@ -162,6 +163,16 @@ module.exports = async (req, res) => {
     const isImageRefV = (v) => typeof v === "string" && (/^https?:\/\//.test(v) || /^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(v));
     const verifyImageUrls = (Array.isArray(body.imageUrls) ? body.imageUrls : []).filter(isImageRefV).slice(0, 14);
     const verifyPrompt = String(body.verifyPrompt || "").trim();
+    // NEU (Auftrag 3 Teil 4, 18.10.2026): FOTO ERST NACH AUFLADEN. Der einzige Produkt-Aufrufer, der
+    // hier ein data:-Bild schickt, ist die Foto-Beschreibung (describePhotoTraits() in pipeline.js,
+    // body.zweck === "foto") -- alle anderen Pruefungen arbeiten mit fal.media-URLs. Ohne bezahlten
+    // Zustand (free-tier.js fotoErlaubt(), Test-Schalter TEST_BEZAHLT_SESSION_IDS) wird abgelehnt,
+    // BEVOR das Foto irgendwohin geht.
+    const istFotoPfad = body.zweck === "foto" || verifyImageUrls.some((u) => /^data:/.test(u));
+    if (istFotoPfad && !(await fotoErlaubt(body.sessionId))) {
+      res.status(403).json({ error: FOTO_GESPERRT_TEXT, vorAufruf: true, fotoGesperrt: true });
+      return;
+    }
     if (!verifyImageUrls.length || !verifyPrompt) {
       res.status(400).json({ error: "Verify: imageUrls und verifyPrompt erforderlich.", vorAufruf: true });
       return;

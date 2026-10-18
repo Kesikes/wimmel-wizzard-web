@@ -65,9 +65,27 @@ function bilderKey(sessionId) { return "freitier:bilder:" + sessionId; }
 // bezahltStatus(sessionId) -> Platzhalter für Baustein C. IMMER false, bis das Konto-/
 // Guthaben-System steht (siehe Kopfkommentar). An DIESER Stelle andocken, nicht die Aufrufer
 // unten ändern.
+// TEST-SCHALTER (Auftrag 3 Teil 4, 18.10.2026): TEST_BEZAHLT_SESSION_IDS = kommagetrennte Session-
+// IDs (oder "*" fuer alle), die der Server als bezahlt behandelt -- NUR wenn die Umgebungsvariable
+// gesetzt ist. Damit laesst sich der bezahlte Zustand (Foto-Figuren, harte Grenzen) vor Paket 2
+// durchspielen. Im Client das Gegenstueck: /app?bezahlt=an (nur Anzeige; der Server prueft).
 async function bezahltStatus(sessionId) {
+  const test = String(process.env.TEST_BEZAHLT_SESSION_IDS || "").trim();
+  if (test) {
+    if (test === "*") return true;
+    const ids = test.split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
+    if (sessionId && ids.includes(String(sessionId).toLowerCase())) return true;
+  }
   return false;
 }
+
+// fotoErlaubt(sessionId) -> true, wenn Foto-Figuren erlaubt sind (Auftrag 3 Teil 4: Foto erst nach
+// dem ersten Aufladen oder mit Gutschein = bezahltStatus). Eine Stelle, zwei Aufrufer: fal-proxy.js
+// (Foto-Beschreibung, mode "verify" mit data:-Bild) und -- sobald Paket 2 da ist -- der Konto-Flow.
+async function fotoErlaubt(sessionId) {
+  return bezahltStatus(sessionId);
+}
+const FOTO_GESPERRT_TEXT = "Mit Foto wird die Figur eurem Kind noch ähnlicher. Das schaltet ihr mit dem ersten Aufladen oder eurem Gutschein frei.";
 
 // Baut die Kundinnen-Ansprache aus Abschnitt 7 des Auftrags — wortgleich, damit Baustein B/C
 // (die eigentlichen Stopp-Screens) diesen Text direkt übernehmen können, statt ihn zweimal zu
@@ -171,6 +189,6 @@ async function bilderBuchen(sessionId) {
 
 module.exports = {
   FIGUREN_GRATIS, FIGUREN_GRATIS_CHIPS, FIGUREN_HART, BILDER_GRATIS, BILDER_HART,
-  istGueltigeSessionId, bezahltStatus,
+  istGueltigeSessionId, bezahltStatus, fotoErlaubt, FOTO_GESPERRT_TEXT,
   figurenErlaubtUndGebucht, bilderErlaubt, bilderBuchen,
 };

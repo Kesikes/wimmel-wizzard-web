@@ -97,6 +97,10 @@ module.exports = async (req, res) => {
       res.status(200).json(await service.feedbackSpeichern(body));
       return;
     }
+    if (mode === "ereignis") {
+      res.status(200).json(await service.ereignisZaehlen(body.name));
+      return;
+    }
     if (mode === "teilen") {
       res.status(200).json(await service.teilenZaehlen(body.sessionId));
       return;

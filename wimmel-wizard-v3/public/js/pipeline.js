@@ -654,7 +654,8 @@ function traitBitFromPhotoDescription(description) {
 // Verbindungsaussetzer wird jetzt automatisch wiederholt statt sofort aufzugeben.
 async function describePhotoTraits(photoDataUri) {
   const prompt = "Look ONLY at the real person in this photo. Completely ignore any on-screen app UI elements, buttons, icons, captions, subtitles, stickers, filters, or text overlays anywhere in the image -- describe only the actual physical person underneath them. In ONE short sentence (max 25 words), state: their hair color, hair length (short/medium/long), hair texture (straight/curly/wavy), and at most one other clearly visible distinguishing feature (e.g. glasses, a beard, a red jacket, a headscarf). Do not mention facial expression, emotion, age, gender, or anything about the background or any UI element. Reply with ONLY that one plain sentence -- no JSON, no preamble, no extra commentary.";
-  const raw = await withTransientRetry(() => verifyImage(photoDataUri, prompt), { retries: 4, delayMs: 3000 });
+  // zweck "foto": der Server laesst diesen Aufruf nur im bezahlten Zustand durch (Auftrag 3 Teil 4).
+  const raw = await withTransientRetry(() => verifyImage(photoDataUri, prompt, "foto"), { retries: 4, delayMs: 3000 });
   const trimmed = String(raw || "").trim();
   if (!trimmed) return "";
   const firstSentence = trimmed.split(/(?<=[.!?])\s/)[0].replace(/[.!?]+$/, "").trim();
@@ -4566,14 +4567,15 @@ async function generateImageWithRetry(prompt, kind, opts) {
 // GEAENDERT (Verify-Blindspot-Fix 16.09.2026): imageUrl kann jetzt auch ein Array sein (generiertes
 // Bild + Helden-Referenzbilder zum Abgleich, siehe buildVerifyPrompt()) -- ein einzelner String bleibt
 // weiterhin gueltig (Rueckwaertskompatibel zu composeCharacterImage(), das keine Referenzbilder hat).
-async function verifyImage(imageUrl, verifyPrompt) {
+async function verifyImage(imageUrl, verifyPrompt, zweck) {
   const imageUrls = Array.isArray(imageUrl) ? imageUrl.filter(Boolean) : [imageUrl];
-  const resp = await falProxyAufruf({ mode: "verify", imageUrls, verifyPrompt });
+  const resp = await falProxyAufruf(Object.assign({ mode: "verify", imageUrls, verifyPrompt }, zweck ? { zweck } : {}));
   const data = await parseJsonResponse(resp);
   if (!resp.ok || data.error) {
     const err = new Error(data.error || ("Verify-Fehler " + resp.status));
     err.httpStatus = resp.status;
     if (data.vorAufruf === true) err.vorAufruf = true;
+    if (data.fotoGesperrt === true) err.fotoGesperrt = true;
     throw err;
   }
   return data.output || "";

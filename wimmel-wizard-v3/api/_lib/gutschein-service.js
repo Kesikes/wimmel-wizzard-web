@@ -292,6 +292,15 @@ async function feedbackSpeichern(eingabe, deps) {
   return { ok: false };
 }
 
+// --- Anonyme Ereigniszähler (Auftrag 3 Teil 4): feste Namen, nur INCR ---
+const EREIGNISSE = ["foto_gesperrt_klick"];
+async function ereignisZaehlen(name, deps) {
+  const d = mitDeps(deps);
+  if (!EREIGNISSE.includes(name)) return { ok: false };
+  await d.kv(["incr", "gz:e:" + name]);
+  return { ok: true };
+}
+
 // --- Teilen-Loop (Teil J): Zähler je Sitzung, ohne Personenbezug ---
 const SESSION_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 async function teilenZaehlen(sessionId, deps) {
@@ -326,9 +335,10 @@ async function statistik(deps) {
     teilen: { sitzungen_mit_erstem_bild: Number(await d.kv(["get", "gz:teilen:sitzungen_erstes_bild"])) || 0, sitzungen_mit_teilen_klick: Number(await d.kv(["scard", "gz:teilen:sitzungen"])) || 0 },
     feedback_ueberzeugt: ((await d.kv(["lrange", "gz:feedback:ueberzeugt", "0", "49"])) || []).map((s) => { try { return JSON.parse(s); } catch (e) { return s; } }),
     feedback_gefehlt: ((await d.kv(["lrange", "gz:feedback:gefehlt", "0", "49"])) || []).map((s) => { try { return JSON.parse(s); } catch (e) { return s; } }),
+    ereignisse: Object.fromEntries(await Promise.all(EREIGNISSE.map(async (e) => [e, Number(await d.kv(["get", "gz:e:" + e])) || 0]))),
     zustellung_offen: Number(await d.kv(["scard", "gutscheine:zustellung_offen"])) || 0,
     erstattung_fehler: (await d.kv(["smembers", "gutscheine:erstattung_fehler"])) || [],
   };
 }
 
-module.exports = { mitDeps, entwurfPruefen, checkoutStarten, kaufVerarbeiten, zustellungenVerarbeiten, pruefen, widerrufStatus, widerrufAusfuehren, statusZuSession, feedbackSpeichern, teilenZaehlen, zaehlen, statistik };
+module.exports = { mitDeps, entwurfPruefen, checkoutStarten, kaufVerarbeiten, zustellungenVerarbeiten, pruefen, widerrufStatus, widerrufAusfuehren, statusZuSession, feedbackSpeichern, teilenZaehlen, ereignisZaehlen, EREIGNISSE, zaehlen, statistik };

@@ -97,16 +97,30 @@ Screens.charakter = {
 
     const grid = h("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" } });
 
-    const fotoOn = s.charMode === "foto";
+    // GEAENDERT (Auftrag 3 Teil 4): im gesperrten Zustand gilt "foto" nie als aktiv (alter Stand).
+    const fotoOn = s.charMode === "foto" && !!s.bezahlt;
     const chipsOn = s.charMode === "chips";
 
+    // GEAENDERT (Auftrag 3 Teil 4, 18.10.2026): Foto erst nach dem ersten Aufladen / mit Gutschein.
+    // Die Karte bleibt sichtbar, ist aber gesperrt (Schloss + "Ab dem ersten Aufladen"); Antippen
+    // zeigt den Hinweis mit Vorher/Nachher statt des Upload-Panels. Der Server sperrt unabhaengig
+    // davon (fal-proxy.js, free-tier.js fotoErlaubt()). Anonymer Klickzaehler: FOTO_GESPERRT_EREIGNIS.
+    const fotoGesperrt = !s.bezahlt;
     const fotoCard = h("button", {
       type: "button",
-      style: cardStyle(fotoOn, "5px 6px 0 var(--ink)"),
-      onClick: () => { AppState.update({ charMode: "foto" }); rerender(); }
+      "aria-disabled": fotoGesperrt ? "true" : null,
+      style: Object.assign(cardStyle(fotoOn, "5px 6px 0 var(--ink)"), fotoGesperrt ? { position: "relative", background: "var(--paper)", color: "var(--ink-a70)" } : {}),
+      onClick: () => {
+        if (fotoGesperrt) { fotoSperreKlick(); AppState.update({ charMode: "foto-gesperrt" }); rerender(); return; }
+        AppState.update({ charMode: "foto" }); rerender();
+      }
     });
+    if (fotoGesperrt) {
+      fotoCard.appendChild(h("span", { class: "h-black", "aria-hidden": "true", style: { position: "absolute", top: "-10px", right: "-8px", background: "var(--ink)", color: "var(--paper)", fontSize: "13px", lineHeight: "1", padding: "6px 8px", transform: "rotate(6deg)" } }, "\uD83D\uDD12"));
+    }
     fotoCard.appendChild(h("span", { class: "h-black", style: { display: "block", fontSize: "15px", lineHeight: "1", letterSpacing: "-.02em" } }, [document.createTextNode("Foto"), h("br"), document.createTextNode("hochladen")]));
-    fotoCard.appendChild(h("span", { style: { display: "block", marginTop: "8px", fontSize: "12px", lineHeight: "1.35" } }, "wird nur für dein Bild benutzt und danach gelöscht."));
+    // GEAENDERT (Auftrag 3 Teil 4): "wird ... danach geloescht" -> "wird nur benutzt, um eure Figur zu zeichnen."
+    fotoCard.appendChild(h("span", { style: { display: "block", marginTop: "8px", fontSize: "12px", lineHeight: "1.35" } }, fotoGesperrt ? "Ab dem ersten Aufladen." : "wird nur benutzt, um eure Figur zu zeichnen."));
 
     const chipsCard = h("button", {
       type: "button",
@@ -121,7 +135,8 @@ Screens.charakter = {
     wrap.appendChild(grid);
 
     if (chipsOn) wrap.appendChild(buildChipsPanel(person));
-    if (fotoOn) wrap.appendChild(buildFotoPanel(person));
+    if (fotoOn && !fotoGesperrt) wrap.appendChild(buildFotoPanel(person));
+    if (s.charMode === "foto-gesperrt" && fotoGesperrt) wrap.appendChild(buildFotoSperrHinweis());
 
     root.appendChild(wrap);
 
@@ -664,6 +679,35 @@ let uploadedPhotoForPersonId = null;
 function resetUploadedPhoto() {
   uploadedPhotoDataUri = null;
   uploadedPhotoForPersonId = null;
+}
+
+// NEU (Auftrag 3 Teil 4, 18.10.2026): Hinweis beim Antippen der gesperrten Foto-Karte -- Vorher/
+// Nachher-Bilder (PLATZHALTER, bis Matthias /assets/foto-vorher.webp und foto-nachher.webp liefert:
+// bis dahin zeigen beide Kacheln die Papierfarbe mit Beschriftung) und der Satz aus dem Auftrag.
+const FOTO_GESPERRT_TEXT = "Mit Foto wird die Figur eurem Kind noch ähnlicher. Das schaltet ihr mit dem ersten Aufladen oder eurem Gutschein frei.";
+const FOTO_GESPERRT_EREIGNIS = "foto_gesperrt_klick";
+function fotoSperreKlick() {
+  // Anonymer Zaehler (api/gutschein.js mode "ereignis"): nur ein Name, keine Session, keine Person.
+  try { fetch("/api/gutschein", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode: "ereignis", name: FOTO_GESPERRT_EREIGNIS }) }).catch(() => {}); } catch (e) { /* egal */ }
+}
+function buildFotoSperrHinweis() {
+  const box = h("div", { style: { marginTop: "14px", border: "4px solid var(--ink)", background: "var(--yellow)", padding: "14px", transform: "rotate(-.5deg)", boxShadow: "5px 6px 0 var(--ink)" } });
+  box.appendChild(h("p", { class: "h-black", style: { margin: "0 0 10px", fontSize: "15px", lineHeight: "1.05", letterSpacing: "-.02em" } }, "Ab dem ersten Aufladen"));
+  const reihe = h("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", margin: "0 0 10px" } });
+  [["foto-vorher.webp", "Vorher: aus Merkmalen"], ["foto-nachher.webp", "Nachher: mit Foto"]].forEach(([datei, text]) => {
+    const kachel = h("figure", { style: { margin: "0" } });
+    const bild = h("img", { src: assetPath(datei), alt: text, style: { width: "100%", aspectRatio: "3 / 4", objectFit: "cover", border: "3px solid var(--ink)", background: "var(--paper)", display: "block" } });
+    // PLATZHALTER: fehlt die Datei noch, bleibt eine beschriftete Papierkachel statt eines kaputten Bilds.
+    bild.addEventListener("error", () => { bild.replaceWith(h("div", { style: { aspectRatio: "3 / 4", border: "3px dashed var(--ink)", background: "var(--paper)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", textAlign: "center", padding: "6px", color: "var(--ink-a70)" } }, "Bild folgt")); });
+    kachel.appendChild(bild);
+    kachel.appendChild(h("figcaption", { class: "h-black", style: { marginTop: "5px", fontSize: "10px", letterSpacing: ".04em" } }, text));
+    reihe.appendChild(kachel);
+  });
+  box.appendChild(reihe);
+  box.appendChild(h("p", { style: { margin: "0", fontSize: "13px", lineHeight: "1.45" } }, FOTO_GESPERRT_TEXT));
+  box.appendChild(h("button", { type: "button", class: "h-black", style: { marginTop: "10px", minHeight: "42px", width: "100%", fontSize: "12px", cursor: "pointer", border: "3px solid var(--ink)", background: "var(--ink)", color: "var(--paper)" },
+    onClick: () => { AppState.update({ charMode: "chips" }); const root = document.getElementById("screen-root"); if (root) { root.innerHTML = ""; Screens.charakter.render(root); } } }, "Erst mal mit Merkmalen"));
+  return box;
 }
 
 function buildFotoPanel(person) {
