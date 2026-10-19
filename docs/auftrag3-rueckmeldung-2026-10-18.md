@@ -4,7 +4,7 @@ Stand: 18.10.2026 (abends) · Umsetzung: Claude (Cowork) · Grundlage: Cowork-Au
 `docs/sortiment-beschluss-2026-10-16.md`, `docs/gutschein-briefing-2026-10-18.md`
 
 Alles committet, nichts gepusht. Nur App-/Backend-Dateien angefasst (api/**, public/js/**, app.html,
-ein neues Asset), keine Landingpage-Dateien. Tests: `cd wimmel-wizard-v3 && npm test` → 61 grün.
+ein neues Asset), keine Landingpage-Dateien. Tests: `cd wimmel-wizard-v3 && npm test` → 63 grün.
 **Teil 5 (Chip-Datenbank) ist nach den Entscheidungen vom 18.10. abends gebaut** (Abschnitt 6.4).
 
 ---
@@ -224,6 +224,29 @@ nächste Kundin mit diesen Chips erzeugt live neu (und legt wieder ab).
 **Nicht in Cowork testbar (Netz):** der echte Blob-Store. Erster Live-Test: in der App eine Chip-Figur
 ohne Notiz zeichnen, dann `?mode=chipfiguren` aufrufen – ein Eintrag mit `image-proxy?blob=…`-URL, das Bild
 muss im Browser laden. Dann in einer zweiten Sitzung dieselben Chips: sofort fertig, `chipTreffer:true`.
+
+### 6.5 Chip-Figuren v2 (Auftrag 19.10.2026)
+
+- **Eine Stelle für alle Listen:** `public/js/chips.js` (UMD) – im Browser `window.CHIPS`, auf dem Server
+  per `require` in `api/_lib/chip-figuren.js`. Rollenabhängige Haarfarben (Kinder 5, Frau/Oma + Grau/Weiß,
+  Mann/Opa + Grau/Weiß + Glatze), Haarstruktur glatt/lockig/kraus (`tightly coiled, afro-textured hair`),
+  Hautton (5 Tupfer, nur `aria-label` hell … dunkel, Prompt `light … dark skin tone`, Pflicht ohne
+  Voreinstellung), Merkmale je Rolle mit „nichts davon“ als Chip. Tier-Sets unverändert.
+- **Glatze:** Struktur/Länge werden ausgeblendet, geleert und stehen nicht im Schlüssel.
+- **Schlüssel v2:** `v2|rolle|stufe|haarfarbe|struktur|laenge|hautton|merkmal`, Stufen ≤5 / 6–9 / 10+ nur bei
+  Kindern. `VERSION` als Konstante in `chips.js`; `suchen()`/`liste()` ignorieren andere Versionen.
+  Kombinationen je Rolle: Kinder 3 375, Frau/Oma 1 620, Mann/Opa 1 650, Tier 567 je Tierart (Test).
+- **v1-Einträge entfernen:** `GET /api/gutschein?mode=chipfiguren-aufraeumen&key=…` löscht alle Einträge
+  älterer Versionen samt Datei im Blob-Store und meldet die Schlüssel (`db.aufraeumen()`, getestet mit Mock).
+- **Prompt/Prüfung:** `charPromptFromChips`/`charInSceneFromChips` bekommen `hauttonEn` (direkt nach der
+  Rolle); Helden-Abgleich der Szenenprüfung vergleicht jetzt Frisur, Haarfarbe, **Hautton**, Kleidung
+  (Zählregel, strenge Dopplungsregel mit fünf Punkten, Ähnlichkeitsregel). `PROMPT_LABEL = 2026-10-19a`.
+  `passtZumPrompt` prüft zusätzlich den Hautton.
+- **State:** `charHairColor/-Texture/-Length` tragen jetzt Chip-IDs statt Indizes, neu `charHautton`;
+  alte Indizes in einem Entwurf zählen als „nichts gewählt“. `charBesonderheit` null = „nichts davon“.
+- **Freitext:** bleibt optional, Hinweis darunter: „Mit eigener Beschreibung zaubert WizzelWim die Figur
+  extra für euch – das dauert etwas länger.“
+- Headless gerendert (Kind, Opa mit Glatze, Hund): keine JS-Fehler; Screenshot-Beschreibung in der Rückmeldung.
 
 ## 7. Teil 6 – Feinschliff Gutschein
 

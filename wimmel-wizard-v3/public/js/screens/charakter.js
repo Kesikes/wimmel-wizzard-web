@@ -3,41 +3,15 @@
    Texte wörtlich aus referenz/App-Flow-v4-OatlyWimmel.dc.html.
    ========================================================================== */
 
-// UMGEBAUT (Design-Feedback 05.09.2026: "Merkmale-Beschreibung strukturierter aufbauen: erst
-// Haare (Haarfarbe mit Vorgaben, Locken/glatt, kurz/mittel/lang), dann eine Besonderheit"). Vorher
-// eine flache Liste aus 10 frei mehrfach-waehlbaren Chips (Haar- UND Accessoire-Merkmale gemischt).
-// Jetzt drei einzeln waehlbare Haar-Gruppen (Farbe/Form/Laenge) + eine einzeln waehlbare
-// Besonderheit. "en" ist bereits fertig uebersetzter, getesteter Prompt-Text (bewusst NICHT ueber
-// translate()/translateChip() geroutet -- das sind feste, bekannte Werte, keine freie Eingabe,
-// siehe CHIP_TRANSLATIONS-Kommentar in pipeline.js zum selben Prinzip).
-const HAIR_COLORS = [
-  { label: "Blond", en: "blonde" }, { label: "Braun", en: "brown" }, { label: "Schwarz", en: "black" },
-  { label: "Rot", en: "red" }, { label: "Grau/Weiß", en: "gray/white" }, { label: "Bunt", en: "colorful, dyed" }
-];
-const HAIR_TEXTURE = [{ label: "Locken", en: "curly" }, { label: "Glatt", en: "straight" }];
-const HAIR_LENGTH = [{ label: "Kurz", en: "short" }, { label: "Mittel", en: "medium-length" }, { label: "Lang", en: "long" }];
-// Besonderheit: bleibt eine EINZELNE Auswahl (statt vorher mehrfach waehlbar) aus den alten
-// Accessoire-Chips -- "kurze weiße Locken"/"silberner Zopf" sind raus, weil das jetzt strukturiert
-// ueber die Haar-Gruppen oben abgefragt wird (sonst doppelt/widerspruechlich).
-const CHIPS = ["Strickjacke", "Blümchenbluse", "Brille an der Kette", "Gehstock", "Perlenkette", "Gummistiefel", "immer eine Tasche dabei", "lacht viel"];
-
-// NEU (Sammel-Runde 09.09.2026, Punkt B7: "tierspezifische Merkmal-Sets" -- bisher zeigte das
-// Merkmale-Formular JEDER Person, auch einem als "Haustier" angelegten Hund/Katze, dieselben
-// Haarfarbe/-form/-länge-Chips und dieselbe "Perlenkette/Gehstock"-Besonderheiten-Liste. Das passt
-// inhaltlich nicht ("Locken" bei einem Hund) und liefert unpassende Prompt-Bestandteile. Jetzt: ein
-// paralleles Fell-Merkmal-Set (Farbe/Muster + wiederverwendete Laenge-Chips, siehe HAIR_LENGTH
-// unten -- "kurz/mittel/lang" passt inhaltlich unveraendert auch auf Fell) + eigene, tierpassende
-// Besonderheiten-Chips. buildChipsPanel() waehlt anhand von person.isPet (state.js) zwischen den
-// zwei Sets.
-const FUR_COLORS = [
-  { label: "Braun", en: "brown" }, { label: "Schwarz", en: "black" }, { label: "Weiß", en: "white" },
-  { label: "Grau", en: "gray" }, { label: "Beige/Creme", en: "cream" }, { label: "Rotbraun", en: "reddish-brown" },
-  { label: "Gefleckt", en: "spotted, multi-colored" }
-];
-const FUR_PATTERN = [
-  { label: "Einfarbig", en: "solid-colored" }, { label: "Gestreift", en: "striped" }, { label: "Gescheckt", en: "patchy, multi-colored patterns" }
-];
-const PET_CHIPS = ["Schlappohren", "Stehohren", "buschiger Schwanz", "Stummelschwanz", "Flecken auf dem Rücken", "trägt ein Halsband", "immer mit einem Ball", "schläft am liebsten in der Sonne"];
+// CHIP-LISTEN (Chip-Figuren v2, 19.10.2026): alle Listen stehen EINMAL in public/js/chips.js
+// (window.CHIPS, auch vom Server genutzt). Hier nur noch Kurznamen. Historie: 05.09.2026 drei
+// Haar-Gruppen + eine Besonderheit; 09.09.2026 (B7) eigene Tier-Sets; 19.10.2026 rollenabhaengige
+// Haarfarben (Grau/Weiss, Glatze), Haarstruktur "kraus", Hautton (Pflicht), Merkmale je Rolle.
+// Die State-Felder charHairColor/charHairTexture/charHairLength/charHautton tragen jetzt die
+// Chip-ID (String) statt eines Index; charBesonderheit traegt das Label (null = "nichts davon").
+const FUR_COLORS = CHIPS.FELLFARBE;
+const FUR_PATTERN = CHIPS.FELLMUSTER;
+const PET_CHIPS = CHIPS.TIER_MERKMALE.map((m) => m.label);
 
 // Rollen-Auswahl fuer das "Person hinzufuegen"-Formular. value ist bereits
 // der von Pipeline.ageRole()/charPrompt() erwartete Wert (siehe pipeline.js
@@ -165,18 +139,22 @@ function applyChipStyle(el, on) {
 // Eine Reihe EINZELN (nicht mehrfach) waehlbarer Chips, die einen Index in AppState.data[stateKey]
 // speichern -- Radio-Verhalten innerhalb der Gruppe, erneutes Antippen waehlt ab. Wiederverwendet
 // fuer die drei Haar-Gruppen (Farbe/Form/Laenge), siehe buildChipsPanel().
-function buildSingleSelectGroup(stateKey, options, hint) {
+// GEAENDERT (19.10.2026): gespeichert wird opt.id (String), nicht mehr der Index -- die Listen sind
+// jetzt rollenabhaengig, ein Index waere mehrdeutig. onChange (optional) fuer Folgeaenderungen
+// (Glatze blendet Struktur/Laenge aus).
+function buildSingleSelectGroup(stateKey, options, hint, onChange) {
   const wrap = h("div", { style: { marginTop: "6px" } });
   if (hint) wrap.appendChild(h("span", { style: { display: "block", marginBottom: "5px", fontSize: "10px", color: "rgba(26,26,24,.5)" } }, hint));
   const row = h("div", { style: { display: "flex", flexWrap: "wrap", gap: "7px", marginBottom: "8px" } });
   options.forEach((opt, i) => {
     const chip = h("button", {
       type: "button",
-      style: chipStyle(AppState.data[stateKey] === i, i),
+      style: chipStyle(AppState.data[stateKey] === opt.id, i),
       onClick: () => {
-        const nowSelected = AppState.data[stateKey] === i;
-        AppState.update({ [stateKey]: nowSelected ? null : i });
+        const nowSelected = AppState.data[stateKey] === opt.id;
+        AppState.update({ [stateKey]: nowSelected ? null : opt.id });
         [...row.children].forEach((sib, si) => applyChipStyle(sib, !nowSelected && si === i));
+        if (onChange) onChange(nowSelected ? null : opt.id);
       }
     }, opt.label);
     row.appendChild(chip);
@@ -185,16 +163,41 @@ function buildSingleSelectGroup(stateKey, options, hint) {
   return wrap;
 }
 
+// NEU (19.10.2026): Hautton -- fuenf runde Farbtupfer OHNE sichtbare Beschriftung, Ueberschrift
+// "Hautton", nur aria-label (hell … dunkel, keine Herkunftsbegriffe). Pflichtfeld ohne
+// Voreinstellung: die Kundin waehlt bewusst. Ausgewaehlt = dicker Tintenring mit Versatzschatten.
+function buildHauttonGroup() {
+  const wrap = h("div", { style: { marginTop: "14px" } });
+  wrap.appendChild(h("p", { class: "h-black", style: { margin: "0 0 8px", fontSize: "13px", letterSpacing: "-.01em" } }, "Hautton"));
+  const row = h("div", { role: "radiogroup", "aria-label": "Hautton", style: { display: "flex", gap: "10px", alignItems: "center" } });
+  const stil = (el, on) => {
+    el.style.boxShadow = on ? "0 0 0 3px var(--paper), 0 0 0 6px var(--ink), 4px 5px 0 6px var(--ink)" : "none";
+    el.style.transform = on ? "scale(1.08)" : "none";
+    el.setAttribute("aria-checked", on ? "true" : "false");
+  };
+  CHIPS.HAUTTON.forEach((t) => {
+    const tupfer = h("button", {
+      type: "button", role: "radio", "aria-label": t.aria, title: "",
+      style: { width: "36px", height: "36px", borderRadius: "50%", border: "3px solid var(--ink)", background: t.farbe, cursor: "pointer", padding: "0", flex: "none" },
+      onClick: () => {
+        AppState.update({ charHautton: t.id });
+        [...row.children].forEach((sib) => stil(sib, sib === tupfer));
+      },
+    });
+    stil(tupfer, AppState.data.charHautton === t.id);
+    row.appendChild(tupfer);
+  });
+  wrap.appendChild(row);
+  return wrap;
+}
+
 function buildChipsPanel(person) {
   const s = AppState.data;
-  // NEU (B7): person.isPet (state.js) steuert, ob die Haar- oder die Fell-Merkmal-Sets gezeigt
-  // werden. Die drei Chip-Gruppen bleiben technisch dieselben State-Keys (charHairColor/-Texture/
-  // -Length) -- gespeichert wird nur ein Array-INDEX, welche Bedeutung der Index hat (Haar- oder
-  // Fell-Option) entscheidet ausschliesslich isPet bei Anzeige/Auswertung (siehe hairPhraseEn()).
+  // B7 (09.09.2026): person.isPet steuert Haar- oder Fell-Sets. v2 (19.10.2026): fuer Menschen
+  // sind Haarfarben und Merkmale ROLLENABHAENGIG (CHIPS.haarfarben(rolle)/merkmale(rolle)); bei
+  // Glatze verschwinden Struktur und Laenge (und werden geleert, damit sie nicht im Schluessel landen).
   const isPet = !!person.isPet;
-  const colorSet = isPet ? FUR_COLORS : HAIR_COLORS;
-  const patternSet = isPet ? FUR_PATTERN : HAIR_TEXTURE;
-  const besondersheitSet = isPet ? PET_CHIPS : CHIPS;
+  const rolle = isPet ? "pet" : person.role;
   const panel = h("div", { style: { marginTop: "22px", border: "4px solid var(--ink)", background: "var(--paper)", boxShadow: "6px 7px 0 var(--ink)", padding: "16px" } });
   const row = h("div", { style: { display: "flex", gap: "14px", alignItems: "flex-start" } });
 
@@ -205,29 +208,45 @@ function buildChipsPanel(person) {
 
   const right = h("div", { style: { flex: "1", minWidth: "0" } });
   right.appendChild(h("p", { class: "h-black", style: { margin: "0 0 10px", fontSize: "13px", letterSpacing: "-.01em" } }, isPet ? "Fell" : "Haare"));
-  right.appendChild(buildSingleSelectGroup("charHairColor", colorSet, isPet ? "z. B. Fellfarbe wählen" : "z. B. Farbe wählen"));
-  right.appendChild(buildSingleSelectGroup("charHairTexture", patternSet, null));
-  right.appendChild(buildSingleSelectGroup("charHairLength", HAIR_LENGTH, null));
+  const strukturLaenge = h("div");
+  const strukturLaengeFuellen = () => {
+    strukturLaenge.innerHTML = "";
+    if (!isPet && CHIPS.istGlatze(AppState.data.charHairColor)) return; // Glatze: nichts zu waehlen
+    strukturLaenge.appendChild(buildSingleSelectGroup("charHairTexture", isPet ? FUR_PATTERN : CHIPS.HAARSTRUKTUR, null));
+    strukturLaenge.appendChild(buildSingleSelectGroup("charHairLength", isPet ? CHIPS.FELLLAENGE : CHIPS.HAARLAENGE, null));
+  };
+  right.appendChild(buildSingleSelectGroup("charHairColor", isPet ? FUR_COLORS : CHIPS.haarfarben(rolle), isPet ? "z. B. Fellfarbe wählen" : "z. B. Farbe wählen", (id) => {
+    if (!isPet && CHIPS.istGlatze(id)) AppState.update({ charHairTexture: null, charHairLength: null });
+    strukturLaengeFuellen();
+  }));
+  strukturLaengeFuellen();
+  right.appendChild(strukturLaenge);
   row.appendChild(right);
   panel.appendChild(row);
 
+  if (!isPet) panel.appendChild(buildHauttonGroup());
+
   const besWrap = h("div", { style: { marginTop: "16px" } });
-  besWrap.appendChild(h("p", { class: "h-black", style: { margin: "0 0 8px", fontSize: "13px", letterSpacing: "-.01em" } }, ["Eine Besonderheit ", h("span", { style: { color: "rgba(26,26,24,.5)" } }, "optional")]));
-  // Besonderheit ist bewusst eine EINZELNE Auswahl (Radio-Verhalten): erneutes Antippen des
-  // bereits gewählten Chips waehlt ihn wieder ab, ein anderer Chip ersetzt die Auswahl.
+  besWrap.appendChild(h("p", { class: "h-black", style: { margin: "0 0 8px", fontSize: "13px", letterSpacing: "-.01em" } },
+    isPet ? ["Eine Besonderheit ", h("span", { style: { color: "rgba(26,26,24,.5)" } }, "optional")] : "Besonderes Merkmal"));
+  // Genau EINE Auswahl (Radio-Verhalten). Menschen (v2): "nichts davon" ist ein eigener Chip und
+  // gilt, solange nichts gewaehlt ist (charBesonderheit null). Tiere: wie bisher optional, erneutes
+  // Antippen waehlt ab.
   const besChipWrap = h("div", { style: { display: "flex", flexWrap: "wrap", gap: "7px" } });
-  besondersheitSet.forEach((label, i) => {
+  const merkmale = isPet ? PET_CHIPS.map((label) => ({ id: label, label })) : CHIPS.merkmale(rolle);
+  const nichtsId = isPet ? null : "nichts";
+  const aktiv = (m) => (s.charBesonderheit == null ? m.id === nichtsId : s.charBesonderheit === m.label);
+  merkmale.forEach((m, i) => {
     const chip = h("button", {
       type: "button",
-      style: chipStyle(s.charBesonderheit === label, i),
+      style: chipStyle(aktiv(m), i),
       onClick: () => {
-        const nowSelected = AppState.data.charBesonderheit === label;
-        AppState.update({ charBesonderheit: nowSelected ? null : label });
-        applyChipStyle(chip, !nowSelected, i);
-        // Geschwister-Chips zuruecksetzen (nur einer aktiv)
-        [...besChipWrap.children].forEach((sib) => { if (sib !== chip) applyChipStyle(sib, false, [...besChipWrap.children].indexOf(sib)); });
+        const nowSelected = AppState.data.charBesonderheit === m.label;
+        const neu = isPet ? (nowSelected ? null : m.label) : (m.id === nichtsId ? null : m.label);
+        AppState.update({ charBesonderheit: neu });
+        [...besChipWrap.children].forEach((sib, si) => applyChipStyle(sib, neu == null ? merkmale[si].id === nichtsId : merkmale[si].label === neu));
       }
-    }, label);
+    }, m.label);
     besChipWrap.appendChild(chip);
   });
   besWrap.appendChild(besChipWrap);
@@ -239,6 +258,9 @@ function buildChipsPanel(person) {
   ta.value = s.charNote || "";
   ta.addEventListener("input", () => AppState.update({ charNote: ta.value }));
   label.appendChild(ta);
+  // v2 (19.10.2026): mit Notiz wird die Figur live gezaubert (nicht aus dem Figuren-Regal).
+  label.appendChild(h("span", { style: { display: "block", marginTop: "6px", fontSize: "11px", lineHeight: "1.35", color: "rgba(26,26,24,.65)" } },
+    "Mit eigener Beschreibung zaubert WizzelWim die Figur extra für euch – das dauert etwas länger."));
   panel.appendChild(label);
 
   // NEU (Pipeline-Anbindung): tatsaechlicher Aufruf von Pipeline.generateImage() statt nur
@@ -275,83 +297,25 @@ function buildChipsPanel(person) {
 // das je nach person.isPet das jeweils passende Set zur Auswahl anzeigt) und ob der Prompt auf
 // "hair" oder "fur" endet.
 function hairPhraseEn(s, isPet) {
-  const colorSet = isPet ? FUR_COLORS : HAIR_COLORS;
-  const patternSet = isPet ? FUR_PATTERN : HAIR_TEXTURE;
-  const color = s.charHairColor != null ? colorSet[s.charHairColor] : null;
-  const texture = s.charHairTexture != null ? patternSet[s.charHairTexture] : null;
-  const length = s.charHairLength != null ? HAIR_LENGTH[s.charHairLength] : null;
-  if (!color && !texture && !length) return "";
-  return [length && length.en, texture && texture.en, color && color.en, isPet ? "fur" : "hair"].filter(Boolean).join(" ");
+  return CHIPS.haarPhraseEn({ haarfarbe: s.charHairColor, haarform: s.charHairTexture, haarlaenge: s.charHairLength }, isPet);
 }
 
-// NEU (Auftrag 3 Teil 5, 18.10.2026): die Chip-Werte fuer die gemeinsame Figuren-Datenbank
-// (api/_lib/chip-figuren.js baut daraus den Schluessel). NUR ohne Notiz -- eine Figur mit Notiz wird
-// live erzeugt und bleibt in dieser Sitzung (Entscheidung Matthias 18.10.2026). Fehlt ein Haar-/
-// Fell-Chip, liefert der Server keinen Schluessel und zeichnet live -- hier wird nichts geprueft.
+// NEU (Auftrag 3 Teil 5, 18.10.2026 / v2 19.10.2026): die Chip-Werte fuer die gemeinsame
+// Figuren-Datenbank (chips.js baut daraus den Schluessel). NUR ohne Notiz -- eine Figur mit Notiz
+// wird live erzeugt und bleibt in dieser Sitzung (Entscheidung Matthias 18.10.2026). Fehlt etwas,
+// liefert der Server keinen Schluessel und zeichnet live -- hier wird nichts geprueft.
 function chipDatenFuerDb(s, person, isPet) {
   if ((s.charNote || "").trim()) return null;
-  const colorSet = isPet ? FUR_COLORS : HAIR_COLORS;
-  const patternSet = isPet ? FUR_PATTERN : HAIR_TEXTURE;
-  const color = s.charHairColor != null ? colorSet[s.charHairColor] : null;
-  const texture = s.charHairTexture != null ? patternSet[s.charHairTexture] : null;
-  const length = s.charHairLength != null ? HAIR_LENGTH[s.charHairLength] : null;
   return {
     rolle: isPet ? "pet" : person.role,
     tierart: isPet ? (person.role || "pet") : undefined,
     alter: person.age,
-    haarfarbe: color ? color.en : "",
-    haarform: texture ? texture.en : "",
-    haarlaenge: length ? length.en : "",
-    besonderheit: s.charBesonderheit || "",
+    haarfarbe: s.charHairColor || "",
+    haarform: s.charHairTexture || "",
+    haarlaenge: s.charHairLength || "",
+    hautton: isPet ? undefined : (s.charHautton || ""),
+    merkmal: isPet ? (s.charBesonderheit || "") : (s.charBesonderheit || "nichts"),
   };
-}
-
-// NEU (Sammel-Runde 10.09.2026, Punkt C5+C6). Zwei zusammenhaengende Robustheits-Luecken in
-// generateCharacterImage()/generateCharacterImageFromPhoto():
-// C5 (Fehlermeldungs-Anker robust gegen Navigation): vorher wurde "errorP" (per
-// document.getElementById()) EINMAL ganz am Anfang der Funktion geholt und dieselbe Referenz ueber
-// mehrere await-Punkte hinweg weiterbenutzt. Navigiert die Nutzerin waehrend eines laufenden Aufrufs
-// weg (z.B. Tab-Wechsel im Dashboard) und wieder zurueck, wird root.innerHTML komplett neu gerendert
-// -- das urspruengliche DOM-Element mit dieser id existiert dann nicht mehr im sichtbaren Baum (ein
-// NEUES Element mit derselben id ersetzt es), die alte JS-Referenz zeigt aber weiter auf den
-// abgehaengten, unsichtbaren Knoten. Eine spaeter eintreffende Fehlermeldung wuerde so still ins
-// Leere geschrieben, ohne Fehler zu werfen -- fuer die Nutzerin sieht es aus wie "nichts passiert".
-// Jetzt: errorEl(id) holt das Element bei JEDER Verwendung frisch aus dem aktuell sichtbaren DOM,
-// statt eine Referenz ueber awaits hinweg zwischenzuspeichern.
-// C6 (Re-Entry-Guard, gleiches Muster wie "zauberBusy" in szene.js Screens.zaubern): ohne diesen
-// Schutz koennte ein zweiter Aufruf (z.B. ein zweiter Klick/Enter, bevor der erste Aufruf die
-// Buttons deaktiviert hat, oder ein Aufruf ueber einen anderen Code-Pfad) parallel zum ersten laufen
-// -- zwei parallele Generierungen fuer dieselbe Person wuerden sich gegenseitig ueberschreiben
-// (AppState.updatePerson() zweimal mit unterschiedlichem Ergebnis) oder doppelt Router.goScreen()
-// ausloesen. charGenBusy sperrt das: ein zweiter Aufruf waehrend eines laufenden wird ignoriert,
-// nicht angehaengt oder abgebrochen -- die Sperre loest sich von selbst wieder, sobald der laufende
-// Aufruf (Erfolg ODER Fehler) fertig ist, kein manuelles Reset noetig (anders als bei zauberBusy gibt
-// es hier keinen "haengt für immer"-Fall, der einen Retry-Button mit explizitem Reset braeuchte).
-let charGenBusy = false;
-function charGenErrorEl(id) { return document.getElementById(id); }
-
-// NEU (Sammel-Runde 11.09.2026, Punkt 1: "orangenen 'Ich zeichne...'-Button im Header
-// entfernen"). Der damalige Desktop-Header-Button (#btn-weitermachen) bekam waehrend der
-// Generierung GENAUSO wie der Bottom-Bar-Button die Beschriftung "Ich zeichne ..." -- fuer eine
-// Desktop-Nutzerin, die diesen Button sonst nur staendig sichtbar und neutral beschriftet als
-// "Weitermachen" kannte, wirkte das wie ein neuer, ploetzlich auftauchender oranger Button. Damals
-// behielt der Header-Button deshalb bewusst seine feste Beschriftung ("isHeaderBtn"-Sonderfall).
-// ENTFERNT (Sammel-Runde 11.09.2026, letzter Punkt: "entferne auch den Button im Header mit
-// 'Weitermachen' auf jeder Seite"): #btn-weitermachen existiert seitdem gar nicht mehr (siehe
-// app.html/app-shell.js) -- der Sonderfall hier ist damit gegenstandslos, ALLE uebergebenen Buttons
-// bekommen jetzt einheitlich den Text-Wechsel.
-function setBusyButtons(buttons, busy) {
-  (buttons || []).filter(Boolean).forEach((b) => {
-    if (busy) {
-      b.dataset.prevText = b.textContent; b.textContent = "Ich zeichne …";
-      b.disabled = true;
-      b.style.opacity = "0.75";
-    } else {
-      b.disabled = false;
-      b.textContent = b.dataset.prevText || b.textContent;
-      b.style.opacity = "1";
-    }
-  });
 }
 
 async function generateCharacterImage(person, buttons) {
@@ -360,16 +324,17 @@ async function generateCharacterImage(person, buttons) {
   const isPet = !!person.isPet;
   const hairEn = hairPhraseEn(s, isPet);
   const chipLabels = s.charBesonderheit ? [s.charBesonderheit] : [];
+  // v2 (19.10.2026): Hautton als eigener Prompt-Baustein (nur Menschen).
+  const hauttonEn = isPet ? "" : CHIPS.hauttonEn(s.charHautton);
   // Validierung (umgebaut 05.09.2026, B7-Ergaenzung 09.09.2026): Haare/Fell sind die primäre,
   // strukturierte Eingabe -- erst wenn dort NICHTS gewählt ist, zählt ersatzweise die freie Notiz.
-  if (!hairEn && !(s.charNote || "").trim()) {
+  // v2 (19.10.2026): Hautton ist bei Menschen Pflicht, ohne Voreinstellung.
+  const fehlt = (!hairEn && !(s.charNote || "").trim())
+    ? (isPet ? "Bitte mindestens Fellfarbe, -muster und -länge auswählen oder etwas dazuschreiben." : "Bitte mindestens Haarfarbe, -struktur und -länge auswählen oder etwas dazuschreiben.")
+    : (!isPet && !hauttonEn ? "Bitte noch einen Hautton antippen." : "");
+  if (fehlt) {
     const errorP = charGenErrorEl("char-gen-error");
-    if (errorP) {
-      errorP.textContent = isPet
-        ? "Bitte mindestens Fellfarbe, -muster und -länge auswählen oder etwas dazuschreiben."
-        : "Bitte mindestens Haarfarbe, -form und -länge auswählen oder etwas dazuschreiben.";
-      errorP.style.display = "block";
-    }
+    if (errorP) { errorP.textContent = fehlt; errorP.style.display = "block"; }
     return;
   }
   { const errorP = charGenErrorEl("char-gen-error"); if (errorP) errorP.style.display = "none"; }
@@ -404,8 +369,8 @@ async function generateCharacterImage(person, buttons) {
   try {
     const noteEn = await Pipeline.translateFreeText(s.charNote);
     const extraEnParts = hairEn ? [hairEn] : [];
-    const prompt = Pipeline.charPromptFromChips({ role: person.role, age: person.age, chipLabels, extraEnParts, noteEn });
-    const sceneDescription = Pipeline.charInSceneFromChips({ role: person.role, age: person.age, chipLabels, extraEnParts, noteEn });
+    const prompt = Pipeline.charPromptFromChips({ role: person.role, age: person.age, chipLabels, extraEnParts, noteEn, hauttonEn });
+    const sceneDescription = Pipeline.charInSceneFromChips({ role: person.role, age: person.age, chipLabels, extraEnParts, noteEn, hauttonEn });
     // GEAENDERT (Sammel-Runde 15.09.2026, "Warteschlangen-Umbau: Figuren-Pfad in die echte
     // Oberflaeche einbauen"). Vorher Pipeline.composeCharacterImage() -- ein EINZELNER Aufruf, der
     // die ganze Generierungs-/Verify-Dauer (2-3 Kandidaten, teils mehrere Minuten) ueber eine

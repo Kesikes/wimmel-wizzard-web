@@ -7,6 +7,7 @@
 //   GET  ?mode=statistik&key=…        Zähler/Feedback für Matthias (GUTSCHEIN_ADMIN_SCHLUESSEL)
 //   GET  ?mode=chipfiguren&key=…      Kuration (Auftrag 3 Teil 5): alle Figuren der Figuren-DB mit Bild-URL
 //   GET  ?mode=chipfigur-verwerfen&key=…&schluessel=…   eine Figur aus der DB werfen (Eintrag + Datei)
+//   GET  ?mode=chipfiguren-aufraeumen&key=…   alle Einträge älterer Schlüssel-Versionen (v1) samt Dateien entfernen
 //   POST { mode: "checkout", … }      Entwurf speichern, Stripe-Checkout anlegen -> { url }
 //   POST { mode: "status", session_id } Danke-Seite fragt, ob der Webhook durch ist
 //   POST { mode: "pruefen", code }    /einloesen: gültig? Produkt, Wert, Frist — kein Statuswechsel
@@ -51,16 +52,17 @@ module.exports = async (req, res) => {
       }
       // Auftrag 3 Teil 5: Kuration der gemeinsamen Chip-Figuren -- hier, damit keine weitere
       // Serverless-Funktion entsteht (gleicher Admin-Schluessel wie die Statistik).
-      if (mode === "chipfiguren" || mode === "chipfigur-verwerfen") {
+      if (mode === "chipfiguren" || mode === "chipfigur-verwerfen" || mode === "chipfiguren-aufraeumen") {
         const key = process.env.GUTSCHEIN_ADMIN_SCHLUESSEL;
         if (!key || req.query.key !== key) { res.status(401).json({ error: "Nicht erlaubt." }); return; }
         res.setHeader("Cache-Control", "no-store");
         const db = require("./_lib/chip-figuren").mitDeps();
         if (mode === "chipfiguren") {
           const figuren = await db.liste();
-          res.status(200).json({ anzahl: figuren.length, figuren });
+          res.status(200).json({ version: require("./_lib/chip-figuren").VERSION, anzahl: figuren.length, figuren });
           return;
         }
+        if (mode === "chipfiguren-aufraeumen") { res.status(200).json(await db.aufraeumen()); return; }
         const schluessel = String(req.query.schluessel || "").trim();
         if (!schluessel) { res.status(400).json({ error: "schluessel fehlt." }); return; }
         res.status(200).json({ schluessel, verworfen: await db.verwerfen(schluessel) });

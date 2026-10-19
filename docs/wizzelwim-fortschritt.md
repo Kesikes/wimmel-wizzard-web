@@ -21,6 +21,11 @@ Umgesetzt und committet (Details in `docs/auftrag3-rueckmeldung-2026-10-18.md`):
   live und danach für alle abgelegt; Altersstufen ≤5/6–9/10–13/14+; „Noch einmal zeichnen“ bei
   Regal-Figuren erst bezahlt; Kuration über `?mode=chipfiguren` / `chipfigur-verwerfen`.
   **Offen:** Live-Test gegen den echten Store (Cowork hat kein Netz dorthin).
+- Chip-Figuren v2 (19.10.2026): Listen einmal in `public/js/chips.js` (Client + Server), rollenabhängige
+  Haarfarben inkl. Glatze, Struktur „kraus“, Hautton (5 Tupfer, Pflicht), Merkmale je Rolle, Schlüssel mit
+  Version `v2|…`, Altersstufen ≤5/6–9/10+; Hautton im Helden-Abgleich (Prompt-Fassung `2026-10-19a`).
+  **Zu tun:** nach dem Deploy einmal `?mode=chipfiguren-aufraeumen&key=…` aufrufen (v1-Testeinträge weg);
+  Prompt-Fassung `2026-10-19a` ins Entscheidungsregister.
 
 ---
 

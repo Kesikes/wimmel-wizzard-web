@@ -29,10 +29,11 @@ const DEFAULT_STATE = {
   charChips: [], // ungenutzt seit dem Haare-zuerst-Umbau (05.09.2026), bleibt für alte
   // localStorage-Stände unschädlich stehen (siehe charakter.js: charHairColor/charHairTexture/
   // charHairLength/charBesonderheit ersetzen die alte Mehrfach-Chip-Auswahl).
-  charHairColor: null, // Index in HAIR_COLORS (charakter.js)
-  charHairTexture: null, // Index in HAIR_TEXTURE
-  charHairLength: null, // Index in HAIR_LENGTH
-  charBesonderheit: null, // Label-String aus CHIPS, oder null
+  charHairColor: null, // Chip-ID aus chips.js (v2, 19.10.2026; vorher Index) -- alte Indizes zaehlen als "nichts gewaehlt"
+  charHairTexture: null, // Chip-ID (Haarstruktur bzw. Fellmuster)
+  charHairLength: null, // Chip-ID (Laenge)
+  charHautton: null, // Chip-ID Hautton (v2, Pflicht bei Menschen, keine Voreinstellung)
+  charBesonderheit: null, // Label-String des Merkmals, null = "nichts davon"
   charNote: "",
   // NEU (Sammel-Runde 11.09.2026, "'Nachschärfen' braucht echte Anpassungs-Möglichkeit"): das
   // "Nachschärfen"-Panel auf dem Charakterblatt-Screen (Screens.charakterblatt, siehe charakter.js
@@ -203,7 +204,7 @@ function newSessionId() {
 // gemeldeten Freitext-Notiz. CHAR_DRAFT_FIELDS listet alle betroffenen Felder zentral auf, damit
 // addPerson() und setCurrentPerson() (unten) sie konsistent zuruecksetzen koennen, sobald
 // tatsaechlich zu einer ANDEREN Figur gewechselt wird.
-const CHAR_DRAFT_FIELDS = { charMode: null, charHairColor: null, charHairTexture: null, charHairLength: null, charBesonderheit: null, charNote: "" };
+const CHAR_DRAFT_FIELDS = { charMode: null, charHairColor: null, charHairTexture: null, charHairLength: null, charHautton: null, charBesonderheit: null, charNote: "" };
 
 // Einfacher, universell unterstuetzter Deep-Clone (ohne Abhaengigkeit von
 // structuredClone, das in manchen aelteren Umgebungen fehlt) - der State
