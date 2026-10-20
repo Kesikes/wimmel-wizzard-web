@@ -248,6 +248,23 @@ muss im Browser laden. Dann in einer zweiten Sitzung dieselben Chips: sofort fer
   extra für euch – das dauert etwas länger.“
 - Headless gerendert (Kind, Opa mit Glatze, Hund): keine JS-Fehler; Screenshot-Beschreibung in der Rückmeldung.
 
+### 6.6 Ergänzung v2 (20.10.2026): Bart bei Mann/Opa, Glatze als Länge
+
+- **Bart-Gruppe** nur bei Mann/Opa: Kein Bart / Dreitagebart / Schnauzer / Vollbart → `clean-shaven` /
+  `short {farbe} stubble` / `{farbe} mustache` / `full {farbe} beard`, Farbe = gewählte Haarfarbe
+  (`CHIPS.bartEn`). Ohne Auswahl gilt „Kein Bart“ (steht als `clean-shaven` ausdrücklich im Prompt).
+  „Bart“ ist aus den Merkmalen von Mann/Opa gestrichen (sonst doppelt).
+- **Glatze** ist jetzt eine Längen-Option (nur Mann/Opa, `CHIPS.haarlaengen(rolle)`); Haarfarbe bleibt
+  wählbar → `bald head, no hair, {farbe} eyebrows`; Struktur wird ausgeblendet, geleert und steht als
+  `-` im Schlüssel.
+- **Schlüssel** v2 hat ein neuntes Feld: `v2|rolle|stufe|haarfarbe|struktur|laenge|hautton|merkmal|bart`
+  (`-` bei Rollen ohne Bart), z. B. `v2|man|-|grau|-|glatze|mittel|nichts|vollbart`. Schlüssel vom 19.10.
+  (acht Felder) werden nie mehr getroffen – falls schon welche im Store liegen, `chipfigur-verwerfen`.
+- **Kombinationen Mann/Opa:** 6 Farben × (3 Strukturen × 3 Längen + Glatze) × 5 Hauttöne × 5 Merkmale ×
+  4 Bärte = **6 000** (nicht 7 200 – die 7 200 ergeben sich nur, wenn „Bart“ zusätzlich als Merkmal
+  stehen bliebe: × 6 statt × 5). Kinder 3 375, Frau/Oma 1 620 unverändert.
+- `passtZumPrompt` prüft bei Mann/Opa zusätzlich die Bart-Phrase. State: neu `charBart`.
+
 ## 7. Teil 6 – Feinschliff Gutschein
 
 - Wasserzeichen: ein dezenter Schriftzug „Wimmel Wizard · {Code}“ am unteren Rand (18 % Deckung), keine

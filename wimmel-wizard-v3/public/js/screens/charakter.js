@@ -208,19 +208,27 @@ function buildChipsPanel(person) {
 
   const right = h("div", { style: { flex: "1", minWidth: "0" } });
   right.appendChild(h("p", { class: "h-black", style: { margin: "0 0 10px", fontSize: "13px", letterSpacing: "-.01em" } }, isPet ? "Fell" : "Haare"));
-  const strukturLaenge = h("div");
-  const strukturLaengeFuellen = () => {
-    strukturLaenge.innerHTML = "";
-    if (!isPet && CHIPS.istGlatze(AppState.data.charHairColor)) return; // Glatze: nichts zu waehlen
-    strukturLaenge.appendChild(buildSingleSelectGroup("charHairTexture", isPet ? FUR_PATTERN : CHIPS.HAARSTRUKTUR, null));
-    strukturLaenge.appendChild(buildSingleSelectGroup("charHairLength", isPet ? CHIPS.FELLLAENGE : CHIPS.HAARLAENGE, null));
+  // Ergaenzung 20.10.2026: "Glatze" ist eine LAENGEN-Option (nur Mann/Opa). Die Farbe bleibt
+  // waehlbar (Bart + Augenbrauen), die Struktur-Reihe verschwindet und wird geleert.
+  right.appendChild(buildSingleSelectGroup("charHairColor", isPet ? FUR_COLORS : CHIPS.haarfarben(rolle), isPet ? "z. B. Fellfarbe wählen" : "z. B. Farbe wählen"));
+  const struktur = h("div");
+  const strukturFuellen = () => {
+    struktur.innerHTML = "";
+    if (!isPet && CHIPS.istGlatze(AppState.data.charHairLength)) return; // Glatze: keine Struktur
+    struktur.appendChild(buildSingleSelectGroup("charHairTexture", isPet ? FUR_PATTERN : CHIPS.HAARSTRUKTUR, null));
   };
-  right.appendChild(buildSingleSelectGroup("charHairColor", isPet ? FUR_COLORS : CHIPS.haarfarben(rolle), isPet ? "z. B. Fellfarbe wählen" : "z. B. Farbe wählen", (id) => {
-    if (!isPet && CHIPS.istGlatze(id)) AppState.update({ charHairTexture: null, charHairLength: null });
-    strukturLaengeFuellen();
+  strukturFuellen();
+  right.appendChild(struktur);
+  right.appendChild(buildSingleSelectGroup("charHairLength", isPet ? CHIPS.FELLLAENGE : CHIPS.haarlaengen(rolle), null, (id) => {
+    if (!isPet && CHIPS.istGlatze(id)) AppState.update({ charHairTexture: null });
+    strukturFuellen();
   }));
-  strukturLaengeFuellen();
-  right.appendChild(strukturLaenge);
+  // Bart (20.10.2026): nur Mann/Opa, genau eine Auswahl, "Kein Bart" gilt ohne Auswahl.
+  if (!isPet && CHIPS.hatBart(rolle)) {
+    right.appendChild(h("p", { class: "h-black", style: { margin: "10px 0 4px", fontSize: "13px", letterSpacing: "-.01em" } }, "Bart"));
+    if (!AppState.data.charBart) AppState.update({ charBart: "kein" });
+    right.appendChild(buildSingleSelectGroup("charBart", CHIPS.BART, null, (id) => { if (!id) AppState.update({ charBart: "kein" }); }));
+  }
   row.appendChild(right);
   panel.appendChild(row);
 
@@ -315,6 +323,7 @@ function chipDatenFuerDb(s, person, isPet) {
     haarlaenge: s.charHairLength || "",
     hautton: isPet ? undefined : (s.charHautton || ""),
     merkmal: isPet ? (s.charBesonderheit || "") : (s.charBesonderheit || "nichts"),
+    bart: !isPet && CHIPS.hatBart(person.role) ? (s.charBart || "kein") : undefined,
   };
 }
 
@@ -369,6 +378,8 @@ async function generateCharacterImage(person, buttons) {
   try {
     const noteEn = await Pipeline.translateFreeText(s.charNote);
     const extraEnParts = hairEn ? [hairEn] : [];
+    // Bart (20.10.2026): Mann/Opa, Farbe = Haarfarbe; "clean-shaven" steht ausdruecklich im Prompt.
+    if (!isPet && CHIPS.hatBart(person.role)) { const b = CHIPS.bartEn(s.charBart || "kein", s.charHairColor); if (b) extraEnParts.push(b); }
     const prompt = Pipeline.charPromptFromChips({ role: person.role, age: person.age, chipLabels, extraEnParts, noteEn, hauttonEn });
     const sceneDescription = Pipeline.charInSceneFromChips({ role: person.role, age: person.age, chipLabels, extraEnParts, noteEn, hauttonEn });
     // GEAENDERT (Sammel-Runde 15.09.2026, "Warteschlangen-Umbau: Figuren-Pfad in die echte

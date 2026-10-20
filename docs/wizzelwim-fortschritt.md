@@ -26,6 +26,8 @@ Umgesetzt und committet (Details in `docs/auftrag3-rueckmeldung-2026-10-18.md`):
   Version `v2|…`, Altersstufen ≤5/6–9/10+; Hautton im Helden-Abgleich (Prompt-Fassung `2026-10-19a`).
   **Zu tun:** nach dem Deploy einmal `?mode=chipfiguren-aufraeumen&key=…` aufrufen (v1-Testeinträge weg);
   Prompt-Fassung `2026-10-19a` ins Entscheidungsregister.
+- Ergänzung 20.10.: Bart-Gruppe bei Mann/Opa (Farbe = Haarfarbe), Glatze als Längen-Option; Schlüssel mit
+  neuntem Feld `bart`; Mann/Opa 6 000 Kombinationen.
 
 ---
 

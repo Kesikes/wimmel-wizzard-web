@@ -25,48 +25,61 @@ test("Listen laut Auftrag 19.10.2026", () => {
   const l = (xs) => xs.map((x) => x.label);
   assert.deepEqual(l(CH.haarfarben("girl")), ["Blond", "Hellbraun", "Dunkelbraun", "Schwarz", "Rot"]);
   assert.deepEqual(l(CH.haarfarben("woman")), ["Blond", "Hellbraun", "Dunkelbraun", "Schwarz", "Rot", "Grau/Weiß"]);
-  assert.deepEqual(l(CH.haarfarben("grandfather")), ["Blond", "Hellbraun", "Dunkelbraun", "Schwarz", "Rot", "Grau/Weiß", "Glatze"]);
+  assert.deepEqual(l(CH.haarfarben("grandfather")), ["Blond", "Hellbraun", "Dunkelbraun", "Schwarz", "Rot", "Grau/Weiß"], "Glatze ist keine Farbe mehr (20.10.)");
   assert.deepEqual(l(CH.HAARSTRUKTUR), ["Glatt", "Lockig", "Kraus"]);
-  assert.deepEqual(l(CH.HAARLAENGE), ["Kurz", "Mittel", "Lang"]);
+  assert.deepEqual(l(CH.haarlaengen("girl")), ["Kurz", "Mittel", "Lang"]);
+  assert.deepEqual(l(CH.haarlaengen("woman")), ["Kurz", "Mittel", "Lang"]);
+  assert.deepEqual(l(CH.haarlaengen("man")), ["Kurz", "Mittel", "Lang", "Glatze"]);
+  assert.deepEqual(l(CH.haarlaengen("grandfather")), ["Kurz", "Mittel", "Lang", "Glatze"]);
+  assert.deepEqual(l(CH.BART), ["Kein Bart", "Dreitagebart", "Schnauzer", "Vollbart"]);
+  assert.equal(CH.hatBart("man") && CH.hatBart("grandfather") && !CH.hatBart("woman") && !CH.hatBart("boy"), true);
+  assert.equal(CH.bartEn("vollbart", "grau"), "full gray/white beard");
+  assert.equal(CH.bartEn("schnauzer", "schwarz"), "black mustache");
+  assert.equal(CH.bartEn("dreitage", "rot"), "short red stubble");
+  assert.equal(CH.bartEn("kein", "rot"), "clean-shaven");
   assert.deepEqual(CH.HAUTTON.map((x) => x.aria), ["hell", "hell-mittel", "mittel", "mittel-dunkel", "dunkel"]);
   assert.deepEqual(CH.HAUTTON.map((x) => x.en), ["light skin tone", "light-medium skin tone", "medium skin tone", "medium-dark skin tone", "dark skin tone"]);
   assert.deepEqual(l(CH.merkmale("girl")), ["Brille", "Kappe", "Kuscheltier im Arm", "Rucksack", "nichts davon"]);
   assert.deepEqual(l(CH.merkmale("woman")), ["Brille", "Hut/Kappe", "Kopftuch", "Rucksack", "Schal", "nichts davon"]);
-  assert.deepEqual(l(CH.merkmale("man")), ["Brille", "Bart", "Hut/Kappe", "Rucksack", "Schal", "nichts davon"]);
+  assert.deepEqual(l(CH.merkmale("man")), ["Brille", "Hut/Kappe", "Rucksack", "Schal", "nichts davon"], "Bart ist eigene Gruppe (20.10.)");
   assert.deepEqual(l(CH.merkmale("grandmother")), ["Brille", "Hut", "Gehstock", "Strickjacke", "Kopftuch", "nichts davon"]);
-  assert.deepEqual(l(CH.merkmale("grandfather")), ["Brille", "Bart", "Hut", "Gehstock", "Strickjacke", "nichts davon"]);
+  assert.deepEqual(l(CH.merkmale("grandfather")), ["Brille", "Hut", "Gehstock", "Strickjacke", "nichts davon"]);
   assert.equal(CH.merkmalEn("Kuscheltier im Arm"), "holding a plush toy");
   assert.equal(CH.merkmalEn("nichts davon"), "");
   assert.equal(CH.merkmalEn("Schlappohren"), null, "Tier-Chips weiter ueber translateChip");
   assert.equal(CH.haarPhraseEn({ haarfarbe: "schwarz", haarform: "kraus", haarlaenge: "kurz" }), "short tightly coiled, afro-textured black hair");
-  assert.equal(CH.haarPhraseEn({ haarfarbe: "glatze", haarform: "glatt", haarlaenge: "lang" }), "bald head, no hair");
+  assert.equal(CH.haarPhraseEn({ haarfarbe: "grau", haarform: "glatt", haarlaenge: "glatze" }), "bald head, no hair, gray/white eyebrows");
 });
 
 test("Schluessel v2: Version, Stufen, Glatze, Hautton Pflicht", () => {
   const a = C.schluessel({ rolle: "girl", alter: 6, haarfarbe: "blond", haarform: "glatt", haarlaenge: "lang", hautton: "hell", merkmal: "brille" });
-  assert.equal(a, "v2|girl|6-9|blond|glatt|lang|hell|brille");
+  assert.equal(a, "v2|girl|6-9|blond|glatt|lang|hell|brille|-");
   assert.equal(C.schluessel({ rolle: "girl", alter: 9, haarfarbe: "blond", haarform: "glatt", haarlaenge: "lang", hautton: "hell", merkmal: "Brille" }), a, "Label statt ID geht auch");
-  assert.equal(C.schluessel({ rolle: "boy", alter: 3, haarfarbe: "hellbraun", haarform: "lockig", haarlaenge: "kurz", hautton: "mittel" }), "v2|boy|0-5|hellbraun|lockig|kurz|mittel|nichts", "ohne Merkmal = nichts");
-  assert.equal(C.schluessel({ rolle: "boy", alter: 14, haarfarbe: "hellbraun", haarform: "lockig", haarlaenge: "kurz", hautton: "mittel" }), "v2|boy|10+|hellbraun|lockig|kurz|mittel|nichts");
-  assert.equal(C.schluessel({ rolle: "woman", alter: 34, haarfarbe: "grau", haarform: "kraus", haarlaenge: "mittel", hautton: "dunkel", merkmal: "kopftuch" }), "v2|woman|-|grau|kraus|mittel|dunkel|kopftuch", "Erwachsene ohne Alter");
-  assert.equal(C.schluessel({ rolle: "man", haarfarbe: "glatze", haarform: "glatt", haarlaenge: "lang", hautton: "mittel-dunkel", merkmal: "bart" }), "v2|man|-|glatze|-|-|mittel-dunkel|bart", "Glatze: Struktur/Laenge nicht im Schluessel");
-  assert.equal(C.schluessel({ rolle: "girl", alter: 6, haarfarbe: "glatze", haarform: "glatt", haarlaenge: "lang", hautton: "hell" }), null, "Glatze gibt es bei Kindern nicht");
+  assert.equal(C.schluessel({ rolle: "boy", alter: 3, haarfarbe: "hellbraun", haarform: "lockig", haarlaenge: "kurz", hautton: "mittel" }), "v2|boy|0-5|hellbraun|lockig|kurz|mittel|nichts|-", "ohne Merkmal = nichts");
+  assert.equal(C.schluessel({ rolle: "boy", alter: 14, haarfarbe: "hellbraun", haarform: "lockig", haarlaenge: "kurz", hautton: "mittel" }), "v2|boy|10+|hellbraun|lockig|kurz|mittel|nichts|-");
+  assert.equal(C.schluessel({ rolle: "woman", alter: 34, haarfarbe: "grau", haarform: "kraus", haarlaenge: "mittel", hautton: "dunkel", merkmal: "kopftuch" }), "v2|woman|-|grau|kraus|mittel|dunkel|kopftuch|-", "Erwachsene ohne Alter");
+  assert.equal(C.schluessel({ rolle: "man", haarfarbe: "grau", haarform: "glatt", haarlaenge: "glatze", hautton: "mittel-dunkel", bart: "vollbart" }), "v2|man|-|grau|-|glatze|mittel-dunkel|nichts|vollbart", "Glatze: Farbe bleibt, Struktur nicht im Schluessel, Bart drin");
+  assert.equal(C.schluessel({ rolle: "grandfather", haarfarbe: "grau", haarform: "kraus", haarlaenge: "kurz", hautton: "hell", merkmal: "hut" }), "v2|grandfather|-|grau|kraus|kurz|hell|hut|kein", "ohne Bart-Angabe = kein Bart");
+  assert.equal(C.schluessel({ rolle: "man", haarfarbe: "grau", haarform: "kraus", haarlaenge: "kurz", hautton: "hell", bart: "ziegenbart" }), null, "unbekannter Bart");
+  assert.equal(C.schluessel({ rolle: "girl", alter: 6, haarfarbe: "blond", haarform: "glatt", haarlaenge: "glatze", hautton: "hell" }), null, "Glatze gibt es bei Kindern nicht");
+  assert.equal(C.schluessel({ rolle: "woman", haarfarbe: "blond", haarform: "glatt", haarlaenge: "glatze", hautton: "hell" }), null, "Glatze gibt es bei Frauen nicht");
   assert.equal(C.schluessel({ rolle: "girl", alter: 6, haarfarbe: "grau", haarform: "glatt", haarlaenge: "lang", hautton: "hell" }), null, "Grau gibt es bei Kindern nicht");
   assert.equal(C.schluessel({ rolle: "girl", alter: 6, haarfarbe: "blond", haarform: "glatt", haarlaenge: "lang" }), null, "Hautton fehlt");
   assert.equal(C.schluessel({ rolle: "girl", alter: 6, haarfarbe: "blond", haarform: "glatt", hautton: "hell" }), null, "Laenge fehlt");
   assert.equal(C.schluessel({ rolle: "woman", haarfarbe: "blond", haarform: "glatt", haarlaenge: "lang", hautton: "hell", merkmal: "kuscheltier" }), null, "Merkmal gehoert nicht zur Rolle");
-  assert.equal(C.schluessel({ rolle: "pet", tierart: "dog", haarfarbe: "brown", haarform: "striped", haarlaenge: "short", merkmal: "Schlappohren" }), "v2|pet:dog|-|brown|striped|short|-|schlappohren");
+  assert.equal(C.schluessel({ rolle: "pet", tierart: "dog", haarfarbe: "brown", haarform: "striped", haarlaenge: "short", merkmal: "Schlappohren" }), "v2|pet:dog|-|brown|striped|short|-|schlappohren|-");
   assert.equal(C.schluessel({ rolle: "alien", haarfarbe: "blond", haarform: "glatt", haarlaenge: "lang", hautton: "hell" }), null);
   assert.equal(C.schluessel(null), null);
-  assert.equal(C.CHIPS.istAktuelleVersion("v2|girl|6-9|blond|glatt|lang|hell|brille"), true);
+  assert.equal(C.CHIPS.istAktuelleVersion("v2|girl|6-9|blond|glatt|lang|hell|brille|-"), true);
   assert.equal(C.CHIPS.istAktuelleVersion("girl|6-9|blonde|straight|long|gummistiefel"), false);
 });
 
-test("Kombinationszahlen je Rolle (Auftrag: Kinder 3.375, Frau/Oma 1.620, Mann/Opa 1.650)", () => {
+test("Kombinationszahlen je Rolle (Kinder 3.375, Frau/Oma 1.620, Mann/Opa 6.000 mit Bart-Gruppe, 20.10.)", () => {
   const k = C.kombinationen();
   assert.equal(k.girl, 3375); assert.equal(k.boy, 3375);
   assert.equal(k.woman, 1620); assert.equal(k.grandmother, 1620);
-  assert.equal(k.man, 1650); assert.equal(k.grandfather, 1650);
+  // 6 Farben x (3 Strukturen x 3 Laengen + Glatze) x 5 Hauttoene x 5 Merkmale x 4 Baerte
+  assert.equal(k.man, 6 * 10 * 5 * 5 * 4); assert.equal(k.grandfather, 6000);
   assert.equal(k.pet_je_tierart, 567);
 });
 
@@ -85,7 +98,9 @@ test("passtZumPrompt: Rolle, Haarphrase, Hautton und Stilschwanz muessen im Clie
   assert.equal(C.passtZumPrompt(chips, gut.replace("straight", "curly")), false, "andere Haare");
   assert.equal(C.passtZumPrompt(chips, gut.replace("girl", "boy")), false, "andere Rolle");
   assert.equal(C.passtZumPrompt(chips, "wmlstil, girl, age 6, light skin tone, long straight blonde hair, ugly monster"), false, "ohne Stilschwanz");
-  assert.equal(C.passtZumPrompt({ rolle: "man", haarfarbe: "glatze", hautton: "mittel", merkmal: "bart" }, "wmlstil, man, medium skin tone, bald head, no hair, beard, round head, minimal face"), true);
+  assert.equal(C.passtZumPrompt({ rolle: "man", haarfarbe: "grau", haarlaenge: "glatze", hautton: "mittel", bart: "vollbart" }, "wmlstil, man, medium skin tone, bald head, no hair, gray/white eyebrows, full gray/white beard, round head, minimal face"), true);
+  assert.equal(C.passtZumPrompt({ rolle: "man", haarfarbe: "grau", haarlaenge: "glatze", hautton: "mittel", bart: "vollbart" }, "wmlstil, man, medium skin tone, bald head, no hair, gray/white eyebrows, clean-shaven, round head, minimal face"), false, "anderer Bart");
+  assert.equal(C.passtZumPrompt({ rolle: "man", haarfarbe: "grau", haarform: "glatt", haarlaenge: "kurz", hautton: "mittel" }, "wmlstil, man, medium skin tone, short straight gray/white hair, clean-shaven, round head, minimal face"), true, "ohne Angabe = clean-shaven muss drinstehen");
   const tier = { rolle: "pet", tierart: "dog", haarfarbe: "brown", haarform: "striped", haarlaenge: "short" };
   assert.equal(C.passtZumPrompt(tier, "wmlstil, dog, short striped brown fur, round head, minimal face, dot eyes"), true);
 });
@@ -106,7 +121,7 @@ function speicherAttrappe() {
   };
 }
 const holen = async (url) => ({ ok: true, headers: { get: () => "image/png" }, arrayBuffer: async () => Buffer.from("PNG:" + url) });
-const S = "v2|girl|6-9|blond|glatt|lang|hell|brille";
+const S = "v2|girl|6-9|blond|glatt|lang|hell|brille|-";
 
 test("DB: suchen leer, ablegen, treffer, verwerfen", async () => {
   const kv = neuerKvMock(); const sp = speicherAttrappe();
@@ -229,7 +244,7 @@ test("char-job-status: fertiger Job mit Schluessel wird abgelegt, resultUrl zeig
     assert.equal(ohne.chipGespeichert, undefined, "ohne Schluessel nichts");
     // Speicher kaputt -> Blatt bleibt unter fal-URL, kein Wurf
     sp.speichern = async () => { throw new Error("Blob 500"); };
-    const kaputt = await chipFigurAblegen(Object.assign({}, basis, { chipSchluessel: "v2|boy|0-5|hellbraun|lockig|kurz|mittel|nichts", resultViolations: 0 }));
+    const kaputt = await chipFigurAblegen(Object.assign({}, basis, { chipSchluessel: "v2|boy|0-5|hellbraun|lockig|kurz|mittel|nichts|-", resultViolations: 0 }));
     assert.equal(kaputt.chipAbgelegt, false); assert.equal(kaputt.resultUrl, basis.resultUrl); assert.match(kaputt.chipGrund, /Blob 500/);
   } finally { C.mitDeps = echteDeps; }
 });

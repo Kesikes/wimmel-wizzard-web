@@ -33,6 +33,7 @@ const DEFAULT_STATE = {
   charHairTexture: null, // Chip-ID (Haarstruktur bzw. Fellmuster)
   charHairLength: null, // Chip-ID (Laenge)
   charHautton: null, // Chip-ID Hautton (v2, Pflicht bei Menschen, keine Voreinstellung)
+  charBart: null, // Chip-ID Bart (20.10.2026, nur Mann/Opa; null = "kein")
   charBesonderheit: null, // Label-String des Merkmals, null = "nichts davon"
   charNote: "",
   // NEU (Sammel-Runde 11.09.2026, "'Nachschärfen' braucht echte Anpassungs-Möglichkeit"): das
@@ -204,7 +205,7 @@ function newSessionId() {
 // gemeldeten Freitext-Notiz. CHAR_DRAFT_FIELDS listet alle betroffenen Felder zentral auf, damit
 // addPerson() und setCurrentPerson() (unten) sie konsistent zuruecksetzen koennen, sobald
 // tatsaechlich zu einer ANDEREN Figur gewechselt wird.
-const CHAR_DRAFT_FIELDS = { charMode: null, charHairColor: null, charHairTexture: null, charHairLength: null, charHautton: null, charBesonderheit: null, charNote: "" };
+const CHAR_DRAFT_FIELDS = { charMode: null, charHairColor: null, charHairTexture: null, charHairLength: null, charHautton: null, charBart: null, charBesonderheit: null, charNote: "" };
 
 // Einfacher, universell unterstuetzter Deep-Clone (ohne Abhaengigkeit von
 // structuredClone, das in manchen aelteren Umgebungen fehlt) - der State

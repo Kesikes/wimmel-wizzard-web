@@ -55,6 +55,11 @@ function passtZumPrompt(e, prompt) {
   if (!istTier) {
     const haut = norm(CHIPS.hauttonEn(e.hautton));
     if (!haut || !p.includes(haut)) return false;
+    // Bart (20.10.2026): bei Mann/Opa muss die Bart-Phrase (Farbe = Haarfarbe) im Prompt stehen.
+    if (CHIPS.hatBart(rolle)) {
+      const bart = norm(CHIPS.bartEn(e.bart == null || e.bart === "" ? "kein" : e.bart, e.haarfarbe));
+      if (!bart || !p.includes(bart)) return false;
+    }
   }
   return p.includes("round head, minimal face");
 }
