@@ -1390,6 +1390,8 @@ Screens.zaubern = {
         spec.identityCore.age = p.age;
         spec.sceneDescription = p.sceneDescription || null;
         spec.imageUrl = p.imageUrl;
+        // Chip-Figuren v3 Teil C: Lieblingsfarbe des Oberteils ausdruecklich in den Szenen-Prompt.
+        spec.oberteilEn = p.oberteilEn || null;
         return spec;
       });
       if (!heroSpecs.length) {

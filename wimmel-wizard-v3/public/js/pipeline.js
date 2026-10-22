@@ -1471,7 +1471,7 @@ var ACTIVE_SCENE_PHASE = "phase1";
 // Das von Hand gepflegte Datum bleibt als lesbare Ergaenzung daneben stehen; verlassen tun wir uns
 // auf die Pruefsumme.
 // GEAENDERT (Auftrag 3 Teil 3, 18.10.2026): neue Fassung -- Rand rundum (SAFE_MARGIN_RULE), 3:2.
-var PROMPT_LABEL = "2026-10-19a";
+var PROMPT_LABEL = "2026-10-22a";
 
 // FNV-1a, 32 Bit. Bewusst kein crypto.subtle: das ist asynchron, und diese Kennung soll ohne
 // Umstand synchron beim Laden feststehen. Kollisionen sind hier belanglos -- es geht nicht um
@@ -2614,6 +2614,16 @@ const HERO_REF_START = 2;
 // wird sogar deutlicher als beim Namen.
 // Der PRUEFprompt behaelt die Namen (buildVerifyPrompt): dort wird kein Bild erzeugt, und der
 // Name ist die Sprache, in der Befunde beim Nutzer ankommen.
+// Chip-Figuren v3 Teil C (22.10.2026): die Lieblingsfarbe des Oberteils steht je Held ausdruecklich im
+// Szenen-Prompt ("the girl from reference image 2 wears a bright yellow top") -- das Oberteil ist im
+// Wimmelbild das wichtigste Wiederfinde-Merkmal. spec.oberteilEn kommt aus person.oberteilEn
+// (CHIPS.oberteilEn, "wearing a bright yellow top"); Figuren ohne Ausstattung bleiben ohne Satz.
+function oberteilSatz(spec, i) {
+  if (!spec || !spec.oberteilEn) return "";
+  const farbe = String(spec.oberteilEn).replace(/^wearing\s+/, "");
+  const r = heroRef(spec, i);
+  return " " + r.charAt(0).toUpperCase() + r.slice(1) + " wears " + farbe + ".";
+}
 function heroRef(spec, i) {
   const rolle = (spec && spec.role) ? String(spec.role) : "character";
   return "the " + rolle + " from reference image " + (HERO_REF_START + i);
@@ -3735,7 +3745,7 @@ function buildHeldenPruefPrompt(helden) {
   return [
     "Du prüfst ein Wimmelbild für ein Kinderbuch. Das ERSTE Bild ist die zu prüfende Szene." + refMapping,
     "Beantworte NUR diese zwei Punkte, sonst nichts.",
-    "1. HELDEN, ZÄHLUNG: Geh das Bild Raum für Raum beziehungsweise Bereich für Bereich systematisch durch und zähle für JEDE der " + n + " benannten Figuren (" + names + ") EINZELN, wie oft sie im Bild vorkommt. Eine Figur gilt als dieselbe, wenn Frisur, Haarfarbe, Hautton und das wichtigste Kleidungsstück übereinstimmen -- auch wenn sie etwas anderes tut oder in einem anderen Raum steht. Antworte im Feld heroes_found mit einer Liste von " + n + " ganzen Zahlen, in genau der Reihenfolge der Referenzbilder (" + names + "): 0 heißt, die Figur fehlt, 1 heißt genau einmal vorhanden, 2 oder mehr heißt mehrfach. Rate nicht -- wenn du unsicher bist, zähle lieber ein zweites Mal.",
+    "1. HELDEN, ZÄHLUNG: Geh das Bild Raum für Raum beziehungsweise Bereich für Bereich systematisch durch und zähle für JEDE der " + n + " benannten Figuren (" + names + ") EINZELN, wie oft sie im Bild vorkommt. Eine Figur gilt als dieselbe, wenn Frisur (Länge und Form: offen, Zöpfe, Pferdeschwanz, Dutt), Haarfarbe, Hautton und das Oberteil in seiner Farbe übereinstimmen -- auch wenn sie etwas anderes tut oder in einem anderen Raum steht. Antworte im Feld heroes_found mit einer Liste von " + n + " ganzen Zahlen, in genau der Reihenfolge der Referenzbilder (" + names + "): 0 heißt, die Figur fehlt, 1 heißt genau einmal vorhanden, 2 oder mehr heißt mehrfach. Rate nicht -- wenn du unsicher bist, zähle lieber ein zweites Mal.",
     "Wo die Figuren im Bild stehen, ist ausdrücklich FREI: vorne groß, im Mittelgrund oder klein im Hintergrund, auch abseits vom Zentrum. Das ist so gewollt und kein Fehler.",
     "2. LAGE (nur Messung): Gib für JEDE der " + n + " Figuren, in derselben Reihenfolge, an, wo ihre Körpermitte waagerecht im Bild steht: 0 ist der linke Bildrand, 100 der rechte, 50 die genaue Mitte. Kommt eine Figur mehrmals vor, nimm die Stelle, an der sie am deutlichsten zu sehen ist; fehlt sie, schreib -1. Antworte im Feld heroes_x mit einer Liste von " + n + " ganzen Zahlen.",
     "Antworte NUR als JSON-Objekt mit genau diesen drei Feldern, notiz als LETZTES: {\"heroes_found\": [Zahlen], \"heroes_x\": [Zahlen], \"notiz\": \"kurzer Text\"}. In notiz steht bei einer Zahl ungleich 1, welche Figur betroffen ist und was du gesehen hast.",
@@ -3770,8 +3780,8 @@ function buildVerifyPrompt(heroSpecs, phaseId, compositionId, heroesAbgleich) {
     : "";
   // Register "H1-ERGEBNIS 26.09.2026", Punkt 3 (Vorschlag, nur aktiv mit heroesAbgleich===true):
   const heldenKriteriumSatz = heroesAbgleich
-    ? "Eine Figur gilt NUR dann als dieselbe wie eine andere im Bild, wenn ALLE FÜNF folgenden Punkte übereinstimmen: (1) Frisur (Form und Länge), (2) Haarfarbe, (3) Hautton, (4) die ART des wichtigsten Kleidungsstücks (z. B. Hose, Rock, Kleid, Latzhose), UND (5) dessen Farbe UND Schnitt/Länge (z. B. kurz oder lang, eng oder weit) -- genau wie auf dem zugehörigen Referenzbild. Schon eine einzige Abweichung bei Punkt 5 (z. B. eine andere Hosenlänge oder -farbe) bedeutet KEINE Übereinstimmung, selbst wenn Frisur, Haarfarbe und Hautton passen. Bevor du eine Figur ein zweites Mal zählst, vergleiche für JEDES vermutete weitere Vorkommen einzeln alle fünf Punkte gegen das erste (oder das Referenzbild) und benenne knapp, was genau übereinstimmt und was nicht. Zähle nur, wenn du bei allen fünf Punkten \"stimmt überein\" notieren kannst -- bei nur einer Abweichung sind es zwei verschiedene Figuren, keine Dopplung, auch wenn sie sich ähnlich sehen."
-    : "Eine Figur gilt als dieselbe, wenn Frisur, Haarfarbe, Hautton und das wichtigste Kleidungsstück übereinstimmen -- auch wenn sie etwas anderes tut oder in einem anderen Raum steht.";
+    ? "Eine Figur gilt NUR dann als dieselbe wie eine andere im Bild, wenn ALLE FÜNF folgenden Punkte übereinstimmen: (1) Frisur (Form und Länge: offen, Zöpfe, Pferdeschwanz, Dutt), (2) Haarfarbe, (3) Hautton, (4) die ART des wichtigsten Kleidungsstücks (z. B. Hose, Rock, Kleid, Latzhose), UND (5) dessen Farbe UND Schnitt/Länge (z. B. kurz oder lang, eng oder weit) -- genau wie auf dem zugehörigen Referenzbild. Schon eine einzige Abweichung bei Punkt 5 (z. B. eine andere Hosenlänge oder -farbe) bedeutet KEINE Übereinstimmung, selbst wenn Frisur, Haarfarbe und Hautton passen. Bevor du eine Figur ein zweites Mal zählst, vergleiche für JEDES vermutete weitere Vorkommen einzeln alle fünf Punkte gegen das erste (oder das Referenzbild) und benenne knapp, was genau übereinstimmt und was nicht. Zähle nur, wenn du bei allen fünf Punkten \"stimmt überein\" notieren kannst -- bei nur einer Abweichung sind es zwei verschiedene Figuren, keine Dopplung, auch wenn sie sich ähnlich sehen."
+    : "Eine Figur gilt als dieselbe, wenn Frisur (Länge und Form: offen, Zöpfe, Pferdeschwanz, Dutt), Haarfarbe, Hautton und das Oberteil in seiner Farbe übereinstimmen -- auch wenn sie etwas anderes tut oder in einem anderen Raum steht.";
   const heldenAbgleichFeldSatz = heroesAbgleich
     ? " Steht bei heroes_found irgendwo eine Zahl größer/gleich 2, fülle zusätzlich das Feld heroes_abgleich mit einem kurzen Eintrag JE vermutetem weiteren Vorkommen: \"<Figur>, Vorkommen <n>: Frisur <gleich/anders>, Haarfarbe <gleich/anders>, Hautton <gleich/anders>, Kleidungsstück-Art <gleich/anders>, Farbe/Schnitt <gleich/anders>\". Weichen Farbe/Schnitt oder die Art ab, zähle diese Figur NICHT als zusätzliches Vorkommen -- korrigiere dann heroes_found entsprechend nach unten, bevor du antwortest."
     : "";
@@ -3790,7 +3800,7 @@ function buildVerifyPrompt(heroSpecs, phaseId, compositionId, heroesAbgleich) {
     // ist ein schwerer Verstoss (fehlt oder doppelt). heroes_ok beurteilt nur noch die
     // Aehnlichkeit derer, die da sind.
     "1. HELDEN, ZAEHLUNG: Geh das Bild Raum für Raum beziehungsweise Bereich für Bereich systematisch durch und zähle für JEDE der " + n + " benannten Figuren (" + names + ") EINZELN, wie oft sie im Bild vorkommt. " + heldenKriteriumSatz + " Antworte im Feld heroes_found mit einer Liste von " + n + " ganzen Zahlen, in genau der Reihenfolge der Referenzbilder (" + names + "): 0 heißt, die Figur fehlt, 1 heißt genau einmal vorhanden, 2 oder mehr heißt mehrfach. Rate nicht -- wenn du unsicher bist, zähle lieber ein zweites Mal. Doppelte Figuren zerstören ein Suchbild, das ist der wichtigste Punkt dieser ganzen Prüfung." + heldenAbgleichFeldSatz,
-    "2. HELDEN, ÄHNLICHKEIT: Passen die Figuren, die du gefunden hast, grob zu ihrem Referenzbild? Verglichen werden nur GROBE Merkmale: Frisur/Haarform, Haarfarbe, Hautton, wichtigstes Kleidungsstück samt Farbe, Altersstufe (Kind / Erwachsener / älterer Mensch). Kleinstdetails wie Sommersprossen, Streifenmuster oder Knöpfe sind ausdrücklich KEIN Grund für ein Nein. heroes_ok ist nur dann false, wenn eine gefundene Figur klar nicht zu ihrem Referenzbild passt oder so verdeckt, klein oder abgewandt ist, dass du es nicht beurteilen kannst. Ob eine Figur fehlt oder doppelt vorkommt, gehört NICHT hierher -- das steckt schon in der Zählung oben.",
+    "2. HELDEN, ÄHNLICHKEIT: Passen die Figuren, die du gefunden hast, grob zu ihrem Referenzbild? Verglichen werden nur GROBE Merkmale: Frisur (Länge und Form: offen, Zöpfe, Pferdeschwanz, Dutt), Haarfarbe, Hautton, die Farbe des Oberteils und das wichtigste Kleidungsstück, Altersstufe (Kind / Erwachsener / älterer Mensch). Kleinstdetails wie Sommersprossen, Streifenmuster oder Knöpfe sind ausdrücklich KEIN Grund für ein Nein. heroes_ok ist nur dann false, wenn eine gefundene Figur klar nicht zu ihrem Referenzbild passt oder so verdeckt, klein oder abgewandt ist, dass du es nicht beurteilen kannst. Ob eine Figur fehlt oder doppelt vorkommt, gehört NICHT hierher -- das steckt schon in der Zählung oben.",
     "Wo die Figuren im Bild stehen, ist bei beiden Punkten ausdrücklich FREI: eine benannte Figur darf vorne groß, im Mittelgrund oder weiter hinten und klein im Bild stehen, auch abseits vom Zentrum. Das ist so gewollt -- Suchen gehört zum Spiel, und dass du sie erst suchen musstest, ist kein Verstoß. Schreib bei einer Zahl ungleich 1 oder bei heroes_ok false ins Feld notiz, welche Figur betroffen ist und was du gesehen hast.",
 
     "3. STIL. Es geht bei diesem Punkt AUSSCHLIESSLICH um menschliche Gesichter. Tiere sind hier vollständig ausgenommen, egal wie sie gezeichnet sind -- ein Hund mit ausgearbeitetem Fell, eine gefiederte Gans, ein Hahn, ein Adler, ein plastisch gezeichnetes Pferd: alles in Ordnung, nichts davon darf dein Urteil beeinflussen. Ebenso ausgenommen ist die Kulisse: Schattierung, Textur und Farbverläufe auf Requisiten, Gebäuden, Fahrzeugen, Landschaft, Boden, Sand, Heu, Wasser und Himmel sind der gewünschte Stil.",
@@ -4765,7 +4775,7 @@ function scenePromptNeu({ heroSpecs, theme, situations, bgCharacterCount, phase,
   S.push(blockAlt("B7") ? BASE_CANVAS_NOTE : "Reference image 1 is only the blank paper-coloured surface to draw on; take nothing from it.");
   // B8 Helden (mit Alter als Groesse)
   S.push(blockAlt("B8") ? imageRefMapping(heroSpecs, HERO_REF_START)
-    : heroSpecs.map((s, i) => { const t = heldBeschreibungNeu(s); return "Reference image " + (HERO_REF_START + i) + " shows " + (/^[aeiou]/i.test(t) ? "an " : "a ") + t + "."; }).join(" "));
+    : heroSpecs.map((s, i) => { const t = heldBeschreibungNeu(s); return "Reference image " + (HERO_REF_START + i) + " shows " + (/^[aeiou]/i.test(t) ? "an " : "a ") + t + "." + oberteilSatz(s, i); }).join(" "));
   // B13 Heldenplatz (Nutzer: Groesse je Held als kurzer Halbsatz, nicht ganz streichen)
   const placements = pickHeroPlacements(n);
   if (n) {
