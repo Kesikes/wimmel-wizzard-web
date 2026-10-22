@@ -31,6 +31,7 @@ const freeTier = require("./_lib/free-tier");
 const { neuZaubernBezahltErlaubtUndGebucht } = require("./_lib/aenderungs-deckel");
 const { logFalError } = require("./_lib/fal-queue");
 const chipFiguren = require("./_lib/chip-figuren");
+const ausstattungEngine = require("./_lib/ausstattung-engine");
 
 // chipSchluesselAus(body, anzahl) -> String | null: nur bei Erst-Erzeugung mit vollstaendigen Chips.
 function chipSchluesselAus(body, anzahl) {
@@ -84,6 +85,12 @@ module.exports = async (req, res) => {
   // NEU (Auftrag 3 Teil 5): Figuren-Datenbank zuerst, siehe Kopfkommentar. Ein KV-/Speicher-Fehler
   // beim Nachschlagen fuehrt zum Live-Weg (fail-open), nie zu einem Fehler bei der Kundin.
   let chipSchluessel = chipSchluesselAus(body, anzahl);
+  // Chip-Figuren v3 (Teil B): Ausstattung (Oberteil-Farbe, Brille, Extra) als zweite Stufe -- nur bei
+  // Menschen mit vollstaendiger Angabe; Tiere und Figuren mit Notiz laufen einstufig.
+  const rolle = body.chips && body.chips.rolle ? String(body.chips.rolle).toLowerCase() : "";
+  const ausstattungWerte = chipSchluessel && rolle !== "pet" ? ausstattungEngine.ausstattungAusBody(body, rolle) : null;
+  const ausstattungSchluessel = ausstattungWerte ? chipFiguren.ausstattungsSchluessel(chipSchluessel, ausstattungWerte, rolle) : null;
+  const zweiStufen = !!ausstattungSchluessel;
   if (chipSchluessel) {
     if (!freeTier.istGueltigeSessionId(body.sessionId)) { res.status(400).json({ error: "Ungültige oder fehlende sessionId." }); return; }
     const db = chipFiguren.mitDeps();
@@ -92,14 +99,20 @@ module.exports = async (req, res) => {
     if (treffer) {
       if (!(await freeTier.chipFigurErlaubtUndGebucht(req, res, body.sessionId))) return;
       const now = Date.now();
-      const job = {
-        jobId, prompt, status: "done", error: null, candidates: [], maxKandidaten: 0,
+      let job = {
+        jobId, prompt, status: "done", error: null, candidates: [], maxKandidaten: 0, stufe: 1,
         resultUrl: treffer.url, resultSeed: treffer.seed, resultViolations: 0, resultVerify: null,
-        chipSchluessel, chipTreffer: true, chipGespeichert: true,
+        chipSchluessel, chipTreffer: true, chipGespeichert: true, grundUrl: treffer.url,
+        sessionId: String(body.sessionId).toLowerCase(),
         createdAt: now, updatedAt: now,
       };
-      await kvSetJson("charjob:" + jobId, job, JOB_TTL_SECONDS);
       await db.trefferBuchen(chipSchluessel);
+      if (zweiStufen) {
+        // Stufe 2: Ausstattung im Speicher -> sofort fertig; sonst Edit einreihen, der Client pollt.
+        job.ausstattungSchluessel = ausstattungSchluessel; job.ausstattungWerte = ausstattungWerte;
+        job = await ausstattungEngine.stufe2Starten(job, { FAL_KEY: process.env.FAL_KEY });
+      }
+      await kvSetJson("charjob:" + jobId, job, JOB_TTL_SECONDS);
       res.status(200).json({ jobId, chipTreffer: true });
       return;
     }
@@ -133,8 +146,11 @@ module.exports = async (req, res) => {
 
   try {
     const job = await createCharacterJob({ jobId, prompt, FAL_KEY, anzahl });
+    job.stufe = 1;
     // Teil 5: Schluessel am Job, damit char-job-status.js das fertige Blatt ablegen kann.
     if (chipSchluessel) { job.chipSchluessel = chipSchluessel; job.chipTreffer = false; job.chipGespeichert = false; }
+    // Teil B: Ausstattung folgt nach Stufe 1 (char-job-status.js -> stufe2Starten).
+    if (zweiStufen) { job.ausstattungSchluessel = ausstattungSchluessel; job.ausstattungWerte = ausstattungWerte; job.sessionId = String(body.sessionId).toLowerCase(); }
     await kvSetJson("charjob:" + jobId, job, JOB_TTL_SECONDS);
     res.status(200).json({ jobId });
   } catch (e) {

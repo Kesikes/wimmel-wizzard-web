@@ -4151,7 +4151,8 @@ async function composeCharacterImage(generate) {
 // haarlaenge, besonderheit } -- NUR bei einer Erst-Erzeugung OHNE Notiz (charakter.js entscheidet).
 // Der Server (api/char-job-start.js) schaut damit in der gemeinsamen Figuren-Datenbank nach: Treffer
 // -> fertiges Blatt ohne fal.ai-Aufruf; kein Treffer -> live, danach fuer alle abgelegt.
-async function startCharacterJob(prompt, anzahl, elementId, chips) {
+// Chip-Figuren v3 (Teil B): ausstattung = { oberteil, brille, extra } -> Stufe 2 auf dem Server.
+async function startCharacterJob(prompt, anzahl, elementId, chips, ausstattung) {
   // NEU (26.09.2026, Baustein A "Free-Tier-Grenzen", siehe api/_lib/free-tier.js): sessionId
   // mitschicken, damit der Server das Figuren-Kontingent JE SESSION zaehlen kann (vorher ging sie
   // nur an api/session.js fuer Speichern/Laden). AppState.data.sessionId existiert immer -- siehe
@@ -4163,7 +4164,7 @@ async function startCharacterJob(prompt, anzahl, elementId, chips) {
   // Erstgenerierung ist kein "neu zaubern" und darf davon nie betroffen sein.
   const resp = await fetch("/api/char-job-start", {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(anzahl === 1 ? { prompt, anzahl: 1, sessionId, elementId: elementId || null } : Object.assign({ prompt, sessionId }, chips ? { chips } : {})),
+    body: JSON.stringify(anzahl === 1 ? { prompt, anzahl: 1, sessionId, elementId: elementId || null } : Object.assign({ prompt, sessionId }, chips ? { chips } : {}, chips && ausstattung ? { ausstattung } : {})),
   });
   const data = await parseJsonResponse(resp);
   if (!resp.ok || data.error) {
@@ -4269,7 +4270,7 @@ function waitWithVisibilityWakeup(ms) {
 async function runCharacterJobPolling(prompt, opts) {
   opts = opts || {};
   const intervalMs = opts.intervalMs || 7000;
-  const jobId = opts.existingJobId || await startCharacterJob(prompt, opts.anzahl, opts.elementId, opts.chips);
+  const jobId = opts.existingJobId || await startCharacterJob(prompt, opts.anzahl, opts.elementId, opts.chips, opts.ausstattung);
   if (opts.onJobId) opts.onJobId(jobId);
   for (;;) {
     if (opts.signal && opts.signal.aborted) throw new Error("Abgebrochen.");
@@ -4282,7 +4283,13 @@ async function runCharacterJobPolling(prompt, opts) {
     if (opts.onUpdate) opts.onUpdate(job);
     // Teil 5: chipSchluessel/chipTreffer sagen charakter.js, ob das Blatt aus der gemeinsamen
     // Figuren-Datenbank stammt bzw. dort abgelegt wurde ("Noch einmal zeichnen" richtet sich danach).
-    if (job.status === "done") return { url: job.resultUrl, seed: job.resultSeed, violations: job.resultViolations, verify: job.resultVerify, chipSchluessel: job.chipSchluessel || null, chipTreffer: !!job.chipTreffer };
+    if (job.status === "done") return {
+      url: job.resultUrl, seed: job.resultSeed, violations: job.resultViolations, verify: job.resultVerify,
+      chipSchluessel: job.chipSchluessel || null, chipTreffer: !!job.chipTreffer,
+      // v3: Grundfigur + Ausstattung (Stufe 2); oberteilEn fuer den Szenen-Prompt
+      grundUrl: job.grundUrl || null, ausstattungSchluessel: job.ausstattungSchluessel || null,
+      oberteilEn: job.ausstattungWerte && typeof CHIPS !== "undefined" ? CHIPS.oberteilEn(job.ausstattungWerte.oberteil) : null,
+    };
     if (job.status === "error") throw new Error(job.error || "Generierung fehlgeschlagen.");
     await waitWithVisibilityWakeup(intervalMs);
   }

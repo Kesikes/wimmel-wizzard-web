@@ -42,6 +42,20 @@ async function jobBekannt(jobId) {
 }
 
 // sitzungErforderlich(req, res) -> true = weiter; false = Antwort ist schon raus (403/429/503).
+// tagesaufrufBuchen(sessionId) -> neuer Tagesstand der Bild-Aufrufe dieser Sitzung. Eine Stelle fuer
+// fal-proxy UND (Chip-Figuren v3 Teil B) die Stufe-2-Aufrufe der Figuren-Ausstattung -- beide zaehlen
+// in dasselbe Tageslimit FAL_PROXY_JE_SITZUNG_TAG.
+async function tagesaufrufBuchen(sessionId) {
+  const tag = new Date().toISOString().slice(0, 10);
+  return kv.kvIncrWithExpiry("falproxy:sitzung:" + String(sessionId).toLowerCase() + ":" + tag, 26 * 3600);
+}
+// tagesaufrufErlaubt(sessionId) -> true/false (bucht); bei KV-Fehler true (die Kostenbremse ist der
+// Tagesdeckel in kosten-deckel.js, dieses Limit ist der Missbrauchsschutz je Sitzung).
+async function tagesaufrufErlaubt(sessionId) {
+  if (!SESSION_ID_RE.test(String(sessionId || "")) || !kv.kvConfig()) return true;
+  try { return (await tagesaufrufBuchen(sessionId)) <= FAL_PROXY_JE_SITZUNG_TAG; } catch (e) { return true; }
+}
+
 async function sitzungErforderlich(req, res) {
   const token = process.env.FAL_PROXY_TEST_TOKEN;
   if (token && req.headers && req.headers["x-test-token"] === token) return true;
@@ -57,8 +71,7 @@ async function sitzungErforderlich(req, res) {
       return false;
     }
     if (SESSION_ID_RE.test(String(body.sessionId || ""))) {
-      const tag = new Date().toISOString().slice(0, 10);
-      const stand = await kv.kvIncrWithExpiry("falproxy:sitzung:" + String(body.sessionId).toLowerCase() + ":" + tag, 26 * 3600);
+      const stand = await tagesaufrufBuchen(body.sessionId);
       if (stand > FAL_PROXY_JE_SITZUNG_TAG) {
         res.status(429).json({ error: "Für heute ist in dieser Sitzung Schluss mit Bild-Aufrufen – morgen geht es weiter.", vorAufruf: true });
         return false;
@@ -72,4 +85,4 @@ async function sitzungErforderlich(req, res) {
   }
 }
 
-module.exports = { sitzungErforderlich, sitzungBekannt, jobBekannt, FAL_PROXY_JE_SITZUNG_TAG };
+module.exports = { sitzungErforderlich, sitzungBekannt, jobBekannt, tagesaufrufBuchen, tagesaufrufErlaubt, FAL_PROXY_JE_SITZUNG_TAG };

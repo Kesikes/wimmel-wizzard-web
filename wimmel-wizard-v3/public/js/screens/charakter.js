@@ -322,9 +322,16 @@ function chipDatenFuerDb(s, person, isPet) {
     haarform: s.charHairTexture || "",
     haarlaenge: s.charHairLength || "",
     hautton: isPet ? undefined : (s.charHautton || ""),
-    merkmal: isPet ? (s.charBesonderheit || "") : (s.charBesonderheit || "nichts"),
+    frisur: isPet ? undefined : (s.charFrisur || ""),
+    merkmal: isPet ? (s.charBesonderheit || "") : undefined,
     bart: !isPet && CHIPS.hatBart(person.role) ? (s.charBart || "kein") : undefined,
   };
+}
+// ausstattungDaten(s): Stufe 2 (Chip-Figuren v3) -- Lieblingsfarbe Oberteil, Brille, ein Extra.
+// null bei Tieren oder ohne Farbe (dann einstufig).
+function ausstattungDaten(s, isPet) {
+  if (isPet || !s.charOberteil) return null;
+  return { oberteil: s.charOberteil, brille: !!s.charBrille, extra: s.charExtra || "nichts" };
 }
 
 async function generateCharacterImage(person, buttons) {
@@ -332,7 +339,9 @@ async function generateCharacterImage(person, buttons) {
   const s = AppState.data;
   const isPet = !!person.isPet;
   const hairEn = hairPhraseEn(s, isPet);
-  const chipLabels = s.charBesonderheit ? [s.charBesonderheit] : [];
+  // v3: chipLabels nur noch fuer Tier-Besonderheiten (ueber translateChip); Menschen-Extras laufen
+  // als Ausstattung (Stufe 2) bzw. bei Notiz direkt im Prompt (ausstattungEn).
+  const chipLabels = isPet && s.charBesonderheit ? [s.charBesonderheit] : [];
   // v2 (19.10.2026): Hautton als eigener Prompt-Baustein (nur Menschen).
   const hauttonEn = isPet ? "" : CHIPS.hauttonEn(s.charHautton);
   // Validierung (umgebaut 05.09.2026, B7-Ergaenzung 09.09.2026): Haare/Fell sind die primäre,
@@ -380,8 +389,17 @@ async function generateCharacterImage(person, buttons) {
     const extraEnParts = hairEn ? [hairEn] : [];
     // Bart (20.10.2026): Mann/Opa, Farbe = Haarfarbe; "clean-shaven" steht ausdruecklich im Prompt.
     if (!isPet && CHIPS.hatBart(person.role)) { const b = CHIPS.bartEn(s.charBart || "kein", s.charHairColor); if (b) extraEnParts.push(b); }
-    const prompt = Pipeline.charPromptFromChips({ role: person.role, age: person.age, chipLabels, extraEnParts, noteEn, hauttonEn });
-    const sceneDescription = Pipeline.charInSceneFromChips({ role: person.role, age: person.age, chipLabels, extraEnParts, noteEn, hauttonEn });
+    // Chip-Figuren v3 (Teil B): Figuren OHNE Notiz entstehen zweistufig -- Stufe 1 (dieser Prompt)
+    // ist die neutrale Grundfigur (weisses Oberteil, keine Brille, keine Extras), die Ausstattung
+    // setzt der Server per Edit auf (ausstattungDaten). Mit Notiz bleibt es einstufig und die
+    // Ausstattung steht direkt im Prompt. Die Szenenbeschreibung traegt die Ausstattung immer.
+    const chips = chipDatenFuerDb(s, person, isPet);
+    const ausstattung = ausstattungDaten(s, isPet);
+    const ausstattungEn = ausstattung ? CHIPS.ausstattungEn(ausstattung) : [];
+    const zweiStufen = !!(chips && ausstattung);
+    const promptParts = zweiStufen ? extraEnParts.concat([CHIPS.GRUNDFIGUR_EN]) : extraEnParts.concat(ausstattungEn);
+    const prompt = Pipeline.charPromptFromChips({ role: person.role, age: person.age, chipLabels, extraEnParts: promptParts, noteEn, hauttonEn });
+    const sceneDescription = Pipeline.charInSceneFromChips({ role: person.role, age: person.age, chipLabels, extraEnParts: extraEnParts.concat(ausstattungEn), noteEn, hauttonEn });
     // GEAENDERT (Sammel-Runde 15.09.2026, "Warteschlangen-Umbau: Figuren-Pfad in die echte
     // Oberflaeche einbauen"). Vorher Pipeline.composeCharacterImage() -- ein EINZELNER Aufruf, der
     // die ganze Generierungs-/Verify-Dauer (2-3 Kandidaten, teils mehrere Minuten) ueber eine
@@ -407,7 +425,9 @@ async function generateCharacterImage(person, buttons) {
     // zeigen oder (schlimmer) eine zweite, parallele Generierung zu starten.
     const result = await Pipeline.runCharacterJobPolling(prompt, {
       // Teil 5: Chip-Werte fuer die Figuren-Datenbank (null bei Notiz -> live, nicht abgelegt).
-      chips: chipDatenFuerDb(s, person, isPet),
+      chips,
+      // Teil B: Ausstattung fuer Stufe 2 (nur zusammen mit chips wirksam).
+      ausstattung: zweiStufen ? ausstattung : null,
       // NEU (23.09.2026): der Figuren-Prompt wird an der Person gespeichert -- das ist alles, was
       // "Noch einmal zeichnen" spaeter braucht (rund 1,5 KB je Figur). Das FOTO wird weiterhin
       // NICHT gespeichert: im Prompt steht nur die daraus gezogene Textbeschreibung, genau wie in
@@ -465,6 +485,9 @@ async function generateExtraViewsAndFinish(person, frontResult, sceneDescription
     // Jeder andere Weg (Foto, Detail aendern, Neu zeichnen) setzt das zurueck -- ab dann ist es
     // eine Figur dieser Sitzung.
     chipSchluessel: frontResult.chipSchluessel || null, chipTreffer: !!frontResult.chipTreffer,
+    // v3: Grundfigur (Stufe 1) und Ausstattung getrennt merken; oberteilEn fuer den Szenen-Prompt (Teil C).
+    grundfigurUrl: frontResult.grundUrl || null, ausstattungSchluessel: frontResult.ausstattungSchluessel || null,
+    oberteilEn: frontResult.oberteilEn || null,
     imageUrlSide: vorhanden.imageUrlSide || null,
     imageUrlBack: vorhanden.imageUrlBack || null,
     imageUrlThreeQuarter: vorhanden.imageUrlThreeQuarter || null,

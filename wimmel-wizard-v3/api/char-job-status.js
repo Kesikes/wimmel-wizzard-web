@@ -9,6 +9,7 @@
 const { kvGetJson, kvSetJson, kvTryLock, kvUnlock } = require("./_lib/kv");
 const { advanceCharacterJob } = require("./_lib/char-job-engine");
 const chipFiguren = require("./_lib/chip-figuren");
+const ausstattungEngine = require("./_lib/ausstattung-engine");
 
 const JOB_TTL_SECONDS = 60 * 60;
 
@@ -74,13 +75,25 @@ module.exports = async (req, res) => {
       if (await kvTryLock(sperre, 90)) {
         try {
           const frisch = await kvGetJson("charjob:" + jobId);
-          job = await advanceCharacterJob(frisch || job, { FAL_KEY });
-          // NEU (Auftrag 3 Teil 5, 18.10.2026): ist der Job gerade fertig geworden und traegt er
-          // einen Chip-Schluessel (char-job-start.js, kein Treffer), wird das fehlerfreie Blatt
-          // jetzt in den eigenen Speicher kopiert und fuer alle eingetragen. resultUrl zeigt danach
-          // auf unseren Endpunkt (dauerhaft -- fal.media verfaellt nach 90 Tagen). Scheitert das
-          // Ablegen, behaelt die Kundin ihr Blatt unter der fal-URL; nur die DB geht leer aus.
-          job = await chipFigurAblegen(job);
+          job = frisch || job;
+          if (job.stufe === 2) {
+            // Chip-Figuren v3 Teil B: Stufe 2 (Ausstattung per Edit) laeuft -- eigener Fortschrittsschritt.
+            job = await ausstattungEngine.advanceAusstattung(job, { FAL_KEY });
+          } else {
+            job = await advanceCharacterJob(job, { FAL_KEY });
+            // NEU (Auftrag 3 Teil 5, 18.10.2026): ist der Job gerade fertig geworden und traegt er
+            // einen Chip-Schluessel (char-job-start.js, kein Treffer), wird das fehlerfreie Blatt
+            // jetzt in den eigenen Speicher kopiert und fuer alle eingetragen. resultUrl zeigt danach
+            // auf unseren Endpunkt (dauerhaft -- fal.media verfaellt nach 90 Tagen). Scheitert das
+            // Ablegen, behaelt die Kundin ihr Blatt unter der fal-URL; nur die DB geht leer aus.
+            job = await chipFigurAblegen(job);
+            // Teil B: Stufe 1 fertig und Ausstattung gewuenscht -> Grundfigur merken, Stufe 2 starten
+            // (Speicher-Treffer: sofort fertig; sonst Edit einreihen, status bleibt in_progress).
+            if (job.status === "done" && job.ausstattungSchluessel) {
+              job.grundUrl = job.resultUrl;
+              job = await ausstattungEngine.stufe2Starten(job, { FAL_KEY });
+            }
+          }
           await kvSetJson("charjob:" + jobId, job, JOB_TTL_SECONDS);
         } finally {
           await kvUnlock(sperre);
