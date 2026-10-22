@@ -166,3 +166,35 @@ test("char-job-start: Grund-Treffer + Ausstattung ohne Treffer -> Job in Stufe 2
     C.mitDeps = echteDeps; rl.checkRateLimit = rlAlt; kd.deckelErlaubt = kdAlt; fal.zurueck(); delete process.env.FAL_KEY;
   }
 });
+
+test("Kuration (Teil D): Liste getrennt, Aufraeumen erst als Vorschau, verwerfen je Art", async () => {
+  const kv = neuerKvMock(); const sp = speicherAttrappe();
+  const echteDeps = C.mitDeps; C.mitDeps = (d, art) => echteDeps(Object.assign({ kvCommand: kv, speicher: sp, fetch: holen }, d || {}), art);
+  process.env.GUTSCHEIN_ADMIN_SCHLUESSEL = "geheim";
+  try {
+    const handler = require("../api/gutschein");
+    const grund = C.mitDeps(null, "grund"), aus = C.mitDeps(null, "ausstattung");
+    await grund.ablegen({ schluessel: GRUND, bildUrl: "https://v3.fal.media/g.png" });
+    await aus.ablegen({ schluessel: AUS, bildUrl: "https://v3.fal.media/a.png", grund: GRUND });
+    // Alt-Eintraege (v2 / v1) direkt in KV
+    const altG = "v2|girl|6-9|blond|glatt|lang|hell|brille|-", altA = "v2a|" + altG + "|rot|-|nichts";
+    await kv(["hset", C.ARTEN.grund.key(altG), "pfad", "figuren/chips/alt.png"]); await kv(["sadd", C.ARTEN.grund.alle, altG]); sp.dateien.set("figuren/chips/alt.png", {});
+    await kv(["hset", C.ARTEN.ausstattung.key(altA), "pfad", "figuren/chips/ausstattung/alt.png"]); await kv(["sadd", C.ARTEN.ausstattung.alle, altA]); sp.dateien.set("figuren/chips/ausstattung/alt.png", {});
+    const ruf = async (query) => { const r = { code: 0, body: null, setHeader() {} }; r.status = (c) => { r.code = c; return r; }; r.json = (b) => { r.body = b; return r; }; await handler({ method: "GET", query, headers: {} }, r); return r; };
+    let r = await ruf({ mode: "chipfiguren", key: "falsch" }); assert.equal(r.code, 401);
+    r = await ruf({ mode: "chipfiguren", key: "geheim" });
+    assert.equal(r.body.grundfiguren.anzahl, 1); assert.equal(r.body.ausstattungen.anzahl, 1);
+    assert.equal(r.body.ausstattungen.figuren[0].grund, GRUND); assert.equal(r.body.kombinationen.grundfigur.girl, 2025);
+    r = await ruf({ mode: "chipfiguren-aufraeumen", key: "geheim" });
+    assert.equal(r.body.vorschau, true); assert.deepEqual(r.body.grundfiguren, [altG]); assert.deepEqual(r.body.ausstattungen, [altA]);
+    assert.equal(sp.dateien.size, 4, "Vorschau loescht nichts");
+    r = await ruf({ mode: "chipfiguren-aufraeumen", key: "geheim", bestaetigt: "1" });
+    assert.deepEqual(r.body.grundfiguren.geloescht, [altG]); assert.deepEqual(r.body.ausstattungen.geloescht, [altA]);
+    assert.equal(sp.dateien.size, 2);
+    r = await ruf({ mode: "chipfigur-verwerfen", key: "geheim", schluessel: AUS });
+    assert.equal(r.body.art, "ausstattung"); assert.equal(r.body.verworfen, true);
+    r = await ruf({ mode: "chipfigur-verwerfen", key: "geheim", schluessel: GRUND });
+    assert.equal(r.body.art, "grund"); assert.equal(r.body.verworfen, true);
+    assert.equal(sp.dateien.size, 0);
+  } finally { C.mitDeps = echteDeps; delete process.env.GUTSCHEIN_ADMIN_SCHLUESSEL; }
+});

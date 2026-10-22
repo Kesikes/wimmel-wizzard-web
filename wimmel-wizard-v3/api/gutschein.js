@@ -5,9 +5,9 @@
 //   GET  ?mode=config                 Produkte, Preise, Wortlaute für die Seiten (aus gutschein-config.js)
 //   GET  ?mode=pdf&token=…            Gutschein-PDF, bei Bedarf neu erzeugt (signierter Token)
 //   GET  ?mode=statistik&key=…        Zähler/Feedback für Matthias (GUTSCHEIN_ADMIN_SCHLUESSEL)
-//   GET  ?mode=chipfiguren&key=…      Kuration (Auftrag 3 Teil 5): alle Figuren der Figuren-DB mit Bild-URL
-//   GET  ?mode=chipfigur-verwerfen&key=…&schluessel=…   eine Figur aus der DB werfen (Eintrag + Datei)
-//   GET  ?mode=chipfiguren-aufraeumen&key=…   alle Einträge älterer Schlüssel-Versionen (v1) samt Dateien entfernen
+//   GET  ?mode=chipfiguren&key=…      Kuration: Grundfiguren und Ausstattungen getrennt, mit Bild-URL, Kombinationszahlen
+//   GET  ?mode=chipfigur-verwerfen&key=…&schluessel=…[&art=ausstattung]   einen Eintrag werfen (Eintrag + Datei)
+//   GET  ?mode=chipfiguren-aufraeumen&key=…[&bestaetigt=1]   ältere Schlüssel-Versionen: erst Vorschau, mit bestaetigt=1 löschen
 //   POST { mode: "checkout", … }      Entwurf speichern, Stripe-Checkout anlegen -> { url }
 //   POST { mode: "status", session_id } Danke-Seite fragt, ob der Webhook durch ist
 //   POST { mode: "pruefen", code }    /einloesen: gültig? Produkt, Wert, Frist — kein Statuswechsel
@@ -56,16 +56,28 @@ module.exports = async (req, res) => {
         const key = process.env.GUTSCHEIN_ADMIN_SCHLUESSEL;
         if (!key || req.query.key !== key) { res.status(401).json({ error: "Nicht erlaubt." }); return; }
         res.setHeader("Cache-Control", "no-store");
-        const db = require("./_lib/chip-figuren").mitDeps();
+        const cf = require("./_lib/chip-figuren");
+        const grund = cf.mitDeps(null, "grund"), ausstattung = cf.mitDeps(null, "ausstattung");
+        // Chip-Figuren v3 Teil D: beide Stufen getrennt, beide verwerfbar; Aufraeumen erst als Vorschau.
         if (mode === "chipfiguren") {
-          const figuren = await db.liste();
-          res.status(200).json({ version: require("./_lib/chip-figuren").VERSION, anzahl: figuren.length, figuren });
+          const grundfiguren = await grund.liste(), ausstattungen = await ausstattung.liste();
+          res.status(200).json({ version: cf.VERSION, version_ausstattung: cf.VERSION_AUSSTATTUNG, kombinationen: cf.kombinationen(), grundfiguren: { anzahl: grundfiguren.length, figuren: grundfiguren }, ausstattungen: { anzahl: ausstattungen.length, figuren: ausstattungen } });
           return;
         }
-        if (mode === "chipfiguren-aufraeumen") { res.status(200).json(await db.aufraeumen()); return; }
+        if (mode === "chipfiguren-aufraeumen") {
+          // Ohne bestaetigt=1 nur die Liste der zu loeschenden Eintraege (aeltere Schluessel-Versionen).
+          if (String(req.query.bestaetigt || "") !== "1") {
+            res.status(200).json({ vorschau: true, hinweis: "Zum Loeschen &bestaetigt=1 anhaengen.", grundfiguren: await grund.vorschauAufraeumen(), ausstattungen: await ausstattung.vorschauAufraeumen() });
+            return;
+          }
+          res.status(200).json({ vorschau: false, grundfiguren: await grund.aufraeumen(), ausstattungen: await ausstattung.aufraeumen() });
+          return;
+        }
         const schluessel = String(req.query.schluessel || "").trim();
         if (!schluessel) { res.status(400).json({ error: "schluessel fehlt." }); return; }
-        res.status(200).json({ schluessel, verworfen: await db.verwerfen(schluessel) });
+        // art=ausstattung oder automatisch am Praefix v3a| erkannt
+        const art = String(req.query.art || "") === "ausstattung" || cf.CHIPS.istAktuelleAusstattungsVersion(schluessel) ? "ausstattung" : "grund";
+        res.status(200).json({ schluessel, art, verworfen: await (art === "ausstattung" ? ausstattung : grund).verwerfen(schluessel) });
         return;
       }
       res.status(400).json({ error: "Unbekannter mode." });
