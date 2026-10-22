@@ -144,9 +144,6 @@
     return (EXTRA_JE_ROLLE[rolle] || EXTRA_JE_ROLLE.girl).map((id) => finde(EXTRAS, id)).filter((x) => x && (mitInaktiven || x.aktiv !== false));
   }
   function frisurMoeglich(haarlaengeId) { return FRISUR_LAENGEN.includes(haarlaengeId); }
-  // merkmale(rolle): Uebergang v2 -> v3 (Teil A vor Teil E): die alte Panel-Gruppe "Besonderes Merkmal"
-  // zeigt bis zum Umbau der Oberflaeche die aktiven Extras. Entfaellt mit Teil E.
-  function merkmale(rolle) { return extras(rolle); }
   function haarlaengen(rolle) { return (HAARLAENGE_JE_ROLLE[rolle] || HAARLAENGE_JE_ROLLE.girl).map((id) => finde(HAARLAENGE, id)); }
   function hatBart(rolle) { return BART_ROLLEN.includes(rolle); }
   function istGlatze(haarlaengeId) { const l = finde(HAARLAENGE, haarlaengeId); return !!(l && l.glatze); }
@@ -301,7 +298,7 @@
     VERSION, VERSION_AUSSTATTUNG, HAARFARBEN, HAARFARBE_JE_ROLLE, HAARSTRUKTUR, HAARLAENGE, HAARLAENGE_JE_ROLLE, FRISUR, FRISUR_LAENGEN, BART, BART_ROLLEN, HAUTTON,
     OBERTEIL, BRILLE_EN, EXTRAS, EXTRA_JE_ROLLE, GRUNDFIGUR_EN,
     FELLFARBE, FELLMUSTER, FELLLAENGE, TIER_MERKMALE, ROLLEN, KINDER, ALTER_MAX_KIND, ALTER_STUFEN,
-    finde, haarfarben, haarlaengen, hatBart, bartEn, extras, merkmale, frisurMoeglich, istGlatze, istKind, alterStufe, haarPhraseEn, hauttonEn, merkmalEn,
+    finde, haarfarben, haarlaengen, hatBart, bartEn, extras, frisurMoeglich, istGlatze, istKind, alterStufe, haarPhraseEn, hauttonEn, merkmalEn,
     oberteilEn, ausstattungEn, ausstattungEditPrompt, schluessel, ausstattungsSchluessel, istAktuelleVersion, istAktuelleAusstattungsVersion, rolleAusSchluessel, slug, kombinationen,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = CHIPS;

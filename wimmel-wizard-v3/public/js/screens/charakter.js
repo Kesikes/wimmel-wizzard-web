@@ -191,11 +191,55 @@ function buildHauttonGroup() {
   return wrap;
 }
 
+// Ueberschrift einer Chip-Gruppe; pflicht=true haengt kein "optional" an.
+function gruppenTitel(text, optional) {
+  return h("p", { class: "h-black", style: { margin: "14px 0 6px", fontSize: "13px", letterSpacing: "-.01em" } },
+    optional ? [text + " ", h("span", { style: { color: "rgba(26,26,24,.5)" } }, "optional")] : text);
+}
+
+// Chip-Figuren v3 Teil E (22.10.2026): Lieblingsfarbe des Oberteils -- Farbtupfer MIT Beschriftung,
+// Pflicht, keine Voreinstellung. Stufe 2 der Erzeugung (Ausstattung), nicht im Grundfigur-Schluessel.
+function buildOberteilGroup() {
+  const wrap = h("div");
+  wrap.appendChild(gruppenTitel("Lieblingsfarbe fürs Oberteil", false));
+  const row = h("div", { role: "radiogroup", "aria-label": "Lieblingsfarbe fürs Oberteil", style: { display: "flex", flexWrap: "wrap", gap: "8px" } });
+  const stil = (el, on) => { el.style.background = on ? "var(--ink)" : "#FFF"; el.style.color = on ? "var(--paper)" : "var(--ink)"; el.setAttribute("aria-checked", on ? "true" : "false"); };
+  CHIPS.OBERTEIL.forEach((o, i) => {
+    const chip = h("button", {
+      type: "button", role: "radio",
+      style: { display: "inline-flex", alignItems: "center", gap: "7px", cursor: "pointer", fontFamily: "'Archivo',sans-serif", fontSize: "12px", fontWeight: "700", padding: "7px 10px 7px 7px", border: "3px solid var(--ink)", transform: "rotate(" + rot(i) + "deg)" },
+      onClick: () => { AppState.update({ charOberteil: o.id }); [...row.children].forEach((sib) => stil(sib, sib === chip)); },
+    }, [h("span", { "aria-hidden": "true", style: { display: "inline-block", width: "18px", height: "18px", borderRadius: "50%", background: o.farbe, border: "2px solid var(--ink)", flex: "none" } }), o.label]);
+    stil(chip, AppState.data.charOberteil === o.id);
+    row.appendChild(chip);
+  });
+  wrap.appendChild(row);
+  return wrap;
+}
+
+// Brille: ein Schalter ja/nein (aria-pressed). Stufe 2.
+function buildBrilleToggle() {
+  const wrap = h("div");
+  wrap.appendChild(gruppenTitel("Brille", false));
+  const btn = h("button", { type: "button", style: chipStyle(!!AppState.data.charBrille, 1) });
+  const text = () => (AppState.data.charBrille ? "Mit Brille" : "Ohne Brille");
+  btn.textContent = text();
+  btn.setAttribute("aria-pressed", AppState.data.charBrille ? "true" : "false");
+  btn.addEventListener("click", () => {
+    AppState.update({ charBrille: !AppState.data.charBrille });
+    applyChipStyle(btn, !!AppState.data.charBrille); btn.textContent = text();
+    btn.setAttribute("aria-pressed", AppState.data.charBrille ? "true" : "false");
+  });
+  wrap.appendChild(btn);
+  return wrap;
+}
+
 function buildChipsPanel(person) {
   const s = AppState.data;
-  // B7 (09.09.2026): person.isPet steuert Haar- oder Fell-Sets. v2 (19.10.2026): fuer Menschen
-  // sind Haarfarben und Merkmale ROLLENABHAENGIG (CHIPS.haarfarben(rolle)/merkmale(rolle)); bei
-  // Glatze verschwinden Struktur und Laenge (und werden geleert, damit sie nicht im Schluessel landen).
+  // B7 (09.09.2026): person.isPet steuert Haar- oder Fell-Sets. v2/v3 (19.-22.10.2026): fuer Menschen
+  // sind die Listen ROLLENABHAENGIG (chips.js). Reihenfolge laut Auftrag v3 Teil E:
+  // Alter -> Haarfarbe -> Laenge -> Struktur -> Frisur -> Hautton -> Bart -> Lieblingsfarbe -> Brille -> Extra.
+  // Struktur (nicht bei Glatze), Frisur (nur mittel/lang) und Bart (nur Mann/Opa) nur, wenn sinnvoll.
   const isPet = !!person.isPet;
   const rolle = isPet ? "pet" : person.role;
   const panel = h("div", { style: { marginTop: "22px", border: "4px solid var(--ink)", background: "var(--paper)", boxShadow: "6px 7px 0 var(--ink)", padding: "16px" } });
@@ -207,58 +251,88 @@ function buildChipsPanel(person) {
   row.appendChild(preview);
 
   const right = h("div", { style: { flex: "1", minWidth: "0" } });
-  right.appendChild(h("p", { class: "h-black", style: { margin: "0 0 10px", fontSize: "13px", letterSpacing: "-.01em" } }, isPet ? "Fell" : "Haare"));
-  // Ergaenzung 20.10.2026: "Glatze" ist eine LAENGEN-Option (nur Mann/Opa). Die Farbe bleibt
-  // waehlbar (Bart + Augenbrauen), die Struktur-Reihe verschwindet und wird geleert.
-  right.appendChild(buildSingleSelectGroup("charHairColor", isPet ? FUR_COLORS : CHIPS.haarfarben(rolle), isPet ? "z. B. Fellfarbe wählen" : "z. B. Farbe wählen"));
-  const struktur = h("div");
-  const strukturFuellen = () => {
-    struktur.innerHTML = "";
-    if (!isPet && CHIPS.istGlatze(AppState.data.charHairLength)) return; // Glatze: keine Struktur
-    struktur.appendChild(buildSingleSelectGroup("charHairTexture", isPet ? FUR_PATTERN : CHIPS.HAARSTRUKTUR, null));
-  };
-  strukturFuellen();
-  right.appendChild(struktur);
-  right.appendChild(buildSingleSelectGroup("charHairLength", isPet ? CHIPS.FELLLAENGE : CHIPS.haarlaengen(rolle), null, (id) => {
-    if (!isPet && CHIPS.istGlatze(id)) AppState.update({ charHairTexture: null });
-    strukturFuellen();
-  }));
-  // Bart (20.10.2026): nur Mann/Opa, genau eine Auswahl, "Kein Bart" gilt ohne Auswahl.
-  if (!isPet && CHIPS.hatBart(rolle)) {
-    right.appendChild(h("p", { class: "h-black", style: { margin: "10px 0 4px", fontSize: "13px", letterSpacing: "-.01em" } }, "Bart"));
-    if (!AppState.data.charBart) AppState.update({ charBart: "kein" });
-    right.appendChild(buildSingleSelectGroup("charBart", CHIPS.BART, null, (id) => { if (!id) AppState.update({ charBart: "kein" }); }));
+  // Alter (Kinder): Zahlenfeld, wie beim Anlegen -- aenderbar, geht als Stufe in den Schluessel.
+  if (!isPet && CHIPS.istKind(person.role)) {
+    const alterWrap = h("div", { style: { display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" } });
+    alterWrap.appendChild(h("span", { class: "h-black", style: { fontSize: "13px", letterSpacing: "-.01em" } }, "Alter"));
+    const alterInput = h("input", { type: "number", min: "0", max: String(CHIPS.ALTER_MAX_KIND), inputmode: "numeric", class: "field", "aria-label": "Alter", style: { width: "72px", marginTop: "0", padding: "6px 8px" } });
+    alterInput.value = person.age != null ? String(person.age) : "";
+    alterInput.addEventListener("change", () => { const n = parseInt(alterInput.value, 10); AppState.updatePerson(person.id, { age: Number.isFinite(n) ? n : null }); });
+    alterWrap.appendChild(alterInput);
+    right.appendChild(alterWrap);
   }
+  right.appendChild(h("p", { class: "h-black", style: { margin: "0 0 10px", fontSize: "13px", letterSpacing: "-.01em" } }, isPet ? "Fell" : "Haare"));
+  right.appendChild(buildSingleSelectGroup("charHairColor", isPet ? FUR_COLORS : CHIPS.haarfarben(rolle), isPet ? "z. B. Fellfarbe wählen" : "z. B. Farbe wählen"));
+  // Laenge vor Struktur (Auftrag v3): "Glatze" (Mann/Opa) blendet die Struktur aus, "kurz" die Frisur.
+  const strukturFrisur = h("div");
+  const strukturFrisurFuellen = () => {
+    strukturFrisur.innerHTML = "";
+    if (isPet) { strukturFrisur.appendChild(buildSingleSelectGroup("charHairTexture", FUR_PATTERN, null)); return; }
+    if (!CHIPS.istGlatze(AppState.data.charHairLength)) strukturFrisur.appendChild(buildSingleSelectGroup("charHairTexture", CHIPS.HAARSTRUKTUR, null));
+    if (CHIPS.frisurMoeglich(AppState.data.charHairLength)) {
+      strukturFrisur.appendChild(h("span", { style: { display: "block", marginBottom: "5px", fontSize: "10px", color: "rgba(26,26,24,.5)" } }, "Frisur"));
+      strukturFrisur.appendChild(buildSingleSelectGroup("charFrisur", CHIPS.FRISUR, null));
+    }
+  };
+  right.appendChild(buildSingleSelectGroup("charHairLength", isPet ? CHIPS.FELLLAENGE : CHIPS.haarlaengen(rolle), null, (id) => {
+    if (!isPet) {
+      if (CHIPS.istGlatze(id)) AppState.update({ charHairTexture: null });
+      if (!CHIPS.frisurMoeglich(id)) AppState.update({ charFrisur: null });
+    }
+    strukturFrisurFuellen();
+  }));
+  strukturFrisurFuellen();
+  right.appendChild(strukturFrisur);
   row.appendChild(right);
   panel.appendChild(row);
 
-  if (!isPet) panel.appendChild(buildHauttonGroup());
-
-  const besWrap = h("div", { style: { marginTop: "16px" } });
-  besWrap.appendChild(h("p", { class: "h-black", style: { margin: "0 0 8px", fontSize: "13px", letterSpacing: "-.01em" } },
-    isPet ? ["Eine Besonderheit ", h("span", { style: { color: "rgba(26,26,24,.5)" } }, "optional")] : "Besonderes Merkmal"));
-  // Genau EINE Auswahl (Radio-Verhalten). Menschen (v2): "nichts davon" ist ein eigener Chip und
-  // gilt, solange nichts gewaehlt ist (charBesonderheit null). Tiere: wie bisher optional, erneutes
-  // Antippen waehlt ab.
-  const besChipWrap = h("div", { style: { display: "flex", flexWrap: "wrap", gap: "7px" } });
-  const merkmale = isPet ? PET_CHIPS.map((label) => ({ id: label, label })) : CHIPS.merkmale(rolle);
-  const nichtsId = isPet ? null : "nichts";
-  const aktiv = (m) => (s.charBesonderheit == null ? m.id === nichtsId : s.charBesonderheit === m.label);
-  merkmale.forEach((m, i) => {
-    const chip = h("button", {
-      type: "button",
-      style: chipStyle(aktiv(m), i),
-      onClick: () => {
-        const nowSelected = AppState.data.charBesonderheit === m.label;
-        const neu = isPet ? (nowSelected ? null : m.label) : (m.id === nichtsId ? null : m.label);
-        AppState.update({ charBesonderheit: neu });
-        [...besChipWrap.children].forEach((sib, si) => applyChipStyle(sib, neu == null ? merkmale[si].id === nichtsId : merkmale[si].label === neu));
-      }
-    }, m.label);
-    besChipWrap.appendChild(chip);
-  });
-  besWrap.appendChild(besChipWrap);
-  panel.appendChild(besWrap);
+  if (!isPet) {
+    panel.appendChild(buildHauttonGroup());
+    // Bart (20.10.2026): nur Mann/Opa, genau eine Auswahl, "Kein Bart" gilt ohne Auswahl.
+    if (CHIPS.hatBart(rolle)) {
+      panel.appendChild(gruppenTitel("Bart", false));
+      if (!AppState.data.charBart) AppState.update({ charBart: "kein" });
+      panel.appendChild(buildSingleSelectGroup("charBart", CHIPS.BART, null, (id) => { if (!id) AppState.update({ charBart: "kein" }); }));
+    }
+    // AUSSTATTUNG (Stufe 2): Lieblingsfarbe (Pflicht), Brille, ein Extra je Rolle.
+    panel.appendChild(buildOberteilGroup());
+    panel.appendChild(buildBrilleToggle());
+    const extraWrap = h("div");
+    extraWrap.appendChild(gruppenTitel("Ein Extra", false));
+    const extraRow = h("div", { style: { display: "flex", flexWrap: "wrap", gap: "7px" } });
+    const extras = CHIPS.extras(rolle);
+    const aktiv = (e) => (AppState.data.charExtra ? AppState.data.charExtra === e.id : e.id === "nichts");
+    extras.forEach((e, i) => {
+      const chip = h("button", {
+        type: "button", style: chipStyle(aktiv(e), i),
+        onClick: () => {
+          AppState.update({ charExtra: e.id === "nichts" ? null : e.id });
+          [...extraRow.children].forEach((sib, si) => applyChipStyle(sib, aktiv(extras[si])));
+        },
+      }, e.label);
+      extraRow.appendChild(chip);
+    });
+    extraWrap.appendChild(extraRow);
+    panel.appendChild(extraWrap);
+  } else {
+    // Tiere: eine Besonderheit, optional, wie bisher (B7).
+    const besWrap = h("div");
+    besWrap.appendChild(gruppenTitel("Eine Besonderheit", true));
+    const besChipWrap = h("div", { style: { display: "flex", flexWrap: "wrap", gap: "7px" } });
+    PET_CHIPS.forEach((label, i) => {
+      const chip = h("button", {
+        type: "button", style: chipStyle(s.charBesonderheit === label, i),
+        onClick: () => {
+          const neu = AppState.data.charBesonderheit === label ? null : label;
+          AppState.update({ charBesonderheit: neu });
+          [...besChipWrap.children].forEach((sib, si) => applyChipStyle(sib, PET_CHIPS[si] === neu));
+        },
+      }, label);
+      besChipWrap.appendChild(chip);
+    });
+    besWrap.appendChild(besChipWrap);
+    panel.appendChild(besWrap);
+  }
 
   const label = h("label", { style: { display: "block", marginTop: "16px" } });
   label.appendChild(h("span", { class: "h-black", style: { display: "block", fontSize: "11px", letterSpacing: ".06em" } }, ["Was ist noch besonders an ihr? ", h("span", { style: { color: "rgba(26,26,24,.5)" } }, "optional")]));
@@ -347,9 +421,13 @@ async function generateCharacterImage(person, buttons) {
   // Validierung (umgebaut 05.09.2026, B7-Ergaenzung 09.09.2026): Haare/Fell sind die primäre,
   // strukturierte Eingabe -- erst wenn dort NICHTS gewählt ist, zählt ersatzweise die freie Notiz.
   // v2 (19.10.2026): Hautton ist bei Menschen Pflicht, ohne Voreinstellung.
+  // v3 (22.10.2026): Frisur bei mittel/lang und die Lieblingsfarbe des Oberteils sind Pflicht.
   const fehlt = (!hairEn && !(s.charNote || "").trim())
-    ? (isPet ? "Bitte mindestens Fellfarbe, -muster und -länge auswählen oder etwas dazuschreiben." : "Bitte mindestens Haarfarbe, -struktur und -länge auswählen oder etwas dazuschreiben.")
-    : (!isPet && !hauttonEn ? "Bitte noch einen Hautton antippen." : "");
+    ? (isPet ? "Bitte mindestens Fellfarbe, -muster und -länge auswählen oder etwas dazuschreiben." : "Bitte mindestens Haarfarbe, -länge und -struktur auswählen oder etwas dazuschreiben.")
+    : (!isPet && CHIPS.frisurMoeglich(s.charHairLength) && !s.charFrisur) ? "Bitte noch eine Frisur antippen."
+    : (!isPet && !hauttonEn) ? "Bitte noch einen Hautton antippen."
+    : (!isPet && !s.charOberteil) ? "Bitte noch die Lieblingsfarbe fürs Oberteil antippen."
+    : "";
   if (fehlt) {
     const errorP = charGenErrorEl("char-gen-error");
     if (errorP) { errorP.textContent = fehlt; errorP.style.display = "block"; }

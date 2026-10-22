@@ -28,6 +28,11 @@ Umgesetzt und committet (Details in `docs/auftrag3-rueckmeldung-2026-10-18.md`):
   Prompt-Fassung `2026-10-19a` ins Entscheidungsregister.
 - Ergänzung 20.10.: Bart-Gruppe bei Mann/Opa (Farbe = Haarfarbe), Glatze als Längen-Option; Schlüssel mit
   neuntem Feld `bart`; Mann/Opa 6 000 Kombinationen.
+- Chip-Figuren v3 (22.10., `docs/chip-figuren-v3-rueckmeldung-2026-10-22.md`): Grundfigur (Schlüssel v3 mit
+  Frisur, neutral in Weiß) + Ausstattung (Lieblingsfarbe Oberteil, Brille, ein Extra) als zweite Stufe per
+  nano-banana-2/edit mit eigenem Speicher; Oberteil-Farbe im Szenen-Prompt und im Helden-Abgleich
+  (Prompt-Fassung `2026-10-22a`); Kuration beider Stufen, Aufräumen mit Vorschau.
+  **Offen:** Stufe-2-Laufzeit messen (`dev-tools/ausstattung-test.js`), v2-Einträge löschen, Register.
 
 ---
 
