@@ -1,24 +1,28 @@
 /* ==========================================================================
-   Wimmel Wizard v3 — Chips (Auftrag "Chip-Figuren v2", 19.10.2026)
+   Wimmel Wizard v3 — Chips (Auftrag "Chip-Figuren v3", 20.10.2026; v2 vom 19./20.10.2026)
 
-   DIE EINE STELLE fuer alle Chip-Listen der Figuren: Haarfarbe (rollenabhaengig), Haarstruktur,
-   Haarlaenge, Hautton, Besonderes Merkmal (rollenabhaengig), Tier-Sets, Altersstufen, Schluessel-
-   Version. Laeuft im Browser (window.CHIPS, geladen vor pipeline.js/charakter.js, siehe app.html)
-   UND in Node (api/_lib/chip-figuren.js: require("../../public/js/chips.js")) -- deshalb das
-   UMD-Muster am Ende, ohne require() und ohne DOM-Zugriff in dieser Datei.
+   DIE EINE STELLE fuer alle Chip-Listen der Figuren. Laeuft im Browser (window.CHIPS, geladen vor
+   pipeline.js/charakter.js, siehe app.html) UND in Node (api/_lib/chip-figuren.js:
+   require("../../public/js/chips.js")) -- deshalb das UMD-Muster am Ende, ohne require() und ohne
+   DOM-Zugriff in dieser Datei. "en" ist fertiger, fester Prompt-Text (nicht ueber translate()).
 
-   Regeln (Auftrag 19.10.2026):
-   - Haarfarbe Kinder: Blond, Hellbraun, Dunkelbraun, Schwarz, Rot. Erwachsene zusaetzlich Grau/Weiss.
-   - Ergaenzung 20.10.2026: Mann/Opa haben "Glatze" als Laengen-Option (Farbe bleibt waehlbar, Struktur
-     entfaellt) und eine Bart-Gruppe (kein/Dreitage/Schnauzer/Vollbart, Bartfarbe = Haarfarbe).
-   - Hautton: 5 Tupfer, Pflicht, keine Voreinstellung, keine Herkunftsbegriffe; nur aria-Label.
-   - Merkmal: genau eins je Rolle, "nichts" ist ein Chip. Haustier-Chips unveraendert.
-   - Schluessel: v2|rolle|altersstufe|haarfarbe|struktur|laenge|hautton|merkmal|bart; Kinder in Stufen
-     <=5 / 6-9 / 10+, Erwachsene ohne Alter. Eintraege anderer Versionen werden ignoriert.
-   "en" ist fertiger, fester Prompt-Text (nicht ueber translate() geroutet).
+   ZWEI STUFEN (v3):
+   GRUNDFIGUR = Datenbank-Schluessel: Rolle, Altersstufe (Kinder <=5 / 6-9 / 10+), Haarfarbe
+     (rollenabhaengig), Struktur (glatt/lockig/kraus), Laenge (kurz/mittel/lang, Mann/Opa + Glatze),
+     Frisur (nur mittel/lang: offen/Pferdeschwanz/Zoepfe/Dutt), Hautton (5 Tupfer, Pflicht), Bart
+     (Mann/Opa). Erzeugt mit flux-lora in neutralem weissem Oberteil, ohne Brille/Accessoires.
+     Schluessel: v3|rolle|stufe|haarfarbe|struktur|laenge|frisur|hautton|bart
+     (Tiere: v3|pet:<art>|-|fellfarbe|muster|laenge|<besonderheit>|-|-, unveraenderte Tier-Chips).
+   AUSSTATTUNG = zweiter Schritt, per nano-banana-2/edit auf die Grundfigur gesetzt, eigener
+     Speicher: Lieblingsfarbe Oberteil (Pflicht, 6 kraeftige Farben), Brille ja/nein, EIN Extra je
+     Rolle. Schluessel: v3a|<grundfigur-schluessel>|farbe|brille|extra.
+     Gestrichen gegenueber v2: Kappe, Hut/Kappe, Rucksack, Schal, Strickjacke (saisonal -> spaeter
+     Outfit-Tags je Szene). Vorbereitet, unsichtbar: Extra "Rollstuhl" (aktiv: false).
+   Eintraege anderer Schluessel-Versionen werden ignoriert und per Kuration entfernt.
    ========================================================================== */
 (function (root) {
-  const VERSION = "v2";
+  const VERSION = "v3";
+  const VERSION_AUSSTATTUNG = "v3a";
 
   const HAARFARBEN = [
     { id: "blond", label: "Blond", en: "blonde" },
@@ -70,27 +74,47 @@
     { id: "mittel-dunkel", aria: "mittel-dunkel", en: "medium-dark skin tone", farbe: "#8E5B33" },
     { id: "dunkel", aria: "dunkel", en: "dark skin tone", farbe: "#4B301D" },
   ];
-  const MERKMALE = [
-    { id: "brille", label: "Brille", en: "glasses" },
-    { id: "kappe", label: "Kappe", en: "baseball cap" },
+  // Frisur (v3, 20.10.2026): nur bei Laenge mittel/lang, alle Rollen. "phrase" haengt an der
+  // Haar-Phrase ("long straight blonde hair in two braids"), "en" ist der Begriff aus dem Auftrag.
+  const FRISUR = [
+    { id: "offen", label: "Offen", en: "loose hair", phrase: "worn loose" },
+    { id: "pferdeschwanz", label: "Pferdeschwanz", en: "ponytail", phrase: "in a ponytail" },
+    { id: "zoepfe", label: "Zöpfe", en: "two braids", phrase: "in two braids" },
+    { id: "dutt", label: "Dutt", en: "hair bun", phrase: "in a hair bun" },
+  ];
+  const FRISUR_LAENGEN = ["mittel", "lang"];
+
+  // AUSSTATTUNG (v3): nicht im Grundfigur-Schluessel.
+  // Lieblingsfarbe Oberteil -- Pflicht, keine Voreinstellung; kraeftige Farben, Tupfer mit Beschriftung.
+  const OBERTEIL = [
+    { id: "rot", label: "Rot", en: "bright red", farbe: "#E63329" },
+    { id: "gelb", label: "Gelb", en: "bright yellow", farbe: "#F7C600" },
+    { id: "gruen", label: "Grün", en: "bright green", farbe: "#2EA043" },
+    { id: "blau", label: "Blau", en: "bright blue", farbe: "#1F6FE0" },
+    { id: "orange", label: "Orange", en: "bright orange", farbe: "#F28C1E" },
+    { id: "lila", label: "Lila", en: "bright purple", farbe: "#8A3FC4" },
+  ];
+  const BRILLE_EN = "round glasses";
+  // Ein Extra je Rolle; "nichts" ist ein Chip. aktiv: false = vorbereitet, in der Oberflaeche unsichtbar.
+  const EXTRAS = [
+    { id: "muetze", label: "Mütze", en: "knitted beanie" },
     { id: "kuscheltier", label: "Kuscheltier im Arm", en: "holding a plush toy" },
-    { id: "rucksack", label: "Rucksack", en: "backpack" },
-    { id: "hut-kappe", label: "Hut/Kappe", en: "hat" },
-    { id: "hut", label: "Hut", en: "hat" },
+    { id: "hut", label: "Hut", en: "brimmed hat" },
     { id: "kopftuch", label: "Kopftuch", en: "headscarf" },
-    { id: "schal", label: "Schal", en: "scarf" },
     { id: "gehstock", label: "Gehstock", en: "walking cane" },
-    { id: "strickjacke", label: "Strickjacke", en: "cardigan" },
+    { id: "rollstuhl", label: "Rollstuhl", en: "sitting in a wheelchair", aktiv: false },
     { id: "nichts", label: "nichts davon", en: "" },
   ];
-  const MERKMAL_JE_ROLLE = {
-    girl: ["brille", "kappe", "kuscheltier", "rucksack", "nichts"],
-    boy: ["brille", "kappe", "kuscheltier", "rucksack", "nichts"],
-    woman: ["brille", "hut-kappe", "kopftuch", "rucksack", "schal", "nichts"],
-    man: ["brille", "hut-kappe", "rucksack", "schal", "nichts"],
-    grandmother: ["brille", "hut", "gehstock", "strickjacke", "kopftuch", "nichts"],
-    grandfather: ["brille", "hut", "gehstock", "strickjacke", "nichts"],
+  const EXTRA_JE_ROLLE = {
+    girl: ["muetze", "kuscheltier", "rollstuhl", "nichts"],
+    boy: ["muetze", "kuscheltier", "rollstuhl", "nichts"],
+    woman: ["hut", "kopftuch", "rollstuhl", "nichts"],
+    man: ["hut", "rollstuhl", "nichts"],
+    grandmother: ["hut", "kopftuch", "gehstock", "rollstuhl", "nichts"],
+    grandfather: ["hut", "gehstock", "rollstuhl", "nichts"],
   };
+  // Grundfigur-Zusatz im flux-lora-Prompt: neutral, damit die Ausstattung sauber aufsetzt.
+  const GRUNDFIGUR_EN = "wearing a plain simple white t-shirt, no glasses, no hat, no accessories";
 
   // Haustier: unveraendert (B7, 09.09.2026). Werte sind die englischen Prompt-Woerter.
   const FELLFARBE = [
@@ -115,7 +139,14 @@
 
   function finde(liste, id) { return liste.find((x) => x.id === id) || null; }
   function haarfarben(rolle) { return (HAARFARBE_JE_ROLLE[rolle] || HAARFARBE_JE_ROLLE.girl).map((id) => finde(HAARFARBEN, id)); }
-  function merkmale(rolle) { return (MERKMAL_JE_ROLLE[rolle] || MERKMAL_JE_ROLLE.girl).map((id) => finde(MERKMALE, id)); }
+  // extras(rolle, mitInaktiven) -> die Extra-Chips der Rolle; ohne mitInaktiven ohne aktiv:false.
+  function extras(rolle, mitInaktiven) {
+    return (EXTRA_JE_ROLLE[rolle] || EXTRA_JE_ROLLE.girl).map((id) => finde(EXTRAS, id)).filter((x) => x && (mitInaktiven || x.aktiv !== false));
+  }
+  function frisurMoeglich(haarlaengeId) { return FRISUR_LAENGEN.includes(haarlaengeId); }
+  // merkmale(rolle): Uebergang v2 -> v3 (Teil A vor Teil E): die alte Panel-Gruppe "Besonderes Merkmal"
+  // zeigt bis zum Umbau der Oberflaeche die aktiven Extras. Entfaellt mit Teil E.
+  function merkmale(rolle) { return extras(rolle); }
   function haarlaengen(rolle) { return (HAARLAENGE_JE_ROLLE[rolle] || HAARLAENGE_JE_ROLLE.girl).map((id) => finde(HAARLAENGE, id)); }
   function hatBart(rolle) { return BART_ROLLEN.includes(rolle); }
   function istGlatze(haarlaengeId) { const l = finde(HAARLAENGE, haarlaengeId); return !!(l && l.glatze); }
@@ -147,17 +178,43 @@
     const struktur = finde(HAARSTRUKTUR, w.haarform), laenge = finde(HAARLAENGE, w.haarlaenge);
     if (laenge && laenge.glatze) return "bald head, no hair" + (farbe ? ", " + farbe.en + " eyebrows" : "");
     if (!farbe && !struktur && !laenge) return "";
-    return [laenge && laenge.en, struktur && struktur.en, farbe && farbe.en, "hair"].filter(Boolean).join(" ");
+    const basis = [laenge && laenge.en, struktur && struktur.en, farbe && farbe.en, "hair"].filter(Boolean).join(" ");
+    const frisur = laenge && frisurMoeglich(laenge.id) ? finde(FRISUR, w.frisur) : null;
+    return frisur ? basis + " " + frisur.phrase : basis;
   }
   function hauttonEn(id) { const t = finde(HAUTTON, id); return t ? t.en : ""; }
+  // merkmalEn: Extra-Chip (ID oder Label) -> Prompt-Text; alte v2-Labels laufen weiter ueber
+  // CHIP_TRANSLATIONS in pipeline.js.
   function merkmalEn(idOderLabel) {
-    const m = finde(MERKMALE, idOderLabel) || MERKMALE.find((x) => x.label === idOderLabel) || null;
+    const m = finde(EXTRAS, idOderLabel) || EXTRAS.find((x) => x.label === idOderLabel) || null;
     return m ? m.en : null;
   }
+  function oberteilEn(id) { const o = finde(OBERTEIL, id); return o ? "wearing a " + o.en + " top" : ""; }
+  // ausstattungEn({ oberteil, brille, extra }) -> ["wearing a bright red top", "round glasses", "knitted beanie"]
+  function ausstattungEn(a) {
+    a = a || {};
+    const teile = [oberteilEn(a.oberteil)];
+    if (a.brille === true || a.brille === "brille" || a.brille === "ja") teile.push(BRILLE_EN);
+    const ex = finde(EXTRAS, a.extra);
+    if (ex && ex.en) teile.push(ex.en);
+    return teile.filter(Boolean);
+  }
+  // ausstattungEditPrompt(a): die Anweisung fuer nano-banana-2/edit auf die Grundfigur (Stufe 2).
+  function ausstattungEditPrompt(a) {
+    a = a || {};
+    const o = finde(OBERTEIL, a.oberteil);
+    const saetze = [];
+    if (o) saetze.push("Change only the color of the character's top to a flat, solid " + o.en + ".");
+    if (a.brille === true || a.brille === "brille" || a.brille === "ja") saetze.push("Add simple " + BRILLE_EN + " with thin black frames to the face.");
+    const ex = finde(EXTRAS, a.extra);
+    if (ex && ex.en) saetze.push("Add this one item: " + ex.en + ", drawn in the same flat style.");
+    saetze.push("Keep the face, hairstyle, hair color, skin tone, body, pose, proportions, line weight and the plain white background exactly as they are. Flat solid colors, thick black marker outline, no shading, no gradients, no new details, nothing else changes.");
+    return saetze.join(" ");
+  }
 
-  // schluessel({ rolle, alter, tierart, haarfarbe, haarform, haarlaenge, hautton, merkmal, bart })
-  // -> "v2|girl|6-9|blond|glatt|lang|hell|brille|-" | "v2|man|-|grau|-|glatze|mittel|nichts|vollbart"
-  //  | "v2|pet:dog|-|brown|striped|short|-|schlappohren" | null (unvollstaendig/unbekannt -> live, nicht ablegen)
+  // schluessel({ rolle, alter, tierart, haarfarbe, haarform, haarlaenge, frisur, hautton, bart })
+  // -> "v3|girl|6-9|blond|glatt|lang|zoepfe|hell|-" | "v3|man|-|grau|-|glatze|-|mittel|vollbart"
+  //  | "v3|pet:dog|-|brown|striped|short|schlappohren|-|-" | null (unvollstaendig/unbekannt -> live, nicht ablegen)
   function slug(v) {
     return String(v == null ? "" : v).trim().toLowerCase().replace(/\s+/g, " ")
       .replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss")
@@ -172,7 +229,7 @@
       if (!farbe || !muster || !laenge) return null;
       const bes = e.merkmal != null ? String(e.merkmal).trim() : (e.besonderheit != null ? String(e.besonderheit).trim() : "");
       if (bes && !TIER_MERKMALE.some((m) => m.label === bes)) return null;
-      return [VERSION, "pet:" + (slug(e.tierart) || "pet"), "-", slug(farbe.id), slug(muster.id), slug(laenge.id), "-", bes ? slug(bes) : "-", "-"].join("|");
+      return [VERSION, "pet:" + (slug(e.tierart) || "pet"), "-", slug(farbe.id), slug(muster.id), slug(laenge.id), bes ? slug(bes) : "-", "-", "-"].join("|");
     }
     if (!ROLLEN.includes(rolle)) return null;
     const farbe = haarfarben(rolle).find((f) => f.id === e.haarfarbe);
@@ -186,6 +243,12 @@
       struktur = st.id;
     }
     const laenge = la.id;
+    let frisur = "-";
+    if (frisurMoeglich(la.id)) {
+      const fr = finde(FRISUR, e.frisur);
+      if (!fr) return null;
+      frisur = fr.id;
+    }
     let bart = "-";
     if (hatBart(rolle)) {
       const b = finde(BART, e.bart == null || e.bart === "" ? "kein" : String(e.bart)) || BART.find((x) => x.label === e.bart);
@@ -194,33 +257,52 @@
     }
     const hautton = finde(HAUTTON, e.hautton);
     if (!hautton) return null;
-    const merkmalId = e.merkmal == null || e.merkmal === "" ? "nichts" : String(e.merkmal);
-    const merkmal = merkmale(rolle).find((m) => m.id === merkmalId || m.label === merkmalId);
-    if (!merkmal) return null;
     const stufe = istKind(rolle) ? (alterStufe(e.alter) || "-") : "-";
-    return [VERSION, rolle, stufe, farbe.id, struktur, laenge, hautton.id, merkmal.id, bart].join("|");
+    return [VERSION, rolle, stufe, farbe.id, struktur, laenge, frisur, hautton.id, bart].join("|");
+  }
+  // ausstattungsSchluessel(grundSchluessel, { oberteil, brille, extra }, rolle)
+  // -> "v3a|v3|girl|6-9|blond|glatt|lang|zoepfe|hell|-|gelb|brille|nichts" | null
+  function ausstattungsSchluessel(grund, a, rolle) {
+    if (!istAktuelleVersion(grund) || !a) return null;
+    const o = finde(OBERTEIL, a.oberteil);
+    if (!o) return null;
+    const brille = a.brille === true || a.brille === "brille" || a.brille === "ja";
+    const extraId = a.extra == null || a.extra === "" ? "nichts" : String(a.extra);
+    const liste = rolle ? extras(rolle, true) : EXTRAS;
+    const ex = liste.find((x) => x.id === extraId || x.label === extraId);
+    if (!ex) return null;
+    return [VERSION_AUSSTATTUNG, grund, o.id, brille ? "brille" : "-", ex.id].join("|");
   }
   function istAktuelleVersion(s) { return typeof s === "string" && s.startsWith(VERSION + "|"); }
+  function istAktuelleAusstattungsVersion(s) { return typeof s === "string" && s.startsWith(VERSION_AUSSTATTUNG + "|" + VERSION + "|"); }
+  // rolleAusSchluessel("v3|girl|...") -> "girl" | "pet:dog"
+  function rolleAusSchluessel(s) { const t = String(s || "").split("|"); return t[0] === VERSION ? t[1] : (t[0] === VERSION_AUSSTATTUNG && t[1] === VERSION ? t[2] : null); }
 
-  // Kombinationszahlen je Rolle (Kontrolle fuer die Rueckmeldung): Kinder 5*3*3*5*5*3 Stufen = 3375,
-  // Frau/Oma 6*3*3*5*6 = 1620, Mann/Opa 6 Farben * (3 Strukturen * 3 Laengen + Glatze) * 5 Hauttoene
-  // * 5 Merkmale * 4 Baerte = 6000.
+  // Kombinationszahlen (Kontrolle fuer die Rueckmeldung), beide Stufen:
+  //   Frisuren je Farbe: kurz 3 Strukturen + (mittel, lang) x 3 Strukturen x 4 Frisuren = 27 (+ Glatze bei Mann/Opa = 28)
+  //   Grundfigur Kinder 5 x 27 x 5 Hauttoene x 3 Stufen = 2025; Frau/Oma 6 x 27 x 5 = 810;
+  //   Mann/Opa 6 x 28 x 5 x 4 Baerte = 3360.
+  //   Ausstattung je Grundfigur: 6 Farben x 2 (Brille) x aktive Extras (Kinder 3, Frau 3, Mann 2, Oma 4, Opa 3).
   function kombinationen() {
-    const out = {};
+    const grund = {}, ausstattung = {};
     Object.keys(HAARFARBE_JE_ROLLE).forEach((rolle) => {
       const laengen = haarlaengen(rolle);
-      const frisuren = laengen.filter((l) => !l.glatze).length * HAARSTRUKTUR.length + laengen.filter((l) => l.glatze).length;
-      const basis = haarfarben(rolle).length * frisuren * HAUTTON.length * merkmale(rolle).length * (hatBart(rolle) ? BART.length : 1);
-      out[rolle] = basis * (istKind(rolle) ? ALTER_STUFEN.length : 1);
+      let frisuren = 0;
+      laengen.forEach((l) => { frisuren += l.glatze ? 1 : HAARSTRUKTUR.length * (frisurMoeglich(l.id) ? FRISUR.length : 1); });
+      const basis = haarfarben(rolle).length * frisuren * HAUTTON.length * (hatBart(rolle) ? BART.length : 1);
+      grund[rolle] = basis * (istKind(rolle) ? ALTER_STUFEN.length : 1);
+      ausstattung[rolle] = grund[rolle] * OBERTEIL.length * 2 * extras(rolle).length;
     });
-    out.pet_je_tierart = FELLFARBE.length * FELLMUSTER.length * FELLLAENGE.length * (TIER_MERKMALE.length + 1);
-    return out;
+    grund.pet_je_tierart = FELLFARBE.length * FELLMUSTER.length * FELLLAENGE.length * (TIER_MERKMALE.length + 1);
+    return { grundfigur: grund, ausstattung };
   }
 
   const CHIPS = {
-    VERSION, HAARFARBEN, HAARFARBE_JE_ROLLE, HAARSTRUKTUR, HAARLAENGE, HAARLAENGE_JE_ROLLE, BART, BART_ROLLEN, HAUTTON, MERKMALE, MERKMAL_JE_ROLLE,
+    VERSION, VERSION_AUSSTATTUNG, HAARFARBEN, HAARFARBE_JE_ROLLE, HAARSTRUKTUR, HAARLAENGE, HAARLAENGE_JE_ROLLE, FRISUR, FRISUR_LAENGEN, BART, BART_ROLLEN, HAUTTON,
+    OBERTEIL, BRILLE_EN, EXTRAS, EXTRA_JE_ROLLE, GRUNDFIGUR_EN,
     FELLFARBE, FELLMUSTER, FELLLAENGE, TIER_MERKMALE, ROLLEN, KINDER, ALTER_MAX_KIND, ALTER_STUFEN,
-    finde, haarfarben, haarlaengen, hatBart, bartEn, merkmale, istGlatze, istKind, alterStufe, haarPhraseEn, hauttonEn, merkmalEn, schluessel, istAktuelleVersion, slug, kombinationen,
+    finde, haarfarben, haarlaengen, hatBart, bartEn, extras, merkmale, frisurMoeglich, istGlatze, istKind, alterStufe, haarPhraseEn, hauttonEn, merkmalEn,
+    oberteilEn, ausstattungEn, ausstattungEditPrompt, schluessel, ausstattungsSchluessel, istAktuelleVersion, istAktuelleAusstattungsVersion, rolleAusSchluessel, slug, kombinationen,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = CHIPS;
   else root.CHIPS = CHIPS;

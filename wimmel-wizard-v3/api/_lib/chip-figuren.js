@@ -23,11 +23,18 @@
 // bleibt in der Sitzung). Wer zuerst ablegt, gewinnt (HSETNX); ein zweites, gleichzeitig
 // entstandenes Blatt wird wieder geloescht.
 //
-// WERTEVORRAT (Chip-Figuren v2, 19.10.2026): EINE Datei fuer Client und Server --
-// public/js/chips.js (UMD, im Browser window.CHIPS). Listen, Altersstufen, Schluessel und
-// Haar-Phrase kommen von dort; hier bleibt nur die Datenbank.
+// WERTEVORRAT: EINE Datei fuer Client und Server -- public/js/chips.js (UMD, im Browser
+// window.CHIPS). Listen, Altersstufen, Schluessel, Haar-Phrase und die Stufe-2-Anweisung kommen von
+// dort; hier bleibt nur die Datenbank.
+//
+// ZWEI STUFEN (Chip-Figuren v3, 20.10.2026):
+//   chipfigur:{v3-schluessel}          Grundfigur (flux-lora, weisses Oberteil, ohne Brille/Extras)
+//   chipausstattung:{v3a-schluessel}   Ausstattung (nano-banana-2/edit auf die Grundfigur: Oberteil-
+//                                      farbe, Brille, ein Extra), Blob-Ordner figuren/chips/ausstattung/
+// Beide Stores haben denselben Mechanismus (HSETNX-Wettlauf, Trefferzaehler, Kuration); mitDeps()
+// liefert fuer jede Art ein eigenes Objekt (art "grund" | "ausstattung").
 const CHIPS = require("../../public/js/chips.js");
-const { ROLLEN, KINDER, ALTER_MAX_KIND, ALTER_STUFEN, VERSION } = CHIPS;
+const { ROLLEN, KINDER, ALTER_MAX_KIND, ALTER_STUFEN, VERSION, VERSION_AUSSTATTUNG } = CHIPS;
 
 function norm(v) {
   return String(v == null ? "" : v).trim().toLowerCase().replace(/\s+/g, " ");
@@ -35,14 +42,16 @@ function norm(v) {
 const slug = CHIPS.slug;
 const alterStufe = CHIPS.alterStufe;
 
-// schluessel(chips) -> "v2|rolle|stufe|haarfarbe|struktur|laenge|hautton|merkmal" | null -- siehe chips.js.
+// schluessel(chips) -> "v3|rolle|stufe|haarfarbe|struktur|laenge|frisur|hautton|bart" | null -- siehe chips.js.
 const schluessel = CHIPS.schluessel;
+const ausstattungsSchluessel = CHIPS.ausstattungsSchluessel;
 
 // passtZumPrompt(chips, prompt): leichte Plausibilitaetspruefung, bevor ein Client-Prompt als
-// gemeinsame Figur abgelegt wird -- der Prompt entsteht im Browser (pipeline.js), ein manipulierter
-// Client koennte sonst mit passenden Chips ein beliebiges Bild fuer alle hinterlegen. Geprueft wird:
-// Rolle (bzw. Tierart), die Haar-/Fell-Phrase (chips.haarPhraseEn, genau wie charakter.js sie
-// baut), bei Menschen der Hautton, und der feste Stil-Schwanz. Die Kuration bleibt das zweite Netz.
+// gemeinsame GRUNDFIGUR abgelegt wird -- der Prompt entsteht im Browser (pipeline.js), ein
+// manipulierter Client koennte sonst mit passenden Chips ein beliebiges Bild fuer alle hinterlegen.
+// Geprueft wird: Rolle (bzw. Tierart), die Haar-/Fell-Phrase inkl. Frisur (chips.haarPhraseEn, genau
+// wie charakter.js sie baut), bei Menschen Hautton, Bart (Mann/Opa) und der neutrale Grundfigur-
+// Zusatz (weisses Oberteil, keine Brille), und der feste Stil-Schwanz. Die Kuration bleibt das zweite Netz.
 function passtZumPrompt(e, prompt) {
   if (!e || typeof prompt !== "string") return false;
   const p = norm(prompt);
@@ -55,48 +64,58 @@ function passtZumPrompt(e, prompt) {
   if (!istTier) {
     const haut = norm(CHIPS.hauttonEn(e.hautton));
     if (!haut || !p.includes(haut)) return false;
-    // Bart (20.10.2026): bei Mann/Opa muss die Bart-Phrase (Farbe = Haarfarbe) im Prompt stehen.
     if (CHIPS.hatBart(rolle)) {
       const bart = norm(CHIPS.bartEn(e.bart == null || e.bart === "" ? "kein" : e.bart, e.haarfarbe));
       if (!bart || !p.includes(bart)) return false;
     }
+    // v3: Grundfigur neutral -- sonst kaeme eine bunte/behuetete Figur fuer alle in den Speicher.
+    if (!p.includes(norm(CHIPS.GRUNDFIGUR_EN))) return false;
   }
   return p.includes("round head, minimal face");
 }
 
-// Kombinationszahlen je Rolle (Kontrolle): siehe chips.js.
+// Kombinationszahlen beider Stufen (Kontrolle): siehe chips.js.
 function kombinationen() { return CHIPS.kombinationen(); }
 
-/* ---------------- Datenbank (KV + Speicher) ---------------- */
-const KEY_ALLE = "chipfiguren:alle";
-function keyFigur(s) { return "chipfigur:" + s; }
+/* ---------------- Datenbank (KV + Speicher), zwei Arten ---------------- */
+const ARTEN = {
+  grund: { key: (s) => "chipfigur:" + s, alle: "chipfiguren:alle", ordner: (sp) => sp.ORDNER.chips, aktuell: (s) => CHIPS.istAktuelleVersion(s) },
+  ausstattung: { key: (s) => "chipausstattung:" + s, alle: "chipausstattungen:alle", ordner: (sp) => sp.ORDNER.chips + "/ausstattung", aktuell: (s) => CHIPS.istAktuelleAusstattungsVersion(s) },
+};
+const KEY_ALLE = ARTEN.grund.alle;
+function keyFigur(s) { return ARTEN.grund.key(s); }
 
-// mitDeps({ kvCommand, speicher, fetch, jetzt }) -> { suchen, trefferBuchen, ablegen, verwerfen, liste }
+// mitDeps({ kvCommand, speicher, fetch, jetzt }, art) -> { suchen, trefferBuchen, ablegen, verwerfen,
+// liste, aufraeumen, vorschauAufraeumen }. art: "grund" (Standard) | "ausstattung".
 // Abhaengigkeiten injizierbar (Tests mit KV-Mock und Speicher-Attrappe); Standard sind die echten.
-function mitDeps(deps) {
+function mitDeps(deps, art) {
   deps = deps || {};
+  const A = ARTEN[art || "grund"];
+  if (!A) throw new Error("Unbekannte Figuren-Art: " + art);
   const kv = deps.kvCommand || ((parts) => require("./kv").kvCommand(parts));
   const speicher = deps.speicher || require("./speicher");
   const holen = deps.fetch || ((u) => fetch(u));
   const jetzt = deps.jetzt || (() => new Date());
+  const keyFigur = A.key, KEY_ALLE = A.alle;
 
   // suchen(schluessel) -> { schluessel, pfad, url, prompt, seed, erzeugt_am, treffer } | null
   async function suchen(s) {
-    if (!s || !CHIPS.istAktuelleVersion(s)) return null; // andere Versionen werden ignoriert
+    if (!s || !A.aktuell(s)) return null; // andere Versionen werden ignoriert
     const roh = await kv(["hgetall", keyFigur(s)]);
     if (!Array.isArray(roh) || !roh.length) return null;
     const o = {};
     for (let i = 0; i + 1 < roh.length; i += 2) o[roh[i]] = roh[i + 1];
     if (!o.pfad) return null;
-    return { schluessel: s, pfad: o.pfad, url: speicher.oeffentlicheUrl(o.pfad), prompt: o.prompt || "", seed: o.seed != null ? Number(o.seed) : null, erzeugt_am: o.erzeugt_am || "", treffer: Number(o.treffer || 0) };
+    return { schluessel: s, pfad: o.pfad, url: speicher.oeffentlicheUrl(o.pfad), prompt: o.prompt || "", seed: o.seed != null && o.seed !== "" ? Number(o.seed) : null, erzeugt_am: o.erzeugt_am || "", treffer: Number(o.treffer || 0), grund: o.grund || "" };
   }
   async function trefferBuchen(s) {
     try { await kv(["hincrby", keyFigur(s), "treffer", "1"]); } catch (e) { /* Zaehler ist nicht kritisch */ }
   }
 
-  // ablegen({ schluessel, bildUrl, prompt, seed, verify }) -> { pfad, url, neu } -- laedt das fertige
-  // Blatt (fal.media) herunter, speichert es unter figuren/chips/..., traegt es ein. Gewinnt ein
-  // anderer Lauf das HSETNX, wird die eigene Datei wieder geloescht und dessen Eintrag geliefert.
+  // ablegen({ schluessel, bildUrl, prompt, seed, verify, grund }) -> { pfad, url, neu } -- laedt das
+  // fertige Blatt (fal.media) herunter, speichert es unter figuren/chips[/ausstattung]/..., traegt es
+  // ein. Gewinnt ein anderer Lauf das HSETNX, wird die eigene Datei wieder geloescht und dessen
+  // Eintrag geliefert. grund = Pfad der Grundfigur (nur Ausstattung, fuer die Kurationsansicht).
   async function ablegen(a) {
     if (!a || !a.schluessel || !a.bildUrl) throw new Error("ablegen: schluessel und bildUrl noetig.");
     const resp = await holen(a.bildUrl);
@@ -104,7 +123,7 @@ function mitDeps(deps) {
     const bytes = Buffer.from(await resp.arrayBuffer());
     const typ = (resp.headers && resp.headers.get && resp.headers.get("content-type")) || "image/png";
     const endung = /jpe?g/.test(typ) ? "jpg" : /webp/.test(typ) ? "webp" : "png";
-    const pfad = speicher.ORDNER.chips + "/" + speicher.dateiname(a.schluessel) + "/" + speicher.zeitstempel(jetzt()) + "-" + Math.random().toString(36).slice(2, 8) + "." + endung;
+    const pfad = A.ordner(speicher) + "/" + speicher.dateiname(a.schluessel) + "/" + speicher.zeitstempel(jetzt()) + "-" + Math.random().toString(36).slice(2, 8) + "." + endung;
     await speicher.speichern(pfad, bytes, typ);
     const gewonnen = Number(await kv(["hsetnx", keyFigur(a.schluessel), "pfad", pfad])) === 1;
     if (!gewonnen) {
@@ -112,7 +131,7 @@ function mitDeps(deps) {
       const vorhanden = await suchen(a.schluessel);
       return { pfad: vorhanden.pfad, url: vorhanden.url, neu: false };
     }
-    await kv(["hset", keyFigur(a.schluessel), "prompt", String(a.prompt || ""), "seed", String(a.seed == null ? "" : a.seed), "erzeugt_am", jetzt().toISOString(), "treffer", "0", "verify", JSON.stringify(a.verify || null)]);
+    await kv(["hset", keyFigur(a.schluessel), "prompt", String(a.prompt || ""), "seed", String(a.seed == null ? "" : a.seed), "erzeugt_am", jetzt().toISOString(), "treffer", "0", "verify", JSON.stringify(a.verify || null), "grund", String(a.grund || "")]);
     await kv(["sadd", KEY_ALLE, a.schluessel]);
     return { pfad, url: speicher.oeffentlicheUrl(pfad), neu: true };
   }
@@ -128,23 +147,27 @@ function mitDeps(deps) {
     return true;
   }
 
-  // liste() -> [{ schluessel, url, treffer, erzeugt_am }] fuer die Kurationsansicht
+  // liste() -> [{ schluessel, url, treffer, erzeugt_am, seed, grund }] fuer die Kurationsansicht
   async function liste() {
     const keys = await kv(["smembers", KEY_ALLE]);
     const out = [];
-    for (const s of (keys || []).filter(CHIPS.istAktuelleVersion).sort()) {
+    for (const s of (keys || []).filter(A.aktuell).sort()) {
       const e = await suchen(s);
-      if (e) out.push({ schluessel: s, url: e.url, treffer: e.treffer, erzeugt_am: e.erzeugt_am, seed: e.seed });
+      if (e) out.push({ schluessel: s, url: e.url, treffer: e.treffer, erzeugt_am: e.erzeugt_am, seed: e.seed, grund: e.grund });
     }
     return out;
   }
 
-  // aufraeumen() -> { geloescht: [...] }: alle Eintraege ANDERER Schluessel-Versionen (z. B. die
-  // v1-Testeintraege vom 18.10.) samt Datei entfernen. Kurationsroute mode=chipfiguren-aufraeumen.
-  async function aufraeumen() {
+  // vorschauAufraeumen() -> [schluessel]: alle Eintraege ANDERER Schluessel-Versionen, ohne zu loeschen.
+  async function vorschauAufraeumen() {
     const keys = await kv(["smembers", KEY_ALLE]);
+    return (keys || []).filter((k) => !A.aktuell(k)).sort();
+  }
+  // aufraeumen() -> { version, geloescht: [...] }: dieselben Eintraege samt Datei entfernen.
+  // Kurationsroute mode=chipfiguren-aufraeumen (erst Vorschau, mit bestaetigt=1 loeschen).
+  async function aufraeumen() {
     const geloescht = [];
-    for (const s of (keys || []).filter((k) => !CHIPS.istAktuelleVersion(k))) {
+    for (const s of await vorschauAufraeumen()) {
       const roh = await kv(["hgetall", keyFigur(s)]);
       let pfad = null;
       if (Array.isArray(roh)) for (let i = 0; i + 1 < roh.length; i += 2) if (roh[i] === "pfad") pfad = roh[i + 1];
@@ -153,14 +176,14 @@ function mitDeps(deps) {
       if (pfad) { try { await speicher.loeschen(pfad); } catch (e) { /* Waise ist nicht kritisch */ } }
       geloescht.push(s);
     }
-    return { version: VERSION, geloescht };
+    return { version: art === "ausstattung" ? VERSION_AUSSTATTUNG : VERSION, geloescht };
   }
 
-  return { suchen, trefferBuchen, ablegen, verwerfen, liste, aufraeumen };
+  return { art: art || "grund", suchen, trefferBuchen, ablegen, verwerfen, liste, vorschauAufraeumen, aufraeumen };
 }
 
 module.exports = {
-  schluessel, alterStufe, passtZumPrompt, kombinationen, mitDeps,
-  CHIPS, VERSION, ROLLEN, KINDER, ALTER_MAX_KIND, ALTER_STUFEN, norm, slug,
-  KEY_ALLE, keyFigur,
+  schluessel, ausstattungsSchluessel, alterStufe, passtZumPrompt, kombinationen, mitDeps,
+  CHIPS, VERSION, VERSION_AUSSTATTUNG, ROLLEN, KINDER, ALTER_MAX_KIND, ALTER_STUFEN, norm, slug,
+  KEY_ALLE, keyFigur, ARTEN,
 };
