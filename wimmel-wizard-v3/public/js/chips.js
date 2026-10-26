@@ -209,7 +209,9 @@
     if (a.brille === true || a.brille === "brille" || a.brille === "ja") saetze.push("Add simple " + BRILLE_EN + " with thin black frames to the face.");
     const ex = finde(EXTRAS, a.extra);
     if (ex && ex.en) saetze.push("Add this one item: " + ex.en + ", drawn in the same flat style.");
-    saetze.push("Keep the face, hairstyle, hair color, skin tone, body, pose, proportions, line weight and the plain white background exactly as they are. Flat solid colors, thick black marker outline, no shading, no gradients, no new details, nothing else changes.");
+    // v3.1 (26.10.2026, Stil-Karte): flache Farben mit genau EINEM dunkleren, hart abgesetzten
+    // Schattenton je Flaeche (wie geschnittenes Papier) -- das ist das Soll, keine Verlaeufe.
+    saetze.push("Keep the face, hairstyle, hair color, skin tone, body, pose, proportions, line weight and the plain white background exactly as they are. Style: flat colors with one darker hard-edged shadow tone per surface, like cut paper, thick black marker outline, no gradients, no airbrush, no highlights, no new details, nothing else changes.");
     return saetze.join(" ");
   }
 

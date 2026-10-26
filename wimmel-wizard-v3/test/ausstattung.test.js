@@ -241,3 +241,18 @@ test("v3.1: hoechstens 3 Grundfigur-Kandidaten je Figur -- danach Fehlermeldung 
   assert.deepEqual(u2.fal.log.filter((x) => x[0] === "stufe1"), [["stufe1", 1]]);
   u.fal.zurueck(); u2.fal.zurueck();
 });
+
+// Figuren v3.1 (3): Pruef-Fassung und Prompts nach Stil-Karte
+test("v3.1: Pruef-Fassung 2026-10-26a -- Bart kein Mund, harte Papier-Schattierung erlaubt, Client = Server", () => {
+  const fs = require("fs"), path = require("path");
+  assert.equal(charEngine.CHAR_PRUEF_FASSUNG, "2026-10-26a");
+  const p = charEngine.buildCharacterVerifyPrompt();
+  assert.match(p, /BART .* KEIN Mund/); assert.match(p, /HARTER KANTE/); assert.match(p, /GEWÜNSCHT und KEIN Stilverstoß/);
+  assert.match(p, /NUR weiche Farbverläufe, Airbrush/); assert.match(p, /bis zu den Füßen/);
+  const client = fs.readFileSync(path.join(__dirname, "..", "public", "js", "pipeline.js"), "utf8");
+  assert.ok(client.includes(JSON.stringify(p).slice(1, -1).replace(/\\"/g, "\\\\\"")) || client.includes(p.replace(/"/g, "\\\"")), "pipeline.js traegt dieselbe Pruef-Frage");
+  const edit = CH.ausstattungEditPrompt({ oberteil: "gelb", brille: true, extra: "nichts" });
+  assert.match(edit, /one darker hard-edged shadow tone per surface/); assert.match(edit, /no gradients, no airbrush, no highlights/);
+  const job = { candidates: [] };
+  assert.equal(typeof charEngine.createCharacterJob, "function");
+});

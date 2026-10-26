@@ -77,8 +77,12 @@ const LORA_URL =
 // document/window voraus), nicht direkt in Node einbindbar. MUSS manuell synchron gehalten werden,
 // falls der Verify-Prompt dort nochmal angepasst wird (siehe test_char_job_polling_0912.js, das
 // diese Parität automatisch per Regex-Vergleich gegen pipeline.js prueft).
+// Pruef-Fassung der Figuren-Pruefung (v3.1, 26.10.2026): Bart ist kein Mund, harte Papier-Schattierung
+// ist gewuenscht (Stil-Karte docs/arbeitsplan-2026-10-25.md Abschnitt 0b), complete_ok streng bis zu den
+// Fuessen. Steht am Job (pruefFassung) und wird mit jeder Pruefung gespeichert.
+const CHAR_PRUEF_FASSUNG = "2026-10-26a";
 function buildCharacterVerifyPrompt() {
-  return "Zeigt dieses Bild GENAU EINE einzelne Figur (eine Person oder ein Tier), vollständig und fehlerfrei gezeichnet? Prüfe besonders: Ist nur EIN Gesicht/EIN Körper zu sehen (nicht mehrere verschiedene Gesichter oder Körper gleichzeitig im Bild)? Ist ein VOLLSTÄNDIGER Kopf UND Körper zu sehen, ohne abgeschnittene Stellen, fehlende Körperteile oder unklare Kritzel-/Farbflecken-Artefakte (z. B. ein einzelner, unproportional langer Haarstrang ohne erkennbaren Kopf/Körper darunter)? Hat diese Figur einen sichtbaren Mund? Ist die FIGUR SELBST (Kopf/Körper, nicht der Hintergrund oder ein leichter Schlagschatten darunter) in einem flachen, minimalistischen Illustrationsstil mit dicken schwarzen Umrisslinien und flächigen Farben gezeichnet, so wie es für dieses Kinderbuch-Stilheft üblich ist? Ein einfarbiger/weißer Hintergrund und ein leichter, weicher Schlagschatten unter der Figur sind dabei normal und KEIN Stilverstoß — als Verstoß zählt nur, wenn die Figur selbst deutlich fotorealistisch, gemalt/aquarellartig wirkt oder ihr Gesicht/Körper starke Farbverläufe oder Schattierungen zeigt. Antworte NUR als JSON-Objekt mit genau diesen vier Feldern: {\"single_ok\": true/false, \"complete_ok\": true/false, \"mouth_ok\": true/false, \"style_ok\": true/false} — single_ok ist nur dann true, wenn wirklich nur eine einzige Figur mit einem Gesicht und einem Körper zu sehen ist; complete_ok ist nur dann true, wenn Kopf und Körper vollständig und ohne Artefakte/Fragmente gezeichnet sind; mouth_ok ist nur dann true, wenn die Figur KEINEN sichtbaren Mund hat; style_ok ist nur dann false, wenn die Figur selbst wirklich deutlich vom beschriebenen flachen Stil abweicht — im Zweifel (z. B. bei nur leichtem Schlagschatten oder normaler Kantenglättung) gilt style_ok als true.";
+  return "Zeigt dieses Bild GENAU EINE einzelne Figur (eine Person oder ein Tier), vollständig und fehlerfrei gezeichnet? Prüfe besonders: Ist nur EIN Gesicht/EIN Körper zu sehen (nicht mehrere verschiedene Gesichter oder Körper gleichzeitig im Bild)? Ist ein VOLLSTÄNDIGER Kopf UND Körper zu sehen – von Kopf bis Fuß, mit beiden Füßen im Bild, ohne abgeschnittene Stellen, fehlende Körperteile oder unklare Kritzel-/Farbflecken-Artefakte (z. B. ein einzelner, unproportional langer Haarstrang ohne erkennbaren Kopf/Körper darunter)? Hat diese Figur einen sichtbaren Mund (Lippen, Mundstrich oder Mundöffnung)? Ein BART – Schnauzer, Vollbart, Stoppeln – ist KEIN Mund und zählt nicht. Ist die FIGUR SELBST (Kopf/Körper, nicht der Hintergrund oder ein Schlagschatten darunter) im Stil dieses Kinderbuch-Stilhefts gezeichnet: dicke schwarze Umrisslinien, kräftige flächige Farben, Schatten höchstens als ZWEITER, DUNKLERER FARBTON MIT HARTER KANTE (wie ausgeschnittenes Papier)? Genau diese harte Papier-Schattierung ist GEWÜNSCHT und KEIN Stilverstoß; ebenso wenig ein einfarbiger/weißer Hintergrund, ein Bodenschatten oder normale Kantenglättung. Als Stilverstoß zählen NUR weiche Farbverläufe, Airbrush-Schattierung, Glanzlichter/Highlights oder ein fotorealistischer bzw. gemalt-aquarellartiger Eindruck der Figur. Antworte NUR als JSON-Objekt mit genau diesen vier Feldern: {\"single_ok\": true/false, \"complete_ok\": true/false, \"mouth_ok\": true/false, \"style_ok\": true/false} — single_ok ist nur dann true, wenn wirklich nur eine einzige Figur mit einem Gesicht und einem Körper zu sehen ist; complete_ok ist nur dann true, wenn Kopf und Körper vollständig bis zu den Füßen und ohne Artefakte/Fragmente gezeichnet sind (streng: ein abgeschnittener Fuß oder Kopf heißt false); mouth_ok ist nur dann true, wenn die Figur KEINEN sichtbaren Mund hat (ein Bart ist kein Mund); style_ok ist nur dann false, wenn die Figur selbst wirklich deutlich vom beschriebenen flachen Stil abweicht — im Zweifel gilt style_ok als true.";
 }
 
 function newCandidate(seed) {
@@ -124,7 +128,7 @@ async function createCharacterJob({ jobId, prompt, FAL_KEY, anzahl }) {
   });
   const now = Date.now();
   return {
-    jobId, prompt, status: "in_progress", error: null,
+    jobId, prompt, status: "in_progress", error: null, pruefFassung: CHAR_PRUEF_FASSUNG,
     candidates,
     // Hoechstzahl Kandidaten insgesamt: bei einem Ein-Kandidaten-Job genau einer, sonst wie bisher 3.
     maxKandidaten: wieViele === 1 ? 1 : 3,
@@ -265,5 +269,5 @@ module.exports = {
   FLUX_MODEL, VERIFY_MODEL,
   buildCharacterVerifyPrompt, countViolations,
   submitFalQueue, falQueueStatus, falQueueResult, callFalVerifySync,
-  createCharacterJob, advanceCharacterJob, kandidatVollstaendig, finalizeJob, KUNDIN_FEHLER,
+  createCharacterJob, advanceCharacterJob, kandidatVollstaendig, finalizeJob, KUNDIN_FEHLER, CHAR_PRUEF_FASSUNG,
 };

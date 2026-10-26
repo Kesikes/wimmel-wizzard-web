@@ -104,7 +104,7 @@ async function advanceAusstattung(job, deps) {
     // Stil-Pruefung wie Stufe 1 (eine Figur, vollstaendig, kein Mund, flacher Stil).
     const output = await falQueue.callFalVerifySync(url, charEngine.buildCharacterVerifyPrompt(), deps.FAL_KEY);
     const scored = falQueue.countViolations(output);
-    a.verify = scored.parsed; a.violations = scored.violations; a.status = "done";
+    a.verify = scored.parsed; a.violations = scored.violations; a.status = "done"; a.pruefFassung = charEngine.CHAR_PRUEF_FASSUNG;
   } catch (e) {
     a.status = "error"; a.fehler = e && e.message ? e.message : String(e);
     await falQueue.logFalError("ausstattung (Versuch " + a.versuche + ")", a.fehler);
