@@ -15,13 +15,16 @@ const ausstattungEngine = require("./_lib/ausstattung-engine");
 const JOB_TTL_SECONDS = 60 * 60;
 
 // chipFigurAblegen(job) -> job (Auftrag 3 Teil 5, 18.10.2026): genau einmal, wenn ein Job mit
-// Chip-Schluessel fertig ist. Abgelegt wird nur ein Blatt OHNE Verstoesse -- ein Blatt mit
-// Maengeln darf nicht die gemeinsame Figur fuer alle werden (die Kundin behaelt es trotzdem).
+// Chip-Schluessel fertig ist -- und zwar VOR dem Start von Stufe 2 (siehe unten), damit jede
+// Grundfigur, die als Basis fuer einen Edit dient, danach im Regal liegt.
+// v4.1 (26.10.2026): abgelegt wird, was charEngine.grundfigurAblegbar() erlaubt (single_ok +
+// complete_ok + Stil bestanden) -- vorher "null Verstoesse", was die Grundfiguren aus der dritten
+// Runde mit einem weichen Verstoss (Mund) aussperrte, obwohl Stufe 2 auf ihnen aufsetzte.
 // Wirft nie: das Ablegen ist Zugabe, nicht Voraussetzung fuer die Zustellung.
 async function chipFigurAblegen(job) {
   if (!job || job.status !== "done" || !job.chipSchluessel || job.chipGespeichert) return job;
   const next = Object.assign({}, job, { chipGespeichert: true });
-  if (next.resultViolations !== 0 || !next.resultUrl) { next.chipAbgelegt = false; next.chipGrund = "verstoesse"; return next; }
+  if (!charEngine.grundfigurAblegbar(next.resultVerify) || !next.resultUrl) { next.chipAbgelegt = false; next.chipGrund = "verstoesse"; return next; }
   try {
     const r = await chipFiguren.mitDeps().ablegen({ schluessel: next.chipSchluessel, bildUrl: next.resultUrl, prompt: next.prompt, seed: next.resultSeed, verify: next.resultVerify });
     next.resultUrlFal = next.resultUrl;

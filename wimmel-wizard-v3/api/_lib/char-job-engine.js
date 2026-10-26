@@ -256,6 +256,15 @@ function kandidatVollstaendig(c) {
   const v = c && c.verify;
   return !!(v && v.single_ok === true && v.complete_ok === true);
 }
+// grundfigurAblegbar(verify): Figuren v4.1 (26.10.2026, Live-Test abends) -- welche Grundfigur ins
+// gemeinsame Regal darf. Vorher verlangte char-job-status.js chipFigurAblegen() resultViolations === 0;
+// Stufe 2 setzte aber (seit v3.1) auf JEDER vollstaendigen Grundfigur auf, auch mit weichem Verstoss
+// (mouth_ok/style_ok false). Folge: beide Maedchen-Grundfiguren (3. Kandidat, ein weicher Verstoss)
+// wurden editiert, die Ausstattung lag im Regal, die Grundfigur nicht -- das gelbe Maedchen zeichnete
+// alles neu. Regel jetzt: single_ok + complete_ok + bestandener Stil => ablegen, egal in welcher Runde.
+function grundfigurAblegbar(verify) {
+  return !!(verify && verify.single_ok === true && verify.complete_ok === true && verify.style_ok === true);
+}
 // Fehlertext an die Kundin, wenn keine vollstaendige Figur entstanden ist (v3.1): klare Meldung
 // statt Weiterlaufen mit einer abgeschnittenen Figur.
 const KUNDIN_FEHLER = "Das hat nicht geklappt, bitte noch einmal versuchen.";
@@ -283,5 +292,5 @@ module.exports = {
   FLUX_MODEL, VERIFY_MODEL,
   buildCharacterVerifyPrompt, countViolations,
   submitFalQueue, falQueueStatus, falQueueResult, callFalVerifySync,
-  createCharacterJob, advanceCharacterJob, kandidatVollstaendig, finalizeJob, KUNDIN_FEHLER, CHAR_PRUEF_FASSUNG, zaehle, versucheKostenCent,
+  createCharacterJob, advanceCharacterJob, kandidatVollstaendig, grundfigurAblegbar, finalizeJob, KUNDIN_FEHLER, CHAR_PRUEF_FASSUNG, zaehle, versucheKostenCent,
 };

@@ -256,11 +256,15 @@ test("char-job-status: fertiger Job mit Schluessel wird abgelegt, resultUrl zeig
   const echteDeps = C.mitDeps; C.mitDeps = (d) => echteDeps(Object.assign({ kvCommand: kv, speicher: sp, fetch: holen }, d || {}));
   try {
     const { chipFigurAblegen } = require("../api/char-job-status");
-    const basis = { status: "done", chipSchluessel: S, chipGespeichert: false, resultUrl: "https://v3.fal.media/a.png", resultSeed: 5, prompt: "p", resultVerify: { x: 1 } };
-    const mitFehler = await chipFigurAblegen(Object.assign({}, basis, { resultViolations: 1 }));
+    const ok = { single_ok: true, complete_ok: true, mouth_ok: true, style_ok: true };
+    const basis = { status: "done", chipSchluessel: S, chipGespeichert: false, resultUrl: "https://v3.fal.media/a.png", resultSeed: 5, prompt: "p", resultVerify: ok };
+    // v4.1: Stil durchgefallen -> nicht ins Regal (Kundin behaelt ihr Blatt)
+    const mitFehler = await chipFigurAblegen(Object.assign({}, basis, { resultViolations: 1, resultVerify: Object.assign({}, ok, { style_ok: false }) }));
     assert.equal(mitFehler.chipGespeichert, true); assert.equal(mitFehler.chipAbgelegt, false); assert.equal(mitFehler.chipGrund, "verstoesse");
     assert.equal(mitFehler.resultUrl, basis.resultUrl, "Kundin behaelt ihr Blatt");
     assert.equal(sp.dateien.size, 0);
+    const unvollst = await chipFigurAblegen(Object.assign({}, basis, { resultViolations: 1, resultVerify: Object.assign({}, ok, { complete_ok: false }) }));
+    assert.equal(unvollst.chipAbgelegt, false);
     const gut = await chipFigurAblegen(Object.assign({}, basis, { resultViolations: 0 }));
     assert.equal(gut.chipAbgelegt, true); assert.match(gut.resultUrl, /image-proxy\?blob=figuren%2Fchips/);
     assert.equal(gut.resultUrlFal, basis.resultUrl);
@@ -302,4 +306,32 @@ test("v4: charPromptFromChips = Fassung A+H (Kontaktbogen), oberteilSatz 'upper 
   assert.ok(!/wearing|85 percent|ground shadow|eyebrows/.test(bau("boy", 4, { haarfarbe: "rot", haarform: "lockig", haarlaenge: "kurz", hautton: "mittel" })), "keine Kleidungs-/Rahmenwoerter");
   assert.equal(P.oberteilSatz({ role: "girl", oberteilEn: CH.oberteilEn("rot") }, 0), " The girl from reference image 2 wears a bright red upper garment.");
   assert.equal(P.oberteilSatz({ role: "girl" }, 0), "");
+});
+
+// Figuren v4.1 Teil A (26.10.2026): Ursache "Maedchen-Grundfigur fehlt im Regal". Dritte Runde
+// (Einzelkandidat nach zwei Kandidaten mit Verstoessen): die bestandene Grundfigur hatte einen weichen
+// Verstoss (mouth_ok false, violations 1) -> finalizeJob stellte sie zu, Stufe 2 editierte sie, aber
+// chipFigurAblegen verlangte violations === 0. Jetzt: single_ok + complete_ok + style_ok => Regal.
+test("v4.1: Grundfigur aus der dritten Runde mit weichem Verstoss liegt im Regal, bevor Stufe 2 startet", async () => {
+  const charEngine = require("../api/_lib/char-job-engine");
+  const kv = neuerKvMock(); const sp = speicherAttrappe();
+  const echteDeps = C.mitDeps; C.mitDeps = (d) => echteDeps(Object.assign({ kvCommand: kv, speicher: sp, fetch: holen }, d || {}));
+  try {
+    const { chipFigurAblegen } = require("../api/char-job-status");
+    const k = (seed, v, violations) => ({ seed, url: "https://v3.fal.media/" + seed + ".png", genStatus: "done", verifyStatus: "done", verify: v, violations });
+    const job = { status: "in_progress", chipSchluessel: S, ausstattungSchluessel: "v5a|" + S + "|gelb|brille|nichts", prompt: "p" };
+    charEngine.finalizeJob(job, [
+      k(1, { single_ok: true, complete_ok: false, mouth_ok: true, style_ok: true }, 1),   // Runde 1: abgeschnitten
+      k(2, { single_ok: false, complete_ok: true, mouth_ok: true, style_ok: true }, 1),   // Runde 1: zwei Figuren
+      k(3, { single_ok: true, complete_ok: true, mouth_ok: false, style_ok: true }, 1),   // Runde 2 (3. Kandidat): vollstaendig, Mund
+    ]);
+    assert.equal(job.status, "done"); assert.equal(job.resultSeed, 3); assert.equal(job.resultViolations, 1);
+    assert.equal(charEngine.grundfigurAblegbar(job.resultVerify), true);
+    const abgelegt = await chipFigurAblegen(job);
+    assert.equal(abgelegt.chipAbgelegt, true, "Grundfigur liegt im Regal, bevor der Edit startet");
+    assert.match(abgelegt.resultUrl, /image-proxy\?blob=figuren%2Fchips%2Fv5-girl/);
+    assert.ok((await C.mitDeps().suchen(S)), "suchen() findet die Grundfigur");
+    // Stil durchgefallen bleibt draussen
+    assert.equal(charEngine.grundfigurAblegbar({ single_ok: true, complete_ok: true, mouth_ok: true, style_ok: false }), false);
+  } finally { C.mitDeps = echteDeps; }
 });
