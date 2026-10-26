@@ -408,6 +408,58 @@ function ausstattungDaten(s, isPet) {
   return { oberteil: s.charOberteil, brille: !!s.charBrille, extra: s.charExtra || "nichts" };
 }
 
+// HOTFIX (26.10.2026): der folgende Block (charGenBusy, charGenErrorEl, setBusyButtons samt
+// Kommentar) ging mit Commit ebb01cc (19.10.) beim Umbau des Panels verloren -- Safari warf
+// "ReferenceError: Can't find variable: charGenBusy" beim Klick auf "Figur zeichnen". Wortgleich
+// aus 71582bb wiederhergestellt.
+// NEU (Sammel-Runde 10.09.2026, Punkt C5+C6). Zwei zusammenhaengende Robustheits-Luecken in
+// generateCharacterImage()/generateCharacterImageFromPhoto():
+// C5 (Fehlermeldungs-Anker robust gegen Navigation): vorher wurde "errorP" (per
+// document.getElementById()) EINMAL ganz am Anfang der Funktion geholt und dieselbe Referenz ueber
+// mehrere await-Punkte hinweg weiterbenutzt. Navigiert die Nutzerin waehrend eines laufenden Aufrufs
+// weg (z.B. Tab-Wechsel im Dashboard) und wieder zurueck, wird root.innerHTML komplett neu gerendert
+// -- das urspruengliche DOM-Element mit dieser id existiert dann nicht mehr im sichtbaren Baum (ein
+// NEUES Element mit derselben id ersetzt es), die alte JS-Referenz zeigt aber weiter auf den
+// abgehaengten, unsichtbaren Knoten. Eine spaeter eintreffende Fehlermeldung wuerde so still ins
+// Leere geschrieben, ohne Fehler zu werfen -- fuer die Nutzerin sieht es aus wie "nichts passiert".
+// Jetzt: errorEl(id) holt das Element bei JEDER Verwendung frisch aus dem aktuell sichtbaren DOM,
+// statt eine Referenz ueber awaits hinweg zwischenzuspeichern.
+// C6 (Re-Entry-Guard, gleiches Muster wie "zauberBusy" in szene.js Screens.zaubern): ohne diesen
+// Schutz koennte ein zweiter Aufruf (z.B. ein zweiter Klick/Enter, bevor der erste Aufruf die
+// Buttons deaktiviert hat, oder ein Aufruf ueber einen anderen Code-Pfad) parallel zum ersten laufen
+// -- zwei parallele Generierungen fuer dieselbe Person wuerden sich gegenseitig ueberschreiben
+// (AppState.updatePerson() zweimal mit unterschiedlichem Ergebnis) oder doppelt Router.goScreen()
+// ausloesen. charGenBusy sperrt das: ein zweiter Aufruf waehrend eines laufenden wird ignoriert,
+// nicht angehaengt oder abgebrochen -- die Sperre loest sich von selbst wieder, sobald der laufende
+// Aufruf (Erfolg ODER Fehler) fertig ist, kein manuelles Reset noetig (anders als bei zauberBusy gibt
+// es hier keinen "haengt für immer"-Fall, der einen Retry-Button mit explizitem Reset braeuchte).
+let charGenBusy = false;
+function charGenErrorEl(id) { return document.getElementById(id); }
+
+// NEU (Sammel-Runde 11.09.2026, Punkt 1: "orangenen 'Ich zeichne...'-Button im Header
+// entfernen"). Der damalige Desktop-Header-Button (#btn-weitermachen) bekam waehrend der
+// Generierung GENAUSO wie der Bottom-Bar-Button die Beschriftung "Ich zeichne ..." -- fuer eine
+// Desktop-Nutzerin, die diesen Button sonst nur staendig sichtbar und neutral beschriftet als
+// "Weitermachen" kannte, wirkte das wie ein neuer, ploetzlich auftauchender oranger Button. Damals
+// behielt der Header-Button deshalb bewusst seine feste Beschriftung ("isHeaderBtn"-Sonderfall).
+// ENTFERNT (Sammel-Runde 11.09.2026, letzter Punkt: "entferne auch den Button im Header mit
+// 'Weitermachen' auf jeder Seite"): #btn-weitermachen existiert seitdem gar nicht mehr (siehe
+// app.html/app-shell.js) -- der Sonderfall hier ist damit gegenstandslos, ALLE uebergebenen Buttons
+// bekommen jetzt einheitlich den Text-Wechsel.
+function setBusyButtons(buttons, busy) {
+  (buttons || []).filter(Boolean).forEach((b) => {
+    if (busy) {
+      b.dataset.prevText = b.textContent; b.textContent = "Ich zeichne …";
+      b.disabled = true;
+      b.style.opacity = "0.75";
+    } else {
+      b.disabled = false;
+      b.textContent = b.dataset.prevText || b.textContent;
+      b.style.opacity = "1";
+    }
+  });
+}
+
 async function generateCharacterImage(person, buttons) {
   if (charGenBusy) return;
   const s = AppState.data;
