@@ -7,6 +7,15 @@ werden muss, und was warten kann. Es wird bei größeren Meilensteinen fortgesch
 
 ---
 
+## 🩹 Figuren v3.1 (26.10.2026): Hotfix nach dem Live-Test
+
+`docs/figuren-v3-1-rueckmeldung-2026-10-26.md`: Bildrahmen ausdrücklich im Grundfigur-Prompt, Stufe 2 nur
+auf vollständiger Grundfigur (sonst klare Meldung), Prüfung nach Stil-Karte (harte Papier-Schattierung
+erlaubt, Bart kein Mund, Fassung `2026-10-26a`), Deckel 3 Grundfiguren + 3 Edits je Figur mit Zähler im
+Log und DEV-Zeile am Figurenblatt. Normalfall ≈ 6 fal-Aufrufe ≈ 0,17 $ je Figur.
+
+---
+
 ## 🧾 C1 (26.10.2026): Nur Deutschland + Kleinunternehmer
 
 Umgesetzt und committet (`docs/c1-rueckmeldung-2026-10-26.md`): Versand nur innerhalb Deutschlands
