@@ -59,8 +59,8 @@ test("Listen laut Auftrag v3 (20.10.2026)", () => {
   assert.deepEqual(CH.ausstattungEn({ oberteil: "gelb", brille: true, extra: "muetze" }), ["wearing a bright yellow top", "round glasses", "knitted beanie"]);
   assert.deepEqual(CH.ausstattungEn({ oberteil: "blau", brille: false, extra: "nichts" }), ["wearing a bright blue top"]);
   const edit = CH.ausstattungEditPrompt({ oberteil: "gruen", brille: true, extra: "kopftuch" });
-  assert.match(edit, /Change ONLY the color of the t-shirt to a flat, solid bright green/); assert.match(edit, /round glasses/); assert.match(edit, /headscarf/); assert.match(edit, /Keep the face, hairstyle/);
-  assert.match(edit, /short-sleeved, ends at the hips/); assert.match(edit, /never a dress/); assert.match(edit, /one darker hard-edged shadow tone per surface/);
+  assert.match(edit, /Change ONLY the color of the upper garment to a flat, solid bright green/); assert.match(edit, /round glasses/); assert.match(edit, /headscarf/); assert.match(edit, /Keep the face, hairstyle/);
+  assert.match(edit, /the pink round cheeks, the dot eyes and the nose line, hair, head size and body proportions exactly/); assert.doesNotMatch(edit, /t-shirt/); assert.match(edit, /one darker hard-edged shadow tone per surface/);
   // v4 (Kontaktbogen): keine Kleidungs-/Rahmenwoerter mehr in chips.js
   assert.equal(CH.GRUNDFIGUR_EN, undefined); assert.equal(CH.grundfigurEn, undefined); assert.equal(CH.FIGUR_RAHMEN_EN, undefined);
 });

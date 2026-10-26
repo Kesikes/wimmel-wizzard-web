@@ -209,9 +209,10 @@
     a = a || {};
     const o = finde(OBERTEIL, a.oberteil);
     const saetze = [];
-    // v3.2 (26.10.2026, Befund "Maedchen in Rot": aus dem T-Shirt wurde ein Kleid): Schnitt und
-    // Laenge des T-Shirts ausdruecklich festhalten, Hose/Shorts und Schuhe bleiben.
-    if (o) saetze.push("Change ONLY the color of the t-shirt to a flat, solid " + o.en + ". Keep the t-shirt's cut and length exactly (short-sleeved, ends at the hips), keep the trousers/shorts, shoes, face, hair and pose unchanged. It must stay a t-shirt, never a dress.");
+    // v4 (26.10.2026, Kontaktbogen Runde 2 "Edit"): die Grundfigur traegt freie Kleidung (Jacke, Pulli,
+    // Bluse), darum "upper garment" statt "t-shirt". Dazu Baeckchen, Punktaugen und Nasenstrich
+    // ausdruecklich halten (Befund: Maedchen s101 bekam rote Wangen).
+    if (o) saetze.push("Change ONLY the color of the upper garment to a flat, solid " + o.en + ". Keep its cut, the trousers/skirt, shoes, face, the pink round cheeks, the dot eyes and the nose line, hair, head size and body proportions exactly.");
     if (a.brille === true || a.brille === "brille" || a.brille === "ja") saetze.push("Add simple " + BRILLE_EN + " with thin black frames to the face.");
     const ex = finde(EXTRAS, a.extra);
     if (ex && ex.en) saetze.push("Add this one item: " + ex.en + ", drawn in the same flat style.");
