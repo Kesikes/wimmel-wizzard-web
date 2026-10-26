@@ -208,6 +208,15 @@ test("v3.1: finalizeJob stellt keine unvollstaendige Figur zu", () => {
   assert.equal(job3.status, "error"); assert.equal(job3.fehlerGrund, "technisch");
 });
 
+// Figuren v4 Teil C (26.10.2026): die Grundfigur ohne Rahmenwoerter darf abgeschnitten entstehen
+// (Kontaktbogen: Frau s202 nur Kopf/Schultern) -- die Pruefung bleibt streng, so etwas faellt durch.
+test("v4 Teil C: nur Kopf/Schultern (complete_ok false) faellt durch, Stil bleibt weich, Deckel 3 + 3 bleibt", () => {
+  assert.equal(charEngine.kandidatVollstaendig({ verify: { single_ok: true, complete_ok: false, mouth_ok: true, style_ok: true } }), false);
+  assert.equal(charEngine.kandidatVollstaendig({ verify: { single_ok: true, complete_ok: true, mouth_ok: false, style_ok: false } }), true, "Mund/Stil entscheiden nur die Reihenfolge");
+  assert.equal(charEngine.CHAR_PRUEF_FASSUNG, "2026-10-26a");
+  assert.equal(E.MAX_GRUND_JE_FIGUR, 3); assert.equal(E.MAX_EDITS_JE_FIGUR, 3); assert.equal(E.MAX_NEUSTARTS, 0, "Edit wiederholt auf derselben Grundfigur");
+});
+
 test("v3.1: Stufe 2 startet nicht auf einer unvollstaendigen Grundfigur; Speicher-Treffer gilt als geprueft", async () => {
   const u = umgebung();
   const j = await E.stufe2Starten(job({ resultVerify: { single_ok: true, complete_ok: false, mouth_ok: true, style_ok: true } }), u.deps);
