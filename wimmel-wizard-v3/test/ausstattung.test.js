@@ -87,23 +87,18 @@ test("Stufe 2: kein Treffer -> Edit mit Grundfigur, Pruefung ok -> abgelegt, res
   u.fal.zurueck();
 });
 
-test("Stufe 2: Pruefung schlaegt fehl -> einmal wiederholen, dann neu aus Stufe 1, dann Kostendeckel (3 Edits) -> Meldung", async () => {
-  const u = umgebung({ verifyOk: [false, false, false, false] });
+test("Stufe 2 (v3.2): Edit scheitert hart -> auf DERSELBEN Grundfigur wiederholen, nach 3 Edits Meldung; keine neue Grundfigur", async () => {
+  const u = umgebung({ verifyOk: [false, false, false] }); // complete_ok false = harter Fehler
   let j = await E.stufe2Starten(job(), u.deps);
   j = await E.advanceAusstattung(j, u.deps);
-  assert.equal(j.status, "in_progress"); assert.equal(j.stufe, 2); assert.equal(j.ausstattung.versuche, 2, "zweiter Edit");
+  assert.equal(j.status, "in_progress"); assert.equal(j.stufe, 2); assert.equal(j.versuche.edits, 2, "zweiter Edit");
   j = await E.advanceAusstattung(j, u.deps);
-  assert.equal(j.stufe, 1); assert.equal(j.status, "in_progress"); assert.equal(j.ausstattung.neustarts, 1); assert.equal(j.stufe1Neustart, true);
-  assert.ok(u.fal.log.some((x) => x[0] === "stufe1"), "neue Kandidaten");
-  // Stufe 1 (hier nicht simuliert) ist wieder fertig -> Stufe 2 erneut
-  j.status = "done"; j.grundUrl = "https://v3.fal.media/neu.png"; j.resultUrl = j.grundUrl;
-  j = await E.stufe2Starten(j, u.deps);
-  assert.equal(j.ausstattung.versuche, 1);
-  // v3.1 Kostendeckel: das war Edit Nr. 3 -- schlaegt er fehl, gibt es keinen vierten, sondern die Meldung
-  assert.equal(j.versuche.edits, 3);
+  assert.equal(j.status, "in_progress"); assert.equal(j.stufe, 2); assert.equal(j.versuche.edits, 3, "dritter Edit, immer noch Stufe 2");
+  assert.ok(!u.fal.log.some((x) => x[0] === "stufe1"), "keine neue Grundfigur aus Stufe 2");
+  assert.ok(u.fal.log.filter((x) => x[0] === "submit").every((x) => x[2].image_urls[0] === job().grundUrl), "alle Edits auf derselben Grundfigur");
   j = await E.advanceAusstattung(j, u.deps);
   assert.equal(j.status, "error"); assert.equal(j.error, charEngine.KUNDIN_FEHLER); assert.equal(j.fehlerGrund, "edit_deckel");
-  assert.equal(j.versuche.edits, 3); assert.equal(j.versuche.pruefungen, 3); assert.equal(j.versuche.grund, 1, "Neustart-Kandidat gezaehlt");
+  assert.deepEqual(j.versuche, { grund: 0, edits: 3, pruefungen: 3 });
   assert.equal(await u.db.suchen(AUS), null, "nichts Fehlerhaftes im Speicher");
   u.fal.zurueck();
 });
@@ -225,20 +220,36 @@ test("v3.1: Stufe 2 startet nicht auf einer unvollstaendigen Grundfigur; Speiche
   u.fal.zurueck();
 });
 
-test("v3.1: hoechstens 3 Grundfigur-Kandidaten je Figur -- danach Fehlermeldung statt Neustart", async () => {
-  const u = umgebung({ verifyOk: [false, false, false, false] });
-  // Stufe 1 lief schon mit 3 Kandidaten -> Stufe 2 scheitert zweimal -> kein Neustart mehr
-  let j = await E.stufe2Starten(job({ candidates: [{}, {}, {}] }), u.deps);
-  j = await E.advanceAusstattung(j, u.deps); // Versuch 1 schlaegt fehl -> Wiederholung
-  j = await E.advanceAusstattung(j, u.deps); // Versuch 2 schlaegt fehl -> Neustart? nein, Deckel
-  assert.equal(j.status, "error"); assert.equal(j.error, charEngine.KUNDIN_FEHLER); assert.equal(j.fehlerGrund, "grundfigur_deckel");
-  assert.ok(!u.fal.log.some((x) => x[0] === "stufe1"), "keine neuen Kandidaten");
-  // mit 2 Kandidaten: genau EIN weiterer
-  const u2 = umgebung({ verifyOk: [false, false] });
-  let k = await E.stufe2Starten(job({ candidates: [{}, {}] }), u2.deps);
-  k = await E.advanceAusstattung(k, u2.deps); k = await E.advanceAusstattung(k, u2.deps);
-  assert.equal(k.stufe, 1); assert.equal(k.candidates.length, 1); assert.equal(k.grundKandidatenVorher, 2);
-  assert.deepEqual(u2.fal.log.filter((x) => x[0] === "stufe1"), [["stufe1", 1]]);
+test("v3.1/v3.2: neuAusStufe1 haelt den Deckel von 3 Grundfiguren (wird aus Stufe 2 nicht mehr gerufen)", async () => {
+  const u = umgebung();
+  const voll = await E.neuAusStufe1(Object.assign(job({ candidates: [{}, {}, {}] }), { ausstattung: { versuche: 2, neustarts: 0 } }), u.deps);
+  assert.equal(voll.status, "error"); assert.equal(voll.fehlerGrund, "grundfigur_deckel");
+  const frei = await E.neuAusStufe1(Object.assign(job({ candidates: [{}, {}] }), { ausstattung: { versuche: 2, neustarts: 0 } }), u.deps);
+  assert.equal(frei.stufe, 1); assert.equal(frei.candidates.length, 1); assert.equal(frei.grundKandidatenVorher, 2);
+  assert.equal(E.MAX_NEUSTARTS, 0);
+  u.fal.zurueck();
+});
+
+test("v3.2: nach 3 Edits nur style_ok durch -> bester Edit wird zugestellt, nicht abgelegt, 'Stil grenzwertig'", async () => {
+  const u = umgebung({ verifyOk: [] });
+  // Verify-Attrappe: immer style_ok false, Rest ok
+  falQueue.callFalVerifySync = async (url) => { u.fal.log.push(["verify", url]); return JSON.stringify({ single_ok: true, complete_ok: true, mouth_ok: true, style_ok: false }); };
+  let j = await E.stufe2Starten(job(), u.deps);
+  j = await E.advanceAusstattung(j, u.deps); j = await E.advanceAusstattung(j, u.deps);
+  assert.equal(j.versuche.edits, 3);
+  j = await E.advanceAusstattung(j, u.deps);
+  assert.equal(j.status, "done"); assert.equal(j.stilGrenzwertig, true); assert.equal(j.ausstattungHinweis, "stil_grenzwertig");
+  assert.equal(j.ausstattungGespeichert, false); assert.match(j.resultUrl, /^https:\/\/v3\.fal\.media\/req3\.png$/, "letzter (bester) Edit, fal-URL");
+  assert.equal(await u.db.suchen(AUS), null, "nicht ins Regal");
+  assert.equal(E.nurStilDurchgefallen({ single_ok: true, complete_ok: true, mouth_ok: true, style_ok: false }), true);
+  assert.equal(E.nurStilDurchgefallen({ single_ok: true, complete_ok: false, mouth_ok: true, style_ok: false }), false);
+  // Mischung: zwei harte Fehler, dann nur Stil -> trotzdem zugestellt
+  const u2 = umgebung({ verifyOk: [] });
+  let n = 0;
+  falQueue.callFalVerifySync = async () => { n++; return JSON.stringify(n < 3 ? { single_ok: true, complete_ok: false, mouth_ok: true, style_ok: true } : { single_ok: true, complete_ok: true, mouth_ok: true, style_ok: false }); };
+  let k = await E.stufe2Starten(job(), u2.deps);
+  k = await E.advanceAusstattung(k, u2.deps); k = await E.advanceAusstattung(k, u2.deps); k = await E.advanceAusstattung(k, u2.deps);
+  assert.equal(k.status, "done"); assert.equal(k.stilGrenzwertig, true);
   u.fal.zurueck(); u2.fal.zurueck();
 });
 

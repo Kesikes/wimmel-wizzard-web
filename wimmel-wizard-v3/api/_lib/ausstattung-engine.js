@@ -24,7 +24,7 @@ const CHIPS = chipFiguren.CHIPS;
 
 const EDIT_MODEL = "fal-ai/nano-banana-2/edit";
 const MAX_EDIT_VERSUCHE = 2;   // ein Versuch + eine Wiederholung
-const MAX_NEUSTARTS = 1;       // danach: letztes Bild zustellen
+const MAX_NEUSTARTS = 0;       // v3.2: aus Stufe 2 heraus keine neue Grundfigur mehr (neuAusStufe1 bleibt fuer Sonderfaelle erhalten, wird nicht mehr aufgerufen)
 const MAX_GRUND_JE_FIGUR = 3;  // v3.1: Grundfigur-Kandidaten je Figur-Anlage, ueber Neustarts hinweg
 const MAX_EDITS_JE_FIGUR = 3;  // v3.1: Edits (Stufe 2) je Figur-Anlage -- zusammen ≈ 3x3 + 3x8 + 6x1 = 39 Cent
 
@@ -118,11 +118,29 @@ async function advanceAusstattung(job, deps) {
     await falQueue.logFalError("ausstattung (Versuch " + a.versuche + ")", a.fehler);
   }
   next.updatedAt = Date.now();
+  // Jeden Edit-Versuch festhalten (fuer die Auswahl "bester Edit" nach dem Deckel).
+  a.ergebnisse = (a.ergebnisse || []).concat([{ url: a.url || null, verify: a.verify || null, violations: a.violations == null ? 99 : a.violations, fehler: a.fehler || null }]);
   if (a.status === "done" && a.violations === 0) return await abschliessen(next, deps, true);
-  // Nicht fehlerfrei: einmal wiederholen, dann neu aus Stufe 1, dann zustellen, was da ist.
-  if ((a.versuche || 0) < MAX_EDIT_VERSUCHE) return stufe2Starten(next, deps);
-  if ((a.neustarts || 0) < MAX_NEUSTARTS) return neuAusStufe1(next, deps);
-  return abschliessen(next, deps, false);
+  // v3.2 (26.10.2026): Die Grundfigur hat bestanden -- scheitert nur der Edit, wird der Edit auf
+  // DERSELBEN Grundfigur wiederholt, bis MAX_EDITS_JE_FIGUR erreicht ist. Eine neue Grundfigur gibt
+  // es aus Stufe 2 heraus nicht mehr (nur Stufe 1 selbst verwirft eine durchgefallene Grundfigur).
+  if (((next.versuche && next.versuche.edits) || 0) < MAX_EDITS_JE_FIGUR) return stufe2Starten(next, deps);
+  // Deckel erreicht. Stil in Stufe 2 zaehlt MITTEL statt schwer: faellt beim besten Edit NUR style_ok
+  // durch (single/complete/mouth ok), wird er trotzdem zugestellt, NICHT ins Regal gelegt und als
+  // "Stil grenzwertig" markiert -- die Kundin sieht es und kann neu zaubern.
+  const grenzwertig = a.ergebnisse.filter((r) => nurStilDurchgefallen(r.verify));
+  if (grenzwertig.length) {
+    const bester = grenzwertig[grenzwertig.length - 1];
+    a.url = bester.url; a.verify = bester.verify; a.violations = bester.violations;
+    next.stilGrenzwertig = true; next.ausstattungHinweis = "stil_grenzwertig";
+    return abschliessen(next, deps, false);
+  }
+  next.status = "error"; next.error = charEngine.KUNDIN_FEHLER; next.fehlerGrund = "edit_deckel"; next.updatedAt = Date.now();
+  return next;
+}
+// nurStilDurchgefallen(verify): eine Figur, vollstaendig, ohne Mund -- nur der Stil ist nicht sauber.
+function nurStilDurchgefallen(v) {
+  return !!(v && v.single_ok === true && v.complete_ok === true && v.mouth_ok === true && v.style_ok === false);
 }
 
 // abschliessen(job, deps, ablegen): Ergebnis setzen; fehlerfreie Ausstattung in den Speicher.
@@ -172,4 +190,4 @@ async function neuAusStufe1(next, deps) {
   return next;
 }
 
-module.exports = { EDIT_MODEL, MAX_EDIT_VERSUCHE, MAX_NEUSTARTS, MAX_GRUND_JE_FIGUR, MAX_EDITS_JE_FIGUR, editBody, ausstattungAusBody, stufe2Starten, advanceAusstattung, abschliessen, neuAusStufe1 };
+module.exports = { EDIT_MODEL, MAX_EDIT_VERSUCHE, MAX_NEUSTARTS, MAX_GRUND_JE_FIGUR, MAX_EDITS_JE_FIGUR, nurStilDurchgefallen, editBody, ausstattungAusBody, stufe2Starten, advanceAusstattung, abschliessen, neuAusStufe1 };
