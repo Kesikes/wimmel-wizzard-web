@@ -7,6 +7,26 @@ werden muss, und was warten kann. Es wird bei größeren Meilensteinen fortgesch
 
 ---
 
+## 🎯 Figuren v4 (26.10.2026): Gewinner aus dem Kontaktbogen eingebaut
+
+`docs/figuren-v4-rueckmeldung-2026-10-26.md`: Grundfigur = Fassung A+H (Prompt wie `71582bb` plus Hautton,
+Kleidung frei, kein Outfit-Zwang, kein 85-%-Rahmen, keine Augenbrauen), Lieblingsfarbe/Brille/Extra per Edit
+(„upper garment“, Bäckchen halten), Szenen-Satz „upper garment“, Schlüssel v5/v5a (v4 per Aufräumen weg).
+Neue Arbeitsregel (Entscheidungsregister 18): Prompt-Änderungen an Figuren und Szenen nur nach Kontaktbogen
+(`dev-tools/figuren-kontaktbogen.js`, gleiche Seeds, eine Änderung je Spalte, Entscheidung nach Augenmaß).
+Befund: jedes Wort zu Körper/Kleidung streckt die Figur — v3.1/v3.2 hatten das verschlimmert.
+
+---
+
+## 🩹 Figuren v3.2 (26.10.2026): Hotfix „Mädchen in Rot“ — überholt durch v4
+
+`docs/figuren-v3-2-rueckmeldung-2026-10-26.md`: Grundfigur mit Hose/Shorts und Schuhen (Schlüssel v4/v4a,
+alte Einträge per Aufräumen weg), Rahmen 85 % der Bildhöhe, Edit-Prompt hält Schnitt/Länge („never a
+dress“), Edits wiederholen auf derselben Grundfigur, Stil in Stufe 2 mittel (zustellen, nicht ablegen,
+„Stil grenzwertig“).
+
+---
+
 ## 🩹 Figuren v3.1 (26.10.2026): Hotfix nach dem Live-Test
 
 `docs/figuren-v3-1-rueckmeldung-2026-10-26.md`: Bildrahmen ausdrücklich im Grundfigur-Prompt, Stufe 2 nur

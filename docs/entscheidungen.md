@@ -4745,3 +4745,52 @@ gewünscht. Alternativ: die manuelle Sichtprüfung durch mich selbst (Option 2 v
 keiner Netzwerk-Policy betroffen ist.
 
 Kein Bild neu generiert, keine Live-Aktivierung, kein Geld ausgegeben.
+
+---
+
+## 18. Figuren- und Szenenprompt: Kontaktbogen vor jeder Änderung
+
+### GÜLTIG seit 26.10.2026: Prompt-Änderungen an Figuren und Szenen nur nach Kontaktbogen
+
+> Prompt-Änderungen an Figuren und Szenen nur nach Kontaktbogen: gleiche Seeds, **eine** Änderung
+> je Spalte, Entscheidung nach Augenmaß durch Matthias.
+
+Werkzeug: `dev-tools/figuren-kontaktbogen.js` (`TROCKEN=1` zeigt Prompts und Kosten, `RUNDE=1`
+wiederholt Runde 1). Zwei Kontaktbögen haben die Regel begründet:
+
+- **Runde 1** (`docs/auftrag-figuren-promptvergleich-2026-10-26.md`): A = Stand `71582bb`,
+  B = v3.2 (weißes T-Shirt mit Hose, 85-%-Rahmen), C = kurz mit Stil zuerst. A gewann bei allen drei
+  Personen klar — großer runder Kopf, kurzer Körper, Bäckchen; B und C lieferten lange Comic-Körper.
+- **Runde 2** (`docs/auftrag-figuren-promptvergleich-runde2-2026-10-26.md`): A, A+H (Hautton),
+  A+H+F (ein Farbwort „red top"), Edit (A+H per `nano-banana-2/edit` umgefärbt). A+H gewann;
+  A+H+F verworfen („top" wurde Mantel/Kleid, Figuren rückten zu nah).
+
+**Befund, der die Regel trägt:** jedes Wort zu Körper oder Kleidung streckt die Figur. Die
+Hotfixes v3.1 und v3.2 (Rahmen, Outfit-Zwang, Verbotsliste) hatten genau das verschlimmert, was
+sie beheben sollten — ohne Kontaktbogen war das nicht zu sehen.
+
+### GÜLTIG seit 26.10.2026 (Figuren v4, Schlüssel `v5`/`v5a`): Grundfigur = Fassung A+H
+
+Grundfigur-Prompt (`pipeline.js` `charPromptFromChips()`, Chips aus `chips.js`), wortgleich mit
+Spalte A+H des Kontaktbogens:
+
+```
+wmlstil, <rolle>[, age N], <hautton>, <haare inkl. frisur>[, <bart>], round head, minimal face,
+dot eyes, single vertical line nose, no ears, no mouth, no visible neck, standing, flat color fill,
+thick black marker outline, graphic recording sketchnote style, white background, full body, front view
+```
+
+Kleidung der Grundfigur bleibt frei. Lieblingsfarbe, Brille und Extra setzt Stufe 2 per Edit
+(`chips.js` `ausstattungEditPrompt()`): „Change ONLY the color of the upper garment to a flat,
+solid <farbe>. Keep its cut, the trousers/skirt, shoes, face, the pink round cheeks, the dot eyes and
+the nose line, hair, head size and body proportions exactly. …" Im Szenenprompt: „wears a bright
+<farbe> upper garment". Prüfung unverändert (`2026-10-26a`, `single_ok` + `complete_ok` Pflicht,
+Deckel 3 + 3, Edit-Wiederholung auf derselben Grundfigur).
+
+### ÜBERHOLT (22.10. bis 26.10.2026, v3 bis v3.2): Outfit-Zwang und Bildrahmen im Grundfigur-Prompt
+
+v3 schrieb „wearing a plain simple white t-shirt, no glasses, no hat, no accessories" in die
+Grundfigur, v3.1 den Bildrahmen („full body from head to feet … empty margin"), v3.2 Hose/Shorts,
+„never longer", 85 % der Bildhöhe und Bodenschatten. Alle drei Fassungen streckten die Figur; die
+Rückmeldungen dazu: `docs/chip-figuren-v3-rueckmeldung-2026-10-22.md`,
+`docs/figuren-v3-1-rueckmeldung-2026-10-26.md`, `docs/figuren-v3-2-rueckmeldung-2026-10-26.md`.
