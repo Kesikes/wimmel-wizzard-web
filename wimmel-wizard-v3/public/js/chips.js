@@ -21,10 +21,11 @@
    Eintraege anderer Schluessel-Versionen werden ignoriert und per Kuration entfernt.
    ========================================================================== */
 (function (root) {
-  // v4 (Figuren v3.2, 26.10.2026): die Grundfigur traegt jetzt Hose/Shorts und Schuhe -- alte v3-
-  // Eintraege (T-Shirt ohne Hose) passen nicht mehr und werden per Kuration/Aufraeumen entfernt.
-  const VERSION = "v4";
-  const VERSION_AUSSTATTUNG = "v4a";
+  // v5 (Figuren v4, 26.10.2026): Grundfigur ohne Kleidungs-/Rahmenwoerter (Kontaktbogen) -- alte
+  // v4-Eintraege (weisses T-Shirt mit Hose, 85-%-Rahmen) passen nicht mehr und werden per
+  // Kuration/Aufraeumen entfernt (api/gutschein?mode=chipfiguren-aufraeumen).
+  const VERSION = "v5";
+  const VERSION_AUSSTATTUNG = "v5a";
 
   const HAARFARBEN = [
     { id: "blond", label: "Blond", en: "blonde" },

@@ -21,7 +21,7 @@ function speicherAttrappe() {
   };
 }
 const holen = async (url) => ({ ok: true, headers: { get: () => "image/png" }, arrayBuffer: async () => Buffer.from("PNG:" + url) });
-const GRUND = "v4|girl|6-9|blond|glatt|lang|zoepfe|hell|-";
+const GRUND = "v5|girl|6-9|blond|glatt|lang|zoepfe|hell|-";
 const WERTE = { oberteil: "gelb", brille: true, extra: "nichts" };
 const AUS = CH.ausstattungsSchluessel(GRUND, WERTE, "girl");
 
@@ -80,7 +80,7 @@ test("Stufe 2: kein Treffer -> Edit mit Grundfigur, Pruefung ok -> abgelegt, res
   j = await E.advanceAusstattung(j, u.deps);
   assert.equal(j.status, "done"); assert.equal(j.ausstattungGespeichert, true); assert.equal(j.ausstattungAbgelegt, true);
   assert.equal(j.resultUrlFal, "https://v3.fal.media/req1.png");
-  assert.match(j.resultUrl, /figuren%2Fchips%2Fausstattung%2Fv4a-/);
+  assert.match(j.resultUrl, /figuren%2Fchips%2Fausstattung%2Fv5a-/);
   assert.equal(j.grundUrl, job().grundUrl, "Grundfigur bleibt am Job");
   const e = await u.db.suchen(AUS); assert.equal(e.grund, GRUND);
   assert.equal(u.sp.dateien.size, 1);
@@ -145,7 +145,7 @@ test("char-job-start: Grund-Treffer + Ausstattung ohne Treffer -> Job in Stufe 2
     assert.equal(res.code, 200); assert.equal(res.body.chipTreffer, true);
     let j = JSON.parse(await kv(["get", "charjob:" + res.body.jobId]));
     assert.equal(j.status, "in_progress"); assert.equal(j.stufe, 2); assert.equal(j.ausstattungSchluessel, AUS);
-    assert.match(j.grundUrl, /image-proxy\?blob=figuren%2Fchips%2Fv4-girl/);
+    assert.match(j.grundUrl, /image-proxy\?blob=figuren%2Fchips%2Fv5-girl/);
     assert.equal(fal.log.filter((x) => x[0] === "submit").length, 1, "ein Edit eingereiht");
     // Ausstattung jetzt im Speicher -> zweite Sitzung: sofort done, kein Edit
     await C.mitDeps(null, "ausstattung").ablegen({ schluessel: AUS, bildUrl: "https://v3.fal.media/a.png", grund: GRUND });

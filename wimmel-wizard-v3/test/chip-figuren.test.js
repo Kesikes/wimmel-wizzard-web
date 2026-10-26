@@ -67,31 +67,31 @@ test("Listen laut Auftrag v3 (20.10.2026)", () => {
 
 test("Schluessel v3: Version, Stufen, Frisur, Glatze, Hautton Pflicht; Ausstattung v3a", () => {
   const a = C.schluessel({ rolle: "girl", alter: 6, haarfarbe: "blond", haarform: "glatt", haarlaenge: "lang", frisur: "zoepfe", hautton: "hell" });
-  assert.equal(a, "v4|girl|6-9|blond|glatt|lang|zoepfe|hell|-");
+  assert.equal(a, "v5|girl|6-9|blond|glatt|lang|zoepfe|hell|-");
   assert.equal(C.schluessel({ rolle: "girl", alter: 9, haarfarbe: "blond", haarform: "glatt", haarlaenge: "lang", frisur: "zoepfe", hautton: "hell", merkmal: "Brille" }), a, "Merkmal/Extra gehoert nicht in den Grund-Schluessel");
-  assert.equal(C.schluessel({ rolle: "boy", alter: 3, haarfarbe: "hellbraun", haarform: "lockig", haarlaenge: "kurz", hautton: "mittel" }), "v4|boy|0-5|hellbraun|lockig|kurz|-|mittel|-", "kurz: keine Frisur");
-  assert.equal(C.schluessel({ rolle: "boy", alter: 14, haarfarbe: "hellbraun", haarform: "lockig", haarlaenge: "mittel", frisur: "offen", hautton: "mittel" }), "v4|boy|10+|hellbraun|lockig|mittel|offen|mittel|-");
+  assert.equal(C.schluessel({ rolle: "boy", alter: 3, haarfarbe: "hellbraun", haarform: "lockig", haarlaenge: "kurz", hautton: "mittel" }), "v5|boy|0-5|hellbraun|lockig|kurz|-|mittel|-", "kurz: keine Frisur");
+  assert.equal(C.schluessel({ rolle: "boy", alter: 14, haarfarbe: "hellbraun", haarform: "lockig", haarlaenge: "mittel", frisur: "offen", hautton: "mittel" }), "v5|boy|10+|hellbraun|lockig|mittel|offen|mittel|-");
   assert.equal(C.schluessel({ rolle: "boy", alter: 14, haarfarbe: "hellbraun", haarform: "lockig", haarlaenge: "mittel", hautton: "mittel" }), null, "mittel ohne Frisur");
-  assert.equal(C.schluessel({ rolle: "woman", alter: 34, haarfarbe: "grau", haarform: "kraus", haarlaenge: "mittel", frisur: "dutt", hautton: "dunkel" }), "v4|woman|-|grau|kraus|mittel|dutt|dunkel|-", "Erwachsene ohne Alter");
-  assert.equal(C.schluessel({ rolle: "man", haarfarbe: "grau", haarform: "glatt", haarlaenge: "glatze", frisur: "dutt", hautton: "mittel-dunkel", bart: "vollbart" }), "v4|man|-|grau|-|glatze|-|mittel-dunkel|vollbart", "Glatze: Farbe bleibt, Struktur/Frisur nicht im Schluessel, Bart drin");
-  assert.equal(C.schluessel({ rolle: "grandfather", haarfarbe: "grau", haarform: "kraus", haarlaenge: "kurz", hautton: "hell" }), "v4|grandfather|-|grau|kraus|kurz|-|hell|kein", "ohne Bart-Angabe = kein Bart");
+  assert.equal(C.schluessel({ rolle: "woman", alter: 34, haarfarbe: "grau", haarform: "kraus", haarlaenge: "mittel", frisur: "dutt", hautton: "dunkel" }), "v5|woman|-|grau|kraus|mittel|dutt|dunkel|-", "Erwachsene ohne Alter");
+  assert.equal(C.schluessel({ rolle: "man", haarfarbe: "grau", haarform: "glatt", haarlaenge: "glatze", frisur: "dutt", hautton: "mittel-dunkel", bart: "vollbart" }), "v5|man|-|grau|-|glatze|-|mittel-dunkel|vollbart", "Glatze: Farbe bleibt, Struktur/Frisur nicht im Schluessel, Bart drin");
+  assert.equal(C.schluessel({ rolle: "grandfather", haarfarbe: "grau", haarform: "kraus", haarlaenge: "kurz", hautton: "hell" }), "v5|grandfather|-|grau|kraus|kurz|-|hell|kein", "ohne Bart-Angabe = kein Bart");
   assert.equal(C.schluessel({ rolle: "man", haarfarbe: "grau", haarform: "kraus", haarlaenge: "kurz", hautton: "hell", bart: "ziegenbart" }), null, "unbekannter Bart");
   assert.equal(C.schluessel({ rolle: "girl", alter: 6, haarfarbe: "blond", haarform: "glatt", haarlaenge: "glatze", hautton: "hell" }), null, "Glatze gibt es bei Kindern nicht");
   assert.equal(C.schluessel({ rolle: "girl", alter: 6, haarfarbe: "grau", haarform: "glatt", haarlaenge: "kurz", hautton: "hell" }), null, "Grau gibt es bei Kindern nicht");
   assert.equal(C.schluessel({ rolle: "girl", alter: 6, haarfarbe: "blond", haarform: "glatt", haarlaenge: "kurz" }), null, "Hautton fehlt");
-  assert.equal(C.schluessel({ rolle: "pet", tierart: "dog", haarfarbe: "brown", haarform: "striped", haarlaenge: "short", merkmal: "Schlappohren" }), "v4|pet:dog|-|brown|striped|short|schlappohren|-|-");
+  assert.equal(C.schluessel({ rolle: "pet", tierart: "dog", haarfarbe: "brown", haarform: "striped", haarlaenge: "short", merkmal: "Schlappohren" }), "v5|pet:dog|-|brown|striped|short|schlappohren|-|-");
   assert.equal(C.schluessel({ rolle: "alien", haarfarbe: "blond", haarform: "glatt", haarlaenge: "kurz", hautton: "hell" }), null);
   assert.equal(C.schluessel(null), null);
   assert.equal(C.CHIPS.istAktuelleVersion(a), true);
   assert.equal(C.CHIPS.istAktuelleVersion("v3|girl|6-9|blond|glatt|lang|zoepfe|hell|-"), false);
   // Ausstattung
   const aa = C.ausstattungsSchluessel(a, { oberteil: "gelb", brille: true, extra: "nichts" }, "girl");
-  assert.equal(aa, "v4a|" + a + "|gelb|brille|nichts");
-  assert.equal(C.ausstattungsSchluessel(a, { oberteil: "gelb", brille: false }, "girl"), "v4a|" + a + "|gelb|-|nichts", "ohne Extra = nichts");
-  assert.equal(C.ausstattungsSchluessel(a, { oberteil: "gelb", brille: false, extra: "rollstuhl" }, "girl"), "v4a|" + a + "|gelb|-|rollstuhl", "inaktives Extra ist ein gueltiger Schluessel (Test durch Matthias)");
+  assert.equal(aa, "v5a|" + a + "|gelb|brille|nichts");
+  assert.equal(C.ausstattungsSchluessel(a, { oberteil: "gelb", brille: false }, "girl"), "v5a|" + a + "|gelb|-|nichts", "ohne Extra = nichts");
+  assert.equal(C.ausstattungsSchluessel(a, { oberteil: "gelb", brille: false, extra: "rollstuhl" }, "girl"), "v5a|" + a + "|gelb|-|rollstuhl", "inaktives Extra ist ein gueltiger Schluessel (Test durch Matthias)");
   assert.equal(C.ausstattungsSchluessel(a, { brille: true }, "girl"), null, "Oberteil ist Pflicht");
   assert.equal(C.ausstattungsSchluessel(a, { oberteil: "gelb", extra: "gehstock" }, "girl"), null, "Extra gehoert nicht zur Rolle");
-  assert.equal(C.ausstattungsSchluessel("v3|girl|6-9|blond|glatt|lang|zoepfe|hell|-", { oberteil: "gelb" }, "girl"), null, "nur auf v4-Grundfigur");
+  assert.equal(C.ausstattungsSchluessel("v3|girl|6-9|blond|glatt|lang|zoepfe|hell|-", { oberteil: "gelb" }, "girl"), null, "nur auf v5-Grundfigur");
   assert.equal(C.CHIPS.istAktuelleAusstattungsVersion(aa), true);
   assert.equal(C.CHIPS.rolleAusSchluessel(a), "girl"); assert.equal(C.CHIPS.rolleAusSchluessel(aa), "girl");
 });
@@ -146,7 +146,7 @@ function speicherAttrappe() {
   };
 }
 const holen = async (url) => ({ ok: true, headers: { get: () => "image/png" }, arrayBuffer: async () => Buffer.from("PNG:" + url) });
-const S = "v4|girl|6-9|blond|glatt|lang|zoepfe|hell|-";
+const S = "v5|girl|6-9|blond|glatt|lang|zoepfe|hell|-";
 
 test("DB: suchen leer, ablegen, treffer, verwerfen", async () => {
   const kv = neuerKvMock(); const sp = speicherAttrappe();
@@ -154,7 +154,7 @@ test("DB: suchen leer, ablegen, treffer, verwerfen", async () => {
   assert.equal(await db.suchen(S), null);
   const r = await db.ablegen({ schluessel: S, bildUrl: "https://v3.fal.media/files/a.png", prompt: "wmlstil, girl", seed: 42, verify: { ok: true } });
   assert.equal(r.neu, true);
-  assert.match(r.pfad, /^figuren\/chips\/v4-girl-6-9-blond-glatt-lang-zoepfe-hell\/20261018-120000-[a-z0-9]+\.png$/);
+  assert.match(r.pfad, /^figuren\/chips\/v5-girl-6-9-blond-glatt-lang-zoepfe-hell\/20261018-120000-[a-z0-9]+\.png$/);
   assert.equal(r.url, "https://www.wimmelwizard.de/api/image-proxy?blob=" + encodeURIComponent(r.pfad));
   assert.equal(sp.dateien.size, 1);
   const t = await db.suchen(S);
@@ -194,10 +194,10 @@ test("DB: Eintraege anderer Versionen werden ignoriert und per aufraeumen() entf
   assert.deepEqual(await db.vorschauAufraeumen(), [alt], "Vorschau loescht nichts");
   assert.equal(sp.dateien.size, 2);
   const r = await db.aufraeumen();
-  assert.deepEqual(r, { version: "v4", geloescht: [alt] });
+  assert.deepEqual(r, { version: "v5", geloescht: [alt] });
   assert.equal(sp.dateien.size, 1, "v1-Datei weg, v2-Datei bleibt");
   assert.deepEqual(await kv(["smembers", C.KEY_ALLE]), [S]);
-  assert.deepEqual(await db.aufraeumen(), { version: "v4", geloescht: [] });
+  assert.deepEqual(await db.aufraeumen(), { version: "v5", geloescht: [] });
 });
 
 /* ---------------- Endpunkte: Treffer-Pfad und Ablegen nach done ---------------- */
@@ -271,7 +271,7 @@ test("char-job-status: fertiger Job mit Schluessel wird abgelegt, resultUrl zeig
     assert.equal(ohne.chipGespeichert, undefined, "ohne Schluessel nichts");
     // Speicher kaputt -> Blatt bleibt unter fal-URL, kein Wurf
     sp.speichern = async () => { throw new Error("Blob 500"); };
-    const kaputt = await chipFigurAblegen(Object.assign({}, basis, { chipSchluessel: "v4|boy|0-5|hellbraun|lockig|kurz|-|mittel|-", resultViolations: 0 }));
+    const kaputt = await chipFigurAblegen(Object.assign({}, basis, { chipSchluessel: "v5|boy|0-5|hellbraun|lockig|kurz|-|mittel|-", resultViolations: 0 }));
     assert.equal(kaputt.chipAbgelegt, false); assert.equal(kaputt.resultUrl, basis.resultUrl); assert.match(kaputt.chipGrund, /Blob 500/);
   } finally { C.mitDeps = echteDeps; }
 });
