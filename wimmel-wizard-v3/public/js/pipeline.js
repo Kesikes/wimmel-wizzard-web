@@ -2621,9 +2621,11 @@ const HERO_REF_START = 2;
 // Szenen-Prompt ("the girl from reference image 2 wears a bright yellow top") -- das Oberteil ist im
 // Wimmelbild das wichtigste Wiederfinde-Merkmal. spec.oberteilEn kommt aus person.oberteilEn
 // (CHIPS.oberteilEn, "wearing a bright yellow top"); Figuren ohne Ausstattung bleiben ohne Satz.
+// Figuren v4 (26.10.2026): "upper garment" statt "top" -- die Grundfigur traegt freie Kleidung
+// (Jacke, Pulli, Bluse), der Edit faerbt das Oberteil, wie auch immer es geschnitten ist.
 function oberteilSatz(spec, i) {
   if (!spec || !spec.oberteilEn) return "";
-  const farbe = String(spec.oberteilEn).replace(/^wearing\s+/, "");
+  const farbe = String(spec.oberteilEn).replace(/^wearing\s+/, "").replace(/\s+(top|t-shirt)$/, " upper garment");
   const r = heroRef(spec, i);
   return " " + r.charAt(0).toUpperCase() + r.slice(1) + " wears " + farbe + ".";
 }
@@ -4882,6 +4884,7 @@ function sceneComposeInstructionNeu(promptText) {
 }
 
 window.Pipeline = {
+  oberteilSatz, // v4: fuer den Node-Test (chip-figuren.test.js)
   scenePromptNeu, sceneComposeInstructionNeu, THEMA_ZONEN, ageRoleNeu,
   get ALTER_ALS_GROESSE() { return ALTER_ALS_GROESSE; }, set ALTER_ALS_GROESSE(v) { ALTER_ALS_GROESSE = !!v; },
   get PROMPT_AUFBAU() { return PROMPT_AUFBAU; }, set PROMPT_AUFBAU(v) { PROMPT_AUFBAU = v; },

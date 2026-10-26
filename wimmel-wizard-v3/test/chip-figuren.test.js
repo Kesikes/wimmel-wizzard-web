@@ -275,3 +275,31 @@ test("char-job-status: fertiger Job mit Schluessel wird abgelegt, resultUrl zeig
     assert.equal(kaputt.chipAbgelegt, false); assert.equal(kaputt.resultUrl, basis.resultUrl); assert.match(kaputt.chipGrund, /Blob 500/);
   } finally { C.mitDeps = echteDeps; }
 });
+
+// Figuren v4 (26.10.2026): pipeline.js im Node laden wie dev-tools/figuren-kontaktbogen.js -- der
+// Grundfigur-Prompt muss WORTGLEICH Fassung A+H des Kontaktbogens sein, der Szenen-Satz sagt "upper garment".
+test("v4: charPromptFromChips = Fassung A+H (Kontaktbogen), oberteilSatz 'upper garment'", () => {
+  global.window = { location: { origin: "https://www.wimmelwizard.de" } };
+  global.document = { createElement: () => ({ getContext: () => ({}) }) };
+  global.localStorage = { getItem() { return null; }, setItem() {}, removeItem() {} };
+  new Function(fs.readFileSync(path.join(__dirname, "..", "public", "js", "format.js"), "utf8") + "\n;Object.assign(globalThis, { DRUCK, randProzent });")();
+  global.CHIPS = CH;
+  new Function(fs.readFileSync(path.join(__dirname, "..", "public", "js", "pipeline.js"), "utf8"))();
+  const P = global.window.Pipeline;
+  const bau = (role, age, c) => {
+    const hair = CH.haarPhraseEn(c, false); const ex = hair ? [hair] : [];
+    if (CH.hatBart(role)) { const b = CH.bartEn(c.bart || "kein", c.haarfarbe); if (b) ex.push(b); }
+    return P.charPromptFromChips({ role, age, chipLabels: [], extraEnParts: ex, noteEn: "", hauttonEn: CH.hauttonEn(c.hautton) });
+  };
+  const schluss = "round head, minimal face, dot eyes, single vertical line nose, no ears, no mouth, no visible neck, standing, flat color fill, thick black marker outline, graphic recording sketchnote style, white background, full body, front view";
+  assert.equal(bau("girl", 7, { haarfarbe: "blond", haarform: "glatt", haarlaenge: "lang", frisur: "zoepfe", hautton: "hell" }),
+    "wmlstil, girl, age 7, light skin tone, long straight blonde hair in two braids, " + schluss);
+  assert.equal(bau("grandfather", 72, { haarfarbe: "grau", haarlaenge: "glatze", hautton: "hell-mittel", bart: "vollbart" }),
+    "wmlstil, grandfather, light-medium skin tone, bald head, full gray/white beard, " + schluss);
+  assert.equal(bau("woman", 38, { haarfarbe: "schwarz", haarform: "kraus", haarlaenge: "mittel", frisur: "dutt", hautton: "dunkel" }),
+    "wmlstil, woman, dark skin tone, medium-length tightly coiled, afro-textured black hair in a hair bun, " + schluss);
+  assert.equal(P.charPromptFromChips({ role: "pet", chipLabels: [], extraEnParts: ["dog", "short striped brown fur"], noteEn: "" }), "wmlstil, pet, dog, short striped brown fur, " + schluss, "Tiere wie 71582bb");
+  assert.ok(!/wearing|85 percent|ground shadow|eyebrows/.test(bau("boy", 4, { haarfarbe: "rot", haarform: "lockig", haarlaenge: "kurz", hautton: "mittel" })), "keine Kleidungs-/Rahmenwoerter");
+  assert.equal(P.oberteilSatz({ role: "girl", oberteilEn: CH.oberteilEn("rot") }, 0), " The girl from reference image 2 wears a bright red upper garment.");
+  assert.equal(P.oberteilSatz({ role: "girl" }, 0), "");
+});
