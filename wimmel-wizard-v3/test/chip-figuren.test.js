@@ -59,7 +59,8 @@ test("Listen laut Auftrag v3 (20.10.2026)", () => {
   assert.deepEqual(CH.ausstattungEn({ oberteil: "gelb", brille: true, extra: "muetze" }), ["wearing a bright yellow top", "round glasses", "knitted beanie"]);
   assert.deepEqual(CH.ausstattungEn({ oberteil: "blau", brille: false, extra: "nichts" }), ["wearing a bright blue top"]);
   const edit = CH.ausstattungEditPrompt({ oberteil: "gruen", brille: true, extra: "kopftuch" });
-  assert.match(edit, /bright green/); assert.match(edit, /round glasses/); assert.match(edit, /headscarf/); assert.match(edit, /Keep the face, hairstyle/);
+  assert.match(edit, /Change ONLY the color of the t-shirt to a flat, solid bright green/); assert.match(edit, /round glasses/); assert.match(edit, /headscarf/); assert.match(edit, /Keep the face, hairstyle/);
+  assert.match(edit, /short-sleeved, ends at the hips/); assert.match(edit, /never a dress/); assert.match(edit, /one darker hard-edged shadow tone per surface/);
   assert.match(CH.GRUNDFIGUR_EN, /white short-sleeved t-shirt tucked into plain dark blue trousers/);
   assert.match(CH.GRUNDFIGUR_EN, /ends at the hips and is never longer/); assert.match(CH.GRUNDFIGUR_EN, /simple dark shoes/);
   assert.match(CH.grundfigurEn("girl", 9), /dark blue shorts/); assert.match(CH.grundfigurEn("boy", 3), /dark blue shorts/);
