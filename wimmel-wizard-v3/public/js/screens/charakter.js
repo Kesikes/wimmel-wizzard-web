@@ -1299,7 +1299,7 @@ Screens.charakterblatt = {
       wrap.appendChild(h("p", { style: { margin: "10px 0 0", padding: "6px 8px", border: "2px dashed rgba(26,26,24,.3)", fontSize: "10.5px", lineHeight: "1.4", color: "rgba(26,26,24,.6)", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" } },
         "DEV · Versuche: " + (fv.grund || 0) + " Grundfigur" + (fv.grund === 1 ? "" : "en") + " · " + (fv.edits || 0) + " Edit" + (fv.edits === 1 ? "" : "s") + " · " + (fv.pruefungen || 0) + " Prüfung" + (fv.pruefungen === 1 ? "" : "en")
         + (fv.grundTreffer ? " · Grundfigur aus dem Regal" : "") + (fv.ausstattungTreffer ? " · Ausstattung aus dem Regal" : "")
-        + " · ≈ " + (cent / 100).toFixed(2).replace(".", ",") + " $ · Prüfung " + (fv.pruefFassung || "?") + " · Deckel 3 + 3"));
+        + " · ≈ " + (cent / 100).toFixed(2).replace(".", ",") + " $ · Prüfung " + (fv.pruefFassung || "?") + " · Deckel 3 + 3" + (fv.stilGrenzwertig ? " · Stil grenzwertig" : "")));
     }
     wrap.appendChild(h("p", { id: "char-neu-error", style: { margin: "8px 0 0", fontSize: "12px", color: "var(--red)", display: "none" } }, ""));
 

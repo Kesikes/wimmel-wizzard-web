@@ -99,7 +99,7 @@ module.exports = async (req, res) => {
           if (job.status !== "in_progress" && !job.versucheGeloggt) {
             job.versucheGeloggt = true;
             const v = job.versuche || {};
-            try { console.log("[FIGUR] " + jobId + " " + job.status + (job.fehlerGrund ? " (" + job.fehlerGrund + ")" : "") + " grund=" + (v.grund || 0) + " edits=" + (v.edits || 0) + " pruefungen=" + (v.pruefungen || 0) + " ≈" + charEngine.versucheKostenCent(v) + " ct" + (job.chipTreffer ? " [Grund-Treffer]" : "") + (job.ausstattungTreffer ? " [Ausstattung-Treffer]" : "")); } catch (e) { /* egal */ }
+            try { console.log("[FIGUR] " + jobId + " " + job.status + (job.fehlerGrund ? " (" + job.fehlerGrund + ")" : "") + " grund=" + (v.grund || 0) + " edits=" + (v.edits || 0) + " pruefungen=" + (v.pruefungen || 0) + " ≈" + charEngine.versucheKostenCent(v) + " ct" + (job.chipTreffer ? " [Grund-Treffer]" : "") + (job.ausstattungTreffer ? " [Ausstattung-Treffer]" : "") + (job.stilGrenzwertig ? " [Stil grenzwertig]" : "")); } catch (e) { /* egal */ }
           }
           await kvSetJson("charjob:" + jobId, job, JOB_TTL_SECONDS);
         } finally {

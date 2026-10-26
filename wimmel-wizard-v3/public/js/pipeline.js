@@ -4306,7 +4306,7 @@ async function runCharacterJobPolling(prompt, opts) {
       // v3: Grundfigur + Ausstattung (Stufe 2); oberteilEn fuer den Szenen-Prompt
       grundUrl: job.grundUrl || null, ausstattungSchluessel: job.ausstattungSchluessel || null,
       // v3.1: Versuchszaehler + Pruef-Fassung fuers Dev-Panel am Figurenblatt
-      versuche: job.versuche ? Object.assign({ pruefFassung: job.pruefFassung || null, grundTreffer: !!job.chipTreffer, ausstattungTreffer: !!job.ausstattungTreffer }, job.versuche) : null,
+      versuche: job.versuche ? Object.assign({ pruefFassung: job.pruefFassung || null, grundTreffer: !!job.chipTreffer, ausstattungTreffer: !!job.ausstattungTreffer, stilGrenzwertig: !!job.stilGrenzwertig }, job.versuche) : null,
       oberteilEn: job.ausstattungWerte && typeof CHIPS !== "undefined" ? CHIPS.oberteilEn(job.ausstattungWerte.oberteil) : null,
     };
     if (job.status === "error") throw new Error(job.error || "Generierung fehlgeschlagen.");
