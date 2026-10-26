@@ -444,6 +444,12 @@ function ausstattungDaten(s, isPet) {
 // es hier keinen "haengt für immer"-Fall, der einen Retry-Button mit explizitem Reset braeuchte).
 let charGenBusy = false;
 function charGenErrorEl(id) { return document.getElementById(id); }
+// v3.1 (26.10.2026): die klare Server-Meldung "Das hat nicht geklappt, bitte noch einmal versuchen."
+// steht fuer sich; alles andere bekommt wie bisher Praefix und "nochmal versuchen?".
+function fehlerText(e, praefix) {
+  const m = e && e.message ? e.message : String(e);
+  return /^Das hat nicht geklappt/.test(m) ? m : praefix + m + " — nochmal versuchen?";
+}
 
 // NEU (Sammel-Runde 11.09.2026, Punkt 1: "orangenen 'Ich zeichne...'-Button im Header
 // entfernen"). Der damalige Desktop-Header-Button (#btn-weitermachen) bekam waehrend der
@@ -580,7 +586,7 @@ async function generateCharacterImage(person, buttons) {
     AppState.updatePerson(person.id, { pendingJobId: null, pendingSceneDescription: null });
     const errorP = charGenErrorEl("char-gen-error");
     if (errorP) {
-      errorP.textContent = "Zeichnen hat nicht geklappt: " + (e && e.message ? e.message : String(e)) + " — nochmal versuchen?";
+      errorP.textContent = fehlerText(e, "Zeichnen hat nicht geklappt: ");
       errorP.style.display = "block";
     }
     setBusyButtons(activeButtons, false);
@@ -740,7 +746,7 @@ async function generateCharacterImageFromPhoto(person, photoDataUri, buttons) {
     AppState.updatePerson(person.id, { pendingJobId: null, pendingSceneDescription: null });
     const errorP = charGenErrorEl("char-photo-error");
     if (errorP) {
-      errorP.textContent = "Zeichnen hat nicht geklappt: " + (e && e.message ? e.message : String(e)) + " — nochmal versuchen?";
+      errorP.textContent = fehlerText(e, "Zeichnen hat nicht geklappt: ");
       errorP.style.display = "block";
     }
     setBusyButtons(activeButtons, false);
@@ -775,7 +781,7 @@ function resumeCharacterJob(person) {
       const errorId = AppState.data.charMode === "foto" ? "char-photo-error" : "char-gen-error";
       const errorP = charGenErrorEl(errorId);
       if (errorP) {
-        errorP.textContent = "Zeichnen hat nicht geklappt: " + (e && e.message ? e.message : String(e)) + " — nochmal versuchen?";
+        errorP.textContent = fehlerText(e, "Zeichnen hat nicht geklappt: ");
         errorP.style.display = "block";
       }
       setBusyButtons(activeButtons, false);

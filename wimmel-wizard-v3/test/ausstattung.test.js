@@ -198,3 +198,46 @@ test("Kuration (Teil D): Liste getrennt, Aufraeumen erst als Vorschau, verwerfen
     assert.equal(sp.dateien.size, 0);
   } finally { C.mitDeps = echteDeps; delete process.env.GUTSCHEIN_ADMIN_SCHLUESSEL; }
 });
+
+// Figuren v3.1 (2): keine Stufe 2 auf unvollstaendiger Grundfigur, hoechstens 3 Grundfiguren, klare Meldung
+test("v3.1: finalizeJob stellt keine unvollstaendige Figur zu", () => {
+  const job = { status: "in_progress", candidates: [] };
+  const k = (seed, v, violations) => ({ seed, url: "u" + seed, genStatus: "done", verifyStatus: "done", verify: v, violations });
+  charEngine.finalizeJob(job, [k(1, { single_ok: true, complete_ok: false, mouth_ok: true, style_ok: true }, 1), k(2, { single_ok: false, complete_ok: true, mouth_ok: true, style_ok: true }, 1)]);
+  assert.equal(job.status, "error"); assert.equal(job.error, charEngine.KUNDIN_FEHLER); assert.equal(job.fehlerGrund, "unvollstaendig");
+  const job2 = { status: "in_progress" };
+  charEngine.finalizeJob(job2, [k(1, { single_ok: true, complete_ok: false, mouth_ok: true, style_ok: true }, 0), k(2, { single_ok: true, complete_ok: true, mouth_ok: false, style_ok: true }, 1)]);
+  assert.equal(job2.status, "done"); assert.equal(job2.resultUrl, "u2", "vollstaendig schlaegt weniger Verstoesse");
+  const job3 = { status: "in_progress" };
+  charEngine.finalizeJob(job3, []);
+  assert.equal(job3.status, "error"); assert.equal(job3.fehlerGrund, "technisch");
+});
+
+test("v3.1: Stufe 2 startet nicht auf einer unvollstaendigen Grundfigur; Speicher-Treffer gilt als geprueft", async () => {
+  const u = umgebung();
+  const j = await E.stufe2Starten(job({ resultVerify: { single_ok: true, complete_ok: false, mouth_ok: true, style_ok: true } }), u.deps);
+  assert.equal(j.status, "error"); assert.equal(j.error, charEngine.KUNDIN_FEHLER); assert.equal(j.fehlerGrund, "grundfigur_unvollstaendig");
+  assert.equal(u.fal.log.length, 0, "kein Edit");
+  const ok = await E.stufe2Starten(job({ resultVerify: { single_ok: true, complete_ok: true, mouth_ok: true, style_ok: true } }), u.deps);
+  assert.equal(ok.status, "in_progress");
+  const treffer = await E.stufe2Starten(job({ chipTreffer: true, resultVerify: null }), u.deps);
+  assert.equal(treffer.status, "in_progress", "Treffer aus dem Speicher braucht keine eigene Pruefung");
+  u.fal.zurueck();
+});
+
+test("v3.1: hoechstens 3 Grundfigur-Kandidaten je Figur -- danach Fehlermeldung statt Neustart", async () => {
+  const u = umgebung({ verifyOk: [false, false, false, false] });
+  // Stufe 1 lief schon mit 3 Kandidaten -> Stufe 2 scheitert zweimal -> kein Neustart mehr
+  let j = await E.stufe2Starten(job({ candidates: [{}, {}, {}] }), u.deps);
+  j = await E.advanceAusstattung(j, u.deps); // Versuch 1 schlaegt fehl -> Wiederholung
+  j = await E.advanceAusstattung(j, u.deps); // Versuch 2 schlaegt fehl -> Neustart? nein, Deckel
+  assert.equal(j.status, "error"); assert.equal(j.error, charEngine.KUNDIN_FEHLER); assert.equal(j.fehlerGrund, "grundfigur_deckel");
+  assert.ok(!u.fal.log.some((x) => x[0] === "stufe1"), "keine neuen Kandidaten");
+  // mit 2 Kandidaten: genau EIN weiterer
+  const u2 = umgebung({ verifyOk: [false, false] });
+  let k = await E.stufe2Starten(job({ candidates: [{}, {}] }), u2.deps);
+  k = await E.advanceAusstattung(k, u2.deps); k = await E.advanceAusstattung(k, u2.deps);
+  assert.equal(k.stufe, 1); assert.equal(k.candidates.length, 1); assert.equal(k.grundKandidatenVorher, 2);
+  assert.deepEqual(u2.fal.log.filter((x) => x[0] === "stufe1"), [["stufe1", 1]]);
+  u.fal.zurueck(); u2.fal.zurueck();
+});

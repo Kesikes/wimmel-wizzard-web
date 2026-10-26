@@ -25,6 +25,7 @@ const CHIPS = chipFiguren.CHIPS;
 const EDIT_MODEL = "fal-ai/nano-banana-2/edit";
 const MAX_EDIT_VERSUCHE = 2;   // ein Versuch + eine Wiederholung
 const MAX_NEUSTARTS = 1;       // danach: letztes Bild zustellen
+const MAX_GRUND_JE_FIGUR = 3;  // v3.1: Grundfigur-Kandidaten je Figur-Anlage, ueber Neustarts hinweg
 
 function editBody(prompt, grundUrl) {
   return { prompt, image_urls: [grundUrl], num_images: 1, output_format: "png" };
@@ -47,6 +48,13 @@ function ausstattungAusBody(body, rolle) {
 async function stufe2Starten(job, deps) {
   const next = JSON.parse(JSON.stringify(job));
   if (!next.grundUrl || !next.ausstattungSchluessel || !next.ausstattungWerte) return next;
+  // v3.1: NIE auf einer unvollstaendigen Grundfigur aufsetzen. Eine live erzeugte Grundfigur traegt
+  // ihre Pruefung in resultVerify (single_ok + complete_ok Pflicht); eine aus dem Speicher
+  // (chipTreffer) wurde beim Ablegen schon so geprueft.
+  if (!next.chipTreffer && next.resultVerify && !charEngine.kandidatVollstaendig({ verify: next.resultVerify })) {
+    next.status = "error"; next.error = charEngine.KUNDIN_FEHLER; next.fehlerGrund = "grundfigur_unvollstaendig"; next.updatedAt = Date.now();
+    return next;
+  }
   const db = deps.db || chipFiguren.mitDeps(null, "ausstattung");
   let treffer = null;
   try { treffer = await db.suchen(next.ausstattungSchluessel); } catch (e) { treffer = null; }
@@ -132,10 +140,18 @@ async function abschliessen(next, deps, inSpeicher) {
 // gilt fuer diese Sitzung.
 async function neuAusStufe1(next, deps) {
   const a = next.ausstattung;
+  // v3.1: hoechstens MAX_GRUND_JE_FIGUR Grundfigur-Kandidaten je Figur-Anlage (ueber alle
+  // Neustarts hinweg). Sind sie aufgebraucht, gibt es die klare Meldung statt eines weiteren Laufs.
+  const bisher = (next.candidates || []).length + (next.grundKandidatenVorher || 0);
+  if (bisher >= MAX_GRUND_JE_FIGUR) {
+    next.status = "error"; next.error = charEngine.KUNDIN_FEHLER; next.fehlerGrund = "grundfigur_deckel"; next.updatedAt = Date.now();
+    return next;
+  }
   a.neustarts = (a.neustarts || 0) + 1; a.versuche = 0; a.status = "wartet";
   try {
-    const frisch = await charEngine.createCharacterJob({ jobId: next.jobId, prompt: next.prompt, FAL_KEY: deps.FAL_KEY, anzahl: 2 });
-    next.candidates = frisch.candidates; next.maxKandidaten = frisch.maxKandidaten;
+    const frisch = await charEngine.createCharacterJob({ jobId: next.jobId, prompt: next.prompt, FAL_KEY: deps.FAL_KEY, anzahl: 1 });
+    next.grundKandidatenVorher = bisher;
+    next.candidates = frisch.candidates; next.maxKandidaten = 1;
     next.status = "in_progress"; next.stufe = 1;
     next.resultUrl = null; next.resultSeed = null; next.resultViolations = null; next.resultVerify = null;
     next.grundUrl = null; next.stufe1Neustart = true;
@@ -147,4 +163,4 @@ async function neuAusStufe1(next, deps) {
   return next;
 }
 
-module.exports = { EDIT_MODEL, MAX_EDIT_VERSUCHE, MAX_NEUSTARTS, editBody, ausstattungAusBody, stufe2Starten, advanceAusstattung, abschliessen, neuAusStufe1 };
+module.exports = { EDIT_MODEL, MAX_EDIT_VERSUCHE, MAX_NEUSTARTS, MAX_GRUND_JE_FIGUR, editBody, ausstattungAusBody, stufe2Starten, advanceAusstattung, abschliessen, neuAusStufe1 };

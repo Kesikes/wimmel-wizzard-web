@@ -231,13 +231,29 @@ async function advanceCharacterJob(job, { FAL_KEY }) {
 // den Job als Fehler, wenn KEIN einziger Kandidat nutzbar wurde (alle 2-3 Versuche technisch
 // fehlgeschlagen -- das ist ein echter, seltener Fehlerfall, kein Qualitaets-Werturteil, deshalb
 // hier bewusst DOCH ein Fehlerstatus, anders als die bewusst nie-blockierende style_ok-Entscheidung).
+// kandidatVollstaendig(c): Figuren v3.1 (26.10.2026) -- ein Kandidat zaehlt nur, wenn die Pruefung
+// GENAU EINE Figur (single_ok) UND Kopf + Koerper vollstaendig (complete_ok) bestaetigt hat. Mund-
+// und Stilfrage bleiben weiche Kriterien (entscheiden die Reihenfolge, nicht die Zulassung).
+function kandidatVollstaendig(c) {
+  const v = c && c.verify;
+  return !!(v && v.single_ok === true && v.complete_ok === true);
+}
+// Fehlertext an die Kundin, wenn keine vollstaendige Figur entstanden ist (v3.1): klare Meldung
+// statt Weiterlaufen mit einer abgeschnittenen Figur.
+const KUNDIN_FEHLER = "Das hat nicht geklappt, bitte noch einmal versuchen.";
+
 function finalizeJob(job, usableCandidates) {
-  if (!usableCandidates.length) {
+  // v3.1: unvollstaendige Figuren werden weder zugestellt noch abgelegt. Vorher gewann hier der
+  // Kandidat mit den wenigsten Verstoessen, auch ohne Fuesse -- der Live-Test vom 26.10. (Opa: 8
+  // Grundfiguren, 6 Edits) kam genau daher: Stufe 2 setzte auf abgeschnittene Grundfiguren auf.
+  const vollstaendig = usableCandidates.filter(kandidatVollstaendig);
+  if (!vollstaendig.length) {
     job.status = "error";
-    job.error = "Keiner der Generierungsversuche war erfolgreich — bitte nochmal versuchen.";
+    job.error = KUNDIN_FEHLER;
+    job.fehlerGrund = usableCandidates.length ? "unvollstaendig" : "technisch";
     return;
   }
-  const best = usableCandidates.reduce((a, b) => (b.violations < a.violations ? b : a));
+  const best = vollstaendig.reduce((a, b) => (b.violations < a.violations ? b : a));
   job.status = "done";
   job.resultUrl = best.url;
   job.resultSeed = best.seed;
@@ -249,5 +265,5 @@ module.exports = {
   FLUX_MODEL, VERIFY_MODEL,
   buildCharacterVerifyPrompt, countViolations,
   submitFalQueue, falQueueStatus, falQueueResult, callFalVerifySync,
-  createCharacterJob, advanceCharacterJob,
+  createCharacterJob, advanceCharacterJob, kandidatVollstaendig, finalizeJob, KUNDIN_FEHLER,
 };
