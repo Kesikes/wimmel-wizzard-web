@@ -69,7 +69,23 @@ Sichtbare Platzhalter unverändert (der Punkt „USt-IdNr.“ im Impressum bleib
    `umsatz: { jahr, stand_cent, gemeldet: false }`. Warnmail testen: Redis `SET umsatz:2026 2000000`,
    Cron erneut → `gemeldet: true`, Mail an `KONTAKT_EMAIL`; danach den Wert wieder zurücksetzen.
 
-## 7. Offen (bei dir)
+## 7. Hotfixes (26.10.2026, vor Abschluss von C1)
+
+| Commit | Was |
+|---|---|
+| `91aef09` | `charGenBusy`-Deklaration wiederhergestellt – mit `ebb01cc` (19.10.) war der ganze Block `charGenBusy` / `charGenErrorEl()` / `setBusyButtons()` vor `generateCharacterImage()` verloren gegangen (Safari: ReferenceError beim Klick auf „Figur zeichnen“); wortgleich aus `71582bb` zurückgeholt. |
+| `68f8d10` | Brille als zwei Chips „Ohne Brille / Mit Brille“ (genau einer aktiv, Standard ohne) statt Umschalter. Beifang: `hairPhraseEn()` übergab die Frisur nicht – der Prompt hieß „long straight blonde hair“ statt „… in two braids“, der Server hätte die Grundfigur wegen `passtZumPrompt` nie abgelegt. Behoben. |
+
+**Browser-Rauchtest** (Chromium headless, 390 px, Start-/Status-Endpunkte attrappiert): Mädchen 7 anlegen,
+Blond · Lang · Glatt · Zöpfe · Hautton hell · Gelb · Mit Brille, „Figur zeichnen lassen“ klicken →
+Anfrage an `/api/char-job-start` enthält `chips` (inkl. `frisur: zoepfe`) und `ausstattung`
+(`gelb`, `brille: true`, `nichts`), Prompt beginnt mit „wmlstil, girl, age 7, light skin tone, long straight
+blonde hair in two braids, wearing a plain simple white t-shirt, no glasses, no hat, no accessories, …“;
+nach dem Poll hat die Person `imageUrl`, `chipSchluessel`, `oberteilEn`. **Keine JS-Fehler**; die einzigen
+roten Konsolenzeilen sind Netzfehler der Sandbox (Google Fonts, `www.wimmelwizard.de`-Bild, fehlendes
+`wizzelwim-family-hero.webp` im Testspiegel) – bitte einmal im echten Safari gegenprüfen.
+
+## 8. Offen (bei dir)
 
 - [ ] Stripe Tax im Dashboard aus.
 - [ ] `KONTAKT_EMAIL` gesetzt (sonst geht die Warnmail an den Platzhalter `hallo@wimmelwizard.de`).
