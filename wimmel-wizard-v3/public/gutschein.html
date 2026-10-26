@@ -131,7 +131,7 @@
       <details><summary>Was passiert direkt nach dem Kauf?</summary><p>Du bekommst sofort eine Mail mit dem Gutschein-Code und dem PDF zum Ausdrucken. Wenn du „Direkt an die Empfängerin“ gewählt hast, geht die Mail am Wunschtag zusätzlich an sie.</p></details>
       <details><summary>Wann kann der Gutschein eingelöst werden?</summary><p id="faq-einloesen">…</p></details>
       <details><summary>Und wenn er nicht eingelöst wird?</summary><p id="faq-garantie">…</p></details>
-      <details><summary>Reicht der Gutschein wirklich für das ganze Buch?</summary><p>Ja. Der Wert entspricht genau dem Preis des gewählten Produkts, Versand nach Deutschland, Österreich und in die Schweiz inklusive. Wer auf das größere Produkt wechseln will, zahlt nur die Differenz. Ein Restwert bleibt als Guthaben im Konto.</p></details>
+      <details><summary>Reicht der Gutschein wirklich für das ganze Buch?</summary><p>Ja. Der Wert entspricht genau dem Preis des gewählten Produkts, Versand innerhalb Deutschlands inklusive. Wer auf das größere Produkt wechseln will, zahlt nur die Differenz. Ein Restwert bleibt als Guthaben im Konto.</p></details>
     </section>
   </div>
 
@@ -301,7 +301,8 @@
     CFG = cfg;
     $("beta-satz").textContent = cfg.beta_satz;
     $("garantie-satz").textContent = cfg.garantie_satz;
-    $("versand-satz").textContent = cfg.versand_satz.charAt(0).toUpperCase() + cfg.versand_satz.slice(1) + ".";
+    // C1 (26.10.2026): "Inkl. Versand innerhalb Deutschlands. Einlösbar für den Versand innerhalb Deutschlands."
+    $("versand-satz").textContent = cfg.versand_satz.charAt(0).toUpperCase() + cfg.versand_satz.slice(1) + "." + (cfg.einloesbar_satz ? " " + cfg.einloesbar_satz : "");
     $("widerruf-satz").textContent = cfg.widerruf_satz;
     $("faq-einloesen").textContent = cfg.einloesung_ab_satz + " Die Frist läuft " + cfg.einloesefrist_monate + " Monate ab Kaufdatum.";
     $("faq-garantie").textContent = cfg.garantie_satz + " Die Erstattung läuft automatisch auf den Zahlungsweg, den du beim Kauf benutzt hast.";

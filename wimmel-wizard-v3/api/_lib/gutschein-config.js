@@ -35,7 +35,12 @@ const PRODUKTE = {
     stripe_name: "Gutschein Wimmelbuch",
   },
 };
-const VERSAND_SATZ = "inkl. Versand nach Deutschland, Österreich und in die Schweiz";
+// GEAENDERT (Auftrag C1, 26.10.2026): Versand nur noch innerhalb Deutschlands (Sortiment-Beschluss
+// 22.10.2026, Abschnitt Steuer/Markt). VERSANDLAENDER ist die EINE Stelle fuer die Laenderliste --
+// der Bestell-Checkout (C5) und Peecho (C2/C6) lesen spaeter daraus; heute haengt nichts daran.
+const VERSANDLAENDER = ["DE"];
+const VERSAND_SATZ = "inkl. Versand innerhalb Deutschlands";
+const EINLOESBAR_SATZ = "Einlösbar für den Versand innerhalb Deutschlands.";
 
 // --- Fristen (Auftrag Abschnitt 0, ersetzt den festen 30.06.2027 aus dem Briefing) ---
 // Einlösefrist = Kaufdatum + 12 Monate. Erstattungsstichtag = 1. des Folgemonats nach Fristende.
@@ -222,6 +227,8 @@ async function oeffentlicheConfig() {
     marke: MARKE,
     produkte: Object.values(PRODUKTE).map((p) => ({ id: p.id, name: p.name, artikel: p.artikel, wert_cent: p.wert_cent, preis: euro(p.wert_cent), kurz: p.kurz, gutschein_hinweis: p.gutschein_hinweis })),
     versand_satz: VERSAND_SATZ,
+    einloesbar_satz: EINLOESBAR_SATZ,
+    versandlaender: VERSANDLAENDER,
     garantie_satz: GARANTIE_SATZ,
     beta_satz: BETA_SATZ,
     einloesung_ab_satz: EINLOESUNG_AB_SATZ,
@@ -239,7 +246,7 @@ async function oeffentlicheConfig() {
 }
 
 module.exports = {
-  MARKE, PRODUKTE, VERSAND_SATZ,
+  MARKE, PRODUKTE, VERSAND_SATZ, VERSANDLAENDER, EINLOESBAR_SATZ,
   EINLOESEFRIST_MONATE, WIDERRUF_TAGE, WIDERRUF_PUFFER_TAGE, WIDMUNG_MAX_ZEICHEN,
   GARANTIE_SATZ, BETA_SATZ, EINLOESUNG_AB_SATZ, WIDERRUF_SATZ, SO_GEHTS,
   QUELLEN, quelleNormalisieren, GEFEHLT_OPTIONEN,

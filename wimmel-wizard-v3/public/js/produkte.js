@@ -2,7 +2,8 @@
    Wimmel Wizard v3 — Produkte (Sortiment-Beschluss 16.10.2026, Auftrag 3 Teil 1, 18.10.2026)
 
    DIE EINE STELLE im Client für Produktnamen, Preise und Bildzahlen. Genau zwei Produkte, beide
-   mit festem Umfang und festem Preis, Versand nach DE/AT/CH inklusive. Kein Poster, kein
+   mit festem Umfang und festem Preis, Versand innerhalb Deutschlands inklusive (Auftrag C1, 26.10.2026;
+   Laenderliste: VERSANDLAENDER in api/_lib/gutschein-config.js). Kein Poster, kein
    Mini-Wimmelbuch, kein "ab", kein "Coming Soon".
 
    Server-Gegenstück: api/_lib/gutschein-config.js (PRODUKTE) — gleiche Zahlen, gleiche Namen.
@@ -19,7 +20,7 @@ const PRODUKTE = {
     wertCent: 2990,
     bilder: 4,
     kurz: "Genau 4 Wimmelbilder · A5 · 18 Seiten mit Rätseln und Widmung",
-    versand: "inkl. Versand nach DE, AT und CH",
+    versand: "inkl. Versand innerhalb Deutschlands",
   },
   buch: {
     id: "buch",
@@ -29,7 +30,7 @@ const PRODUKTE = {
     wertCent: 4990,
     bilder: 7,
     kurz: "Genau 7 Wimmelbilder · A4 Hardcover · 24 Seiten mit Rätseln und Widmung",
-    versand: "inkl. Versand nach DE, AT und CH",
+    versand: "inkl. Versand innerhalb Deutschlands",
   },
 };
 // Reihenfolge in Listen: Einstieg zuerst, Hauptprodukt danach.

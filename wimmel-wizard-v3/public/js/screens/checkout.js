@@ -54,7 +54,7 @@ Screens.bestellen = {
     });
     wrap.appendChild(payWrap);
 
-    wrap.appendChild(h("p", { style: { margin: "14px 0 0", fontSize: "12px", lineHeight: "1.45", color: "rgba(26,26,24,.7)" } }, "Gedruckt und gebunden in der EU, versandkostenfrei nach DE, AT und CH."));
+    wrap.appendChild(h("p", { style: { margin: "14px 0 0", fontSize: "12px", lineHeight: "1.45", color: "rgba(26,26,24,.7)" } }, "Gedruckt und gebunden in der EU, versandkostenfrei innerhalb Deutschlands."));
 
     root.appendChild(wrap);
     function rerender() { root.innerHTML = ""; Screens.bestellen.render(root); }

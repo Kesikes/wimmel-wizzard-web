@@ -73,7 +73,7 @@ const FAQ_GROUPS = [
   ]},
   { cat: "Versand & Lieferung", items: [
     { q: "Wird das Buch wirklich gedruckt, oder bekomme ich nur eine Datei?", a: "Echt gedruckt und zu euch nach Hause geschickt – keine Datei zum Selbstausdrucken." },
-    { q: "Was kostet der Versand?", a: "Nichts extra. Der Versand nach Deutschland, Österreich und in die Schweiz ist im Preis enthalten." },
+    { q: "Was kostet der Versand?", a: "Nichts extra. Der Versand innerhalb Deutschlands ist im Preis enthalten." },
     // draft bleibt, bis Peecho die Lieferzeiten bestaetigt hat.
     { draft: true, q: "Wie lange dauert der Versand, und kommt es pünktlich zu einem bestimmten Anlass an?", a: "Rechnet mit ca. 5 Werktagen." }
   ]},

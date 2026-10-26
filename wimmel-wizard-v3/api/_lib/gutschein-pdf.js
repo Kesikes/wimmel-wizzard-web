@@ -164,7 +164,7 @@ async function gutscheinPdf(g) {
   seite.drawText(codeText, { x: rechtsX + 14, y: 197, size: 26, font: fett, color: f(FARBE.weiss) });
 
   // Wert, Frist, Garantie
-  seite.drawText(versal(sicherText(produkt.gutschein_hinweis + " · Wert " + cfg.euro(g.wert_cent) + " · inkl. Versand DE/AT/CH")), { x: rechtsX, y: 170, size: hausschrift ? 9 : 10.5, font: fett, color: f(FARBE.tinte) });
+  seite.drawText(versal(sicherText(produkt.gutschein_hinweis + " · Wert " + cfg.euro(g.wert_cent) + " · " + cfg.VERSAND_SATZ)), { x: rechtsX, y: 170, size: hausschrift ? 9 : 10.5, font: fett, color: f(FARBE.tinte) });
   seite.drawText(sicherText("Einlösbar bis " + cfg.datumDeutsch(g.einloesefrist) + " auf " + cfg.siteUrl().replace(/^https?:\/\//, "")), { x: rechtsX, y: 156, size: 10, font: normal, color: f(FARBE.tinte) });
   let gy = 141;
   for (const zl of umbrechen(fett, versal(sicherText(cfg.GARANTIE_SATZ)), hausschrift ? 8.5 : 9.5, rechtsBSchmal).slice(0, 2)) {

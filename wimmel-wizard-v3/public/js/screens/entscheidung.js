@@ -5,7 +5,7 @@
 
 // GEAENDERT (Auftrag 3 Teil 1, 18.10.2026, Sortiment-Beschluss 16.10.2026): genau zwei gleichwertige
 // Karten -- Wimmelheft (genau 4 Bilder, 29,90 €) und Wimmelbuch (genau 7 Bilder, 49,90 €), beide
-// inkl. Versand DE/AT/CH. Kein Poster, kein "ab", kein "Coming Soon". Namen, Preise und Bildzahlen
+// inkl. Versand innerhalb Deutschlands (seit C1, 26.10.2026). Kein Poster, kein "ab", kein "Coming Soon". Namen, Preise und Bildzahlen
 // kommen aus public/js/produkte.js (eine Stelle). Eine Karte, fuer die noch Bilder fehlen, bleibt
 // sichtbar, aber gesperrt -- ein Klick fuehrt zur Szene (Nutzer-Entscheidung 24.09.2026).
 const TIERS = PRODUKT_REIHENFOLGE.map((id) => {
