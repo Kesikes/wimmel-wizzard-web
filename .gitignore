@@ -12,3 +12,6 @@ Claude outputs/
 
 # Abhaengigkeiten (pdf-lib) werden von Vercel beim Deploy installiert
 node_modules/
+
+# Kontaktboegen aus dev-tools/figuren-kontaktbogen.js (fal-URLs, 90 Tage) -- nicht Teil des Repos
+dev-tools/ausgabe/
