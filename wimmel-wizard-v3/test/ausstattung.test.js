@@ -21,7 +21,7 @@ function speicherAttrappe() {
   };
 }
 const holen = async (url) => ({ ok: true, headers: { get: () => "image/png" }, arrayBuffer: async () => Buffer.from("PNG:" + url) });
-const GRUND = "v3|girl|6-9|blond|glatt|lang|zoepfe|hell|-";
+const GRUND = "v4|girl|6-9|blond|glatt|lang|zoepfe|hell|-";
 const WERTE = { oberteil: "gelb", brille: true, extra: "nichts" };
 const AUS = CH.ausstattungsSchluessel(GRUND, WERTE, "girl");
 
@@ -80,7 +80,7 @@ test("Stufe 2: kein Treffer -> Edit mit Grundfigur, Pruefung ok -> abgelegt, res
   j = await E.advanceAusstattung(j, u.deps);
   assert.equal(j.status, "done"); assert.equal(j.ausstattungGespeichert, true); assert.equal(j.ausstattungAbgelegt, true);
   assert.equal(j.resultUrlFal, "https://v3.fal.media/req1.png");
-  assert.match(j.resultUrl, /figuren%2Fchips%2Fausstattung%2Fv3a-/);
+  assert.match(j.resultUrl, /figuren%2Fchips%2Fausstattung%2Fv4a-/);
   assert.equal(j.grundUrl, job().grundUrl, "Grundfigur bleibt am Job");
   const e = await u.db.suchen(AUS); assert.equal(e.grund, GRUND);
   assert.equal(u.sp.dateien.size, 1);
@@ -141,7 +141,7 @@ test("char-job-start: Grund-Treffer + Ausstattung ohne Treffer -> Job in Stufe 2
     const SID = "123e4567-e89b-12d3-a456-426614174000";
     await kv(["set", "session:" + SID, "{}"]);
     const chips = { rolle: "girl", alter: 7, haarfarbe: "blond", haarform: "glatt", haarlaenge: "lang", frisur: "zoepfe", hautton: "hell" };
-    const prompt = "wmlstil, girl, age 7, light skin tone, long straight blonde hair in two braids, " + CH.GRUNDFIGUR_EN + ", round head, minimal face, " + CH.FIGUR_RAHMEN_EN + ", dot eyes";
+    const prompt = "wmlstil, girl, age 7, light skin tone, long straight blonde hair in two braids, " + CH.grundfigurEn("girl", 7) + ", round head, minimal face, " + CH.FIGUR_RAHMEN_EN + ", dot eyes";
     const antwort = () => { const r = { code: 0, body: null }; r.status = (c) => { r.code = c; return r; }; r.json = (b) => { r.body = b; return r; }; return r; };
     await C.mitDeps().ablegen({ schluessel: GRUND, bildUrl: "https://v3.fal.media/g.png", seed: 7 });
     process.env.FAL_KEY = "k";
@@ -150,7 +150,7 @@ test("char-job-start: Grund-Treffer + Ausstattung ohne Treffer -> Job in Stufe 2
     assert.equal(res.code, 200); assert.equal(res.body.chipTreffer, true);
     let j = JSON.parse(await kv(["get", "charjob:" + res.body.jobId]));
     assert.equal(j.status, "in_progress"); assert.equal(j.stufe, 2); assert.equal(j.ausstattungSchluessel, AUS);
-    assert.match(j.grundUrl, /image-proxy\?blob=figuren%2Fchips%2Fv3-girl/);
+    assert.match(j.grundUrl, /image-proxy\?blob=figuren%2Fchips%2Fv4-girl/);
     assert.equal(fal.log.filter((x) => x[0] === "submit").length, 1, "ein Edit eingereiht");
     // Ausstattung jetzt im Speicher -> zweite Sitzung: sofort done, kein Edit
     await C.mitDeps(null, "ausstattung").ablegen({ schluessel: AUS, bildUrl: "https://v3.fal.media/a.png", grund: GRUND });
@@ -177,7 +177,7 @@ test("Kuration (Teil D): Liste getrennt, Aufraeumen erst als Vorschau, verwerfen
     await grund.ablegen({ schluessel: GRUND, bildUrl: "https://v3.fal.media/g.png" });
     await aus.ablegen({ schluessel: AUS, bildUrl: "https://v3.fal.media/a.png", grund: GRUND });
     // Alt-Eintraege (v2 / v1) direkt in KV
-    const altG = "v2|girl|6-9|blond|glatt|lang|hell|brille|-", altA = "v2a|" + altG + "|rot|-|nichts";
+    const altG = "v3|girl|6-9|blond|glatt|lang|zoepfe|hell|-", altA = "v3a|" + altG + "|rot|-|nichts";
     await kv(["hset", C.ARTEN.grund.key(altG), "pfad", "figuren/chips/alt.png"]); await kv(["sadd", C.ARTEN.grund.alle, altG]); sp.dateien.set("figuren/chips/alt.png", {});
     await kv(["hset", C.ARTEN.ausstattung.key(altA), "pfad", "figuren/chips/ausstattung/alt.png"]); await kv(["sadd", C.ARTEN.ausstattung.alle, altA]); sp.dateien.set("figuren/chips/ausstattung/alt.png", {});
     const ruf = async (query) => { const r = { code: 0, body: null, setHeader() {} }; r.status = (c) => { r.code = c; return r; }; r.json = (b) => { r.body = b; return r; }; await handler({ method: "GET", query, headers: {} }, r); return r; };

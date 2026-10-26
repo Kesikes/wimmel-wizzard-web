@@ -21,8 +21,10 @@
    Eintraege anderer Schluessel-Versionen werden ignoriert und per Kuration entfernt.
    ========================================================================== */
 (function (root) {
-  const VERSION = "v3";
-  const VERSION_AUSSTATTUNG = "v3a";
+  // v4 (Figuren v3.2, 26.10.2026): die Grundfigur traegt jetzt Hose/Shorts und Schuhe -- alte v3-
+  // Eintraege (T-Shirt ohne Hose) passen nicht mehr und werden per Kuration/Aufraeumen entfernt.
+  const VERSION = "v4";
+  const VERSION_AUSSTATTUNG = "v4a";
 
   const HAARFARBEN = [
     { id: "blond", label: "Blond", en: "blonde" },
@@ -114,7 +116,15 @@
     grandfather: ["hut", "gehstock", "rollstuhl", "nichts"],
   };
   // Grundfigur-Zusatz im flux-lora-Prompt: neutral, damit die Ausstattung sauber aufsetzt.
-  const GRUNDFIGUR_EN = "wearing a plain simple white t-shirt, no glasses, no hat, no accessories";
+  // Figuren v3.2 (26.10.2026, Befund "Maedchen in Rot": Edit machte aus dem T-Shirt ein Kleid):
+  // Grundfigur mit Hose. T-Shirt endet an der Huefte, Kinder bis 9 in Shorts. grundfigurEn(rolle, alter).
+  const GRUNDFIGUR_EN = "wearing a plain white short-sleeved t-shirt tucked into plain dark blue trousers, the t-shirt ends at the hips and is never longer, simple dark shoes, no glasses, no hat, no accessories";
+  const GRUNDFIGUR_KIND_EN = "wearing a plain white short-sleeved t-shirt tucked into plain dark blue shorts, the t-shirt ends at the hips and is never longer, simple dark shoes, no glasses, no hat, no accessories";
+  const GRUNDFIGUR_SHORTS_BIS_ALTER = 9;
+  function grundfigurEn(rolle, alter) {
+    const a = Number(alter);
+    return KINDER.includes(String(rolle || "")) && Number.isInteger(a) && a <= GRUNDFIGUR_SHORTS_BIS_ALTER ? GRUNDFIGUR_KIND_EN : GRUNDFIGUR_EN;
+  }
   // Figuren v3.1 (26.10.2026, Live-Test: abgeschnittene Grundfiguren): Bildrahmen ausdruecklich --
   // ganze Figur von Kopf bis Fuss, Fuesse und Bodenschatten sichtbar, mittig, Luft oben und unten.
   // Gilt fuer ALLE Rollen und Wege (pipeline.js haengt es an jeden Figuren-Prompt).
@@ -302,7 +312,7 @@
 
   const CHIPS = {
     VERSION, VERSION_AUSSTATTUNG, HAARFARBEN, HAARFARBE_JE_ROLLE, HAARSTRUKTUR, HAARLAENGE, HAARLAENGE_JE_ROLLE, FRISUR, FRISUR_LAENGEN, BART, BART_ROLLEN, HAUTTON,
-    OBERTEIL, BRILLE_EN, EXTRAS, EXTRA_JE_ROLLE, GRUNDFIGUR_EN, FIGUR_RAHMEN_EN,
+    OBERTEIL, BRILLE_EN, EXTRAS, EXTRA_JE_ROLLE, GRUNDFIGUR_EN, GRUNDFIGUR_KIND_EN, GRUNDFIGUR_SHORTS_BIS_ALTER, grundfigurEn, FIGUR_RAHMEN_EN,
     FELLFARBE, FELLMUSTER, FELLLAENGE, TIER_MERKMALE, ROLLEN, KINDER, ALTER_MAX_KIND, ALTER_STUFEN,
     finde, haarfarben, haarlaengen, hatBart, bartEn, extras, frisurMoeglich, istGlatze, istKind, alterStufe, haarPhraseEn, hauttonEn, merkmalEn,
     oberteilEn, ausstattungEn, ausstattungEditPrompt, schluessel, ausstattungsSchluessel, istAktuelleVersion, istAktuelleAusstattungsVersion, rolleAusSchluessel, slug, kombinationen,

@@ -542,7 +542,7 @@ async function generateCharacterImage(person, buttons) {
     const ausstattung = ausstattungDaten(s, isPet);
     const ausstattungEn = ausstattung ? CHIPS.ausstattungEn(ausstattung) : [];
     const zweiStufen = !!(chips && ausstattung);
-    const promptParts = zweiStufen ? extraEnParts.concat([CHIPS.GRUNDFIGUR_EN]) : extraEnParts.concat(ausstattungEn);
+    const promptParts = zweiStufen ? extraEnParts.concat([CHIPS.grundfigurEn(person.role, person.age)]) : extraEnParts.concat(ausstattungEn);
     const prompt = Pipeline.charPromptFromChips({ role: person.role, age: person.age, chipLabels, extraEnParts: promptParts, noteEn, hauttonEn });
     const sceneDescription = Pipeline.charInSceneFromChips({ role: person.role, age: person.age, chipLabels, extraEnParts: extraEnParts.concat(ausstattungEn), noteEn, hauttonEn });
     // GEAENDERT (Sammel-Runde 15.09.2026, "Warteschlangen-Umbau: Figuren-Pfad in die echte
