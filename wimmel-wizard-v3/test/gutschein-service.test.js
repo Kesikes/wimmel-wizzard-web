@@ -336,3 +336,19 @@ test("Stripe-Helfer: Formkodierung und Webhook-Signatur", () => {
   assert.throws(() => stripeLib.webhookPruefen(body, stripeLib.signaturBauen(body, "whsec_test", Math.floor(Date.now() / 1000) - 1000), "whsec_test"), /zu alt/);
   assert.throws(() => stripeLib.webhookPruefen(body, undefined, "whsec_test"), /fehlt/);
 });
+
+// C1 Teil B (26.10.2026): § 19 UStG -- kein automatic_tax bei Stripe, Hinweis in Mail 1 und Mail 7.
+test("§ 19 UStG: Stripe ohne automatic_tax, Hinweis in Mail 1 und Mail 7", () => {
+  const stripe = require("../api/_lib/stripe");
+  const params = stripe.checkoutSessionParameter({ produkt: "heft", entwurfId: "e1", quelle: "test" });
+  assert.equal(params.automatic_tax, undefined);
+  assert.ok(!/automatic_tax/.test(stripe.formKodieren(params)), "nicht in der kodierten Anfrage");
+  const mails = require("../api/_lib/gutschein-mails");
+  const g = { code: "WW-TEST-1234", produkt: "heft", wert_cent: 2990, bezahlt_cent: 2990, kaeufer_name: "Anna", kaeufer_email: "a@example.com", gekauft_am: "2026-10-26T10:00:00.000Z", einloesefrist: "2027-10-26", versand_an: "mich" };
+  const m1 = mails.mail1(g, "");
+  assert.ok(m1.html.includes(cfg.UST_HINWEIS) && m1.text.includes(cfg.UST_HINWEIS), "Mail 1");
+  const m7 = mails.mail7(g);
+  assert.ok(m7.html.includes(cfg.UST_HINWEIS) && m7.text.includes(cfg.UST_HINWEIS), "Mail 7");
+  assert.equal(cfg.UST_HINWEIS, "Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.");
+  assert.ok(!/MwSt|inkl\. USt/.test(m1.html + m1.text + m7.html + m7.text), "nirgends inkl. MwSt.");
+});

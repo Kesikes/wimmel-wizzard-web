@@ -55,7 +55,8 @@ function mail1(g, pdfBase64) {
     + codeKasten(g.code)
     + '<p><strong>Wert:</strong> ' + esc(cfg.euro(g.wert_cent)) + ' (' + esc(p) + ', ' + esc(cfg.VERSAND_SATZ) + ')<br>'
     + '<strong>Einlösbar bis:</strong> ' + esc(cfg.datumDeutsch(g.einloesefrist)) + '<br>'
-    + '<strong>Garantie:</strong> ' + esc(cfg.GARANTIE_SATZ) + '</p>'
+    + '<strong>Garantie:</strong> ' + esc(cfg.GARANTIE_SATZ) + '<br>'
+    + '<span style="font-size:12px;color:#5a5a56">' + esc(cfg.UST_HINWEIS) + '</span></p>'
     + '<p>' + esc(cfg.BETA_SATZ) + '</p>'
     + knopf(pdfUrl, "Gutschein-PDF herunterladen")
     + (g.versand_an === "empfaengerin" && g.empfaenger_email
@@ -70,6 +71,7 @@ function mail1(g, pdfBase64) {
     "", "danke – dein Gutschein für " + produktArtikel(g) + " ist da. Dein Code: " + g.code,
     "Wert: " + cfg.euro(g.wert_cent) + " · Einlösbar bis " + cfg.datumDeutsch(g.einloesefrist),
     "Garantie: " + cfg.GARANTIE_SATZ,
+    cfg.UST_HINWEIS,
     cfg.BETA_SATZ,
     "PDF: " + pdfUrl,
     "Widerruf (14 Tage): " + widerrufUrl,
@@ -115,10 +117,11 @@ function mail7(g) {
   const html = rahmen(
     '<p>' + gruss(g.kaeufer_name) + '</p>'
     + '<p>dein Widerruf ist angekommen. Der Gutschein ' + esc(g.code) + ' ist damit ungültig, und ' + esc(cfg.euro(g.bezahlt_cent)) + ' gehen auf dem Zahlungsweg zurück, den du beim Kauf benutzt hast. Je nach Bank dauert das 5–10 Werktage.</p>'
+    + '<p style="font-size:12px;color:#5a5a56">' + esc(cfg.UST_HINWEIS) + '</p>'
     + '<p>Schade, aber kein Problem – falls du magst, sag uns gern kurz, was gefehlt hat: ' + esc(cfg.kontaktEmail()) + '</p>'
     + '<p>Viele Grüße<br>Matthias</p>'
   );
-  const text = [gruss(g.kaeufer_name).replace(/&amp;/g, "&"), "", "dein Widerruf ist angekommen. Gutschein " + g.code + " ist ungültig, " + cfg.euro(g.bezahlt_cent) + " gehen zurück (5–10 Werktage).", "", "Viele Grüße, Matthias"].join("\n");
+  const text = [gruss(g.kaeufer_name).replace(/&amp;/g, "&"), "", "dein Widerruf ist angekommen. Gutschein " + g.code + " ist ungültig, " + cfg.euro(g.bezahlt_cent) + " gehen zurück (5–10 Werktage).", cfg.UST_HINWEIS, "", "Viele Grüße, Matthias"].join("\n");
   return { to: g.kaeufer_email, subject: "Rückgabe bestätigt", html, text };
 }
 

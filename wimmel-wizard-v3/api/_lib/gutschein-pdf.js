@@ -164,9 +164,15 @@ async function gutscheinPdf(g) {
   seite.drawText(codeText, { x: rechtsX + 14, y: 197, size: 26, font: fett, color: f(FARBE.weiss) });
 
   // Wert, Frist, Garantie
-  seite.drawText(versal(sicherText(produkt.gutschein_hinweis + " · Wert " + cfg.euro(g.wert_cent) + " · " + cfg.VERSAND_SATZ)), { x: rechtsX, y: 170, size: hausschrift ? 9 : 10.5, font: fett, color: f(FARBE.tinte) });
-  seite.drawText(sicherText("Einlösbar bis " + cfg.datumDeutsch(g.einloesefrist) + " auf " + cfg.siteUrl().replace(/^https?:\/\//, "")), { x: rechtsX, y: 156, size: 10, font: normal, color: f(FARBE.tinte) });
-  let gy = 141;
+  // GEAENDERT (C1 Teil A, 26.10.2026): "inkl. Versand innerhalb Deutschlands" ist laenger als
+  // "DE/AT/CH" -- die Wertzeile wird auf hoechstens zwei Zeilen umbrochen, alles darunter rueckt mit.
+  const wertGroesse = hausschrift ? 9 : 10.5;
+  const wertZeilen = umbrechen(fett, versal(sicherText(produkt.gutschein_hinweis + " · Wert " + cfg.euro(g.wert_cent) + " · " + cfg.VERSAND_SATZ)), wertGroesse, rechtsB).slice(0, 2);
+  let wy = wertZeilen.length > 1 ? 172 : 170;
+  for (const zl of wertZeilen) { seite.drawText(zl, { x: rechtsX, y: wy, size: wertGroesse, font: fett, color: f(FARBE.tinte) }); wy -= 11; }
+  const versatz = wertZeilen.length > 1 ? 7 : 0;
+  seite.drawText(sicherText("Einlösbar bis " + cfg.datumDeutsch(g.einloesefrist) + " auf " + cfg.siteUrl().replace(/^https?:\/\//, "")), { x: rechtsX, y: 156 - versatz, size: 10, font: normal, color: f(FARBE.tinte) });
+  let gy = 141 - versatz;
   for (const zl of umbrechen(fett, versal(sicherText(cfg.GARANTIE_SATZ)), hausschrift ? 8.5 : 9.5, rechtsBSchmal).slice(0, 2)) {
     seite.drawText(zl, { x: rechtsX, y: gy, size: hausschrift ? 8.5 : 9.5, font: fett, color: f(FARBE.rot) }); gy -= 12;
   }
@@ -190,6 +196,8 @@ async function gutscheinPdf(g) {
     }
   });
   seite.drawText(sicherText(cfg.BETA_SATZ + " Fragen: " + cfg.kontaktEmail()), { x: 32, y: 24, size: 7.5, font: normal, color: f(FARBE.tinte), opacity: 0.75 });
+  // § 19 UStG (C1 Teil B): klein in der Fusszeile, unter dem Beta-Satz.
+  seite.drawText(sicherText(cfg.UST_HINWEIS), { x: 32, y: 14, size: 7, font: normal, color: f(FARBE.tinte), opacity: 0.75 });
 
   return doc.save();
 }

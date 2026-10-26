@@ -41,6 +41,10 @@ const PRODUKTE = {
 const VERSANDLAENDER = ["DE"];
 const VERSAND_SATZ = "inkl. Versand innerhalb Deutschlands";
 const EINLOESBAR_SATZ = "Einlösbar für den Versand innerhalb Deutschlands.";
+// § 19 UStG (Auftrag C1 Teil B, 26.10.2026): Kleinunternehmer, keine Umsatzsteuer -- der Satz steht in
+// Mail 1, Mail 7, im PDF (Fusszeile) und auf der Danke-Seite. Preise werden nirgends als "inkl. MwSt."
+// bezeichnet. Stripe Tax: checkoutSessionParameter() setzt kein automatic_tax (Test in gutschein-service.test.js).
+const UST_HINWEIS = "Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.";
 
 // --- Fristen (Auftrag Abschnitt 0, ersetzt den festen 30.06.2027 aus dem Briefing) ---
 // Einlösefrist = Kaufdatum + 12 Monate. Erstattungsstichtag = 1. des Folgemonats nach Fristende.
@@ -228,6 +232,7 @@ async function oeffentlicheConfig() {
     produkte: Object.values(PRODUKTE).map((p) => ({ id: p.id, name: p.name, artikel: p.artikel, wert_cent: p.wert_cent, preis: euro(p.wert_cent), kurz: p.kurz, gutschein_hinweis: p.gutschein_hinweis })),
     versand_satz: VERSAND_SATZ,
     einloesbar_satz: EINLOESBAR_SATZ,
+    ust_hinweis: UST_HINWEIS,
     versandlaender: VERSANDLAENDER,
     garantie_satz: GARANTIE_SATZ,
     beta_satz: BETA_SATZ,
@@ -246,7 +251,7 @@ async function oeffentlicheConfig() {
 }
 
 module.exports = {
-  MARKE, PRODUKTE, VERSAND_SATZ, VERSANDLAENDER, EINLOESBAR_SATZ,
+  MARKE, PRODUKTE, VERSAND_SATZ, VERSANDLAENDER, EINLOESBAR_SATZ, UST_HINWEIS,
   EINLOESEFRIST_MONATE, WIDERRUF_TAGE, WIDERRUF_PUFFER_TAGE, WIDMUNG_MAX_ZEICHEN,
   GARANTIE_SATZ, BETA_SATZ, EINLOESUNG_AB_SATZ, WIDERRUF_SATZ, SO_GEHTS,
   QUELLEN, quelleNormalisieren, GEFEHLT_OPTIONEN,
