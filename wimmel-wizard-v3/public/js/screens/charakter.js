@@ -633,6 +633,7 @@ async function generateExtraViewsAndFinish(person, frontResult, sceneDescription
     // v3: Grundfigur (Stufe 1) und Ausstattung getrennt merken; oberteilEn fuer den Szenen-Prompt (Teil C).
     grundfigurUrl: frontResult.grundUrl || null, ausstattungSchluessel: frontResult.ausstattungSchluessel || null,
     oberteilEn: frontResult.oberteilEn || null,
+    figurVersuche: frontResult.versuche || null, // v3.1 Dev-Panel
     imageUrlSide: vorhanden.imageUrlSide || null,
     imageUrlBack: vorhanden.imageUrlBack || null,
     imageUrlThreeQuarter: vorhanden.imageUrlThreeQuarter || null,
@@ -1289,6 +1290,17 @@ Screens.charakterblatt = {
     }, "Passt so"));
     wrap.appendChild(btnRow);
     wrap.appendChild(btnHinweis);
+    // v3.1 (26.10.2026) Dev-Panel: Versuche dieser Figur-Anlage (Grundfiguren, Edits, Pruefungen),
+    // Pruef-Fassung und Kostenschaetzung -- gestrichelt wie das Debug-Panel in szene.js, kein
+    // Produkt-Text. Deckel: 3 Grundfiguren + 3 Edits je Figur (ausstattung-engine.js).
+    const fv = person.figurVersuche;
+    if (fv) {
+      const cent = (fv.grund || 0) * 3 + (fv.edits || 0) * 8 + (fv.pruefungen || 0) * 1;
+      wrap.appendChild(h("p", { style: { margin: "10px 0 0", padding: "6px 8px", border: "2px dashed rgba(26,26,24,.3)", fontSize: "10.5px", lineHeight: "1.4", color: "rgba(26,26,24,.6)", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" } },
+        "DEV · Versuche: " + (fv.grund || 0) + " Grundfigur" + (fv.grund === 1 ? "" : "en") + " · " + (fv.edits || 0) + " Edit" + (fv.edits === 1 ? "" : "s") + " · " + (fv.pruefungen || 0) + " Prüfung" + (fv.pruefungen === 1 ? "" : "en")
+        + (fv.grundTreffer ? " · Grundfigur aus dem Regal" : "") + (fv.ausstattungTreffer ? " · Ausstattung aus dem Regal" : "")
+        + " · ≈ " + (cent / 100).toFixed(2).replace(".", ",") + " $ · Prüfung " + (fv.pruefFassung || "?") + " · Deckel 3 + 3"));
+    }
     wrap.appendChild(h("p", { id: "char-neu-error", style: { margin: "8px 0 0", fontSize: "12px", color: "var(--red)", display: "none" } }, ""));
 
     // NEU (Sammel-Runde 11.09.2026, Punkt 4: "Lösch-Funktion für Figuren auf dem Charakterblatt

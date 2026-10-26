@@ -7,7 +7,8 @@
 // vercel.json) statt der 300s der langen synchronen Pfade -- ein einzelner Fortschritts-Durchlauf
 // braucht nur ein paar schnelle fal.ai-Statusabfragen, niemals mehrere Minuten.
 const { kvGetJson, kvSetJson, kvTryLock, kvUnlock } = require("./_lib/kv");
-const { advanceCharacterJob } = require("./_lib/char-job-engine");
+const charEngine = require("./_lib/char-job-engine");
+const { advanceCharacterJob } = charEngine;
 const chipFiguren = require("./_lib/chip-figuren");
 const ausstattungEngine = require("./_lib/ausstattung-engine");
 
@@ -93,6 +94,12 @@ module.exports = async (req, res) => {
               job.grundUrl = job.resultUrl;
               job = await ausstattungEngine.stufe2Starten(job, { FAL_KEY });
             }
+          }
+          // v3.1 Kostendeckel je Figur: beim Abschluss (done/error) einmal die Versuche ins Log.
+          if (job.status !== "in_progress" && !job.versucheGeloggt) {
+            job.versucheGeloggt = true;
+            const v = job.versuche || {};
+            try { console.log("[FIGUR] " + jobId + " " + job.status + (job.fehlerGrund ? " (" + job.fehlerGrund + ")" : "") + " grund=" + (v.grund || 0) + " edits=" + (v.edits || 0) + " pruefungen=" + (v.pruefungen || 0) + " ≈" + charEngine.versucheKostenCent(v) + " ct" + (job.chipTreffer ? " [Grund-Treffer]" : "") + (job.ausstattungTreffer ? " [Ausstattung-Treffer]" : "")); } catch (e) { /* egal */ }
           }
           await kvSetJson("charjob:" + jobId, job, JOB_TTL_SECONDS);
         } finally {

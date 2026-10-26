@@ -85,6 +85,16 @@ function buildCharacterVerifyPrompt() {
   return "Zeigt dieses Bild GENAU EINE einzelne Figur (eine Person oder ein Tier), vollständig und fehlerfrei gezeichnet? Prüfe besonders: Ist nur EIN Gesicht/EIN Körper zu sehen (nicht mehrere verschiedene Gesichter oder Körper gleichzeitig im Bild)? Ist ein VOLLSTÄNDIGER Kopf UND Körper zu sehen – von Kopf bis Fuß, mit beiden Füßen im Bild, ohne abgeschnittene Stellen, fehlende Körperteile oder unklare Kritzel-/Farbflecken-Artefakte (z. B. ein einzelner, unproportional langer Haarstrang ohne erkennbaren Kopf/Körper darunter)? Hat diese Figur einen sichtbaren Mund (Lippen, Mundstrich oder Mundöffnung)? Ein BART – Schnauzer, Vollbart, Stoppeln – ist KEIN Mund und zählt nicht. Ist die FIGUR SELBST (Kopf/Körper, nicht der Hintergrund oder ein Schlagschatten darunter) im Stil dieses Kinderbuch-Stilhefts gezeichnet: dicke schwarze Umrisslinien, kräftige flächige Farben, Schatten höchstens als ZWEITER, DUNKLERER FARBTON MIT HARTER KANTE (wie ausgeschnittenes Papier)? Genau diese harte Papier-Schattierung ist GEWÜNSCHT und KEIN Stilverstoß; ebenso wenig ein einfarbiger/weißer Hintergrund, ein Bodenschatten oder normale Kantenglättung. Als Stilverstoß zählen NUR weiche Farbverläufe, Airbrush-Schattierung, Glanzlichter/Highlights oder ein fotorealistischer bzw. gemalt-aquarellartiger Eindruck der Figur. Antworte NUR als JSON-Objekt mit genau diesen vier Feldern: {\"single_ok\": true/false, \"complete_ok\": true/false, \"mouth_ok\": true/false, \"style_ok\": true/false} — single_ok ist nur dann true, wenn wirklich nur eine einzige Figur mit einem Gesicht und einem Körper zu sehen ist; complete_ok ist nur dann true, wenn Kopf und Körper vollständig bis zu den Füßen und ohne Artefakte/Fragmente gezeichnet sind (streng: ein abgeschnittener Fuß oder Kopf heißt false); mouth_ok ist nur dann true, wenn die Figur KEINEN sichtbaren Mund hat (ein Bart ist kein Mund); style_ok ist nur dann false, wenn die Figur selbst wirklich deutlich vom beschriebenen flachen Stil abweicht — im Zweifel gilt style_ok als true.";
 }
 
+// zaehle(job, art): Versuchszaehler je Figur-Anlage (v3.1). art: "grund" | "edits" | "pruefungen".
+function zaehle(job, art) {
+  if (!job.versuche) job.versuche = { grund: 0, edits: 0, pruefungen: 0 };
+  job.versuche[art] = (job.versuche[art] || 0) + 1;
+}
+// Kostenschaetzung einer Figur-Anlage in Cent (Preise aus kosten-deckel.js: figur 3, charedit 8, verify 1).
+function versucheKostenCent(v) {
+  v = v || {};
+  return (v.grund || 0) * 3 + (v.edits || 0) * 8 + (v.pruefungen || 0) * 1;
+}
 function newCandidate(seed) {
   return {
     seed, genRequestId: null, genStatus: "pending", url: null, genError: null,
@@ -129,6 +139,8 @@ async function createCharacterJob({ jobId, prompt, FAL_KEY, anzahl }) {
   const now = Date.now();
   return {
     jobId, prompt, status: "in_progress", error: null, pruefFassung: CHAR_PRUEF_FASSUNG,
+    // v3.1 Kostendeckel je Figur: fal-Aufrufe dieser Figur-Anlage (Grundfiguren, Edits, Pruefungen)
+    versuche: { grund: wieViele, edits: 0, pruefungen: 0 },
     candidates,
     // Hoechstzahl Kandidaten insgesamt: bei einem Ein-Kandidaten-Job genau einer, sonst wie bisher 3.
     maxKandidaten: wieViele === 1 ? 1 : 3,
@@ -187,6 +199,7 @@ async function advanceCharacterJob(job, { FAL_KEY }) {
     for (const cand of next.candidates) {
       if (cand.genStatus !== "done" || cand.verifyStatus !== "pending") continue;
       try {
+        zaehle(next, "pruefungen");
         const output = await callFalVerifySync(cand.url, verifyPrompt, FAL_KEY);
         const scored = countViolations(output);
         cand.violations = scored.violations;
@@ -214,6 +227,7 @@ async function advanceCharacterJob(job, { FAL_KEY }) {
       const seedC = Math.floor(Math.random() * 1e9);
       try {
         const reqC = await submitFalQueue(FLUX_MODEL, charGenerateBody(next.prompt, seedC), FAL_KEY);
+        zaehle(next, "grund");
         const candC = newCandidate(seedC); candC.genRequestId = reqC; candC.genStatus = "polling";
         next.candidates.push(candC);
       } catch (e) {
@@ -269,5 +283,5 @@ module.exports = {
   FLUX_MODEL, VERIFY_MODEL,
   buildCharacterVerifyPrompt, countViolations,
   submitFalQueue, falQueueStatus, falQueueResult, callFalVerifySync,
-  createCharacterJob, advanceCharacterJob, kandidatVollstaendig, finalizeJob, KUNDIN_FEHLER, CHAR_PRUEF_FASSUNG,
+  createCharacterJob, advanceCharacterJob, kandidatVollstaendig, finalizeJob, KUNDIN_FEHLER, CHAR_PRUEF_FASSUNG, zaehle, versucheKostenCent,
 };

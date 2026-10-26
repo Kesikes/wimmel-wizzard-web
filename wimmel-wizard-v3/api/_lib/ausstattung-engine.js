@@ -26,6 +26,7 @@ const EDIT_MODEL = "fal-ai/nano-banana-2/edit";
 const MAX_EDIT_VERSUCHE = 2;   // ein Versuch + eine Wiederholung
 const MAX_NEUSTARTS = 1;       // danach: letztes Bild zustellen
 const MAX_GRUND_JE_FIGUR = 3;  // v3.1: Grundfigur-Kandidaten je Figur-Anlage, ueber Neustarts hinweg
+const MAX_EDITS_JE_FIGUR = 3;  // v3.1: Edits (Stufe 2) je Figur-Anlage -- zusammen ≈ 3x3 + 3x8 + 6x1 = 39 Cent
 
 function editBody(prompt, grundUrl) {
   return { prompt, image_urls: [grundUrl], num_images: 1, output_format: "png" };
@@ -72,7 +73,13 @@ async function stufe2Starten(job, deps) {
     return next;
   }
   const a = next.ausstattung || { versuche: 0, neustarts: 0 };
+  // v3.1 Kostendeckel: hoechstens MAX_EDITS_JE_FIGUR Edits je Figur-Anlage.
+  if (((next.versuche && next.versuche.edits) || 0) >= MAX_EDITS_JE_FIGUR) {
+    next.status = "error"; next.error = charEngine.KUNDIN_FEHLER; next.fehlerGrund = "edit_deckel"; next.ausstattung = a; next.updatedAt = Date.now();
+    return next;
+  }
   try {
+    charEngine.zaehle(next, "edits");
     const requestId = await falQueue.submitFalQueue(EDIT_MODEL, editBody(CHIPS.ausstattungEditPrompt(next.ausstattungWerte), next.grundUrl), deps.FAL_KEY);
     a.requestId = requestId; a.status = "polling"; a.versuche = (a.versuche || 0) + 1; a.url = null; a.verify = null; a.violations = null;
     next.ausstattung = a; next.stufe = 2; next.status = "in_progress";
@@ -102,6 +109,7 @@ async function advanceAusstattung(job, deps) {
     if (!url) throw new Error("Edit ohne Bild");
     a.url = url;
     // Stil-Pruefung wie Stufe 1 (eine Figur, vollstaendig, kein Mund, flacher Stil).
+    charEngine.zaehle(next, "pruefungen");
     const output = await falQueue.callFalVerifySync(url, charEngine.buildCharacterVerifyPrompt(), deps.FAL_KEY);
     const scored = falQueue.countViolations(output);
     a.verify = scored.parsed; a.violations = scored.violations; a.status = "done"; a.pruefFassung = charEngine.CHAR_PRUEF_FASSUNG;
@@ -150,6 +158,7 @@ async function neuAusStufe1(next, deps) {
   a.neustarts = (a.neustarts || 0) + 1; a.versuche = 0; a.status = "wartet";
   try {
     const frisch = await charEngine.createCharacterJob({ jobId: next.jobId, prompt: next.prompt, FAL_KEY: deps.FAL_KEY, anzahl: 1 });
+    charEngine.zaehle(next, "grund");
     next.grundKandidatenVorher = bisher;
     next.candidates = frisch.candidates; next.maxKandidaten = 1;
     next.status = "in_progress"; next.stufe = 1;
@@ -163,4 +172,4 @@ async function neuAusStufe1(next, deps) {
   return next;
 }
 
-module.exports = { EDIT_MODEL, MAX_EDIT_VERSUCHE, MAX_NEUSTARTS, MAX_GRUND_JE_FIGUR, editBody, ausstattungAusBody, stufe2Starten, advanceAusstattung, abschliessen, neuAusStufe1 };
+module.exports = { EDIT_MODEL, MAX_EDIT_VERSUCHE, MAX_NEUSTARTS, MAX_GRUND_JE_FIGUR, MAX_EDITS_JE_FIGUR, editBody, ausstattungAusBody, stufe2Starten, advanceAusstattung, abschliessen, neuAusStufe1 };

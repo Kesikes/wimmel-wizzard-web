@@ -87,7 +87,7 @@ test("Stufe 2: kein Treffer -> Edit mit Grundfigur, Pruefung ok -> abgelegt, res
   u.fal.zurueck();
 });
 
-test("Stufe 2: Pruefung schlaegt fehl -> einmal wiederholen, dann neu aus Stufe 1, dann zustellen ohne Ablegen", async () => {
+test("Stufe 2: Pruefung schlaegt fehl -> einmal wiederholen, dann neu aus Stufe 1, dann Kostendeckel (3 Edits) -> Meldung", async () => {
   const u = umgebung({ verifyOk: [false, false, false, false] });
   let j = await E.stufe2Starten(job(), u.deps);
   j = await E.advanceAusstattung(j, u.deps);
@@ -99,11 +99,11 @@ test("Stufe 2: Pruefung schlaegt fehl -> einmal wiederholen, dann neu aus Stufe 
   j.status = "done"; j.grundUrl = "https://v3.fal.media/neu.png"; j.resultUrl = j.grundUrl;
   j = await E.stufe2Starten(j, u.deps);
   assert.equal(j.ausstattung.versuche, 1);
-  j = await E.advanceAusstattung(j, u.deps); // Versuch 1 nach Neustart schlaegt fehl -> Wiederholung
-  assert.equal(j.ausstattung.versuche, 2);
-  j = await E.advanceAusstattung(j, u.deps); // Versuch 2 schlaegt fehl -> kein zweiter Neustart -> zustellen
-  assert.equal(j.status, "done"); assert.equal(j.ausstattungGespeichert, false); assert.equal(j.ausstattungHinweis, "nicht_fehlerfrei");
-  assert.match(j.resultUrl, /^https:\/\/v3\.fal\.media\/req/);
+  // v3.1 Kostendeckel: das war Edit Nr. 3 -- schlaegt er fehl, gibt es keinen vierten, sondern die Meldung
+  assert.equal(j.versuche.edits, 3);
+  j = await E.advanceAusstattung(j, u.deps);
+  assert.equal(j.status, "error"); assert.equal(j.error, charEngine.KUNDIN_FEHLER); assert.equal(j.fehlerGrund, "edit_deckel");
+  assert.equal(j.versuche.edits, 3); assert.equal(j.versuche.pruefungen, 3); assert.equal(j.versuche.grund, 1, "Neustart-Kandidat gezaehlt");
   assert.equal(await u.db.suchen(AUS), null, "nichts Fehlerhaftes im Speicher");
   u.fal.zurueck();
 });
@@ -255,4 +255,22 @@ test("v3.1: Pruef-Fassung 2026-10-26a -- Bart kein Mund, harte Papier-Schattieru
   assert.match(edit, /one darker hard-edged shadow tone per surface/); assert.match(edit, /no gradients, no airbrush, no highlights/);
   const job = { candidates: [] };
   assert.equal(typeof charEngine.createCharacterJob, "function");
+});
+
+test("v3.1: Versuchszaehler und Kosten -- Normalfall 1 Grundfigur-Lauf + 1 Edit + Pruefungen", async () => {
+  const u = umgebung();
+  let j = await E.stufe2Starten(job({ versuche: { grund: 2, edits: 0, pruefungen: 2 } }), u.deps);
+  j = await E.advanceAusstattung(j, u.deps);
+  assert.equal(j.status, "done");
+  assert.deepEqual(j.versuche, { grund: 2, edits: 1, pruefungen: 3 });
+  assert.equal(charEngine.versucheKostenCent(j.versuche), 2 * 3 + 8 + 3, "6 + 8 + 3 = 17 Cent");
+  assert.equal(charEngine.versucheKostenCent({ grund: 3, edits: 3, pruefungen: 6 }), 39, "Deckel ≈ 0,39 $");
+  // Treffer-Pfade: Grund aus dem Speicher = 1 Edit + 1 Pruefung; beides aus dem Speicher = 0 Aufrufe
+  const t = await E.stufe2Starten(job({ chipTreffer: true, resultVerify: null, versuche: { grund: 0, edits: 0, pruefungen: 0 } }), u.deps);
+  assert.equal(t.ausstattungTreffer, true); assert.deepEqual(t.versuche, { grund: 0, edits: 0, pruefungen: 0 }, "beides aus dem Speicher: kein fal-Aufruf");
+  u.fal.zurueck();
+  const u2 = umgebung();
+  const g = await E.stufe2Starten(job({ chipTreffer: true, resultVerify: null, versuche: { grund: 0, edits: 0, pruefungen: 0 } }), u2.deps);
+  assert.deepEqual(g.versuche, { grund: 0, edits: 1, pruefungen: 0 }, "Grund aus dem Speicher: nur ein Edit");
+  u2.fal.zurueck();
 });
