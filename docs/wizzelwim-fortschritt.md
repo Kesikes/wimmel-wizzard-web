@@ -7,6 +7,16 @@ werden muss, und was warten kann. Es wird bei größeren Meilensteinen fortgesch
 
 ---
 
+## 🧾 C1 (26.10.2026): Nur Deutschland + Kleinunternehmer
+
+Umgesetzt und committet (`docs/c1-rueckmeldung-2026-10-26.md`): Versand nur innerhalb Deutschlands
+(alle Texte, `VERSANDLAENDER = ["DE"]`), § 19-UStG-Hinweis in Mail 1/7, PDF und Danke-Seite, kein
+Stripe-`automatic_tax`, Jahresumsatz-Zähler `umsatz:{jahr}` mit täglicher Warnmail ab 20 000 €
+(DRINGEND ab 24 000 €, Grenze 25 000 €) im bestehenden Cron, Rechtsträger-Hinweis in den Platzhaltern.
+**Bei dir:** Stripe Tax aus, `KONTAKT_EMAIL`, Anwalt-Texte auf die Privatperson.
+
+---
+
 ## 🛠️ Auftrag 3 (18.10.2026 abends): App auf das Sortiment umgebaut
 
 Umgesetzt und committet (Details in `docs/auftrag3-rueckmeldung-2026-10-18.md`):
