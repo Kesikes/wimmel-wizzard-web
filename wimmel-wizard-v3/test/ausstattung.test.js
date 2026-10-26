@@ -136,7 +136,7 @@ test("char-job-start: Grund-Treffer + Ausstattung ohne Treffer -> Job in Stufe 2
     const SID = "123e4567-e89b-12d3-a456-426614174000";
     await kv(["set", "session:" + SID, "{}"]);
     const chips = { rolle: "girl", alter: 7, haarfarbe: "blond", haarform: "glatt", haarlaenge: "lang", frisur: "zoepfe", hautton: "hell" };
-    const prompt = "wmlstil, girl, age 7, light skin tone, long straight blonde hair in two braids, " + CH.grundfigurEn("girl", 7) + ", round head, minimal face, " + CH.FIGUR_RAHMEN_EN + ", dot eyes";
+    const prompt = "wmlstil, girl, age 7, light skin tone, long straight blonde hair in two braids, round head, minimal face, dot eyes, full body, front view";
     const antwort = () => { const r = { code: 0, body: null }; r.status = (c) => { r.code = c; return r; }; r.json = (b) => { r.body = b; return r; }; return r; };
     await C.mitDeps().ablegen({ schluessel: GRUND, bildUrl: "https://v3.fal.media/g.png", seed: 7 });
     process.env.FAL_KEY = "k";

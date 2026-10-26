@@ -28,7 +28,7 @@
 // dort; hier bleibt nur die Datenbank.
 //
 // ZWEI STUFEN (Chip-Figuren v3, 20.10.2026):
-//   chipfigur:{v3-schluessel}          Grundfigur (flux-lora, weisses Oberteil, ohne Brille/Extras)
+//   chipfigur:{v3-schluessel}          Grundfigur (flux-lora, Kleidung frei (v4), ohne Brille/Extras)
 //   chipausstattung:{v3a-schluessel}   Ausstattung (nano-banana-2/edit auf die Grundfigur: Oberteil-
 //                                      farbe, Brille, ein Extra), Blob-Ordner figuren/chips/ausstattung/
 // Beide Stores haben denselben Mechanismus (HSETNX-Wettlauf, Trefferzaehler, Kuration); mitDeps()
@@ -50,8 +50,8 @@ const ausstattungsSchluessel = CHIPS.ausstattungsSchluessel;
 // gemeinsame GRUNDFIGUR abgelegt wird -- der Prompt entsteht im Browser (pipeline.js), ein
 // manipulierter Client koennte sonst mit passenden Chips ein beliebiges Bild fuer alle hinterlegen.
 // Geprueft wird: Rolle (bzw. Tierart), die Haar-/Fell-Phrase inkl. Frisur (chips.haarPhraseEn, genau
-// wie charakter.js sie baut), bei Menschen Hautton, Bart (Mann/Opa) und der neutrale Grundfigur-
-// Zusatz (weisses Oberteil, keine Brille), und der feste Stil-Schwanz. Die Kuration bleibt das zweite Netz.
+// wie charakter.js sie baut), bei Menschen Hautton und Bart (Mann/Opa); keine Ausstattungswoerter
+// (v4: "wearing a", Brille) und der feste Stil-Schwanz. Die Kuration bleibt das zweite Netz.
 function passtZumPrompt(e, prompt) {
   if (!e || typeof prompt !== "string") return false;
   const p = norm(prompt);
@@ -68,12 +68,11 @@ function passtZumPrompt(e, prompt) {
       const bart = norm(CHIPS.bartEn(e.bart == null || e.bart === "" ? "kein" : e.bart, e.haarfarbe));
       if (!bart || !p.includes(bart)) return false;
     }
-    // v3: Grundfigur neutral -- sonst kaeme eine bunte/behuetete Figur fuer alle in den Speicher.
-    if (!p.includes(norm(CHIPS.grundfigurEn(rolle, e.alter)))) return false;
   }
-  // v3.1: der Bildrahmen (ganze Figur, Fuesse, Luft) muss im Prompt stehen -- fuer alle Rollen.
-  if (!p.includes(norm(CHIPS.FIGUR_RAHMEN_EN))) return false;
-  return p.includes("round head, minimal face");
+  // v4 (26.10.2026): Grundfigur ohne Kleidungs-/Rahmenwoerter (Kontaktbogen). Neutral heisst jetzt:
+  // keine Ausstattung im Prompt -- sonst kaeme eine bunte/behuetete Figur fuer alle in den Speicher.
+  if (p.includes("wearing a") || p.includes(norm(CHIPS.BRILLE_EN))) return false;
+  return p.includes("round head, minimal face") && p.includes("full body, front view");
 }
 
 // Kombinationszahlen beider Stufen (Kontrolle): siehe chips.js.

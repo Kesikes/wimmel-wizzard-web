@@ -10,7 +10,7 @@
    GRUNDFIGUR = Datenbank-Schluessel: Rolle, Altersstufe (Kinder <=5 / 6-9 / 10+), Haarfarbe
      (rollenabhaengig), Struktur (glatt/lockig/kraus), Laenge (kurz/mittel/lang, Mann/Opa + Glatze),
      Frisur (nur mittel/lang: offen/Pferdeschwanz/Zoepfe/Dutt), Hautton (5 Tupfer, Pflicht), Bart
-     (Mann/Opa). Erzeugt mit flux-lora in neutralem weissem Oberteil, ohne Brille/Accessoires.
+     (Mann/Opa). Erzeugt mit flux-lora OHNE Kleidungs-/Rahmenwoerter (v4, Kleidung frei).
      Schluessel: v3|rolle|stufe|haarfarbe|struktur|laenge|frisur|hautton|bart
      (Tiere: v3|pet:<art>|-|fellfarbe|muster|laenge|<besonderheit>|-|-, unveraenderte Tier-Chips).
    AUSSTATTUNG = zweiter Schritt, per nano-banana-2/edit auf die Grundfigur gesetzt, eigener
@@ -115,21 +115,13 @@
     grandmother: ["hut", "kopftuch", "gehstock", "rollstuhl", "nichts"],
     grandfather: ["hut", "gehstock", "rollstuhl", "nichts"],
   };
-  // Grundfigur-Zusatz im flux-lora-Prompt: neutral, damit die Ausstattung sauber aufsetzt.
-  // Figuren v3.2 (26.10.2026, Befund "Maedchen in Rot": Edit machte aus dem T-Shirt ein Kleid):
-  // Grundfigur mit Hose. T-Shirt endet an der Huefte, Kinder bis 9 in Shorts. grundfigurEn(rolle, alter).
-  const GRUNDFIGUR_EN = "wearing a plain white short-sleeved t-shirt tucked into plain dark blue trousers, the t-shirt ends at the hips and is never longer, simple dark shoes, no glasses, no hat, no accessories";
-  const GRUNDFIGUR_KIND_EN = "wearing a plain white short-sleeved t-shirt tucked into plain dark blue shorts, the t-shirt ends at the hips and is never longer, simple dark shoes, no glasses, no hat, no accessories";
-  const GRUNDFIGUR_SHORTS_BIS_ALTER = 9;
-  function grundfigurEn(rolle, alter) {
-    const a = Number(alter);
-    return KINDER.includes(String(rolle || "")) && Number.isInteger(a) && a <= GRUNDFIGUR_SHORTS_BIS_ALTER ? GRUNDFIGUR_KIND_EN : GRUNDFIGUR_EN;
-  }
-  // Figuren v3.1 (26.10.2026, Live-Test: abgeschnittene Grundfiguren): Bildrahmen ausdruecklich --
-  // ganze Figur von Kopf bis Fuss, Fuesse und Bodenschatten sichtbar, mittig, Luft oben und unten.
-  // Gilt fuer ALLE Rollen und Wege (pipeline.js haengt es an jeden Figuren-Prompt).
-  // v3.2: "empty margin above the head and below the feet" machte die Figur winzig -- jetzt 85 % der Bildhoehe.
-  const FIGUR_RAHMEN_EN = "full body from head to feet, standing upright, centered, the figure fills about 85 percent of the image height, feet and a small ground shadow visible";
+  // Figuren v4 (26.10.2026, Kontaktbogen Runde 1+2, Entscheidung Matthias): die Grundfigur bekommt
+  // KEINE Woerter zu Koerper, Kleidung oder Bildrahmen mehr -- jedes solche Wort streckte die Figur
+  // (B/C/A+H+F im Kontaktbogen: lange Comic-Koerper, "top" wurde Mantel/Kleid). Gestrichen: das
+  // weisse T-Shirt mit Hose (v3.2 GRUNDFIGUR_EN), der 85-%-Rahmen (v3.1/v3.2 FIGUR_RAHMEN_EN), die
+  // Augenbrauen bei Glatze. Der Prompt ist wieder Fassung A (Stand 71582bb) plus Hautton; den
+  // Schlussblock haengt pipeline.js charPromptFromChips() an. Kleidung der Grundfigur bleibt frei,
+  // die Lieblingsfarbe setzt Stufe 2 per Edit ("upper garment", ausstattungEditPrompt()).
 
   // Haustier: unveraendert (B7, 09.09.2026). Werte sind die englischen Prompt-Woerter.
   const FELLFARBE = [
@@ -176,7 +168,7 @@
     return null;
   }
 
-  // haarPhraseEn({ haarfarbe, haarform, haarlaenge }, istTier) -> "long straight blonde hair",
+  // haarPhraseEn({ haarfarbe, haarform, haarlaenge, frisur }, istTier) -> "long straight blonde hair in two braids",
   // "bald head", "short striped brown fur" oder "" (nichts gewaehlt). Fuer Menschen sind die Werte
   // IDs aus den Listen oben, fuer Tiere die englischen Werte (unveraenderte Tier-Sets).
   function haarPhraseEn(w, istTier) {
@@ -188,7 +180,8 @@
     }
     const farbe = finde(HAARFARBEN, w.haarfarbe);
     const struktur = finde(HAARSTRUKTUR, w.haarform), laenge = finde(HAARLAENGE, w.haarlaenge);
-    if (laenge && laenge.glatze) return "bald head, no hair" + (farbe ? ", " + farbe.en + " eyebrows" : "");
+    // v4: nur "bald head" (wie 71582bb/Fassung A) -- keine Augenbrauen-Angabe, das Soll hat keine.
+    if (laenge && laenge.glatze) return "bald head";
     if (!farbe && !struktur && !laenge) return "";
     const basis = [laenge && laenge.en, struktur && struktur.en, farbe && farbe.en, "hair"].filter(Boolean).join(" ");
     const frisur = laenge && frisurMoeglich(laenge.id) ? finde(FRISUR, w.frisur) : null;
@@ -315,7 +308,7 @@
 
   const CHIPS = {
     VERSION, VERSION_AUSSTATTUNG, HAARFARBEN, HAARFARBE_JE_ROLLE, HAARSTRUKTUR, HAARLAENGE, HAARLAENGE_JE_ROLLE, FRISUR, FRISUR_LAENGEN, BART, BART_ROLLEN, HAUTTON,
-    OBERTEIL, BRILLE_EN, EXTRAS, EXTRA_JE_ROLLE, GRUNDFIGUR_EN, GRUNDFIGUR_KIND_EN, GRUNDFIGUR_SHORTS_BIS_ALTER, grundfigurEn, FIGUR_RAHMEN_EN,
+    OBERTEIL, BRILLE_EN, EXTRAS, EXTRA_JE_ROLLE,
     FELLFARBE, FELLMUSTER, FELLLAENGE, TIER_MERKMALE, ROLLEN, KINDER, ALTER_MAX_KIND, ALTER_STUFEN,
     finde, haarfarben, haarlaengen, hatBart, bartEn, extras, frisurMoeglich, istGlatze, istKind, alterStufe, haarPhraseEn, hauttonEn, merkmalEn,
     oberteilEn, ausstattungEn, ausstattungEditPrompt, schluessel, ausstattungsSchluessel, istAktuelleVersion, istAktuelleAusstattungsVersion, rolleAusSchluessel, slug, kombinationen,

@@ -16,8 +16,8 @@
 // FASSUNGEN RUNDE 1:
 //   A  Stand Auftrag 3 (Commit 71582bb): charPromptFromChips() von damals, Begriffe von damals
 //      (kein Hautton, kein Outfit, kein Rahmen; Zoepfe/Dutt knapp in die Haare geschrieben, Bart als Zusatz).
-//   B  Stand heute (v3.2): exakt der Grundfigur-Prompt, den charakter.js + pipeline.js + chips.js fuer
-//      diese Chips bauen (Hautton, weisses T-Shirt + Hose/Shorts, Rahmen 85 %, Bart) -- aus dem Code geholt.
+//   B  Stand v3.2 (3fc360c): der damalige Grundfigur-Prompt (Hautton, weisses T-Shirt + Hose/Shorts,
+//      Rahmen 85 %, Bart) -- seit v4 hier eingefroren, weil der Produktcode diese Woerter nicht mehr hat.
 //   C  Vorschlag "kurz, Stil zuerst": Stilsatz vorn, dann Rolle/Alter, Hautton, Haare, Bart, farbiges
 //      T-Shirt + dunkelblaue Hose/Shorts, full body, front view, white background. Keine Verbotsliste.
 //
@@ -36,14 +36,8 @@ const SEEDS = [101, 202];
 const PREIS_FIGUR = 0.03;
 if (!FAL_KEY && !TROCKEN) { console.error("FAL_KEY fehlt (oder TROCKEN=1 fuer die Vorschau)."); process.exit(1); }
 
-// --- Heutiger Code (B): chips.js + pipeline.js wie im Browser laden ---------------------------------
-global.window = { location: { origin: "https://www.wimmelwizard.de" } };
-global.document = { createElement: () => ({ getContext: () => ({}) }) };
-global.localStorage = { getItem() { return null; }, setItem() {}, removeItem() {} };
-new Function(fs.readFileSync(path.join(APP, "public/js/format.js"), "utf8") + "\n;Object.assign(globalThis, { DRUCK, randProzent });")();
+// --- chips.js (UMD) in Node laden: Haar-/Hautton-/Bart-Begriffe wie in der App ------------------
 global.CHIPS = require(path.join(APP, "public/js/chips.js"));
-require(path.join(APP, "public/js/pipeline.js"));
-const P = global.window.Pipeline;
 const Q = require(path.join(APP, "api/_lib/fal-queue.js"));
 const ENGINE = require(path.join(APP, "api/_lib/char-job-engine.js"));
 
@@ -86,25 +80,32 @@ function promptA(p) {
   return charPromptFromChipsAlt({ role: p.role, age: p.age, extraEnParts: teile });
 }
 
-// --- Fassung B: heutiger Code, zusammengebaut wie generateCharacterImage() in charakter.js --------
+// --- Fassung B: Stand v3.2 (3fc360c), EINGEFROREN -- seit Figuren v4 (26.10.2026) stehen diese
+// Woerter nicht mehr im Produktcode; der Wortlaut bleibt hier, damit RUNDE=1 wiederholbar ist. -------
+const GRUNDFIGUR_V32 = "wearing a plain white short-sleeved t-shirt tucked into plain dark blue trousers, the t-shirt ends at the hips and is never longer, simple dark shoes, no glasses, no hat, no accessories";
+const GRUNDFIGUR_KIND_V32 = GRUNDFIGUR_V32.replace("dark blue trousers", "dark blue shorts");
+const RAHMEN_V32 = "full body from head to feet, standing upright, centered, the figure fills about 85 percent of the image height, feet and a small ground shadow visible";
+function haareV32(c) {
+  if (c.haarlaenge === "glatze") return "bald head, no hair, " + CHIPS.finde(CHIPS.HAARFARBEN, c.haarfarbe).en + " eyebrows";
+  return CHIPS.haarPhraseEn({ haarfarbe: c.haarfarbe, haarform: c.haarform, haarlaenge: c.haarlaenge, frisur: c.frisur }, false);
+}
+function istShortsV32(p) { return CHIPS.istKind(p.role) && p.age <= 9; }
 function promptB(p) {
   const c = p.chips;
-  const hairEn = CHIPS.haarPhraseEn({ haarfarbe: c.haarfarbe, haarform: c.haarform, haarlaenge: c.haarlaenge, frisur: c.frisur }, false);
-  const extraEnParts = hairEn ? [hairEn] : [];
-  if (CHIPS.hatBart(p.role)) { const b = CHIPS.bartEn(c.bart || "kein", c.haarfarbe); if (b) extraEnParts.push(b); }
-  extraEnParts.push(CHIPS.grundfigurEn(p.role, p.age)); // zweistufig: neutrale Grundfigur
-  return P.charPromptFromChips({ role: p.role, age: p.age, chipLabels: [], extraEnParts, noteEn: "", hauttonEn: CHIPS.hauttonEn(c.hautton) });
+  const teile = ["wmlstil", ageRoleAlt(p.role, p.age), CHIPS.hauttonEn(c.hautton), haareV32(c)];
+  if (CHIPS.hatBart(p.role)) teile.push(CHIPS.bartEn(c.bart || "kein", c.haarfarbe));
+  teile.push(istShortsV32(p) ? GRUNDFIGUR_KIND_V32 : GRUNDFIGUR_V32);
+  teile.push("round head, minimal face, dot eyes, single vertical line nose, no ears, no mouth, no visible neck, " + RAHMEN_V32 + ", flat color fill, thick black marker outline, graphic recording sketchnote style, white background, front view");
+  return teile.filter(Boolean).join(", ");
 }
 
-// --- Fassung C: kurz, Stil zuerst -------------------------------------------------------------------
+// --- Fassung C: kurz, Stil zuerst (Runde 1, verworfen) ----------------------------------------------
 function promptC(p) {
   const c = p.chips;
-  const haare = CHIPS.haarPhraseEn({ haarfarbe: c.haarfarbe, haarform: c.haarform, haarlaenge: c.haarlaenge, frisur: c.frisur }, false);
   const bart = CHIPS.hatBart(p.role) ? CHIPS.bartEn(c.bart || "kein", c.haarfarbe) : "";
-  const hose = CHIPS.istKind(p.role) && p.age <= CHIPS.GRUNDFIGUR_SHORTS_BIS_ALTER ? "shorts" : "trousers";
   const farbe = CHIPS.finde(CHIPS.OBERTEIL, p.oberteil).en;
   return ["wmlstil", "round head, minimal face, dot eyes, single vertical line nose, no ears, no mouth, no visible neck, flat color fill, thick black marker outline, graphic recording sketchnote style",
-    ageRoleAlt(p.role, p.age), CHIPS.hauttonEn(c.hautton), haare, bart, "wearing a " + farbe + " t-shirt and dark blue " + hose, "full body, front view, white background"].filter(Boolean).join(", ");
+    ageRoleAlt(p.role, p.age), CHIPS.hauttonEn(c.hautton), haareV32(c), bart, "wearing a " + farbe + " t-shirt and dark blue " + (istShortsV32(p) ? "shorts" : "trousers"), "full body, front view, white background"].filter(Boolean).join(", ");
 }
 
 // --- Runde 2 (Auftrag docs/auftrag-figuren-promptvergleich-runde2-2026-10-26.md): auf A aufbauen ------

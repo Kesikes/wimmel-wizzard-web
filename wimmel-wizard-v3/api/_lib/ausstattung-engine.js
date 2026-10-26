@@ -1,5 +1,5 @@
 // api/_lib/ausstattung-engine.js — NEU (Chip-Figuren v3 Teil B, 22.10.2026): Stufe 2 der Figuren-
-// Erzeugung. Die GRUNDFIGUR (Stufe 1, flux-lora, weisses Oberteil, ohne Brille/Extras -- siehe
+// Erzeugung. Die GRUNDFIGUR (Stufe 1, flux-lora, Kleidung frei (v4), ohne Brille/Extras -- siehe
 // char-job-engine.js) bekommt per fal-ai/nano-banana-2/edit ihre AUSSTATTUNG: Lieblingsfarbe des
 // Oberteils, Brille, ein Extra (Anweisung: CHIPS.ausstattungEditPrompt, public/js/chips.js). Gesicht,
 // Frisur, Haltung, Stil und Hintergrund bleiben unveraendert.

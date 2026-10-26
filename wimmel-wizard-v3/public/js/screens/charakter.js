@@ -535,14 +535,15 @@ async function generateCharacterImage(person, buttons) {
     // Bart (20.10.2026): Mann/Opa, Farbe = Haarfarbe; "clean-shaven" steht ausdruecklich im Prompt.
     if (!isPet && CHIPS.hatBart(person.role)) { const b = CHIPS.bartEn(s.charBart || "kein", s.charHairColor); if (b) extraEnParts.push(b); }
     // Chip-Figuren v3 (Teil B): Figuren OHNE Notiz entstehen zweistufig -- Stufe 1 (dieser Prompt)
-    // ist die neutrale Grundfigur (weisses Oberteil, keine Brille, keine Extras), die Ausstattung
+    // ist die Grundfigur (Kleidung frei, keine Ausstattungswoerter im Prompt), die Ausstattung
     // setzt der Server per Edit auf (ausstattungDaten). Mit Notiz bleibt es einstufig und die
     // Ausstattung steht direkt im Prompt. Die Szenenbeschreibung traegt die Ausstattung immer.
     const chips = chipDatenFuerDb(s, person, isPet);
     const ausstattung = ausstattungDaten(s, isPet);
     const ausstattungEn = ausstattung ? CHIPS.ausstattungEn(ausstattung) : [];
     const zweiStufen = !!(chips && ausstattung);
-    const promptParts = zweiStufen ? extraEnParts.concat([CHIPS.grundfigurEn(person.role, person.age)]) : extraEnParts.concat(ausstattungEn);
+    // v4 (26.10.2026): die Grundfigur bekommt KEINEN Kleidungs-Zusatz mehr (Kleidung frei, Farbe per Edit).
+    const promptParts = zweiStufen ? extraEnParts : extraEnParts.concat(ausstattungEn);
     const prompt = Pipeline.charPromptFromChips({ role: person.role, age: person.age, chipLabels, extraEnParts: promptParts, noteEn, hauttonEn });
     const sceneDescription = Pipeline.charInSceneFromChips({ role: person.role, age: person.age, chipLabels, extraEnParts: extraEnParts.concat(ausstattungEn), noteEn, hauttonEn });
     // GEAENDERT (Sammel-Runde 15.09.2026, "Warteschlangen-Umbau: Figuren-Pfad in die echte

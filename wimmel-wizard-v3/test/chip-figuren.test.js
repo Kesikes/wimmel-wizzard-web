@@ -55,16 +55,14 @@ test("Listen laut Auftrag v3 (20.10.2026)", () => {
   assert.equal(CH.haarPhraseEn({ haarfarbe: "schwarz", haarform: "kraus", haarlaenge: "kurz" }), "short tightly coiled, afro-textured black hair");
   assert.equal(CH.haarPhraseEn({ haarfarbe: "blond", haarform: "glatt", haarlaenge: "lang", frisur: "zoepfe" }), "long straight blonde hair in two braids");
   assert.equal(CH.haarPhraseEn({ haarfarbe: "blond", haarform: "glatt", haarlaenge: "kurz", frisur: "zoepfe" }), "short straight blonde hair", "Frisur nur bei mittel/lang");
-  assert.equal(CH.haarPhraseEn({ haarfarbe: "grau", haarlaenge: "glatze" }), "bald head, no hair, gray/white eyebrows");
+  assert.equal(CH.haarPhraseEn({ haarfarbe: "grau", haarlaenge: "glatze" }), "bald head", "v4: keine Augenbrauen-Angabe");
   assert.deepEqual(CH.ausstattungEn({ oberteil: "gelb", brille: true, extra: "muetze" }), ["wearing a bright yellow top", "round glasses", "knitted beanie"]);
   assert.deepEqual(CH.ausstattungEn({ oberteil: "blau", brille: false, extra: "nichts" }), ["wearing a bright blue top"]);
   const edit = CH.ausstattungEditPrompt({ oberteil: "gruen", brille: true, extra: "kopftuch" });
   assert.match(edit, /Change ONLY the color of the t-shirt to a flat, solid bright green/); assert.match(edit, /round glasses/); assert.match(edit, /headscarf/); assert.match(edit, /Keep the face, hairstyle/);
   assert.match(edit, /short-sleeved, ends at the hips/); assert.match(edit, /never a dress/); assert.match(edit, /one darker hard-edged shadow tone per surface/);
-  assert.match(CH.GRUNDFIGUR_EN, /white short-sleeved t-shirt tucked into plain dark blue trousers/);
-  assert.match(CH.GRUNDFIGUR_EN, /ends at the hips and is never longer/); assert.match(CH.GRUNDFIGUR_EN, /simple dark shoes/);
-  assert.match(CH.grundfigurEn("girl", 9), /dark blue shorts/); assert.match(CH.grundfigurEn("boy", 3), /dark blue shorts/);
-  assert.match(CH.grundfigurEn("girl", 10), /dark blue trousers/); assert.match(CH.grundfigurEn("woman", 30), /dark blue trousers/); assert.match(CH.grundfigurEn("grandfather"), /dark blue trousers/);
+  // v4 (Kontaktbogen): keine Kleidungs-/Rahmenwoerter mehr in chips.js
+  assert.equal(CH.GRUNDFIGUR_EN, undefined); assert.equal(CH.grundfigurEn, undefined); assert.equal(CH.FIGUR_RAHMEN_EN, undefined);
 });
 
 test("Schluessel v3: Version, Stufen, Frisur, Glatze, Hautton Pflicht; Ausstattung v3a", () => {
@@ -115,21 +113,21 @@ test("Altersstufen <=5 / 6-9 / 10+", () => {
   assert.equal(C.alterStufe(18), null); assert.equal(C.alterStufe("x"), null); assert.equal(C.alterStufe(-1), null);
 });
 
-test("passtZumPrompt: Rolle, Haarphrase+Frisur, Hautton, Bart, neutrales Oberteil und Stilschwanz", () => {
+test("passtZumPrompt: Rolle, Haarphrase+Frisur, Hautton, Bart, keine Ausstattung, Stilschwanz (v4)", () => {
   const chips = { rolle: "girl", alter: 6, haarfarbe: "blond", haarform: "glatt", haarlaenge: "lang", frisur: "zoepfe", hautton: "hell" };
-  const gut = "wmlstil, girl, age 6, light skin tone, long straight blonde hair in two braids, " + CH.grundfigurEn("girl", 6) + ", round head, minimal face, " + CH.FIGUR_RAHMEN_EN + ", dot eyes, white background, front view";
+  const gut = "wmlstil, girl, age 6, light skin tone, long straight blonde hair in two braids, round head, minimal face, dot eyes, standing, white background, full body, front view";
   assert.equal(C.passtZumPrompt(chips, gut), true);
   assert.equal(C.passtZumPrompt(chips, gut.replace("light skin tone", "dark skin tone")), false, "anderer Hautton");
   assert.equal(C.passtZumPrompt(chips, gut.replace("two braids", "a ponytail")), false, "andere Frisur");
   assert.equal(C.passtZumPrompt(chips, gut.replace("girl", "boy")), false, "andere Rolle");
-  assert.equal(C.passtZumPrompt(chips, gut.replace(CH.grundfigurEn("girl", 6), "wearing a bright red top")), false, "Grundfigur muss neutral sein");
+  assert.equal(C.passtZumPrompt(chips, gut.replace("two braids, ", "two braids, wearing a bright red top, ")), false, "Grundfigur muss neutral sein (keine Ausstattung)");
+  assert.equal(C.passtZumPrompt(chips, gut.replace("two braids, ", "two braids, round glasses, ")), false, "keine Brille in der Grundfigur");
   assert.equal(C.passtZumPrompt(chips, "wmlstil, girl, age 6, light skin tone, long straight blonde hair in two braids, ugly monster"), false, "ohne Stilschwanz");
-  assert.equal(C.passtZumPrompt(chips, gut.replace(CH.FIGUR_RAHMEN_EN, "standing")), false, "v3.1: Bildrahmen (ganze Figur, Fuesse, Luft) muss im Prompt stehen");
-  assert.match(CH.FIGUR_RAHMEN_EN, /85 percent of the image height/); assert.doesNotMatch(CH.FIGUR_RAHMEN_EN, /empty margin/);
-  assert.equal(C.passtZumPrompt({ rolle: "man", haarfarbe: "grau", haarlaenge: "glatze", hautton: "mittel", bart: "vollbart" }, "wmlstil, man, medium skin tone, bald head, no hair, gray/white eyebrows, full gray/white beard, " + CH.GRUNDFIGUR_EN + ", round head, minimal face, " + CH.FIGUR_RAHMEN_EN), true);
-  assert.equal(C.passtZumPrompt({ rolle: "man", haarfarbe: "grau", haarlaenge: "glatze", hautton: "mittel", bart: "vollbart" }, "wmlstil, man, medium skin tone, bald head, no hair, gray/white eyebrows, clean-shaven, " + CH.GRUNDFIGUR_EN + ", round head, minimal face, " + CH.FIGUR_RAHMEN_EN), false, "anderer Bart");
+  assert.equal(C.passtZumPrompt(chips, gut.replace(", full body, front view", "")), false, "full body, front view muss stehen");
+  assert.equal(C.passtZumPrompt({ rolle: "man", haarfarbe: "grau", haarlaenge: "glatze", hautton: "mittel", bart: "vollbart" }, "wmlstil, man, medium skin tone, bald head, full gray/white beard, round head, minimal face, dot eyes, full body, front view"), true);
+  assert.equal(C.passtZumPrompt({ rolle: "man", haarfarbe: "grau", haarlaenge: "glatze", hautton: "mittel", bart: "vollbart" }, "wmlstil, man, medium skin tone, bald head, clean-shaven, round head, minimal face, dot eyes, full body, front view"), false, "anderer Bart");
   const tier = { rolle: "pet", tierart: "dog", haarfarbe: "brown", haarform: "striped", haarlaenge: "short" };
-  assert.equal(C.passtZumPrompt(tier, "wmlstil, dog, short striped brown fur, round head, minimal face, " + CH.FIGUR_RAHMEN_EN + ", dot eyes"), true, "Tiere ohne Hautton/Oberteil");
+  assert.equal(C.passtZumPrompt(tier, "wmlstil, dog, short striped brown fur, round head, minimal face, dot eyes, full body, front view"), true, "Tiere ohne Hautton/Oberteil");
 });
 
 /* ---------------- Datenbank mit KV-Mock und Speicher-Attrappe ---------------- */
@@ -219,7 +217,7 @@ test("char-job-start: Treffer -> Job sofort done, kein fal, eigener Zaehler bis 
     const start = require("../api/char-job-start");
     const SID = "123e4567-e89b-12d3-a456-426614174000";
     const chips = { rolle: "girl", alter: 7, haarfarbe: "blond", haarform: "glatt", haarlaenge: "lang", frisur: "zoepfe", hautton: "hell" };
-    const prompt = "wmlstil, girl, age 7, light skin tone, long straight blonde hair in two braids, " + CH.grundfigurEn("girl", 7) + ", round head, minimal face, " + CH.FIGUR_RAHMEN_EN + ", dot eyes";
+    const prompt = "wmlstil, girl, age 7, light skin tone, long straight blonde hair in two braids, round head, minimal face, dot eyes, full body, front view";
     const antwort = () => { const r = { code: 0, body: null }; r.status = (c) => { r.code = c; return r; }; r.json = (b) => { r.body = b; return r; }; return r; };
     // Kein Eintrag -> ohne FAL_KEY bricht der Live-Weg mit 500 ab (= der Live-Weg wurde gewaehlt)
     delete process.env.FAL_KEY;
