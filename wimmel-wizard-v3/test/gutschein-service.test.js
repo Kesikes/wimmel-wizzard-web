@@ -352,3 +352,62 @@ test("§ 19 UStG: Stripe ohne automatic_tax, Hinweis in Mail 1 und Mail 7", () =
   assert.equal(cfg.UST_HINWEIS, "Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.");
   assert.ok(!/MwSt|inkl\. USt/.test(m1.html + m1.text + m7.html + m7.text), "nirgends inkl. MwSt.");
 });
+
+// C1 Teil C (26.10.2026): Jahresumsatz-Zaehler + Kleinunternehmer-Warnung
+test("Umsatz: Kauf bucht bezahlt_cent ins Kaufjahr, Widerruf nimmt es heraus, Statistik zeigt je Jahr", async () => {
+  const u = umgebung();
+  const ev = await kaufMitEntwurf(u, { produkt: "buch" }, "u1", { amount_total: 3990, total_details: { amount_discount: 1000 }, discounts: [{ promotion_code: "promo_1" }] });
+  const { code } = await service.kaufVerarbeiten(ev, u.deps);
+  assert.equal(await u.kv(["get", "umsatz:2026"]), "3990", "bezahlt_cent, nicht wert_cent");
+  await service.kaufVerarbeiten(ev, u.deps); // doppelt -> nicht doppelt gebucht
+  assert.equal(await u.kv(["get", "umsatz:2026"]), "3990");
+  const ev2 = await kaufMitEntwurf(u, { produkt: "heft" }, "u2", { amount_total: 2990 });
+  await service.kaufVerarbeiten(ev2, u.deps);
+  assert.equal(await u.kv(["get", "umsatz:2026"]), "6980");
+  const st = await service.statistik(u.deps);
+  assert.deepEqual(st.umsatz.je_jahr_cent, { 2026: 6980 });
+  assert.equal(st.umsatz.je_jahr["2026"], "69,80 €");
+  assert.equal(st.umsatz.grenze_cent, 2500000);
+  // Widerruf des ersten Kaufs
+  const link = u.mails[0].html.match(/href="([^"]*\/widerruf\?token=[^"]+)"/)[1].replace(/&amp;/g, "&");
+  const token = decodeURIComponent(new URL(link).searchParams.get("token"));
+  assert.equal((await service.widerrufAusfuehren(token, u.deps)).ok, true);
+  assert.equal(await u.kv(["get", "umsatz:2026"]), "2990");
+  // Silvester-Kauf landet im Berliner Kaufjahr
+  u.setzeUhr("2026-12-31T23:30:00.000Z"); // = 01.01.2027 00:30 Berlin
+  const ev3 = await kaufMitEntwurf(u, { produkt: "heft" }, "u3", { amount_total: 2990 });
+  await service.kaufVerarbeiten(ev3, u.deps);
+  assert.equal(await u.kv(["get", "umsatz:2027"]), "2990");
+  assert.deepEqual((await service.statistik(u.deps)).umsatz.je_jahr_cent, { 2026: 2990, 2027: 2990 });
+  // wiederverwendbar fuer C5
+  assert.equal(await service.umsatzBuchen(1000, "2027", u.deps), 3990);
+  assert.equal(service.umsatzJahr("2026-12-31T23:30:00.000Z"), "2027");
+  assert.equal(code.length > 0, true);
+});
+
+test("Umsatz-Warnung: unter 20.000 nichts, ab 20.000 eine Mail je Tag, ab 24.000 DRINGEND", async () => {
+  const u = umgebung();
+  const gesendet = [];
+  const cooldown = new Set();
+  u.deps.mailMitCooldown = async (key, sek, args) => { if (cooldown.has(key)) return false; cooldown.add(key); gesendet.push(Object.assign({ key, sek }, args)); return true; };
+  process.env.KONTAKT_EMAIL = "matthias@example.de";
+  let r = await service.umsatzWarnung(u.deps);
+  assert.deepEqual(r, { jahr: "2026", stand_cent: 0, gemeldet: false });
+  await service.umsatzBuchen(1999900, "2026", u.deps);
+  r = await service.umsatzWarnung(u.deps); assert.equal(r.gemeldet, false, "19.999 EUR: nichts");
+  await service.umsatzBuchen(100, "2026", u.deps);
+  r = await service.umsatzWarnung(u.deps);
+  assert.equal(r.gemeldet, true); assert.equal(r.dringend, false);
+  assert.equal(gesendet[0].to, "matthias@example.de");
+  assert.match(gesendet[0].subject, /^Kleinunternehmer-Grenze: 20000,00 € Jahresumsatz 2026 erreicht, Grenze 25000,00 €$/);
+  assert.equal(gesendet[0].key, "umsatz:2026-11-05"); assert.equal(gesendet[0].sek, 26 * 3600);
+  r = await service.umsatzWarnung(u.deps);
+  assert.equal(r.gemeldet, false, "zweiter Lauf am selben Tag: keine zweite Mail");
+  u.setzeUhr("2026-11-06T07:00:00.000Z");
+  await service.umsatzBuchen(400000, "2026", u.deps); // 24.000
+  r = await service.umsatzWarnung(u.deps);
+  assert.equal(r.gemeldet, true); assert.equal(r.dringend, true);
+  assert.match(gesendet[1].subject, /^DRINGEND: Kleinunternehmer-Grenze: 24000,00 €/);
+  assert.equal(gesendet.length, 2);
+  delete process.env.KONTAKT_EMAIL;
+});

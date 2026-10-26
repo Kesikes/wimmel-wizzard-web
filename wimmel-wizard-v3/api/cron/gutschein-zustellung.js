@@ -20,7 +20,11 @@ module.exports = async (req, res) => {
   try {
     const ergebnis = await service.zustellungenVerarbeiten();
     console.log("[cron] Gutschein-Zustellung: " + JSON.stringify(ergebnis));
-    res.status(200).json(ergebnis);
+    // C1 Teil C: Kleinunternehmer-Grenze -- im selben taeglichen Cron (kein zweiter Vercel-Cron noetig).
+    let umsatz = null;
+    try { umsatz = await service.umsatzWarnung(); console.log("[cron] Umsatz-Warnung: " + JSON.stringify(umsatz)); }
+    catch (e) { console.error("[cron] Umsatz-Warnung fehlgeschlagen: " + (e && e.message || e)); umsatz = { fehler: String(e && e.message || e) }; }
+    res.status(200).json(Object.assign({}, ergebnis, { umsatz }));
   } catch (e) {
     console.error("[cron] Gutschein-Zustellung fehlgeschlagen: " + (e && e.stack || e));
     res.status(500).json({ error: String(e && e.message || e) });

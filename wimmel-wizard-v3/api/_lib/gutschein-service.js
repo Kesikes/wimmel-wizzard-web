@@ -21,6 +21,8 @@ function standardDeps() {
     stripe: stripeModul,
     pdf: (g) => require("./gutschein-pdf").gutscheinPdf(g),
     mails: mailsModul,
+    // C1 Teil C: Warnmail an KONTAKT_EMAIL (einmal je Tag ueber den Cooldown-Schluessel)
+    mailMitCooldown: (key, sek, args) => require("./mail").sendMailWithCooldown(key, sek, args),
     jetzt: () => new Date(),
   };
 }
@@ -33,6 +35,44 @@ function mitDeps(deps) {
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DATUM_RE = /^\d{4}-\d{2}-\d{2}$/;
 const ENTWURF_TTL = 2 * 24 * 3600; // Checkout-Session läuft nach 1 h ab, der Entwurf etwas später
+
+// --- Jahresumsatz (Auftrag C1 Teil C, 26.10.2026, Kleinunternehmer § 19 UStG) ---
+// Redis-Zaehler umsatz:{jahr} in Cent, atomar (INCRBY): bei Zahlung + bezahlt_cent, bei Widerruf/
+// Erstattung - bezahlt_cent. Jahr = Kaufjahr (Berliner Datum von gekauft_am). Set umsatz:jahre fuer
+// die Statistik. umsatzBuchen() ist bewusst allgemein -- der Bestell-Checkout (C5) bucht spaeter
+// ueber dieselbe Funktion. Schwellen fuer die Warnmail als Konstanten (Grenze 25.000 EUR).
+const UMSATZ_GRENZE_CENT = 25000 * 100;
+const UMSATZ_WARNUNG_CENT = 20000 * 100;
+const UMSATZ_DRINGEND_CENT = 24000 * 100;
+const UMSATZ_MAIL_COOLDOWN = 26 * 3600; // einmal je Tag (Cron laeuft taeglich 07:00 UTC)
+function umsatzJahr(iso) { return String(cfg.berlinDatum(iso)).slice(0, 4); }
+async function umsatzBuchen(d, cent, jahr) {
+  const n = Math.trunc(Number(cent) || 0);
+  if (!n) return Number(await d.kv(["get", "umsatz:" + jahr])) || 0;
+  const stand = Number(await d.kv(["incrby", "umsatz:" + jahr, String(n)])) || 0;
+  await d.kv(["sadd", "umsatz:jahre", String(jahr)]);
+  return stand;
+}
+async function umsatzJeJahr(d) {
+  const out = {};
+  for (const j of ((await d.kv(["smembers", "umsatz:jahre"])) || []).sort()) out[j] = Number(await d.kv(["get", "umsatz:" + j])) || 0;
+  return out;
+}
+// umsatzWarnung(): vom taeglichen Cron. Laufender Jahresumsatz >= 20.000 EUR -> eine Mail je Tag an
+// KONTAKT_EMAIL; >= 24.000 EUR mit "DRINGEND" im Betreff. Liefert, was passiert ist.
+async function umsatzWarnung(deps) {
+  const d = mitDeps(deps);
+  const jahr = umsatzJahr(d.jetzt().toISOString());
+  const stand = Number(await d.kv(["get", "umsatz:" + jahr])) || 0;
+  if (stand < UMSATZ_WARNUNG_CENT) return { jahr, stand_cent: stand, gemeldet: false };
+  const dringend = stand >= UMSATZ_DRINGEND_CENT;
+  const betreff = (dringend ? "DRINGEND: " : "") + "Kleinunternehmer-Grenze: " + cfg.euro(stand) + " Jahresumsatz " + jahr + " erreicht, Grenze " + cfg.euro(UMSATZ_GRENZE_CENT);
+  const text = "Der laufende Jahresumsatz " + jahr + " (Gutscheine, bezahlt und nicht widerrufen) liegt bei " + cfg.euro(stand) + ".\n"
+    + "Kleinunternehmer-Grenze nach § 19 UStG: " + cfg.euro(UMSATZ_GRENZE_CENT) + " (Warnung ab " + cfg.euro(UMSATZ_WARNUNG_CENT) + ", dringend ab " + cfg.euro(UMSATZ_DRINGEND_CENT) + ").\n"
+    + "Stand: " + d.jetzt().toISOString() + " -- Quelle: Redis umsatz:" + jahr + ", Statistik unter /api/gutschein?mode=statistik.";
+  const gesendet = await d.mailMitCooldown("umsatz:" + cfg.berlinDatum(d.jetzt()), UMSATZ_MAIL_COOLDOWN, { to: cfg.kontaktEmail(), subject: betreff, text, html: "<pre style=\"font-family:inherit\">" + text.replace(/</g, "&lt;") + "</pre>" });
+  return { jahr, stand_cent: stand, gemeldet: !!gesendet, dringend, betreff };
+}
 
 // --- Zähler (Auftrag Abschnitt I/J2): einfache INCR ohne Personenbezug ---
 // gz:z:{ereignis}:{quelle}   aufruf | checkout | bezahlt | bezahlt_rabatt | bezahlt_ohne_rabatt
@@ -148,6 +188,8 @@ async function kaufVerarbeiten(event, deps) {
     });
     await zaehlen(d, "bezahlt", g.quelle);
     await zaehlen(d, rabattCode ? "bezahlt_rabatt" : "bezahlt_ohne_rabatt", g.quelle);
+    // C1 Teil C: Jahresumsatz (idempotent, weil dieser Block je Event/Session nur einmal laeuft).
+    await umsatzBuchen(d, Number(session.amount_total) || 0, umsatzJahr(d.jetzt().toISOString()));
     if (entwurfId) await d.kv(["del", "gutschein-entwurf:" + entwurfId]);
 
     // PDF + Mail 1; Mail 2 sofort, wenn kein Wunschdatum (oder es ist heute/vorbei)
@@ -237,6 +279,8 @@ async function widerrufAusfuehren(token, deps) {
   const wechsel = await d.gutschein.setzeStatus(st.code, "gekauft", "widerrufen");
   if (!wechsel.ok) return { ok: false, grund: "status", meldung: "Der Gutschein ist gerade nicht mehr im Zustand „gekauft“ – bitte Seite neu laden." };
   const g = await d.gutschein.lesen(st.code);
+  // C1 Teil C: Widerruf nimmt den Betrag aus dem Jahresumsatz (Kaufjahr) wieder heraus.
+  await umsatzBuchen(d, -(Number(g.bezahlt_cent) || 0), umsatzJahr(g.gekauft_am));
   let refundId = "";
   try {
     const refund = await d.stripe.erstatten({ paymentIntent: g.stripe_payment_intent, betragCent: g.bezahlt_cent, grund: "widerruf", idempotenz: "widerruf-" + g.code });
@@ -337,8 +381,11 @@ async function statistik(deps) {
     feedback_gefehlt: ((await d.kv(["lrange", "gz:feedback:gefehlt", "0", "49"])) || []).map((s) => { try { return JSON.parse(s); } catch (e) { return s; } }),
     ereignisse: Object.fromEntries(await Promise.all(EREIGNISSE.map(async (e) => [e, Number(await d.kv(["get", "gz:e:" + e])) || 0]))),
     zustellung_offen: Number(await d.kv(["scard", "gutscheine:zustellung_offen"])) || 0,
+    // C1 Teil C: Jahresumsatz je Jahr in Cent und als Euro-Text, dazu die Schwellen.
+    umsatz: await (async () => { const je = await umsatzJeJahr(d); return { je_jahr_cent: je, je_jahr: Object.fromEntries(Object.entries(je).map(([j, c]) => [j, cfg.euro(c)])), grenze_cent: UMSATZ_GRENZE_CENT, warnung_ab_cent: UMSATZ_WARNUNG_CENT, dringend_ab_cent: UMSATZ_DRINGEND_CENT }; })(),
     erstattung_fehler: (await d.kv(["smembers", "gutscheine:erstattung_fehler"])) || [],
   };
 }
 
-module.exports = { mitDeps, entwurfPruefen, checkoutStarten, kaufVerarbeiten, zustellungenVerarbeiten, pruefen, widerrufStatus, widerrufAusfuehren, statusZuSession, feedbackSpeichern, teilenZaehlen, ereignisZaehlen, EREIGNISSE, zaehlen, statistik };
+module.exports = { mitDeps, entwurfPruefen, checkoutStarten, kaufVerarbeiten, zustellungenVerarbeiten, pruefen, widerrufStatus, widerrufAusfuehren, statusZuSession, feedbackSpeichern, teilenZaehlen, ereignisZaehlen, EREIGNISSE, zaehlen, statistik,
+  umsatzBuchen: (cent, jahr, deps) => umsatzBuchen(mitDeps(deps), cent, jahr), umsatzJahr, umsatzWarnung, UMSATZ_GRENZE_CENT, UMSATZ_WARNUNG_CENT, UMSATZ_DRINGEND_CENT };
