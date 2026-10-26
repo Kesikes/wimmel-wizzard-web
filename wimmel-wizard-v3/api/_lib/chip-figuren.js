@@ -71,6 +71,8 @@ function passtZumPrompt(e, prompt) {
     // v3: Grundfigur neutral -- sonst kaeme eine bunte/behuetete Figur fuer alle in den Speicher.
     if (!p.includes(norm(CHIPS.GRUNDFIGUR_EN))) return false;
   }
+  // v3.1: der Bildrahmen (ganze Figur, Fuesse, Luft) muss im Prompt stehen -- fuer alle Rollen.
+  if (!p.includes(norm(CHIPS.FIGUR_RAHMEN_EN))) return false;
   return p.includes("round head, minimal face");
 }
 

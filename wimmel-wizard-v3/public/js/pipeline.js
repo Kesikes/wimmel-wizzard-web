@@ -199,8 +199,14 @@ function charPromptFromChips({ role, age, chipLabels, extraEnParts, noteEn, haut
     if (en) parts.push(en);
   });
   if (noteEn) parts.push(noteEn);
-  parts.push("round head, minimal face, dot eyes, single vertical line nose, no ears, no mouth, no visible neck, standing, flat color fill, thick black marker outline, graphic recording sketchnote style, white background, full body, front view");
+  // Figuren v3.1 (26.10.2026): "standing … full body" reichte nicht (Live-Test: abgeschnittene
+  // Fuesse/Koepfe, Opa brauchte 8 Grundfiguren). Jetzt der ausdrueckliche Bildrahmen aus chips.js
+  // (FIGUR_RAHMEN_EN) fuer alle Rollen; der Server verlangt ihn beim Ablegen (passtZumPrompt).
+  parts.push("round head, minimal face, dot eyes, single vertical line nose, no ears, no mouth, no visible neck, " + FIGUR_RAHMEN_TEXT() + ", flat color fill, thick black marker outline, graphic recording sketchnote style, white background, front view");
   return parts.filter(Boolean).join(", ");
+}
+function FIGUR_RAHMEN_TEXT() {
+  return (typeof CHIPS !== "undefined" && CHIPS.FIGUR_RAHMEN_EN) || "full body from head to feet, standing upright, feet and ground shadow visible, centered, with empty margin above the head and below the feet";
 }
 function charInSceneFromChips({ role, age, chipLabels, extraEnParts, noteEn, hauttonEn }) {
   const roleBit = ageRole({ role, identityCore: { age } });

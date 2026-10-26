@@ -115,6 +115,10 @@
   };
   // Grundfigur-Zusatz im flux-lora-Prompt: neutral, damit die Ausstattung sauber aufsetzt.
   const GRUNDFIGUR_EN = "wearing a plain simple white t-shirt, no glasses, no hat, no accessories";
+  // Figuren v3.1 (26.10.2026, Live-Test: abgeschnittene Grundfiguren): Bildrahmen ausdruecklich --
+  // ganze Figur von Kopf bis Fuss, Fuesse und Bodenschatten sichtbar, mittig, Luft oben und unten.
+  // Gilt fuer ALLE Rollen und Wege (pipeline.js haengt es an jeden Figuren-Prompt).
+  const FIGUR_RAHMEN_EN = "full body from head to feet, standing upright, feet and ground shadow visible, centered, with empty margin above the head and below the feet";
 
   // Haustier: unveraendert (B7, 09.09.2026). Werte sind die englischen Prompt-Woerter.
   const FELLFARBE = [
@@ -296,7 +300,7 @@
 
   const CHIPS = {
     VERSION, VERSION_AUSSTATTUNG, HAARFARBEN, HAARFARBE_JE_ROLLE, HAARSTRUKTUR, HAARLAENGE, HAARLAENGE_JE_ROLLE, FRISUR, FRISUR_LAENGEN, BART, BART_ROLLEN, HAUTTON,
-    OBERTEIL, BRILLE_EN, EXTRAS, EXTRA_JE_ROLLE, GRUNDFIGUR_EN,
+    OBERTEIL, BRILLE_EN, EXTRAS, EXTRA_JE_ROLLE, GRUNDFIGUR_EN, FIGUR_RAHMEN_EN,
     FELLFARBE, FELLMUSTER, FELLLAENGE, TIER_MERKMALE, ROLLEN, KINDER, ALTER_MAX_KIND, ALTER_STUFEN,
     finde, haarfarben, haarlaengen, hatBart, bartEn, extras, frisurMoeglich, istGlatze, istKind, alterStufe, haarPhraseEn, hauttonEn, merkmalEn,
     oberteilEn, ausstattungEn, ausstattungEditPrompt, schluessel, ausstattungsSchluessel, istAktuelleVersion, istAktuelleAusstattungsVersion, rolleAusSchluessel, slug, kombinationen,

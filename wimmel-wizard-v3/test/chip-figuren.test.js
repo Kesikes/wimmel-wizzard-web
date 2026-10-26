@@ -113,17 +113,18 @@ test("Altersstufen <=5 / 6-9 / 10+", () => {
 
 test("passtZumPrompt: Rolle, Haarphrase+Frisur, Hautton, Bart, neutrales Oberteil und Stilschwanz", () => {
   const chips = { rolle: "girl", alter: 6, haarfarbe: "blond", haarform: "glatt", haarlaenge: "lang", frisur: "zoepfe", hautton: "hell" };
-  const gut = "wmlstil, girl, age 6, light skin tone, long straight blonde hair in two braids, " + CH.GRUNDFIGUR_EN + ", round head, minimal face, dot eyes, white background, full body, front view";
+  const gut = "wmlstil, girl, age 6, light skin tone, long straight blonde hair in two braids, " + CH.GRUNDFIGUR_EN + ", round head, minimal face, " + CH.FIGUR_RAHMEN_EN + ", dot eyes, white background, front view";
   assert.equal(C.passtZumPrompt(chips, gut), true);
   assert.equal(C.passtZumPrompt(chips, gut.replace("light skin tone", "dark skin tone")), false, "anderer Hautton");
   assert.equal(C.passtZumPrompt(chips, gut.replace("two braids", "a ponytail")), false, "andere Frisur");
   assert.equal(C.passtZumPrompt(chips, gut.replace("girl", "boy")), false, "andere Rolle");
   assert.equal(C.passtZumPrompt(chips, gut.replace(CH.GRUNDFIGUR_EN, "wearing a bright red top")), false, "Grundfigur muss neutral sein");
   assert.equal(C.passtZumPrompt(chips, "wmlstil, girl, age 6, light skin tone, long straight blonde hair in two braids, ugly monster"), false, "ohne Stilschwanz");
-  assert.equal(C.passtZumPrompt({ rolle: "man", haarfarbe: "grau", haarlaenge: "glatze", hautton: "mittel", bart: "vollbart" }, "wmlstil, man, medium skin tone, bald head, no hair, gray/white eyebrows, full gray/white beard, " + CH.GRUNDFIGUR_EN + ", round head, minimal face"), true);
-  assert.equal(C.passtZumPrompt({ rolle: "man", haarfarbe: "grau", haarlaenge: "glatze", hautton: "mittel", bart: "vollbart" }, "wmlstil, man, medium skin tone, bald head, no hair, gray/white eyebrows, clean-shaven, " + CH.GRUNDFIGUR_EN + ", round head, minimal face"), false, "anderer Bart");
+  assert.equal(C.passtZumPrompt(chips, gut.replace(CH.FIGUR_RAHMEN_EN, "standing")), false, "v3.1: Bildrahmen (ganze Figur, Fuesse, Luft) muss im Prompt stehen");
+  assert.equal(C.passtZumPrompt({ rolle: "man", haarfarbe: "grau", haarlaenge: "glatze", hautton: "mittel", bart: "vollbart" }, "wmlstil, man, medium skin tone, bald head, no hair, gray/white eyebrows, full gray/white beard, " + CH.GRUNDFIGUR_EN + ", round head, minimal face, " + CH.FIGUR_RAHMEN_EN), true);
+  assert.equal(C.passtZumPrompt({ rolle: "man", haarfarbe: "grau", haarlaenge: "glatze", hautton: "mittel", bart: "vollbart" }, "wmlstil, man, medium skin tone, bald head, no hair, gray/white eyebrows, clean-shaven, " + CH.GRUNDFIGUR_EN + ", round head, minimal face, " + CH.FIGUR_RAHMEN_EN), false, "anderer Bart");
   const tier = { rolle: "pet", tierart: "dog", haarfarbe: "brown", haarform: "striped", haarlaenge: "short" };
-  assert.equal(C.passtZumPrompt(tier, "wmlstil, dog, short striped brown fur, round head, minimal face, dot eyes"), true, "Tiere ohne Hautton/Oberteil");
+  assert.equal(C.passtZumPrompt(tier, "wmlstil, dog, short striped brown fur, round head, minimal face, " + CH.FIGUR_RAHMEN_EN + ", dot eyes"), true, "Tiere ohne Hautton/Oberteil");
 });
 
 /* ---------------- Datenbank mit KV-Mock und Speicher-Attrappe ---------------- */
@@ -213,7 +214,7 @@ test("char-job-start: Treffer -> Job sofort done, kein fal, eigener Zaehler bis 
     const start = require("../api/char-job-start");
     const SID = "123e4567-e89b-12d3-a456-426614174000";
     const chips = { rolle: "girl", alter: 7, haarfarbe: "blond", haarform: "glatt", haarlaenge: "lang", frisur: "zoepfe", hautton: "hell" };
-    const prompt = "wmlstil, girl, age 7, light skin tone, long straight blonde hair in two braids, " + CH.GRUNDFIGUR_EN + ", round head, minimal face, dot eyes";
+    const prompt = "wmlstil, girl, age 7, light skin tone, long straight blonde hair in two braids, " + CH.GRUNDFIGUR_EN + ", round head, minimal face, " + CH.FIGUR_RAHMEN_EN + ", dot eyes";
     const antwort = () => { const r = { code: 0, body: null }; r.status = (c) => { r.code = c; return r; }; r.json = (b) => { r.body = b; return r; }; return r; };
     // Kein Eintrag -> ohne FAL_KEY bricht der Live-Weg mit 500 ab (= der Live-Weg wurde gewaehlt)
     delete process.env.FAL_KEY;
