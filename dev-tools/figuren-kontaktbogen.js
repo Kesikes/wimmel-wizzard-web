@@ -5,11 +5,15 @@
 //
 // AUFRUF (im Repo-Ordner; Coworks Netz erreicht fal nicht, darum im Terminal):
 //   cd ~/Developer/wimmel-wizzard-web
-//   TROCKEN=1 node dev-tools/figuren-kontaktbogen.js        # nur die 9 Prompts + Kosten, kein Aufruf
-//   FAL_KEY=... node dev-tools/figuren-kontaktbogen.js       # 18 Bilder, ≈ 18 x 0,03 $ ≈ 0,55 $
-//   open dev-tools/ausgabe/kontaktbogen-*.html               # in Safari ansehen
+//   TROCKEN=1 node dev-tools/figuren-kontaktbogen.js        # nur die Prompts + Kosten, kein Aufruf
+//   FAL_KEY=... node dev-tools/figuren-kontaktbogen.js       # Runde 2: 18 Bilder + 6 Edits ≈ 1,02 $
+//   open dev-tools/ausgabe/kontaktbogen-runde2-*.html        # in Safari ansehen
+//   RUNDE=1 ...                                              # Runde 1 (A/B/C, 18 Bilder ≈ 0,54 $) erneut
 //
-// FASSUNGEN:
+// RUNDE 2 (Standard, Auftrag docs/auftrag-figuren-promptvergleich-runde2-2026-10-26.md): A | A+H | A+H+F | Edit,
+//   siehe Kommentar bei promptAH() unten. RUNDE 1 (docs/auftrag-figuren-promptvergleich-2026-10-26.md): A | B | C.
+//
+// FASSUNGEN RUNDE 1:
 //   A  Stand Auftrag 3 (Commit 71582bb): charPromptFromChips() von damals, Begriffe von damals
 //      (kein Hautton, kein Outfit, kein Rahmen; Zoepfe/Dutt knapp in die Haare geschrieben, Bart als Zusatz).
 //   B  Stand heute (v3.2): exakt der Grundfigur-Prompt, den charakter.js + pipeline.js + chips.js fuer
@@ -17,8 +21,8 @@
 //   C  Vorschlag "kurz, Stil zuerst": Stilsatz vorn, dann Rolle/Alter, Hautton, Haare, Bart, farbiges
 //      T-Shirt + dunkelblaue Hose/Shorts, full body, front view, white background. Keine Verbotsliste.
 //
-// AUSGABE: dev-tools/ausgabe/kontaktbogen-<datum>.html (+ .json): je Person eine Zeile, Spalten
-//   Soll | A s101 | A s202 | B s101 | B s202 | C s101 | C s202; unter jedem Bild Fassung, Seed,
+// AUSGABE: dev-tools/ausgabe/kontaktbogen[-runde2]-<datum>.html (+ .json): je Person eine Zeile, Spalten
+//   Soll | <Fassung> s101 | <Fassung> s202 | ...; unter jedem Bild Fassung, Seed,
 //   Promptlaenge; voller Prompt per Klick. Bilder als fal-URL (keine Kopie).
 const fs = require("fs");
 const path = require("path");
@@ -103,16 +107,56 @@ function promptC(p) {
     ageRoleAlt(p.role, p.age), CHIPS.hauttonEn(c.hautton), haare, bart, "wearing a " + farbe + " t-shirt and dark blue " + hose, "full body, front view, white background"].filter(Boolean).join(", ");
 }
 
-const FASSUNGEN = [["A", promptA], ["B", promptB], ["C", promptC]];
-const plan = [];
-for (const p of PERSONEN) for (const [f, bau] of FASSUNGEN) {
-  const prompt = bau(p);
-  for (const seed of SEEDS) plan.push({ person: p.id, name: p.name, fassung: f, seed, prompt, laenge: prompt.length });
+// --- Runde 2 (Auftrag docs/auftrag-figuren-promptvergleich-runde2-2026-10-26.md): auf A aufbauen ------
+// Ergebnis Runde 1 (Matthias): A gewinnt; jedes Wort ueber Koerper/Kleidung streckt die Figur. A fehlen
+// Hautton und Lieblingsfarbe. Je EINE Aenderung gegenueber A:
+//   A+H    A plus Hautton direkt hinter Rolle/Alter (CHIPS.hauttonEn), sonst Wort fuer Wort A.
+//   A+H+F  A+H plus ein kurzes Farbwort fuers Oberteil direkt vor dem Stilblock ("red top").
+//   Edit   das Bild aus A+H (gleicher Seed, nicht neu erzeugt) per nano-banana-2/edit, Farbe des Oberteils.
+// Bart beim Opa wie in A ("full gray/white beard"), keine Augenbrauen-Angabe.
+const FARBWORT = { rot: "red", gelb: "yellow", gruen: "green", blau: "blue", orange: "orange", lila: "purple" };
+function teileA(p) {
+  const teile = [haareAlt(p.chips)];
+  if (p.chips.bart) teile.push(CHIPS.bartEn(p.chips.bart, p.chips.haarfarbe));
+  return teile;
 }
-console.error("Kontaktbogen: " + PERSONEN.length + " Personen x " + FASSUNGEN.length + " Fassungen x " + SEEDS.length + " Seeds = " + plan.length + " Bilder ≈ " + (plan.length * PREIS_FIGUR).toFixed(2) + " $");
-for (const p of PERSONEN) for (const [f, bau] of FASSUNGEN) {
-  const pr = bau(p);
-  console.error("\n[" + f + "] " + p.name + " (" + pr.length + " Zeichen)\n" + pr);
+function promptAH(p) {
+  return charPromptFromChipsAlt({ role: p.role, age: p.age, extraEnParts: [CHIPS.hauttonEn(p.chips.hautton)].concat(teileA(p)) });
+}
+function promptAHF(p) {
+  return charPromptFromChipsAlt({ role: p.role, age: p.age, extraEnParts: [CHIPS.hauttonEn(p.chips.hautton)].concat(teileA(p), [FARBWORT[p.oberteil] + " top"]) });
+}
+// Edit-Prompt: heutiger Satzbau aus chips.js ausstattungEditPrompt() (v3.2), erster Satz laut Auftrag
+// auf "upper garment" + Kopfgroesse/Proportionen umgestellt; Stil-Schlusssatz unveraendert.
+function editPromptAH(p) {
+  const o = CHIPS.finde(CHIPS.OBERTEIL, p.oberteil);
+  return "Change ONLY the color of the upper garment to a flat, solid " + o.en + ". Keep its cut, the trousers/skirt, shoes, face, hair, head size and body proportions exactly. "
+    + "Keep the face, hairstyle, hair color, skin tone, body, pose, proportions, line weight and the plain white background exactly as they are. Style: flat colors with one darker hard-edged shadow tone per surface, like cut paper, thick black marker outline, no gradients, no airbrush, no highlights, no new details, nothing else changes.";
+}
+
+const RUNDE = process.env.RUNDE === "1" ? 1 : 2;
+// Fassung: { id, bau } erzeugt mit flux-lora; { id, editVon, bau } editiert das Bild der Fassung editVon (gleicher Seed).
+const FASSUNGEN = RUNDE === 1
+  ? [{ id: "A", bau: promptA }, { id: "B", bau: promptB }, { id: "C", bau: promptC }]
+  : [{ id: "A", bau: promptA }, { id: "A+H", bau: promptAH }, { id: "A+H+F", bau: promptAHF }, { id: "Edit", editVon: "A+H", bau: editPromptAH }];
+const TITEL = RUNDE === 1
+  ? "A = Auftrag 3 (71582bb) · B = heute (v3.2) · C = kurz, Stil zuerst"
+  : "Runde 2 · A = 71582bb (Kontrolle) · A+H = A + Hautton · A+H+F = A+H + Farbwort Oberteil · Edit = A+H per nano-banana-2/edit umgefaerbt";
+const DATEINAME = RUNDE === 1 ? "kontaktbogen-" : "kontaktbogen-runde2-";
+const AUSSTATTUNG = require(path.join(APP, "api/_lib/ausstattung-engine.js"));
+const PREIS_EDIT = 0.08;
+
+const plan = [];
+for (const p of PERSONEN) for (const f of FASSUNGEN) {
+  const prompt = f.bau(p);
+  for (const seed of SEEDS) plan.push({ person: p.id, name: p.name, fassung: f.id, editVon: f.editVon || null, seed, prompt, laenge: prompt.length });
+}
+const nBilder = plan.filter((e) => !e.editVon).length, nEdits = plan.length - nBilder;
+console.error("Kontaktbogen Runde " + RUNDE + ": " + PERSONEN.length + " Personen x " + FASSUNGEN.length + " Fassungen x " + SEEDS.length + " Seeds = "
+  + nBilder + " Bilder x " + PREIS_FIGUR + " $" + (nEdits ? " + " + nEdits + " Edits x " + PREIS_EDIT + " $" : "") + " ≈ " + (nBilder * PREIS_FIGUR + nEdits * PREIS_EDIT).toFixed(2) + " $");
+for (const p of PERSONEN) for (const f of FASSUNGEN) {
+  const pr = f.bau(p);
+  console.error("\n[" + f.id + "] " + p.name + " (" + pr.length + " Zeichen)" + (f.editVon ? " -- Edit auf dem Bild aus " + f.editVon : "") + "\n" + pr);
 }
 if (TROCKEN) { console.error("\nTROCKEN=1: keine Aufrufe."); process.exit(0); }
 
@@ -128,9 +172,10 @@ const LORA_URL = (function () {
   return m[1];
 })();
 async function warten(ms) { return new Promise((r) => setTimeout(r, ms)); }
-async function erzeuge(eintrag) {
-  const model = ENGINE.FLUX_MODEL;
-  const requestId = await Q.submitFalQueue(model, body(eintrag.prompt, eintrag.seed), FAL_KEY);
+async function erzeuge(eintrag, quellUrl) {
+  const model = eintrag.editVon ? AUSSTATTUNG.EDIT_MODEL : ENGINE.FLUX_MODEL;
+  const b = eintrag.editVon ? AUSSTATTUNG.editBody(eintrag.prompt, quellUrl) : body(eintrag.prompt, eintrag.seed);
+  const requestId = await Q.submitFalQueue(model, b, FAL_KEY);
   for (let i = 0; i < 90; i++) {
     await warten(4000);
     const st = await Q.falQueueStatus(model, requestId, FAL_KEY);
@@ -150,15 +195,15 @@ function html(ergebnisse, datum) {
   const zellen = (p) => {
     const soll = "../../wimmel-wizard-v3/public/assets/stil-referenz/" + p.soll;
     let out = '<td><img src="' + soll + '" alt="Soll"><div class="u">Soll · ' + esc(p.soll) + "</div></td>";
-    for (const [f] of FASSUNGEN) for (const seed of SEEDS) {
+    for (const { id: f } of FASSUNGEN) for (const seed of SEEDS) {
       const e = ergebnisse.find((x) => x.person === p.id && x.fassung === f && x.seed === seed);
       out += "<td>" + (e.url ? '<img src="' + esc(e.url) + '" alt="' + f + " s" + seed + '">' : '<div class="fehler">' + esc(e.fehler || "kein Bild") + "</div>")
-        + '<div class="u"><b>' + f + "</b> · s" + seed + " · " + e.laenge + " Zeichen</div><details><summary>Prompt</summary><pre>" + esc(e.prompt) + "</pre></details></td>";
+        + '<div class="u"><b>' + f + "</b> · s" + seed + " · " + e.laenge + " Zeichen" + (e.editVon ? " · auf " + e.editVon : "") + "</div><details><summary>Prompt</summary><pre>" + esc(e.prompt) + "</pre></details></td>";
     }
     return out;
   };
-  const kopf = "<th>Soll</th>" + FASSUNGEN.map(([f]) => SEEDS.map((s) => "<th>" + f + " s" + s + "</th>").join("")).join("");
-  return "<!doctype html><html lang=\"de\"><head><meta charset=\"utf-8\"><title>Figuren-Kontaktbogen " + datum + "</title><style>"
+  const kopf = "<th>Soll</th>" + FASSUNGEN.map(({ id: f }) => SEEDS.map((s) => "<th>" + f + " s" + s + "</th>").join("")).join("");
+  return "<!doctype html><html lang=\"de\"><head><meta charset=\"utf-8\"><title>Figuren-Kontaktbogen " + datum + " (Runde " + RUNDE + ")</title><style>"
     + "body{font-family:-apple-system,Helvetica,Arial,sans-serif;margin:16px;background:#f3efe6;color:#1a1a18}h1{font-size:18px}table{border-collapse:separate;border-spacing:8px}th{font-size:12px;text-align:left}td{vertical-align:top;background:#fff;border:2px solid #1a1a18;padding:6px;width:190px}img{width:176px;height:auto;display:block;border:1px solid #ccc}.u{font-size:11px;margin-top:4px}details{font-size:10px}pre{white-space:pre-wrap;font-size:9.5px;margin:4px 0 0}.fehler{width:176px;height:234px;display:flex;align-items:center;font-size:11px;color:#b00}.p{font-weight:700;font-size:13px;padding-top:8px}"
     + "</style></head><body><h1>Figuren-Kontaktbogen " + datum + " · A = Auftrag 3 (71582bb) · B = heute (v3.2) · C = kurz, Stil zuerst · Seeds " + SEEDS.join("/") + "</h1>"
     + "<table><tr><th></th>" + kopf + "</tr>"
@@ -170,14 +215,19 @@ function html(ergebnisse, datum) {
   fs.mkdirSync(AUSGABE, { recursive: true });
   const datum = new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-");
   const ergebnisse = [];
-  for (const e of plan) {
+  const reihenfolge = plan.filter((e) => !e.editVon).concat(plan.filter((e) => e.editVon)); // Edits zuletzt (brauchen die Quelle)
+  for (const e of reihenfolge) {
     process.stderr.write("[" + e.fassung + " s" + e.seed + "] " + e.name + " … ");
-    try { e.url = await erzeuge(e); console.error("ok " + e.url); }
+    const quelle = e.editVon ? ergebnisse.find((x) => x.person === e.person && x.fassung === e.editVon && x.seed === e.seed) : null;
+    try {
+      if (e.editVon && !(quelle && quelle.url)) throw new Error("Quelle " + e.editVon + " s" + e.seed + " fehlt");
+      e.url = await erzeuge(e, quelle && quelle.url); console.error("ok " + e.url);
+    }
     catch (err) { e.fehler = String(err && err.message || err); console.error("FEHLER " + e.fehler); }
     ergebnisse.push(e);
-    fs.writeFileSync(path.join(AUSGABE, "kontaktbogen-" + datum + ".json"), JSON.stringify({ datum, seeds: SEEDS, personen: PERSONEN, bilder: ergebnisse }, null, 2));
+    fs.writeFileSync(path.join(AUSGABE, DATEINAME + datum + ".json"), JSON.stringify({ datum, runde: RUNDE, seeds: SEEDS, personen: PERSONEN, bilder: ergebnisse }, null, 2));
   }
-  const datei = path.join(AUSGABE, "kontaktbogen-" + datum + ".html");
+  const datei = path.join(AUSGABE, DATEINAME + datum + ".html");
   fs.writeFileSync(datei, html(ergebnisse, datum));
   console.error("\nFertig: " + datei + "  (open " + datei + ")");
 })().catch((e) => { console.error(e); process.exit(1); });
