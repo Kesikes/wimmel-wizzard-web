@@ -217,20 +217,27 @@ function buildOberteilGroup() {
   return wrap;
 }
 
-// Brille: ein Schalter ja/nein (aria-pressed). Stufe 2.
-function buildBrilleToggle() {
+// Brille (Stufe 2): zwei Chips "Ohne Brille" / "Mit Brille", genau einer aktiv, Standard ohne --
+// gleiche Optik und Radio-Verhalten wie buildSingleSelectGroup(); charBrille bleibt true/false.
+// GEAENDERT (26.10.2026, vorher ein Umschalt-Knopf).
+function buildBrilleGroup() {
   const wrap = h("div");
   wrap.appendChild(gruppenTitel("Brille", false));
-  const btn = h("button", { type: "button", style: chipStyle(!!AppState.data.charBrille, 1) });
-  const text = () => (AppState.data.charBrille ? "Mit Brille" : "Ohne Brille");
-  btn.textContent = text();
-  btn.setAttribute("aria-pressed", AppState.data.charBrille ? "true" : "false");
-  btn.addEventListener("click", () => {
-    AppState.update({ charBrille: !AppState.data.charBrille });
-    applyChipStyle(btn, !!AppState.data.charBrille); btn.textContent = text();
-    btn.setAttribute("aria-pressed", AppState.data.charBrille ? "true" : "false");
+  const optionen = [{ wert: false, label: "Ohne Brille" }, { wert: true, label: "Mit Brille" }];
+  const row = h("div", { role: "radiogroup", "aria-label": "Brille", style: { display: "flex", flexWrap: "wrap", gap: "7px", marginBottom: "8px" } });
+  optionen.forEach((opt, i) => {
+    const chip = h("button", {
+      type: "button", role: "radio",
+      style: chipStyle(!!AppState.data.charBrille === opt.wert, i),
+      onClick: () => {
+        AppState.update({ charBrille: opt.wert });
+        [...row.children].forEach((sib, si) => { applyChipStyle(sib, optionen[si].wert === opt.wert); sib.setAttribute("aria-checked", optionen[si].wert === opt.wert ? "true" : "false"); });
+      },
+    }, opt.label);
+    chip.setAttribute("aria-checked", !!AppState.data.charBrille === opt.wert ? "true" : "false");
+    row.appendChild(chip);
   });
-  wrap.appendChild(btn);
+  wrap.appendChild(row);
   return wrap;
 }
 
@@ -296,7 +303,7 @@ function buildChipsPanel(person) {
     }
     // AUSSTATTUNG (Stufe 2): Lieblingsfarbe (Pflicht), Brille, ein Extra je Rolle.
     panel.appendChild(buildOberteilGroup());
-    panel.appendChild(buildBrilleToggle());
+    panel.appendChild(buildBrilleGroup());
     const extraWrap = h("div");
     extraWrap.appendChild(gruppenTitel("Ein Extra", false));
     const extraRow = h("div", { style: { display: "flex", flexWrap: "wrap", gap: "7px" } });
@@ -379,7 +386,9 @@ function buildChipsPanel(person) {
 // das je nach person.isPet das jeweils passende Set zur Auswahl anzeigt) und ob der Prompt auf
 // "hair" oder "fur" endet.
 function hairPhraseEn(s, isPet) {
-  return CHIPS.haarPhraseEn({ haarfarbe: s.charHairColor, haarform: s.charHairTexture, haarlaenge: s.charHairLength }, isPet);
+  // v3: Frisur gehoert in die Phrase ("long straight blonde hair in two braids") -- sonst passt der
+  // Prompt nicht zum Schluessel und der Server legt die Grundfigur nicht ab (passtZumPrompt).
+  return CHIPS.haarPhraseEn({ haarfarbe: s.charHairColor, haarform: s.charHairTexture, haarlaenge: s.charHairLength, frisur: s.charFrisur }, isPet);
 }
 
 // NEU (Auftrag 3 Teil 5, 18.10.2026 / v2 19.10.2026): die Chip-Werte fuer die gemeinsame
