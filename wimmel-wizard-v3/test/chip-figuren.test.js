@@ -124,6 +124,7 @@ test("passtZumPrompt: Rolle, Haarphrase+Frisur, Hautton, Bart, neutrales Obertei
   assert.equal(C.passtZumPrompt(chips, gut.replace(CH.grundfigurEn("girl", 6), "wearing a bright red top")), false, "Grundfigur muss neutral sein");
   assert.equal(C.passtZumPrompt(chips, "wmlstil, girl, age 6, light skin tone, long straight blonde hair in two braids, ugly monster"), false, "ohne Stilschwanz");
   assert.equal(C.passtZumPrompt(chips, gut.replace(CH.FIGUR_RAHMEN_EN, "standing")), false, "v3.1: Bildrahmen (ganze Figur, Fuesse, Luft) muss im Prompt stehen");
+  assert.match(CH.FIGUR_RAHMEN_EN, /85 percent of the image height/); assert.doesNotMatch(CH.FIGUR_RAHMEN_EN, /empty margin/);
   assert.equal(C.passtZumPrompt({ rolle: "man", haarfarbe: "grau", haarlaenge: "glatze", hautton: "mittel", bart: "vollbart" }, "wmlstil, man, medium skin tone, bald head, no hair, gray/white eyebrows, full gray/white beard, " + CH.GRUNDFIGUR_EN + ", round head, minimal face, " + CH.FIGUR_RAHMEN_EN), true);
   assert.equal(C.passtZumPrompt({ rolle: "man", haarfarbe: "grau", haarlaenge: "glatze", hautton: "mittel", bart: "vollbart" }, "wmlstil, man, medium skin tone, bald head, no hair, gray/white eyebrows, clean-shaven, " + CH.GRUNDFIGUR_EN + ", round head, minimal face, " + CH.FIGUR_RAHMEN_EN), false, "anderer Bart");
   const tier = { rolle: "pet", tierart: "dog", haarfarbe: "brown", haarform: "striped", haarlaenge: "short" };

@@ -206,7 +206,7 @@ function charPromptFromChips({ role, age, chipLabels, extraEnParts, noteEn, haut
   return parts.filter(Boolean).join(", ");
 }
 function FIGUR_RAHMEN_TEXT() {
-  return (typeof CHIPS !== "undefined" && CHIPS.FIGUR_RAHMEN_EN) || "full body from head to feet, standing upright, feet and ground shadow visible, centered, with empty margin above the head and below the feet";
+  return (typeof CHIPS !== "undefined" && CHIPS.FIGUR_RAHMEN_EN) || "full body from head to feet, standing upright, centered, the figure fills about 85 percent of the image height, feet and a small ground shadow visible";
 }
 function charInSceneFromChips({ role, age, chipLabels, extraEnParts, noteEn, hauttonEn }) {
   const roleBit = ageRole({ role, identityCore: { age } });

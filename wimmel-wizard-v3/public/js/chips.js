@@ -128,7 +128,8 @@
   // Figuren v3.1 (26.10.2026, Live-Test: abgeschnittene Grundfiguren): Bildrahmen ausdruecklich --
   // ganze Figur von Kopf bis Fuss, Fuesse und Bodenschatten sichtbar, mittig, Luft oben und unten.
   // Gilt fuer ALLE Rollen und Wege (pipeline.js haengt es an jeden Figuren-Prompt).
-  const FIGUR_RAHMEN_EN = "full body from head to feet, standing upright, feet and ground shadow visible, centered, with empty margin above the head and below the feet";
+  // v3.2: "empty margin above the head and below the feet" machte die Figur winzig -- jetzt 85 % der Bildhoehe.
+  const FIGUR_RAHMEN_EN = "full body from head to feet, standing upright, centered, the figure fills about 85 percent of the image height, feet and a small ground shadow visible";
 
   // Haustier: unveraendert (B7, 09.09.2026). Werte sind die englischen Prompt-Woerter.
   const FELLFARBE = [
