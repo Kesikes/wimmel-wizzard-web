@@ -46,7 +46,12 @@ abgeschnitten, Kandidat 2 zwei Figuren, Kandidat 3 vollständig mit Mund-Versto�
 `violations 1`, `chipFigurAblegen()` legt ab, `suchen()` findet die Grundfigur; Stil durchgefallen
 bleibt draußen.
 
-## 3. Verwaiste `v5a`-Mädchen-Einträge — unschädlich, bestätigt
+## 3. Verwaiste `v5a`-Mädchen-Einträge — ~~unschädlich~~ **FALSCH, korrigiert in v4.2**
+
+> **Korrektur 27.10.2026:** Die Einschätzung unten war falsch. Stufe 2 fand die verwaisten Einträge
+> und lieferte ein anderes Kind aus (Edit auf einer nie abgelegten Grundfigur). Behoben in
+> `docs/figuren-v4-2-rueckmeldung-2026-10-27.md`: eine Ausstattung gehört zu genau einer Grundfigur
+> (`grund_pfad`), Fehltreffer werden neu editiert und ersetzt, Waisen räumt die Kuration auf.
 
 Die Ausstattungssuche läuft erst in `stufe2Starten()`, also **nach** Stufe 1 (Grund-Treffer oder
 frisch gezeichnete, jetzt abgelegte Grundfigur). Beim nächsten Mädchen mit denselben Chips:

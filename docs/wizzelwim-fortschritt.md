@@ -7,6 +7,15 @@ werden muss, und was warten kann. Es wird bei größeren Meilensteinen fortgesch
 
 ---
 
+## 🩹 Figuren v4.2 (27.10.2026): eine Ausstattung gehört zu genau einer Grundfigur
+
+`docs/figuren-v4-2-rueckmeldung-2026-10-27.md`: Ausstattungen tragen den Blob-Pfad ihrer Grundfigur
+(`grund_pfad`); Regal-Treffer nur bei passender Grundfigur, sonst Edit neu und Eintrag ersetzt; Grundfigur
+verwerfen nimmt ihre Ausstattungen mit; Aufräumen entfernt Waisen (Vorschau `ausstattungen_verwaist`).
+Befund: die verwaisten Einträge von gestern lieferten ein anderes Kind aus.
+
+---
+
 ## 🩹 Figuren v4.1 (27.10.2026): drei kleine Fixes aus dem Live-Test
 
 `docs/figuren-v4-1-rueckmeldung-2026-10-27.md`: Grundfigur liegt im Regal, sobald sie Basis eines Edits ist
