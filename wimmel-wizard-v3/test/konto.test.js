@@ -248,3 +248,52 @@ test("Webhook-Dispatch: Paket-Metadaten -> konto-kauf, sonst Gutschein-Weg", asy
     assert.equal(r.code, 200); assert.deepEqual(aufrufe, ["paket", "gutschein"]);
   } finally { KK.paketVerarbeiten = altP; svc.kaufVerarbeiten = altK; stripe.webhookPruefen = altPruef; cfg2.stripeSchluessel = altS; u.zurueck(); }
 });
+
+// --- Teil C: Gutschein einloesen in der App ------------------------------------------------------------
+test("Einloesen: tolerant, erst ab EINLOESEN_AB (Test-Schalter), atomar gekauft->eingeloest, Konto bekommt bezahlt_cent; widerrufen/eingeloest/unbekannt abgelehnt", async () => {
+  const u = umgebung();
+  const KK = require("../api/_lib/konto-kauf");
+  const G = require("../api/_lib/gutschein").mitKv(u.kv);
+  const deps = { kv: u.kv, jetzt: () => new Date("2026-11-05T10:00:00Z"), mail: async () => true };
+  delete process.env.TEST_EINLOESEN_SESSION_IDS;
+  try {
+    const k = await u.K.anlegenOderLesen("oma@example.de");
+    await u.K.sitzungVerknuepfen(k.id, SID);
+    const g = await G.anlegen({ produkt: "buch", kaeufer_email: "a@example.com", stripe_session_id: "cs_g1", gekauft_am: "2026-11-01T10:00:00.000Z", bezahlt_cent: 4490, rabatt_code: "HERBST" });
+    assert.equal(cfg.EINLOESEN_AB, "2027-01-01");
+    let r = await KK.einloesen(k, g.code.toLowerCase().replace("ww-", ""), SID, deps);
+    assert.equal(r.ok, false); assert.equal(r.grund, "noch_nicht"); assert.match(r.meldung, /ab 01\.01\.2027/);
+    assert.equal((await G.lesen(g.code)).status, "gekauft", "kein Statuswechsel vor dem Datum");
+    r = await KK.einloesen(k, "WW-ZZZZ-ZZZZ", SID, deps); assert.equal(r.grund, "unbekannt");
+    r = await KK.einloesen(k, "quatsch", SID, deps); assert.equal(r.grund, "format");
+    // Test-Schalter fuer diese Sitzung
+    process.env.TEST_EINLOESEN_SESSION_IDS = "abc, " + SID.toUpperCase();
+    assert.equal(KK.einloesenFreigeschaltet(SID2, deps.jetzt()), false); assert.equal(KK.einloesenFreigeschaltet(SID, deps.jetzt()), true);
+    assert.equal(KK.einloesenFreigeschaltet(SID2, new Date("2027-01-01T00:30:00+01:00")), true, "ab dem Tag fuer alle");
+    r = await KK.einloesen(k, "ww " + g.code.slice(3), SID, deps);
+    assert.equal(r.ok, true); assert.equal(r.guthaben_cent, 4490, "Guthaben = bezahlt_cent, nicht wert_cent");
+    const gg = await G.lesen(g.code); assert.equal(gg.status, "eingeloest"); assert.equal(gg.eingeloest_konto, k.id); assert.ok(gg.eingeloest_am);
+    const kk = await u.K.lesen(k.id); assert.equal(kk.bezahlt, true); assert.equal(kk.gutschein_code, g.code); assert.equal(kk.guthaben_cent, 4490);
+    assert.equal(await require("../api/_lib/free-tier").bezahltStatus(SID), true, "wirkt wie Zauberguthaben");
+    // nochmal: schon eingeloest
+    r = await KK.einloesen(await u.K.lesen(k.id), g.code, SID, deps); assert.equal(r.ok, false); assert.equal(r.grund, "eingeloest");
+    // zweiter Gutschein auf demselben Konto
+    const g2 = await G.anlegen({ produkt: "heft", kaeufer_email: "a@example.com", stripe_session_id: "cs_g2", gekauft_am: "2026-11-01T10:00:00.000Z", bezahlt_cent: 2990 });
+    r = await KK.einloesen(await u.K.lesen(k.id), g2.code, SID, deps); assert.equal(r.grund, "schon_einer");
+    // widerrufen / erstattet: Meldung, kein Statuswechsel
+    const k2 = await u.K.anlegenOderLesen("tante@example.de");
+    await G.setzeStatus(g2.code, "gekauft", "widerrufen");
+    r = await KK.einloesen(k2, g2.code, SID, deps); assert.equal(r.grund, "widerrufen"); assert.equal((await G.lesen(g2.code)).status, "widerrufen");
+    const g3 = await G.anlegen({ produkt: "heft", kaeufer_email: "a@example.com", stripe_session_id: "cs_g3", gekauft_am: "2025-09-01T10:00:00.000Z", bezahlt_cent: 2990 });
+    process.env.TEST_EINLOESEN_SESSION_IDS = "*";
+    r = await KK.einloesen(k2, g3.code, SID2, deps); assert.equal(r.grund, "abgelaufen", "Einloesefrist vorbei");
+    // Endpunkt: nur angemeldet
+    const rl = require("../api/_lib/rate-limit"); const rlAlt = rl.checkRateLimit; rl.checkRateLimit = async () => true;
+    try {
+      delete require.cache[require.resolve("../api/konto")];
+      const handler = require("../api/konto");
+      const res = antwort(); await handler({ method: "POST", query: {}, body: { mode: "einloesen", code: g3.code, sessionId: SID }, headers: {} }, res);
+      assert.equal(res.code, 401);
+    } finally { rl.checkRateLimit = rlAlt; }
+  } finally { delete process.env.TEST_EINLOESEN_SESSION_IDS; u.zurueck(); }
+});
