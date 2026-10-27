@@ -39,6 +39,8 @@ module.exports = async (req, res) => {
   const blobPfad = typeof req.query.blob === "string" ? req.query.blob : speicher.pfadAusUrl(url);
   if (blobPfad) {
     if (!speicher.pfadGueltig(blobPfad)) { res.status(400).json({ error: "Ungültiger Speicherpfad." }); return; }
+    // C2 (27.10.2026): Druckdateien (druck/...) nur ueber den signierten Link api/druck-datei.js.
+    if (blobPfad.startsWith(speicher.ORDNER.druck + "/")) { res.status(403).json({ error: "Druckdateien nur über signierten Link." }); return; }
     try {
       const datei = await speicher.lesen(blobPfad);
       if (!datei) { res.status(404).json({ error: "Datei nicht gefunden." }); return; }

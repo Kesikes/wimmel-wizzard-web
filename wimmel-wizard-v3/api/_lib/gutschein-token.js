@@ -48,4 +48,15 @@ function pdfUrl(code) { return cfg.siteUrl() + "/api/gutschein?mode=pdf&token=" 
 function widerrufToken(code, kaufTagIso) { return signiere({ z: "widerruf", code, bis: cfg.widerrufAblauf(kaufTagIso) }); }
 function widerrufUrl(code, kaufTagIso) { return cfg.siteUrl() + "/widerruf?token=" + encodeURIComponent(widerrufToken(code, kaufTagIso)); }
 
-module.exports = { signiere, pruefe, pdfToken, pdfUrl, widerrufToken, widerrufUrl };
+// C2 Peecho Stufe 1 (27.10.2026): zeitlich begrenzter Download-Link fuer Druckdateien aus dem
+// Blob-Store (druck/...). Peecho holt die Datei beim Einreichen der Bestellung ueber diese URL
+// (api/druck-datei.js prueft Zweck, Pfad und Ablauf "bis" = Unix-Sekunden). Standard 72 Stunden --
+// Peecho zieht die Datei bei der Bezahlung und kann sie bei PENDING/CHECK_ORDER spaeter noch einmal brauchen.
+const DRUCK_LINK_STUNDEN = 72;
+function druckToken(pfad, stunden, jetzt) {
+  const bis = Math.floor((jetzt || Date.now()) / 1000) + Math.round((stunden || DRUCK_LINK_STUNDEN) * 3600);
+  return signiere({ z: "druck", pfad, bis });
+}
+function druckUrl(pfad, stunden, jetzt) { return cfg.siteUrl() + "/api/druck-datei?token=" + encodeURIComponent(druckToken(pfad, stunden, jetzt)); }
+
+module.exports = { signiere, pruefe, pdfToken, pdfUrl, widerrufToken, widerrufUrl, druckToken, druckUrl, DRUCK_LINK_STUNDEN };

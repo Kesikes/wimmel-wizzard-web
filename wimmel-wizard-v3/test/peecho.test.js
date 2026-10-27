@@ -91,3 +91,38 @@ test("Aufrufe: GET mit merchantApiKey in der Query, POST mit merchant_api_key im
     await assert.rejects(() => P.rueckenbreite(k, { seiten: 24, land: "CH" }), /nicht freigeschaltet/);
   } finally { f.zurueck(); }
 });
+
+// Teil 2: signierter, zeitlich begrenzter Download-Link fuer Druckdateien (druck/...)
+test("Druck-Link: Token mit Ablauf, Endpunkt liefert nur druck/-Pfade und nur vor Ablauf; image-proxy sperrt druck/", async () => {
+  process.env.GUTSCHEIN_SIGNIER_SCHLUESSEL = "geheim"; process.env.SITE_URL = "https://www.wimmelwizard.de";
+  const tokenLib = require("../api/_lib/gutschein-token");
+  const speicher = require("../api/_lib/speicher");
+  const altLesen = speicher.lesen;
+  try {
+    const url = tokenLib.druckUrl("druck/muster/x.pdf", 72, Date.parse("2026-10-27T10:00:00Z"));
+    assert.match(url, /^https:\/\/www\.wimmelwizard\.de\/api\/druck-datei\?token=/);
+    const token = decodeURIComponent(url.split("token=")[1]);
+    const payload = tokenLib.pruefe(token, "druck");
+    assert.equal(payload.pfad, "druck/muster/x.pdf"); assert.equal(payload.bis, Math.floor(Date.parse("2026-10-27T10:00:00Z") / 1000) + 72 * 3600);
+    assert.equal(tokenLib.pruefe(token, "pdf"), null, "Zweck ist Teil der Signatur");
+    const handler = require("../api/druck-datei");
+    const ruf = async (query, method) => { const r = { code: 0, body: null, kopf: {} }; r.status = (c) => { r.code = c; return r; }; r.json = (b) => { r.body = b; return r; }; r.send = (b) => { r.body = b; return r; }; r.end = () => r; r.setHeader = (k, v) => { r.kopf[k] = v; }; await handler({ method: method || "GET", query, headers: {} }, r); return r; };
+    speicher.lesen = async (pfad) => pfad === "druck/muster/x.pdf" ? { bytes: Buffer.from("%PDF-1.7 test"), contentType: "application/pdf" } : null;
+    let r = await ruf({ token });
+    assert.equal(r.code, 200); assert.equal(r.kopf["Content-Type"], "application/pdf"); assert.equal(String(r.body), "%PDF-1.7 test");
+    r = await ruf({ token: token + "x" }); assert.equal(r.code, 403);
+    r = await ruf({}); assert.equal(r.code, 403);
+    const abgelaufen = tokenLib.druckToken("druck/muster/x.pdf", 1, Date.now() - 2 * 3600 * 1000);
+    r = await ruf({ token: abgelaufen }); assert.equal(r.code, 410);
+    const fremd = tokenLib.signiere({ z: "druck", pfad: "figuren/chips/a.png", bis: Math.floor(Date.now() / 1000) + 100 });
+    r = await ruf({ token: fremd }); assert.equal(r.code, 400, "nur druck/");
+    const fehlt = tokenLib.druckToken("druck/muster/fehlt.pdf", 1);
+    r = await ruf({ token: fehlt }); assert.equal(r.code, 404);
+    r = await ruf({ token }, "HEAD"); assert.equal(r.code, 200);
+    // image-proxy liefert druck/ nicht mehr aus
+    const proxy = require("../api/image-proxy");
+    const r2 = { code: 0, body: null }; r2.status = (c) => { r2.code = c; return r2; }; r2.json = (b) => { r2.body = b; return r2; }; r2.setHeader = () => {}; r2.send = () => r2;
+    await proxy({ method: "GET", query: { blob: "druck/muster/x.pdf" }, headers: {} }, r2);
+    assert.equal(r2.code, 403);
+  } finally { speicher.lesen = altLesen; delete process.env.GUTSCHEIN_SIGNIER_SCHLUESSEL; delete process.env.SITE_URL; }
+});
