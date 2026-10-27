@@ -171,3 +171,80 @@ test("Endpunkt api/konto: status, anmelden-link, anmelden (Cookie + Redirect), v
     r = await ruf("GET", { mode: "status", sessionId: SID }, null, cookie); assert.equal(r.body.angemeldet, false, "Konto weg");
   } finally { u.zurueck(); rl.checkRateLimit = rlAlt; mailMod.sendMail = mailAlt; void kvMod; }
 });
+
+// --- Teil B: Kaufen ueber Stripe -----------------------------------------------------------------------
+test("Aufladen: Widerrufsverzicht Pflicht, Reihenfolge der Pakete, Checkout-Parameter, Webhook schreibt gut (idempotent), Umsatz, Mail", async () => {
+  const u = umgebung();
+  const KK = require("../api/_lib/konto-kauf");
+  const stripe = require("../api/_lib/stripe");
+  const sessions = [];
+  const deps = { kv: u.kv, mail: async (a) => { u.mails.push(a); return true; }, jetzt: () => new Date("2026-11-05T10:00:00Z"),
+    stripe: { paketCheckoutSessionAnlegen: async (args) => { sessions.push(args); return { id: "cs_p" + sessions.length, url: "https://checkout.stripe.com/c/" + sessions.length }; } } };
+  try {
+    const k = await u.K.anlegenOderLesen("mama@example.de");
+    await u.K.sitzungVerknuepfen(k.id, SID);
+    const ruf = async (body) => { const r = antwort(); await KK.aufladenStarten({}, r, await u.K.lesen(k.id), body, deps); return r; };
+    let r = await ruf({ typ: "zauberguthaben", sessionId: SID });
+    assert.equal(r.code, 400, "ohne Haken kein Checkout"); assert.match(r.body.error, /Widerruf/);
+    r = await ruf({ typ: "grossfamilie", sessionId: SID, widerrufsverzicht: true });
+    assert.equal(r.code, 409, "Grossfamilie nur nach Zauberguthaben");
+    r = await ruf({ typ: "extra", sessionId: SID, widerrufsverzicht: true });
+    assert.equal(r.code, 409, "Extra nur bei erschoepftem Kontingent");
+    r = await ruf({ typ: "zauberguthaben", sessionId: SID, widerrufsverzicht: true });
+    assert.equal(r.code, 200); assert.equal(r.body.url, "https://checkout.stripe.com/c/1"); assert.deepEqual(sessions[0], { typ: "zauberguthaben", kontoId: k.id, email: "mama@example.de", sessionId: SID });
+    assert.ok(await u.kv(["get", "konto-checkout:cs_p1"]), "Widerrufsverzicht festgehalten");
+    // Stripe-Parameter (ohne Netz)
+    process.env.SITE_URL = "https://www.wimmelwizard.de";
+    const p = stripe.paketCheckoutSessionParameter({ typ: "zauberguthaben", kontoId: k.id, email: k.email, sessionId: SID });
+    assert.equal(p.line_items[0].price_data.unit_amount, 990); assert.equal(p.metadata.typ, "zauberguthaben"); assert.equal(p.metadata.konto_id, k.id); assert.equal(p.customer_email, "mama@example.de");
+    assert.deepEqual(p.excluded_payment_method_types, ["sepa_debit"]); assert.match(p.success_url, /\/app\/konto\?aufgeladen=zauberguthaben/); assert.equal(p.allow_promotion_codes, undefined);
+    // Webhook: completed + paid -> gutgeschrieben; nochmal (andere Event-ID, gleiche Session) -> schon_verarbeitet
+    const ev = (id, typ, cent, sessionId) => ({ id, type: "checkout.session.completed", data: { object: { id: sessionId, payment_status: "paid", amount_total: cent, metadata: { typ, konto_id: k.id }, customer_details: { email: "mama@example.de" } } } });
+    let w = await KK.paketVerarbeiten(ev("evt_1", "zauberguthaben", 990, "cs_p1"), deps);
+    assert.equal(w.status, "gutgeschrieben"); assert.equal(w.cent, 990);
+    let kk = await u.K.lesen(k.id); assert.equal(kk.bezahlt, true); assert.equal(kk.guthaben_cent, 990);
+    assert.equal(u.mails.length, 1); assert.match(u.mails[0].subject, /Zauberguthaben/); assert.match(u.mails[0].text, /§ 19 UStG/); assert.match(u.mails[0].text, /9,90 €/);
+    assert.equal(await u.kv(["get", "umsatz:2026"]), "990", "C1: Umsatz gebucht");
+    w = await KK.paketVerarbeiten(ev("evt_2", "zauberguthaben", 990, "cs_p1"), deps); assert.equal(w.status, "schon_verarbeitet");
+    w = await KK.paketVerarbeiten(ev("evt_1", "zauberguthaben", 990, "cs_p1"), deps); assert.equal(w.status, "schon_verarbeitet");
+    kk = await u.K.lesen(k.id); assert.equal(kk.guthaben_cent, 990, "nicht doppelt"); assert.equal(u.mails.length, 1);
+    // jetzt Grossfamilie moeglich, Zauberguthaben nicht nochmal
+    r = await ruf({ typ: "zauberguthaben", sessionId: SID, widerrufsverzicht: true }); assert.equal(r.code, 409);
+    r = await ruf({ typ: "grossfamilie", sessionId: SID, widerrufsverzicht: true }); assert.equal(r.code, 200);
+    w = await KK.paketVerarbeiten(ev("evt_3", "grossfamilie", 490, "cs_p2"), deps); assert.equal(w.status, "gutgeschrieben");
+    assert.equal(u.K.stufe(await u.K.lesen(k.id)), "grossfamilie");
+    // Extra: erst wenn ein Kontingent voll ist -- oder der Client meldet den Aenderungs-Deckel (erschoepft)
+    r = await ruf({ typ: "extra", sessionId: SID, widerrufsverzicht: true }); assert.equal(r.code, 409);
+    r = await ruf({ typ: "extra", sessionId: SID, widerrufsverzicht: true, erschoepft: true }); assert.equal(r.code, 200);
+    w = await KK.paketVerarbeiten(ev("evt_4", "extra", 490, "cs_p3"), deps); assert.equal(w.status, "gutgeschrieben");
+    assert.equal((await u.K.lesen(k.id)).extra_aktionen, 5);
+    // unbezahlt / fremdes Event ignoriert
+    w = await KK.paketVerarbeiten({ id: "evt_5", type: "checkout.session.completed", data: { object: { id: "cs_x", payment_status: "unpaid", metadata: { typ: "extra", konto_id: k.id } } } }, deps);
+    assert.equal(w.status, "ignoriert");
+    assert.equal(await u.kv(["get", "umsatz:2026"]), String(990 + 490 + 490));
+  } finally { u.zurueck(); }
+});
+
+test("Webhook-Dispatch: Paket-Metadaten -> konto-kauf, sonst Gutschein-Weg", async () => {
+  const u = umgebung();
+  const KK = require("../api/_lib/konto-kauf"); const svc = require("../api/_lib/gutschein-service");
+  const altP = KK.paketVerarbeiten, altK = svc.kaufVerarbeiten;
+  const aufrufe = [];
+  KK.paketVerarbeiten = async (ev) => { aufrufe.push("paket"); return { status: "gutgeschrieben", typ: ev.data.object.metadata.typ }; };
+  svc.kaufVerarbeiten = async () => { aufrufe.push("gutschein"); return { status: "angelegt", code: "WW-TEST" }; };
+  const stripe = require("../api/_lib/stripe"); const altPruef = stripe.webhookPruefen;
+  const cfg2 = require("../api/_lib/gutschein-config"); const altS = cfg2.stripeSchluessel; cfg2.stripeSchluessel = async () => ({ modus: "test", webhookSecret: "whsec" });
+  try {
+    delete require.cache[require.resolve("../api/stripe-webhook")];
+    const hook = require("../api/stripe-webhook");
+    const ruf = async (event) => {
+      stripe.webhookPruefen = () => event;
+      const r = antwort(); const req = { method: "POST", headers: { "stripe-signature": "x" }, on: (ev, fn) => { if (ev === "data") fn(Buffer.from("{}")); if (ev === "end") fn(); } };
+      await hook(req, r); return r;
+    };
+    let r = await ruf({ id: "e1", type: "checkout.session.completed", livemode: false, data: { object: { id: "cs_1", metadata: { typ: "zauberguthaben", konto_id: "k_1" } } } });
+    assert.equal(r.code, 200); assert.deepEqual(aufrufe, ["paket"]);
+    r = await ruf({ id: "e2", type: "checkout.session.completed", livemode: false, data: { object: { id: "cs_2", metadata: { entwurf_id: "x", produkt: "buch" } } } });
+    assert.equal(r.code, 200); assert.deepEqual(aufrufe, ["paket", "gutschein"]);
+  } finally { KK.paketVerarbeiten = altP; svc.kaufVerarbeiten = altK; stripe.webhookPruefen = altPruef; cfg2.stripeSchluessel = altS; u.zurueck(); }
+});

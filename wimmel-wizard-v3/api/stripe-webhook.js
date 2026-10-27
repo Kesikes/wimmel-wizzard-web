@@ -47,8 +47,12 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const ergebnis = await service.kaufVerarbeiten(event);
-    console.log("[stripe-webhook] " + event.type + " -> " + ergebnis.status + (ergebnis.code ? " " + ergebnis.code : "") + (ergebnis.grund ? " (" + ergebnis.grund + ")" : ""));
+    // C3 (27.10.2026): Paket-Kaeufe (metadata.typ in PAKETE) gehen an konto-kauf.js, alles andere
+    // bleibt der Gutschein-Weg.
+    const meta = event.data && event.data.object && event.data.object.metadata;
+    const istPaket = !!(meta && cfg.PAKETE[meta.typ]);
+    const ergebnis = istPaket ? await require("./_lib/konto-kauf").paketVerarbeiten(event) : await service.kaufVerarbeiten(event);
+    console.log("[stripe-webhook] " + event.type + " -> " + ergebnis.status + (ergebnis.code ? " " + ergebnis.code : "") + (ergebnis.typ ? " " + ergebnis.typ : "") + (ergebnis.grund ? " (" + ergebnis.grund + ")" : ""));
     res.status(200).json({ received: true, status: ergebnis.status });
   } catch (e) {
     // 500 -> Stripe wiederholt die Zustellung (bis zu 3 Tage). Reservierungen wurden in

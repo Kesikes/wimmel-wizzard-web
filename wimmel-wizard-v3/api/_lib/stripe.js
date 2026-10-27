@@ -76,6 +76,33 @@ async function checkoutSessionAnlegen(args) {
   return anfrage("POST", "/checkout/sessions", checkoutSessionParameter(args), { idempotenz: "checkout-" + args.entwurfId });
 }
 
+// C3 Konto & Aufladen (27.10.2026): Checkout fuer ein Paket (Zauberguthaben, Grossfamilie,
+// Extra-Zauberpaket) -- gleicher Weg wie der Gutschein, Metadaten typ + konto_id fuer den Webhook,
+// E-Mail des Kontos vorbelegt, keine Rabattcodes, kein SEPA, zurueck in die App.
+function paketCheckoutSessionParameter({ typ, kontoId, email, sessionId }) {
+  const p = cfg.PAKETE[typ];
+  if (!p) throw new Error("unbekanntes Paket");
+  const site = cfg.siteUrl();
+  const params = {
+    mode: "payment",
+    locale: "de",
+    excluded_payment_method_types: ["sepa_debit"],
+    line_items: [{ quantity: 1, price_data: { currency: "eur", unit_amount: p.cent, product_data: { name: p.stripe_name, description: p.kurz } } }],
+    success_url: site + "/app/konto?aufgeladen=" + encodeURIComponent(typ) + "&session_id={CHECKOUT_SESSION_ID}",
+    cancel_url: site + "/app/konto?aufladen=abgebrochen",
+    metadata: { typ, konto_id: kontoId, session_id: sessionId || "" },
+    payment_intent_data: { metadata: { typ, konto_id: kontoId }, description: p.stripe_name },
+    expires_at: Math.floor(Date.now() / 1000) + 60 * 60,
+  };
+  if (email) params.customer_email = email;
+  const pmc = cfg.stripePmcId();
+  if (pmc) params.payment_method_configuration = pmc;
+  return params;
+}
+async function paketCheckoutSessionAnlegen(args) {
+  return anfrage("POST", "/checkout/sessions", paketCheckoutSessionParameter(args), { idempotenz: "paket-" + args.kontoId + "-" + args.typ + "-" + Math.floor(Date.now() / 60000) });
+}
+
 async function sessionHolen(id) { return anfrage("GET", "/checkout/sessions/" + encodeURIComponent(id)); }
 async function paymentIntentHolen(id) { return anfrage("GET", "/payment_intents/" + encodeURIComponent(id)); }
 async function promotionCodeHolen(id) { return anfrage("GET", "/promotion_codes/" + encodeURIComponent(id)); }
@@ -125,4 +152,5 @@ function signaturBauen(rawBody, secret, t) {
   return "t=" + ts + ",v1=" + crypto.createHmac("sha256", secret).update(ts + "." + rawBody).digest("hex");
 }
 
-module.exports = { formKodieren, anfrage, checkoutSessionParameter, checkoutSessionAnlegen, sessionHolen, paymentIntentHolen, promotionCodeHolen, erstatten, webhookPruefen, signaturBauen };
+module.exports = { formKodieren, anfrage, checkoutSessionParameter, checkoutSessionAnlegen, sessionHolen, paymentIntentHolen, promotionCodeHolen, erstatten, webhookPruefen, signaturBauen, paketCheckoutSessionParameter, paketCheckoutSessionAnlegen
+};
