@@ -126,3 +126,36 @@ test("Druck-Link: Token mit Ablauf, Endpunkt liefert nur druck/-Pfade und nur vo
     assert.equal(r2.code, 403);
   } finally { speicher.lesen = altLesen; delete process.env.GUTSCHEIN_SIGNIER_SCHLUESSEL; delete process.env.SITE_URL; }
 });
+
+// Teil 4: Status-Rueckkanal (Peecho-Callbacks), signiert mit SHA-256(secret + order_id), nur merken
+test("Peecho-Webhook: gueltige Signatur -> Stand + Verlauf in KV, ungueltig -> 401, kein Secret -> 503", async () => {
+  const kvMod = require("../api/_lib/kv");
+  const { neuerKvMock } = require("./kv-mock");
+  const kv = neuerKvMock();
+  const alt = { get: kvMod.kvGetJson, set: kvMod.kvSetJson };
+  kvMod.kvGetJson = async (k) => { const r = await kv(["get", k]); return r == null ? null : JSON.parse(r); };
+  kvMod.kvSetJson = async (k, v) => kv(["set", k, JSON.stringify(v)]);
+  const alteUmgebung = { m: process.env.PEECHO_MODUS, s: process.env.PEECHO_SECRET_TEST };
+  process.env.PEECHO_MODUS = "test"; process.env.PEECHO_SECRET_TEST = "SECRETABCD";
+  try {
+    delete require.cache[require.resolve("../api/peecho-webhook")];
+    const hook = require("../api/peecho-webhook");
+    const ruf = async (body) => { const r = { code: 0, body: null }; r.status = (c) => { r.code = c; return r; }; r.json = (b) => { r.body = b; return r; }; await hook({ method: "POST", headers: {}, body }, r); return r; };
+    const sig = P.zahlungsGeheimnis("SECRETABCD", 1234);
+    let r = await ruf({ signature: sig, order_id: "1234", order_reference: "WW-TEST-1" });
+    assert.equal(r.code, 200); assert.equal(r.body.status, "SUBMITTED_CALLBACK");
+    r = await ruf({ signature: sig, order_id: "1234", order_reference: "WW-TEST-1", old_status: "IN_PRODUCTION", new_status: "SHIPPED", tracking_code: "X1", tracking_url: "https://dhl.example/X1" });
+    assert.equal(r.code, 200); assert.equal(r.body.status, "SHIPPED");
+    const e = JSON.parse(await kv(["get", hook.key("1234")]));
+    assert.equal(e.status, "SHIPPED"); assert.equal(e.tracking_code, "X1"); assert.equal(e.order_reference, "WW-TEST-1"); assert.equal(e.verlauf.length, 2); assert.equal(e.verlauf[1].alt_status, "IN_PRODUCTION");
+    r = await ruf({ signature: sig, order_id: "9999", new_status: "SHIPPED" }); assert.equal(r.code, 401, "Signatur passt nicht zur order_id");
+    r = await ruf({ order_id: "1234" }); assert.equal(r.code, 401);
+    assert.equal(await kv(["get", hook.key("9999")]), null, "abgelehnt = nichts gespeichert");
+    delete process.env.PEECHO_SECRET_TEST;
+    r = await ruf({ signature: sig, order_id: "1234" }); assert.equal(r.code, 503);
+  } finally {
+    kvMod.kvGetJson = alt.get; kvMod.kvSetJson = alt.set;
+    if (alteUmgebung.m === undefined) delete process.env.PEECHO_MODUS; else process.env.PEECHO_MODUS = alteUmgebung.m;
+    if (alteUmgebung.s === undefined) delete process.env.PEECHO_SECRET_TEST; else process.env.PEECHO_SECRET_TEST = alteUmgebung.s;
+  }
+});
