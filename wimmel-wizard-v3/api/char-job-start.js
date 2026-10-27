@@ -18,7 +18,7 @@
 // schickt der Client body.chips (Rolle, Alter, Haar-/Fellchips, Besonderheit; NUR ohne Notiz, siehe
 // charakter.js) und ist es eine Erst-Erzeugung (anzahl 2), wird zuerst die Figuren-DB befragt:
 //   TREFFER  -> Job sofort "done" mit dem gespeicherten Blatt, kein fal.ai-Aufruf, eigener Zaehler
-//               (chipFigurErlaubtUndGebucht, FIGUREN_GRATIS_CHIPS) statt des Figuren-Kontingents.
+//               (C3: figurenErlaubt/figurenBuchen "chip", KONTINGENTE in free-tier.js).
 //   KEIN TREFFER -> wie bisher live; der Job merkt sich chipSchluessel, char-job-status.js legt das
 //               fertige, fehlerfreie Blatt danach fuer alle ab.
 // "Noch einmal zeichnen" (anzahl 1) bleibt immer live und landet nie in der DB.
@@ -97,7 +97,9 @@ module.exports = async (req, res) => {
     let treffer = null;
     try { treffer = await db.suchen(chipSchluessel); } catch (e) { treffer = null; }
     if (treffer) {
-      if (!(await freeTier.chipFigurErlaubtUndGebucht(req, res, body.sessionId))) return;
+      // C3: Regal-Treffer = sofort zugestellte Chip-Figur -> erst pruefen, dann buchen.
+      if (!(await freeTier.figurenErlaubt(req, res, body.sessionId, "chip"))) return;
+      await freeTier.figurenBuchen(body.sessionId, "chip");
       const now = Date.now();
       let job = {
         jobId, prompt, status: "done", error: null, candidates: [], maxKandidaten: 0, stufe: 1,
@@ -121,10 +123,12 @@ module.exports = async (req, res) => {
     if (!chipFiguren.passtZumPrompt(body.chips, prompt)) chipSchluessel = null;
   }
 
-  // NEU (26.09.2026, Baustein A "Free-Tier-Grenzen & Aenderungs-Deckel", siehe api/_lib/free-tier.js):
-  // Figuren-Kontingent -- bucht atomar VOR dem fal.ai-Aufruf, weil jede Generierung zaehlt (auch
-  // "Neu zeichnen", auch ein spaeter fehlschlagender Versuch).
-  if (!(await freeTier.figurenErlaubtUndGebucht(req, res, body.sessionId))) return;
+  // C3 (27.10.2026): Figuren-Kontingent je Stufe (api/_lib/free-tier.js) -- hier nur PRUEFEN; gebucht
+  // wird erst die ZUGESTELLTE Figur (char-job-status.js beim Uebergang auf "done"). Art: "chip" (Regal,
+  // live gezeichnet und danach abgelegt), "foto" (body.foto === true, Foto-Weg aus charakter.js), sonst
+  // "live" (frei beschriebene Figur -- nur mit Zauberguthaben).
+  const figurArt = body.foto === true ? "foto" : chipSchluessel ? "chip" : "live";
+  if (!(await freeTier.figurenErlaubt(req, res, body.sessionId, figurArt))) return;
 
   // NEU (26.09.2026, Baustein B "Änderungs-Deckel", siehe api/_lib/aenderungs-deckel.js): der
   // ZUSÄTZLICHE Pro-Element-Deckel für "komplett neu zaubern" IN DER BEZAHLTEN PHASE (2× je Figur,
@@ -149,6 +153,9 @@ module.exports = async (req, res) => {
     job.stufe = 1;
     // Teil 5: Schluessel am Job, damit char-job-status.js das fertige Blatt ablegen kann.
     if (chipSchluessel) { job.chipSchluessel = chipSchluessel; job.chipTreffer = false; job.chipGespeichert = false; }
+    // C3: Art und Sitzung am Job, damit char-job-status.js die zugestellte Figur buchen kann.
+    job.figurArt = figurArt; job.figurGebucht = false;
+    if (!job.sessionId && freeTier.istGueltigeSessionId(body.sessionId)) job.sessionId = String(body.sessionId).toLowerCase();
     // Teil B: Ausstattung folgt nach Stufe 1 (char-job-status.js -> stufe2Starten).
     if (zweiStufen) { job.ausstattungSchluessel = ausstattungSchluessel; job.ausstattungWerte = ausstattungWerte; job.sessionId = String(body.sessionId).toLowerCase(); }
     await kvSetJson("charjob:" + jobId, job, JOB_TTL_SECONDS);

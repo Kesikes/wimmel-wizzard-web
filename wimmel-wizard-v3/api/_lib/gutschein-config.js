@@ -38,6 +38,21 @@ const PRODUKTE = {
 // GEAENDERT (Auftrag C1, 26.10.2026): Versand nur noch innerhalb Deutschlands (Sortiment-Beschluss
 // 22.10.2026, Abschnitt Steuer/Markt). VERSANDLAENDER ist die EINE Stelle fuer die Laenderliste --
 // der Bestell-Checkout (C5) und Peecho (C2/C6) lesen spaeter daraus; heute haengt nichts daran.
+// C3 Konto & Aufladen (Beschluss Matthias 27.10.2026): die kaufbaren Pakete in der App -- Betraege
+// an EINER Stelle. Zauberguthaben wird beim Kauf von Heft/Buch voll angerechnet (C5), nicht
+// erstattet; Grossfamilie nur nach Zauberguthaben; Extra-Zauberpaket nur bei erschoepftem
+// Korrekturkontingent (+5 Aktionen). Kontingente je Stufe: api/_lib/free-tier.js KONTINGENTE.
+const PAKETE = {
+  zauberguthaben: { id: "zauberguthaben", name: "Zauberguthaben", cent: 990, stripe_name: "Zauberguthaben", kurz: "bis 6 Figuren (3 per Foto), 7 Wimmelbilder – wird beim Buch voll angerechnet" },
+  grossfamilie: { id: "grossfamilie", name: "Großfamilie", cent: 490, stripe_name: "Großfamilie", kurz: "Figuren 7–10, davon bis 3 weitere per Foto" },
+  extra: { id: "extra", name: "Extra-Zauberpaket", cent: 490, stripe_name: "Extra-Zauberpaket", kurz: "5 weitere Versuche oder Änderungen", aktionen: 5 },
+};
+// Widerrufsverzicht vor dem Kauf eines Pakets (digitale Leistung beginnt sofort). PLATZHALTER-WORTLAUT,
+// markiert fuer den Anwalt -- bitte vor Live pruefen lassen.
+const WIDERRUFSVERZICHT_SATZ = "Ich stimme zu, dass Wimmel Wizard sofort mit der Leistung beginnt, und weiß, dass ich dadurch mein Widerrufsrecht verliere.";
+// Gutscheine werden in der App erst ab diesem Tag eingeloest (Beta-Phase). Test-Schalter:
+// TEST_EINLOESEN_SESSION_IDS (kommagetrennt oder "*"), damit Matthias es vorher durchspielen kann.
+const EINLOESEN_AB = "2027-01-01";
 const VERSANDLAENDER = ["DE"];
 const VERSAND_SATZ = "inkl. Versand innerhalb Deutschlands";
 const EINLOESBAR_SATZ = "Einlösbar für den Versand innerhalb Deutschlands.";
@@ -251,7 +266,7 @@ async function oeffentlicheConfig() {
 }
 
 module.exports = {
-  MARKE, PRODUKTE, VERSAND_SATZ, VERSANDLAENDER, EINLOESBAR_SATZ, UST_HINWEIS,
+  MARKE, PRODUKTE, PAKETE, WIDERRUFSVERZICHT_SATZ, EINLOESEN_AB, VERSAND_SATZ, VERSANDLAENDER, EINLOESBAR_SATZ, UST_HINWEIS,
   EINLOESEFRIST_MONATE, WIDERRUF_TAGE, WIDERRUF_PUFFER_TAGE, WIDMUNG_MAX_ZEICHEN,
   GARANTIE_SATZ, BETA_SATZ, EINLOESUNG_AB_SATZ, WIDERRUF_SATZ, SO_GEHTS,
   QUELLEN, quelleNormalisieren, GEFEHLT_OPTIONEN,

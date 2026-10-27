@@ -32,7 +32,17 @@
 // "In diesem ersten Umsetzungsschritt: keine Ausnahme, kein zweites Aufladen" — beide Zähler sind
 // hier hart, kein Refresh vorgesehen.
 const { kvIncrWithExpiry, kvCommandSafe } = require("./kv");
-const { istGueltigeSessionId, bezahltStatus } = require("./free-tier");
+const { istGueltigeSessionId, bezahltStatus, kontoZuSitzung } = require("./free-tier");
+
+// C3 (27.10.2026): Extra-Zauberpaket -- ist ein Deckel erreicht, darf eine Aktion aus dem
+// Konto-Vorrat (extra_aktionen, 5 je Paket) genommen werden. Nur mit verknuepftem Konto; wirft nie.
+async function extraAktionNehmen(sessionId) {
+  try {
+    const konto = await kontoZuSitzung(sessionId);
+    if (!konto) return false;
+    return await require("./konto").mitDeps().extraVerbrauchen(konto.id);
+  } catch (e) { return false; }
+}
 
 const AENDERUNG_GRATIS_MAX = 2;
 const AENDERUNG_BEZAHLT_MAX = 2;
@@ -89,6 +99,7 @@ async function aenderungErlaubtUndGebucht(req, res, sessionId, elementTyp, eleme
   }
   if (!Number.isFinite(stand)) return true; // fail-open
   if (stand > grenze) {
+    if (await extraAktionNehmen(sessionId)) return true; // C3: Extra-Zauberpaket deckt diese Aktion
     await kvCommandSafe(["decr", key]); // Platz wieder freigeben — diese Änderung fand nicht statt
     res.status(403).json({
       error: deckelText(bezahlt),
@@ -97,6 +108,8 @@ async function aenderungErlaubtUndGebucht(req, res, sessionId, elementTyp, eleme
       stand: grenze, grenze,
       grenzeArt: bezahlt ? "hart" : "gratis",
       keinUpsell: true, // Abschnitt 4: bei diesem Deckel KEIN "Konto anlegen"-Angebot
+      // C3: das Extra-Zauberpaket (5 weitere Aktionen) ist jetzt der Weg weiter -- nur mit Konto.
+      stopp: { grund: "aenderung", extraMoeglich: true, bezahlt },
     });
     return false;
   }
@@ -127,6 +140,7 @@ async function neuZaubernBezahltErlaubtUndGebucht(req, res, sessionId, elementTy
   }
   if (!Number.isFinite(stand)) return true; // fail-open
   if (stand > NEUZAUBERN_BEZAHLT_MAX) {
+    if (await extraAktionNehmen(sessionId)) return true; // C3: Extra-Zauberpaket
     await kvCommandSafe(["decr", key]);
     res.status(403).json({
       error: deckelText(true),
@@ -135,6 +149,7 @@ async function neuZaubernBezahltErlaubtUndGebucht(req, res, sessionId, elementTy
       stand: NEUZAUBERN_BEZAHLT_MAX, grenze: NEUZAUBERN_BEZAHLT_MAX,
       grenzeArt: "hart",
       keinUpsell: true,
+      stopp: { grund: "aenderung", extraMoeglich: true, bezahlt: true },
     });
     return false;
   }
@@ -142,6 +157,7 @@ async function neuZaubernBezahltErlaubtUndGebucht(req, res, sessionId, elementTy
 }
 
 module.exports = {
+  extraAktionNehmen,
   AENDERUNG_GRATIS_MAX, AENDERUNG_BEZAHLT_MAX, NEUZAUBERN_BEZAHLT_MAX,
   istGueltigerElementTyp, istGueltigeElementId,
   aenderungErlaubtUndGebucht, neuZaubernBezahltErlaubtUndGebucht,

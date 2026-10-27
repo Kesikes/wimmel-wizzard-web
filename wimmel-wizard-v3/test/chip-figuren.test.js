@@ -224,7 +224,7 @@ test("char-job-start: Treffer -> Job sofort done, kein fal, eigener Zaehler bis 
     let res = antwort();
     await start({ method: "POST", headers: {}, body: { prompt, sessionId: SID, chips } }, res);
     assert.equal(res.code, 500, "kein Treffer -> Live-Weg");
-    assert.equal(await kv(["get", "freitier:figuren:" + SID]), "1", "Live-Weg bucht das Figuren-Kontingent");
+    assert.equal(await kv(["get", "freitier:figuren:" + SID]), null, "C3: ein gescheiterter Lauf zaehlt nicht");
     // Eintrag anlegen -> Treffer
     const db = C.mitDeps();
     await db.ablegen({ schluessel: S, bildUrl: "https://v3.fal.media/a.png", seed: 7 });
@@ -237,15 +237,21 @@ test("char-job-start: Treffer -> Job sofort done, kein fal, eigener Zaehler bis 
       assert.equal(job.status, "done"); assert.equal(job.chipTreffer, true); assert.equal(job.resultSeed, 7);
       assert.match(job.resultUrl, /image-proxy\?blob=figuren/);
     }
-    assert.equal(await kv(["get", "freitier:figuren:" + SID]), "1", "Treffer buchen NICHT das Figuren-Kontingent");
+    assert.equal(await kv(["get", "freitier:figuren:" + SID]), String(ft.FIGUREN_GRATIS_CHIPS), "C3: zugestellte Regal-Figuren zaehlen als Figuren");
+    assert.equal(await kv(["get", "freitier:figuren_chips:" + SID]), String(ft.FIGUREN_GRATIS_CHIPS));
     assert.equal((await db.suchen(S)).treffer, ft.FIGUREN_GRATIS_CHIPS);
     res = antwort();
     await start({ method: "POST", headers: {}, body: { prompt, sessionId: SID, chips } }, res);
-    assert.equal(res.code, 403); assert.equal(res.body.kontingent, "figuren_chips");
-    // Notiz/"Neu zeichnen": anzahl 1 geht nie an die DB
+    assert.equal(res.code, 403); assert.equal(res.body.kontingent, "figuren_chips"); assert.equal(res.body.stopp.stufe, "gratis"); assert.equal(res.body.stopp.zauberguthabenMoeglich, true);
+    // Notiz/"Neu zeichnen": anzahl 1 geht nie an die DB -- und ist gratis eine "live"-Figur -> Stopp
     res = antwort();
     await start({ method: "POST", headers: {}, body: { prompt, sessionId: SID, chips, anzahl: 1 } }, res);
-    assert.equal(res.code, 500, "anzahl 1 -> Live-Weg trotz Treffer");
+    assert.equal(res.code, 403, "anzahl 1 -> Live-Weg, gratis nicht erlaubt (C3)"); assert.equal(res.body.stopp.grund, "live");
+    process.env.TEST_BEZAHLT_SESSION_IDS = SID;
+    res = antwort();
+    await start({ method: "POST", headers: {}, body: { prompt, sessionId: SID, chips, anzahl: 1, elementId: "p1" } }, res);
+    assert.equal(res.code, 500, "bezahlt: anzahl 1 -> Live-Weg trotz Treffer");
+    delete process.env.TEST_BEZAHLT_SESSION_IDS;
   } finally {
     C.mitDeps = echteDeps; rl.checkRateLimit = rlAlt; kd.deckelErlaubt = kdAlt;
   }

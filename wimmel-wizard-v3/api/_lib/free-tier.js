@@ -1,230 +1,165 @@
-// api/_lib/free-tier.js — Baustein A (Cowork-Auftrag "Free-Tier-Grenzen, Änderungs-Deckel &
-// Konto-Einstieg", cowork-auftrag-free-tier-konto-umbau.md, 26.09.2026). Die zwei unabhängigen
-// Zähler aus Abschnitt 2 des Auftrags. Eine Zahl, eine Stelle — gleiches Prinzip wie
-// api/_lib/grenzen.js/kosten-deckel.js.
+// api/_lib/free-tier.js — Kontingente je Stufe (C3 Konto & Aufladen, 27.10.2026; vorher Baustein A
+// vom 26.09.2026). EINE Stelle fuer alle Zahlen -- gleiches Prinzip wie grenzen.js/kosten-deckel.js.
 //
-// ZWEI ZÄHLER, VOLLSTÄNDIG UNABHÄNGIG VONEINANDER (Abschnitt 2 des Auftrags — kein gemeinsamer
-// Gate-Check, siehe dortiges Beispiel: Figuren und Wimmelbilder laufen komplett getrennt):
-//   Figuren:      3 kostenlos, 5 hart (auch nach Bezahlung)
-//   Wimmelbilder: 1 kostenlos, 7 hart (auch nach Bezahlung; seit 18.10.2026, vorher 6)
+// STUFEN (Beschluss Matthias 27.10.2026):
+//   gratis          bis 5 Chip-Figuren (Figuren-Regal), 1 Wimmelbild, Teilen. Keine Foto-Figur, keine
+//                   frei gezeichnete Figur (Notiz) -- dafuer braucht es Zauberguthaben.
+//   zauberguthaben  9,90 EUR (oder Gutschein): bis 6 Figuren gesamt, davon bis 3 per Foto; bis 7 Bilder.
+//   grossfamilie    +4,90 EUR (nur nach Zauberguthaben): Figuren 7-10, davon bis 3 weitere per Foto.
+//   extra           +4,90 EUR: 5 weitere Versuche/Aenderungen, wenn das Korrekturkontingent
+//                   aufgebraucht ist (aenderungs-deckel.js, Konto-Feld extra_aktionen).
 //
-// FIGUREN (Abschnitt 2.1): JEDE Generierung zählt, auch "Neu zeichnen" (komplette
-// Neu-Generierung derselben Figur zählt wie eine zusätzliche) und auch ein technisch
-// fehlgeschlagener Versuch. Deshalb wird hier VOR dem eigentlichen fal.ai-Aufruf gebucht, nicht
-// erst bei Erfolg — figurenErlaubtUndGebucht() bucht atomar (INCR) und gibt den Platz wieder frei
-// (DECR), falls die neue Zahl über der Grenze liegt. "Detail ändern" (applyCharEdit in
-// charakter.js) läuft NICHT über api/char-job-start.js und zählt hier bewusst NICHT mit — das ist
-// der Änderungs-Deckel aus Abschnitt 3 (Baustein B), nicht Teil dieser Datei.
+// GRUNDSATZ: gezaehlt wird nur, was ZUGESTELLT wurde. Gescheiterte Laeufe ("Das hat nicht geklappt")
+// zaehlen nicht. Deshalb pruefen figurenErlaubt()/bilderErlaubt() vor dem Start nur (lesen), und
+// figurenBuchen()/bilderBuchen() buchen erst, wenn der Job wirklich "done" ist (char-job-status.js,
+// scene-job-engine.js). Bis C3 buchte figurenErlaubtUndGebucht() vor dem Aufruf -- das ist weg.
 //
-// WIMMELBILDER (Abschnitt 2.2): NUR ein tatsächlich zugestelltes Bild zählt ("Bestehende Regel
-// bleibt unverändert: verworfene/neu gezauberte Bilder zählen nicht gegen das Kontingent —
-// Papierkorb, wiederherstellbar — wie bisher"). Ein Generierungsversuch, der technisch scheitert
-// oder bei dem kein Kandidat das Stil-Tor besteht, erzeugt in scene-job-engine.js KEIN
-// job.status = "done" (siehe dortiger Kommentar zu "notloesung": seit 23.09.2026 endet aber JEDER
-// Durchgang, der wirklich ein Bild zustellt — auch die Notlösung ohne bestandenen Kandidaten —
-// mit status "done"). bilderBuchen() wird deshalb genau an dieser einen Stelle aufgerufen, nicht
-// beim Start. Der Start-Endpunkt (scene-job-start.js) prüft vorab nur GELESEN (bilderErlaubt,
-// ohne zu buchen), ob das Kontingent für ein NEUES Wimmelbild überhaupt noch reicht — das
-// Buchen selbst passiert erst, wenn wirklich eines zugestellt wird.
+// KONTINGENT-TRAEGER: die Zaehler haengen an der Sitzung (freitier:<art>:<sid>), bis die Sitzung an ein
+// Konto haengt -- dann am Konto (freitier:<art>:konto:<id>, ohne TTL; konto.js sitzungVerknuepfen()
+// uebertraegt die Sitzungszaehler). Mehrere Sitzungen eines Kontos teilen sich so ein Kontingent.
 //
-// KEIN KONTO-SYSTEM BISHER (Baustein C des Auftrags kommt separat): bezahltStatus() ist der
-// Platzhalter, an dem Baustein C andockt. Bis dahin liefert er immer false — jede Session ist
-// "kostenlos", die harten Obergrenzen (5/6) sind also praktisch unerreichbar, weil die
-// kostenlosen Grenzen (3/1) vorher greifen. Das ist gewollt: Baustein A soll unabhängig von
-// Baustein C fertig und testbar sein (siehe Abschnitt 0/10 des Auftrags, Reihenfolge A→B→C→D).
+// bezahltStatus(sid): Test-Schalter TEST_BEZAHLT_SESSION_IDS (wie bisher) ODER Konto mit bezahlt=true.
+// FAIL-OPEN wie ueberall (rate-limit.js/kosten-deckel.js): ist KV nicht erreichbar, darf die
+// Generierung stattfinden.
 const { kvIncrWithExpiry, kvCommandSafe } = require("./kv");
 
-// GEAENDERT (Auftrag 3 Teil 2, 18.10.2026, Sortiment-Beschluss): BILDER_HART 6 -> 7, damit das
-// Wimmelbuch (genau 7 Bilder) erreichbar ist. BILDER_GRATIS bleibt 1.
-// NEU: FIGUREN_GRATIS_CHIPS = 5 -- Chip-Figuren aus der gemeinsamen Figuren-Datenbank (Teil 5)
-// zaehlen bis zu dieser Zahl NICHT als bezahlte Figuren; FIGUREN_GRATIS (3) gilt fuer live
-// erzeugte Figuren, FIGUREN_HART (5) ist die harte Obergrenze fuer alle. Foto-Figuren gibt es nur
-// bezahlt (Teil 4, fotoErlaubt()).
-const FIGUREN_GRATIS = 3;
-const FIGUREN_GRATIS_CHIPS = 5;
-const FIGUREN_HART = 5;
-const BILDER_GRATIS = 1;
-const BILDER_HART = 7;
-
-// Gleiche Lebensdauer wie die anonyme Session selbst (SESSION_TTL_SECONDS in api/session.js,
-// 90 Tage) — ein Zähler, der vor der Session selbst abläuft, würde das Kontingent unbeabsichtigt
-// zurücksetzen, während die Kundin (aus ihrer Sicht) noch mittendrin ist.
+const KONTINGENTE = {
+  gratis: { figuren: 5, chipFiguren: 5, foto: 0, bilder: 1 },
+  zauberguthaben: { figuren: 6, chipFiguren: 6, foto: 3, bilder: 7 },
+  grossfamilie: { figuren: 10, chipFiguren: 10, foto: 6, bilder: 7 },
+};
+// Fuer bestehende Aufrufer/Tests: die alten Namen zeigen auf die neuen Zahlen.
+const FIGUREN_GRATIS_CHIPS = KONTINGENTE.gratis.chipFiguren;
+const FIGUREN_GRATIS = 0;                 // frei gezeichnete Figuren gibt es gratis nicht mehr (C3)
+const FIGUREN_HART = KONTINGENTE.grossfamilie.figuren;
+const BILDER_GRATIS = KONTINGENTE.gratis.bilder;
+const BILDER_HART = KONTINGENTE.zauberguthaben.bilder;
 const TTL = 90 * 24 * 3600;
+const ARTEN = ["chip", "live", "foto"];
 
-// Gleiches Format wie UUID_RE in api/session.js (client-generierte crypto.randomUUID()-Werte,
-// siehe newSessionId() in state.js) — hier eigenständig gehalten statt importiert, damit diese
-// Datei nicht von einem Request-Handler-Modul abhängt.
 const SESSION_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-function istGueltigeSessionId(v) {
-  return typeof v === "string" && SESSION_ID_RE.test(v);
+function istGueltigeSessionId(v) { return typeof v === "string" && SESSION_ID_RE.test(v); }
+
+function kontoModul() { return require("./konto").mitDeps(); }
+async function kontoZuSitzung(sessionId) {
+  if (!istGueltigeSessionId(sessionId)) return null;
+  try { return await kontoModul().kontoZuSitzung(sessionId); } catch (e) { return null; }
+}
+function testBezahlt(sessionId) {
+  const test = String(process.env.TEST_BEZAHLT_SESSION_IDS || "").trim();
+  if (!test) return false;
+  if (test === "*") return true;
+  const ids = test.split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
+  return !!(sessionId && ids.includes(String(sessionId).toLowerCase()));
+}
+// stufe(sessionId) -> { name, bezahlt, konto, grenzen }
+async function stufe(sessionId) {
+  const konto = await kontoZuSitzung(sessionId);
+  let name = kontoModul().stufe(konto);
+  if (name === "gratis" && testBezahlt(sessionId)) name = "zauberguthaben";
+  return { name, bezahlt: name !== "gratis", konto, grenzen: KONTINGENTE[name] };
+}
+async function bezahltStatus(sessionId) { return (await stufe(sessionId)).bezahlt; }
+async function fotoErlaubt(sessionId) { return bezahltStatus(sessionId); }
+const FOTO_GESPERRT_TEXT = "Mit Foto wird die Figur eurem Kind noch ähnlicher. Das schaltet ihr mit dem Zauberguthaben oder eurem Gutschein frei.";
+
+// traegerKey(art, sessionId, konto) -> Zaehler-Schluessel (Konto, wenn verknuepft, sonst Sitzung)
+function traegerKey(art, sessionId, konto) {
+  return "freitier:" + art + ":" + (konto ? "konto:" + konto.id : String(sessionId).toLowerCase());
+}
+async function zaehler(art, sessionId, konto) {
+  const roh = await kvCommandSafe(["get", traegerKey(art, sessionId, konto)]);
+  const n = roh == null ? 0 : Number(roh);
+  return Number.isFinite(n) ? n : 0;
+}
+// figurenStand(sessionId, konto) -> { gesamt, chips, foto, live } (zugestellte Figuren des Traegers)
+async function figurenStand(sessionId, konto) {
+  const gesamt = await zaehler("figuren", sessionId, konto);
+  const chips = await zaehler("figuren_chips", sessionId, konto);
+  const foto = await zaehler("figuren_foto", sessionId, konto);
+  return { gesamt, chips, foto, live: Math.max(0, gesamt - chips - foto) };
 }
 
-function figurenKey(sessionId) { return "freitier:figuren:" + sessionId; }
-function bilderKey(sessionId) { return "freitier:bilder:" + sessionId; }
-
-// bezahltStatus(sessionId) -> Platzhalter für Baustein C. IMMER false, bis das Konto-/
-// Guthaben-System steht (siehe Kopfkommentar). An DIESER Stelle andocken, nicht die Aufrufer
-// unten ändern.
-// TEST-SCHALTER (Auftrag 3 Teil 4, 18.10.2026): TEST_BEZAHLT_SESSION_IDS = kommagetrennte Session-
-// IDs (oder "*" fuer alle), die der Server als bezahlt behandelt -- NUR wenn die Umgebungsvariable
-// gesetzt ist. Damit laesst sich der bezahlte Zustand (Foto-Figuren, harte Grenzen) vor Paket 2
-// durchspielen. Im Client das Gegenstueck: /app?bezahlt=an (nur Anzeige; der Server prueft).
-async function bezahltStatus(sessionId) {
-  const test = String(process.env.TEST_BEZAHLT_SESSION_IDS || "").trim();
-  if (test) {
-    if (test === "*") return true;
-    const ids = test.split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
-    if (sessionId && ids.includes(String(sessionId).toLowerCase())) return true;
-  }
+// Kundinnen-Ansprache fuer den Stopp-Screen (Teil D zeigt dazu die zwei Wege). Kurz, warm, kein Druck.
+function stoppText(grund, st) {
+  if (grund === "foto") return st.bezahlt ? "Mehr Foto-Figuren gehen in dieser Stufe nicht – weitere Figuren gern über die Merkmale." : "Figuren nach Foto gibt es mit dem Zauberguthaben – 9,90 €, beim Buch voll angerechnet.";
+  if (grund === "live") return "Frei beschriebene Figuren gibt es mit dem Zauberguthaben – 9,90 €, beim Buch voll angerechnet. Figuren aus dem Regal gehen weiter gratis.";
+  if (grund === "bild") return st.bezahlt ? "Alle " + st.grenzen.bilder + " Wimmelbilder sind gezaubert – mehr passen in kein Buch." : "Euer erstes Wimmelbild ist gezaubert! Weitere gibt es mit dem Zauberguthaben – 9,90 €, beim Buch voll angerechnet.";
+  if (st.name === "gratis") return "Eure fünf Figuren aus dem Regal sind gezaubert! Weitere gibt es mit dem Zauberguthaben – 9,90 €, beim Buch voll angerechnet.";
+  if (st.name === "zauberguthaben") return "Sechs Figuren sind gezaubert! Für eine Großfamilie (bis 10) gibt es das Paket für 4,90 €.";
+  return "Zehn Figuren sind das Maximum – mehr passen in kein Wimmelbild.";
+}
+function stoppAntwort(res, grund, st, stand, grenze, kontingent) {
+  res.status(403).json({
+    error: stoppText(grund, st), vorAufruf: true, kontingent, stand, grenze, grenzeArt: st.bezahlt ? "hart" : "gratis",
+    stopp: { grund, stufe: st.name, bezahlt: st.bezahlt, konto: !!st.konto, grossfamilieMoeglich: st.name === "zauberguthaben" && grund !== "bild", zauberguthabenMoeglich: st.name === "gratis" },
+  });
   return false;
 }
 
-// fotoErlaubt(sessionId) -> true, wenn Foto-Figuren erlaubt sind (Auftrag 3 Teil 4: Foto erst nach
-// dem ersten Aufladen oder mit Gutschein = bezahltStatus). Eine Stelle, zwei Aufrufer: fal-proxy.js
-// (Foto-Beschreibung, mode "verify" mit data:-Bild) und -- sobald Paket 2 da ist -- der Konto-Flow.
-async function fotoErlaubt(sessionId) {
-  return bezahltStatus(sessionId);
-}
-const FOTO_GESPERRT_TEXT = "Mit Foto wird die Figur eurem Kind noch ähnlicher. Das schaltet ihr mit dem ersten Aufladen oder eurem Gutschein frei.";
-
-// Baut die Kundinnen-Ansprache aus Abschnitt 7 des Auftrags — wortgleich, damit Baustein B/C
-// (die eigentlichen Stopp-Screens) diesen Text direkt übernehmen können, statt ihn zweimal zu
-// pflegen. Bis die Stopp-Screens stehen, landet dieser Text als error-Feld in einer normalen
-// Fehleranzeige (charakter.js/szene.js zeigen data.error bereits generisch an).
-function stoppText(art) {
-  return art === "figur"
-    ? "Eure ersten drei Figuren sind gezaubert! 🎉 Ab der vierten braucht's ein Konto und 5 € Guthaben — angerechnet, sobald ihr bestellt. Später werden auch mehr als 5 Figuren möglich sein."
-    : "Euer erstes Wimmelbild ist gezaubert! Für weitere legt ihr ein Konto an und ladet 5 € auf — angerechnet, sobald ihr bestellt.";
-}
-
-// figurenErlaubtUndGebucht(req, res, sessionId): DAS TOR für api/char-job-start.js. Bucht atomar
-// EINEN Platz (INCR), bevor der eigentliche fal.ai-Aufruf losgeht — passend zu "jede Generierung
-// zählt". Liegt der neue Stand über der (je nach bezahlt-Status geltenden) Grenze, wird der Platz
-// sofort wieder freigegeben (DECR) und eine Antwort mit dem Stopp-Text aus Abschnitt 7 gesendet.
-// Gibt true zurück, wenn der Aufrufer weitermachen darf; false, wenn die Antwort schon raus ist
-// (der Aufrufer muss dann sofort return'en, gleiches Muster wie deckelErlaubt() in
-// kosten-deckel.js).
-// FAIL-OPEN wie überall sonst in diesem Projekt (rate-limit.js/kosten-deckel.js): ist KV nicht
-// erreichbar, darf die Generierung stattfinden — ein Ausfall des Kontingent-Zählers soll nicht
-// zum Ausfall des Produkts werden.
-async function figurenErlaubtUndGebucht(req, res, sessionId) {
-  if (!istGueltigeSessionId(sessionId)) {
-    res.status(400).json({ error: "Ungültige oder fehlende sessionId." });
-    return false;
-  }
-  const bezahlt = await bezahltStatus(sessionId);
-  const grenze = bezahlt ? FIGUREN_HART : FIGUREN_GRATIS;
-  const key = figurenKey(sessionId);
-  let stand;
-  try {
-    stand = await kvIncrWithExpiry(key, TTL);
-  } catch (e) {
-    return true; // fail-open, siehe Kommentar oben
-  }
-  if (!Number.isFinite(stand)) return true; // fail-open
-  if (stand > grenze) {
-    await kvCommandSafe(["decr", key]); // Platz wieder freigeben — dieser Versuch fand nicht statt
-    res.status(403).json({
-      error: stoppText("figur"),
-      vorAufruf: true,
-      kontingent: "figuren",
-      stand: grenze,
-      grenze,
-      grenzeArt: bezahlt ? "hart" : "gratis",
-    });
-    return false;
-  }
+// figurenErlaubt(req, res, sessionId, art): DAS TOR fuer api/char-job-start.js -- nur lesen, nicht
+// buchen. art: "chip" (Figuren-Regal), "live" (frei gezeichnet, mit Notiz), "foto". true = weiter;
+// false = Antwort ist raus (400/403 mit stopp-Objekt fuer den Stopp-Screen).
+async function figurenErlaubt(req, res, sessionId, art) {
+  if (!istGueltigeSessionId(sessionId)) { res.status(400).json({ error: "Ungültige oder fehlende sessionId." }); return false; }
+  if (!ARTEN.includes(art)) art = "live";
+  let st, stand;
+  try { st = await stufe(sessionId); stand = await figurenStand(sessionId, st.konto); } catch (e) { return true; } // fail-open
+  const g = st.grenzen;
+  if (art === "foto" && stand.foto >= g.foto) return stoppAntwort(res, "foto", st, stand.foto, g.foto, "figuren_foto");
+  if (art === "live" && !st.bezahlt) return stoppAntwort(res, "live", st, stand.gesamt, g.figuren, "figuren");
+  if (art === "chip" && !st.bezahlt && stand.chips >= g.chipFiguren) return stoppAntwort(res, "figuren", st, stand.chips, g.chipFiguren, "figuren_chips");
+  if (stand.gesamt >= g.figuren) return stoppAntwort(res, "figuren", st, stand.gesamt, g.figuren, "figuren");
   return true;
 }
-
-// chipFigurErlaubtUndGebucht(req, res, sessionId): das Tor fuer einen TREFFER aus der gemeinsamen
-// Figuren-Datenbank (Auftrag 3 Teil 5, api/char-job-start.js). Ein Treffer kostet keinen
-// fal.ai-Aufruf und zaehlt deshalb NICHT gegen das Figuren-Kontingent oben (FIGUREN_GRATIS 3),
-// sondern gegen einen eigenen Zaehler mit der Grenze FIGUREN_GRATIS_CHIPS (5) -- in der Gratis- wie
-// in der bezahlten Phase (FIGUREN_HART ist dieselbe Zahl). Gleiches Muster wie
-// figurenErlaubtUndGebucht(): atomar buchen, bei Ueberschreitung zuruecknehmen, fail-open.
-function chipFigurenKey(sessionId) { return "freitier:figuren_chips:" + sessionId; }
-async function chipFigurErlaubtUndGebucht(req, res, sessionId) {
-  if (!istGueltigeSessionId(sessionId)) {
-    res.status(400).json({ error: "Ungültige oder fehlende sessionId." });
-    return false;
-  }
-  const grenze = FIGUREN_GRATIS_CHIPS;
-  const key = chipFigurenKey(sessionId);
-  let stand;
+// figurenBuchen(sessionId, art): EINMAL je ZUGESTELLTER Figur (char-job-start.js bei Regal-Treffer,
+// char-job-status.js beim Uebergang auf "done"). Wirft nie.
+async function figurenBuchen(sessionId, art) {
+  if (!istGueltigeSessionId(sessionId)) return;
+  if (!ARTEN.includes(art)) art = "live";
   try {
-    stand = await kvIncrWithExpiry(key, TTL);
-  } catch (e) {
-    return true; // fail-open
-  }
-  if (!Number.isFinite(stand)) return true;
-  if (stand > grenze) {
-    await kvCommandSafe(["decr", key]);
-    res.status(403).json({
-      error: "Eure fünf Figuren aus dem Figuren-Regal sind gezaubert! Für weitere braucht's ein Konto und 5 € Guthaben — angerechnet, sobald ihr bestellt.",
-      vorAufruf: true,
-      kontingent: "figuren_chips",
-      stand: grenze,
-      grenze,
-      grenzeArt: "gratis",
-    });
-    return false;
-  }
-  return true;
+    const konto = await kontoZuSitzung(sessionId);
+    const ttl = konto ? 0 : TTL;
+    await kvIncrWithExpiry(traegerKey("figuren", sessionId, konto), ttl);
+    if (art === "chip") await kvIncrWithExpiry(traegerKey("figuren_chips", sessionId, konto), ttl);
+    if (art === "foto") await kvIncrWithExpiry(traegerKey("figuren_foto", sessionId, konto), ttl);
+  } catch (e) { /* bewusst ignoriert -- ein Zaehlfehler darf die Figur nicht verweigern */ }
 }
 
-// bilderErlaubt(req, res, sessionId): DAS TOR für api/scene-job-start.js. Anders als bei Figuren
-// wird HIER NICHT gebucht (nur gelesen) — das Buchen passiert erst bei echtem Erfolg, siehe
-// bilderBuchen() unten und Kopfkommentar. Ein technisch fehlgeschlagener oder verworfener
-// Durchgang soll diesen Platz nicht verbrauchen, ein gesperrtes Kontingent aber trotzdem schon
-// VOR dem teuren Start verhindern, nicht erst hinterher.
+// bilderErlaubt(req, res, sessionId): DAS TOR fuer api/scene-job-start.js -- nur lesen; gebucht wird
+// erst, wenn ein Bild wirklich zugestellt wird (bilderBuchen, scene-job-engine.js).
 async function bilderErlaubt(req, res, sessionId) {
-  if (!istGueltigeSessionId(sessionId)) {
-    res.status(400).json({ error: "Ungültige oder fehlende sessionId." });
-    return false;
-  }
-  const bezahlt = await bezahltStatus(sessionId);
-  const grenze = bezahlt ? BILDER_HART : BILDER_GRATIS;
-  let roh;
-  try {
-    roh = await kvCommandSafe(["get", bilderKey(sessionId)]);
-  } catch (e) {
-    return true; // fail-open
-  }
-  const stand = roh == null ? 0 : Number(roh);
-  if (!Number.isFinite(stand)) return true; // fail-open
-  if (stand >= grenze) {
-    res.status(403).json({
-      error: stoppText("bild"),
-      vorAufruf: true,
-      kontingent: "wimmelbilder",
-      stand,
-      grenze,
-      grenzeArt: bezahlt ? "hart" : "gratis",
-    });
-    return false;
-  }
+  if (!istGueltigeSessionId(sessionId)) { res.status(400).json({ error: "Ungültige oder fehlende sessionId." }); return false; }
+  let st, stand;
+  try { st = await stufe(sessionId); stand = await zaehler("bilder", sessionId, st.konto); } catch (e) { return true; }
+  if (stand >= st.grenzen.bilder) return stoppAntwort(res, "bild", st, stand, st.grenzen.bilder, "wimmelbilder");
   return true;
 }
-
-// bilderBuchen(sessionId): EINMAL aufrufen, exakt dann, wenn ein Job wirklich in den Endzustand
-// "done" übergeht (siehe scene-job-engine.js, advanceSceneJob() — die einzige Stelle, die
-// job.status auf "done" setzt, und das genau einmal je Job, siehe dortiger Aufrufer-Schutz
-// "if (job.status !== 'in_progress') return job;"). Wirft nie (kvCommandSafe) — ein Fehler beim
-// Zählen darf der Kundin ihr fertiges Bild nicht verweigern.
 async function bilderBuchen(sessionId) {
   if (!istGueltigeSessionId(sessionId)) return;
   try {
-    const stand = await kvIncrWithExpiry(bilderKey(sessionId), TTL);
-    // NEU (18.10.2026, Paket 1 Teil J, Teilen-Quote): Zähler "Gratis-Sitzungen mit erstem Bild" —
-    // genau beim ERSTEN zugestellten Bild einer Sitzung, ohne Personenbezug (nur eine Zahl).
-    // Gegenstück: gz:teilen:sitzungen (Sitzungen mit Teilen-Klick, api/_lib/gutschein-service.js).
+    const konto = await kontoZuSitzung(sessionId);
+    const stand = await kvIncrWithExpiry(traegerKey("bilder", sessionId, konto), konto ? 0 : TTL);
+    // Teilen-Quote (18.10.2026): Sitzungen mit erstem Bild, ohne Personenbezug.
     if (Number(stand) === 1) await kvCommandSafe(["incr", "gz:teilen:sitzungen_erstes_bild"]);
-  } catch (e) { /* siehe Kommentar oben — bewusst ignoriert */ }
+  } catch (e) { /* bewusst ignoriert */ }
+}
+
+// kontingente(sessionId) -> fuer den Konto-Bereich: Stufe, Staende und Grenzen.
+async function kontingente(sessionId) {
+  const st = await stufe(sessionId);
+  const f = await figurenStand(sessionId, st.konto);
+  const bilder = await zaehler("bilder", sessionId, st.konto);
+  return {
+    stufe: st.name, bezahlt: st.bezahlt,
+    figuren: { stand: f.gesamt, grenze: st.grenzen.figuren, chips: f.chips, chipGrenze: st.grenzen.chipFiguren, foto: f.foto, fotoGrenze: st.grenzen.foto },
+    bilder: { stand: bilder, grenze: st.grenzen.bilder },
+    extraAktionen: st.konto ? (st.konto.extra_aktionen || 0) : 0,
+  };
 }
 
 module.exports = {
-  FIGUREN_GRATIS, FIGUREN_GRATIS_CHIPS, FIGUREN_HART, BILDER_GRATIS, BILDER_HART,
-  istGueltigeSessionId, bezahltStatus, fotoErlaubt, FOTO_GESPERRT_TEXT,
-  figurenErlaubtUndGebucht, chipFigurErlaubtUndGebucht, bilderErlaubt, bilderBuchen,
+  KONTINGENTE, FIGUREN_GRATIS, FIGUREN_GRATIS_CHIPS, FIGUREN_HART, BILDER_GRATIS, BILDER_HART, ARTEN,
+  istGueltigeSessionId, stufe, bezahltStatus, fotoErlaubt, FOTO_GESPERRT_TEXT, traegerKey, figurenStand, kontoZuSitzung,
+  figurenErlaubt, figurenBuchen, bilderErlaubt, bilderBuchen, kontingente, stoppText,
 };

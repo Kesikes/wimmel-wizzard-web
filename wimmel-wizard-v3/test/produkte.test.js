@@ -48,7 +48,8 @@ test("Dashboard-Saetze", () => {
 test("Kontingente: Buch erreichbar, Chip-Konstante da", () => {
   assert.equal(freeTier.BILDER_HART, ctx.PRODUKTE.buch.bilder, "harte Bildgrenze = groesstes Produkt");
   assert.equal(freeTier.BILDER_GRATIS, 1);
-  assert.equal(freeTier.FIGUREN_GRATIS, 3);
+  assert.equal(freeTier.FIGUREN_GRATIS, 0, "C3: frei gezeichnete Figuren nur mit Zauberguthaben");
   assert.equal(freeTier.FIGUREN_GRATIS_CHIPS, 5);
-  assert.equal(freeTier.FIGUREN_HART, 5);
+  assert.equal(freeTier.FIGUREN_HART, 10, "C3: Grossfamilie bis 10");
+  assert.deepEqual(freeTier.KONTINGENTE.zauberguthaben, { figuren: 6, chipFiguren: 6, foto: 3, bilder: 7 });
 });

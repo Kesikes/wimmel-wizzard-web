@@ -18,6 +18,7 @@
     "api/image-proxy.js": { "maxDuration": 30 },
     "api/druck-datei.js": { "maxDuration": 30 },
     "api/peecho-webhook.js": { "maxDuration": 30 },
+    "api/konto.js": { "maxDuration": 30, "includeFiles": "{public/rechts/**}" },
     "api/char-job-start.js": { "maxDuration": 30 },
     "api/char-job-status.js": { "maxDuration": 30 },
     "api/scene-job-start.js": { "maxDuration": 30 },

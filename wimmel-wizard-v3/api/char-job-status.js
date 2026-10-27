@@ -11,6 +11,7 @@ const charEngine = require("./_lib/char-job-engine");
 const { advanceCharacterJob } = charEngine;
 const chipFiguren = require("./_lib/chip-figuren");
 const ausstattungEngine = require("./_lib/ausstattung-engine");
+const freeTier = require("./_lib/free-tier");
 
 const JOB_TTL_SECONDS = 60 * 60;
 
@@ -98,6 +99,12 @@ module.exports = async (req, res) => {
               job.grundUrl = job.resultUrl;
               job = await ausstattungEngine.stufe2Starten(job, { FAL_KEY });
             }
+          }
+          // C3 (27.10.2026): nur eine ZUGESTELLTE Figur zaehlt gegen das Kontingent -- genau einmal beim
+          // Uebergang auf "done" (gescheiterte Laeufe zaehlen nicht). Regal-Treffer bucht char-job-start.js.
+          if (job.status === "done" && !job.figurGebucht && job.sessionId) {
+            job.figurGebucht = true;
+            await freeTier.figurenBuchen(job.sessionId, job.figurArt || "live");
           }
           // v3.1 Kostendeckel je Figur: beim Abschluss (done/error) einmal die Versuche ins Log.
           if (job.status !== "in_progress" && !job.versucheGeloggt) {

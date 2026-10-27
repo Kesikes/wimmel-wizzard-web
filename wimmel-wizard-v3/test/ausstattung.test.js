@@ -203,7 +203,7 @@ test("char-job-start: Grund-Treffer + Ausstattung ohne Treffer -> Job in Stufe 2
     j = JSON.parse(await kv(["get", "charjob:" + res.body.jobId]));
     assert.equal(j.status, "done"); assert.equal(j.ausstattungTreffer, true); assert.match(j.resultUrl, /ausstattung/);
     assert.equal(fal.log.filter((x) => x[0] === "submit").length, 1, "kein weiterer Edit");
-    assert.equal(await kv(["get", "freitier:figuren:" + SID2]), null, "Treffer buchen das Figuren-Kontingent nicht");
+    assert.equal(await kv(["get", "freitier:figuren:" + SID2]), "1", "C3: zugestellte Regal-Figur zaehlt als Figur");
     assert.equal(await kv(["get", "freitier:figuren_chips:" + SID2]), "1");
   } finally {
     C.mitDeps = echteDeps; rl.checkRateLimit = rlAlt; kd.deckelErlaubt = kdAlt; fal.zurueck(); delete process.env.FAL_KEY;
