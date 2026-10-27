@@ -7,6 +7,14 @@ werden muss, und was warten kann. Es wird bei größeren Meilensteinen fortgesch
 
 ---
 
+## 🩹 Figuren v4.1 (27.10.2026): drei kleine Fixes aus dem Live-Test
+
+`docs/figuren-v4-1-rueckmeldung-2026-10-27.md`: Grundfigur liegt im Regal, sobald sie Basis eines Edits ist
+(vorher sperrte „null Verstöße“ jede Figur aus der dritten Runde aus — deshalb fehlten die Mädchen-Grundfiguren);
+„Passt so“ mit „Gespeichert ✓“ und Sprung zur Galerie; Kundentexte ohne „T-Shirt“. Stil v4 sitzt (Live-Test).
+
+---
+
 ## 🎯 Figuren v4 (26.10.2026): Gewinner aus dem Kontaktbogen eingebaut
 
 `docs/figuren-v4-rueckmeldung-2026-10-26.md`: Grundfigur = Fassung A+H (Prompt wie `71582bb` plus Hautton,
