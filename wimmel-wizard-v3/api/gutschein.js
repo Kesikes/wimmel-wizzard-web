@@ -4,7 +4,7 @@
 //
 //   GET  ?mode=config                 Produkte, Preise, Wortlaute für die Seiten (aus gutschein-config.js)
 //   GET  ?mode=pdf&token=…            Gutschein-PDF, bei Bedarf neu erzeugt (signierter Token)
-//   GET  ?mode=statistik&key=…        Zähler/Feedback für Matthias (GUTSCHEIN_ADMIN_SCHLUESSEL)
+//   GET  ?mode=statistik&key=…        Zähler/Feedback für Matthias (ADMIN_SCHLUESSEL, Fallback GUTSCHEIN_ADMIN_SCHLUESSEL)
 //   GET  ?mode=chipfiguren&key=…      Kuration: Grundfiguren und Ausstattungen getrennt, mit Bild-URL, Kombinationszahlen
 //   GET  ?mode=chipfigur-verwerfen&key=…&schluessel=…[&art=ausstattung]   einen Eintrag werfen (Eintrag + Datei)
 //   GET  ?mode=chipfiguren-aufraeumen&key=…[&bestaetigt=1]   ältere Schlüssel-Versionen + verwaiste Ausstattungen (v4.2): erst Vorschau, mit bestaetigt=1 löschen
@@ -18,6 +18,13 @@
 //   POST { mode: "teilen", sessionId } Zähler Teilen-Klick (App)
 const cfg = require("./_lib/gutschein-config");
 const service = require("./_lib/gutschein-service");
+
+// C3 Teil E (27.10.2026): Admin-Schluessel allgemein benannt -- ADMIN_SCHLUESSEL, Fallback auf den
+// alten Namen GUTSCHEIN_ADMIN_SCHLUESSEL (bleibt gueltig, nichts muss umgestellt werden). Die
+// Admin-Modi sind zusaetzlich unter /api/admin?mode=… erreichbar (vercel.json: Rewrite auf diese
+// Funktion, damit keine weitere Serverless-Funktion entsteht); die alte Adresse bleibt.
+function adminSchluessel() { return process.env.ADMIN_SCHLUESSEL || process.env.GUTSCHEIN_ADMIN_SCHLUESSEL || ""; }
+function adminErlaubt(req) { const key = adminSchluessel(); return !!key && req.query && req.query.key === key; }
 const gutschein = require("./_lib/gutschein");
 const tokenLib = require("./_lib/gutschein-token");
 const { checkRateLimit } = require("./_lib/rate-limit");
@@ -44,8 +51,7 @@ module.exports = async (req, res) => {
         return;
       }
       if (mode === "statistik") {
-        const key = process.env.GUTSCHEIN_ADMIN_SCHLUESSEL;
-        if (!key || req.query.key !== key) { res.status(401).json({ error: "Nicht erlaubt." }); return; }
+        if (!adminErlaubt(req)) { res.status(401).json({ error: "Nicht erlaubt." }); return; }
         res.setHeader("Cache-Control", "no-store");
         res.status(200).json(await service.statistik());
         return;
@@ -53,8 +59,7 @@ module.exports = async (req, res) => {
       // Auftrag 3 Teil 5: Kuration der gemeinsamen Chip-Figuren -- hier, damit keine weitere
       // Serverless-Funktion entsteht (gleicher Admin-Schluessel wie die Statistik).
       if (mode === "chipfiguren" || mode === "chipfigur-verwerfen" || mode === "chipfiguren-aufraeumen") {
-        const key = process.env.GUTSCHEIN_ADMIN_SCHLUESSEL;
-        if (!key || req.query.key !== key) { res.status(401).json({ error: "Nicht erlaubt." }); return; }
+        if (!adminErlaubt(req)) { res.status(401).json({ error: "Nicht erlaubt." }); return; }
         res.setHeader("Cache-Control", "no-store");
         const cf = require("./_lib/chip-figuren");
         const grund = cf.mitDeps(null, "grund"), ausstattung = cf.mitDeps(null, "ausstattung");

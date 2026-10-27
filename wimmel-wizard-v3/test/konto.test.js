@@ -297,3 +297,31 @@ test("Einloesen: tolerant, erst ab EINLOESEN_AB (Test-Schalter), atomar gekauft-
     } finally { rl.checkRateLimit = rlAlt; }
   } finally { delete process.env.TEST_EINLOESEN_SESSION_IDS; u.zurueck(); }
 });
+
+test("Teil E: ADMIN_SCHLUESSEL mit Fallback auf GUTSCHEIN_ADMIN_SCHLUESSEL; /api/admin ist ein Rewrite auf /api/gutschein", async () => {
+  const u = umgebung();
+  const handler = require("../api/gutschein");
+  const service = require("../api/_lib/gutschein-service");
+  const statAlt = service.statistik; service.statistik = async () => ({ ok: true });
+  const alt = { a: process.env.ADMIN_SCHLUESSEL, g: process.env.GUTSCHEIN_ADMIN_SCHLUESSEL };
+  try {
+    delete process.env.ADMIN_SCHLUESSEL; delete process.env.GUTSCHEIN_ADMIN_SCHLUESSEL;
+    let res = antwort(); await handler({ method: "GET", query: { mode: "statistik", key: "x" }, headers: {} }, res);
+    assert.equal(res.code, 401, "ohne Schluessel in der Umgebung nie erlaubt");
+    process.env.GUTSCHEIN_ADMIN_SCHLUESSEL = "alt";
+    res = antwort(); await handler({ method: "GET", query: { mode: "statistik", key: "alt" }, headers: {} }, res);
+    assert.equal(res.code, 200, "alter Name gilt weiter");
+    process.env.ADMIN_SCHLUESSEL = "neu";
+    res = antwort(); await handler({ method: "GET", query: { mode: "statistik", key: "neu" }, headers: {} }, res);
+    assert.equal(res.code, 200, "neuer Name");
+    res = antwort(); await handler({ method: "GET", query: { mode: "statistik", key: "alt" }, headers: {} }, res);
+    assert.equal(res.code, 401, "ist ADMIN_SCHLUESSEL gesetzt, zaehlt nur er");
+    const vercel = JSON.parse(require("fs").readFileSync(__dirname + "/../vercel.json", "utf8"));
+    assert.ok(vercel.rewrites.some((r) => r.source === "/api/admin" && r.destination === "/api/gutschein"), "/api/admin -> /api/gutschein");
+  } finally {
+    service.statistik = statAlt;
+    if (alt.a == null) delete process.env.ADMIN_SCHLUESSEL; else process.env.ADMIN_SCHLUESSEL = alt.a;
+    if (alt.g == null) delete process.env.GUTSCHEIN_ADMIN_SCHLUESSEL; else process.env.GUTSCHEIN_ADMIN_SCHLUESSEL = alt.g;
+    u.zurueck();
+  }
+});

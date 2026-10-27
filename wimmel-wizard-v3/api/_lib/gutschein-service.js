@@ -354,7 +354,7 @@ async function teilenZaehlen(sessionId, deps) {
   return { ok: true };
 }
 
-// --- Statistik (für Matthias, mit GUTSCHEIN_ADMIN_SCHLUESSEL) ---
+// --- Statistik (für Matthias, mit ADMIN_SCHLUESSEL bzw. GUTSCHEIN_ADMIN_SCHLUESSEL, siehe api/gutschein.js) ---
 async function statistik(deps) {
   const d = mitDeps(deps);
   const ereignisse = ["aufruf", "checkout", "bezahlt", "bezahlt_rabatt", "bezahlt_ohne_rabatt"];

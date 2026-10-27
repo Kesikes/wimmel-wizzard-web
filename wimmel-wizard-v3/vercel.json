@@ -9,7 +9,8 @@
     { "source": "/impressum", "destination": "/rechts/impressum.html" },
     { "source": "/agb", "destination": "/rechts/agb.html" },
     { "source": "/widerrufsbelehrung", "destination": "/rechts/widerrufsbelehrung.html" },
-    { "source": "/datenschutz", "destination": "/rechts/datenschutz.html" }
+    { "source": "/datenschutz", "destination": "/rechts/datenschutz.html" },
+    { "source": "/api/admin", "destination": "/api/gutschein" }
   ],
   "functions": {
     "api/fal-proxy.js": { "maxDuration": 300 },
