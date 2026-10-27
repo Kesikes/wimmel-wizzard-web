@@ -229,12 +229,21 @@ test("Kuration (Teil D): Liste getrennt, Aufraeumen erst als Vorschau, verwerfen
     r = await ruf({ mode: "chipfiguren", key: "geheim" });
     assert.equal(r.body.grundfiguren.anzahl, 1); assert.equal(r.body.ausstattungen.anzahl, 1);
     assert.equal(r.body.ausstattungen.figuren[0].grund, GRUND); assert.equal(r.body.kombinationen.grundfigur.girl, 2025);
+    // v4.2: zwei Waisen der aktuellen Version -- ohne grund_pfad (Altbestand) und mit grund_pfad auf eine ersetzte Grundfigur
+    const waiseA = CH.ausstattungsSchluessel(GRUND, { oberteil: "rot", brille: false, extra: "nichts" }, "girl");
+    const waiseB = CH.ausstattungsSchluessel(GRUND, { oberteil: "blau", brille: false, extra: "nichts" }, "girl");
+    await aus.ablegen({ schluessel: waiseA, bildUrl: "https://v3.fal.media/wa.png", grund: GRUND, grund_pfad: "figuren/chips/gestern.png" });
+    await aus.ablegen({ schluessel: waiseB, bildUrl: "https://v3.fal.media/wb.png", grund: GRUND, grund_pfad: g.pfad });
+    await kv(["hset", C.ARTEN.ausstattung.key(waiseB), "grund_pfad", ""]);
     r = await ruf({ mode: "chipfiguren-aufraeumen", key: "geheim" });
-    assert.equal(r.body.vorschau, true); assert.deepEqual(r.body.grundfiguren, [altG]); assert.deepEqual(r.body.ausstattungen, [altA]);
-    assert.equal(sp.dateien.size, 4, "Vorschau loescht nichts");
+    assert.equal(r.body.vorschau, true); assert.deepEqual(r.body.grundfiguren, [altG]); assert.deepEqual(r.body.ausstattungen, [altA, waiseB, waiseA].sort());
+    assert.deepEqual(r.body.ausstattungen_verwaist.map((x) => x.schluessel).sort(), [waiseA, waiseB].sort());
+    assert.equal(r.body.ausstattungen_verwaist.find((x) => x.schluessel === waiseA).grund_aktuell, g.pfad, "Vorschau nennt die aktuelle Grundfigur");
+    assert.equal(sp.dateien.size, 6, "Vorschau loescht nichts");
     r = await ruf({ mode: "chipfiguren-aufraeumen", key: "geheim", bestaetigt: "1" });
-    assert.deepEqual(r.body.grundfiguren.geloescht, [altG]); assert.deepEqual(r.body.ausstattungen.geloescht, [altA]);
+    assert.deepEqual(r.body.grundfiguren.geloescht, [altG]); assert.deepEqual(r.body.ausstattungen.geloescht, [altA, waiseB, waiseA].sort());
     assert.equal(sp.dateien.size, 2);
+    assert.ok(await aus.suchen(AUS), "die passende Ausstattung bleibt");
     r = await ruf({ mode: "chipfigur-verwerfen", key: "geheim", schluessel: AUS });
     assert.equal(r.body.art, "ausstattung"); assert.equal(r.body.verworfen, true);
     r = await ruf({ mode: "chipfigur-verwerfen", key: "geheim", schluessel: GRUND });

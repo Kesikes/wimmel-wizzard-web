@@ -7,7 +7,7 @@
 //   GET  ?mode=statistik&key=…        Zähler/Feedback für Matthias (GUTSCHEIN_ADMIN_SCHLUESSEL)
 //   GET  ?mode=chipfiguren&key=…      Kuration: Grundfiguren und Ausstattungen getrennt, mit Bild-URL, Kombinationszahlen
 //   GET  ?mode=chipfigur-verwerfen&key=…&schluessel=…[&art=ausstattung]   einen Eintrag werfen (Eintrag + Datei)
-//   GET  ?mode=chipfiguren-aufraeumen&key=…[&bestaetigt=1]   ältere Schlüssel-Versionen: erst Vorschau, mit bestaetigt=1 löschen
+//   GET  ?mode=chipfiguren-aufraeumen&key=…[&bestaetigt=1]   ältere Schlüssel-Versionen + verwaiste Ausstattungen (v4.2): erst Vorschau, mit bestaetigt=1 löschen
 //   POST { mode: "checkout", … }      Entwurf speichern, Stripe-Checkout anlegen -> { url }
 //   POST { mode: "status", session_id } Danke-Seite fragt, ob der Webhook durch ist
 //   POST { mode: "pruefen", code }    /einloesen: gültig? Produkt, Wert, Frist — kein Statuswechsel
@@ -65,9 +65,11 @@ module.exports = async (req, res) => {
           return;
         }
         if (mode === "chipfiguren-aufraeumen") {
-          // Ohne bestaetigt=1 nur die Liste der zu loeschenden Eintraege (aeltere Schluessel-Versionen).
+          // Ohne bestaetigt=1 nur die Liste der zu loeschenden Eintraege (aeltere Schluessel-Versionen;
+          // v4.2: bei der Ausstattung auch Waisen -- grund_pfad fehlt oder zeigt auf keine Grundfigur,
+          // Einzelheiten unter ausstattungen_verwaist).
           if (String(req.query.bestaetigt || "") !== "1") {
-            res.status(200).json({ vorschau: true, hinweis: "Zum Loeschen &bestaetigt=1 anhaengen.", grundfiguren: await grund.vorschauAufraeumen(), ausstattungen: await ausstattung.vorschauAufraeumen() });
+            res.status(200).json({ vorschau: true, hinweis: "Zum Loeschen &bestaetigt=1 anhaengen.", grundfiguren: await grund.vorschauAufraeumen(), ausstattungen: await ausstattung.vorschauAufraeumen(), ausstattungen_verwaist: await ausstattung.waisen() });
             return;
           }
           res.status(200).json({ vorschau: false, grundfiguren: await grund.aufraeumen(), ausstattungen: await ausstattung.aufraeumen() });

@@ -183,13 +183,31 @@ function mitDeps(deps, art) {
     return out;
   }
 
-  // vorschauAufraeumen() -> [schluessel]: alle Eintraege ANDERER Schluessel-Versionen, ohne zu loeschen.
+  // vorschauAufraeumen() -> [schluessel]: alle Eintraege ANDERER Schluessel-Versionen, ohne zu loeschen;
+  // bei der Ausstattung (v4.2) zusaetzlich die VERWAISTEN Eintraege (siehe waisen()).
   async function vorschauAufraeumen() {
     const keys = await kv(["smembers", KEY_ALLE]);
-    return (keys || []).filter((k) => !A.aktuell(k)).sort();
+    const alt = (keys || []).filter((k) => !A.aktuell(k));
+    const w = art === "ausstattung" ? await waisen() : [];
+    return alt.concat(w.map((x) => x.schluessel).filter((k) => !alt.includes(k))).sort();
   }
-  // aufraeumen() -> { version, geloescht: [...] }: dieselben Eintraege samt Datei entfernen.
-  // Kurationsroute mode=chipfiguren-aufraeumen (erst Vorschau, mit bestaetigt=1 loeschen).
+  // waisen() -> [{ schluessel, grund, grund_pfad, grund_aktuell }] (nur Ausstattung, v4.2): Eintraege der
+  // aktuellen Version, deren grund_pfad fehlt oder auf keine abgelegte Grundfigur zeigt (die Grundfigur
+  // ist weg oder inzwischen eine andere). Sie wuerden nie mehr treffen und duerfen weg.
+  async function waisen() {
+    if (art !== "ausstattung") return [];
+    const grund = mitDeps(deps, "grund");
+    const out = [];
+    for (const a of await liste()) {
+      const g = a.grund ? await grund.suchen(a.grund) : null;
+      const passt = !!(a.grund_pfad && g && g.pfad === a.grund_pfad);
+      if (!passt) out.push({ schluessel: a.schluessel, grund: a.grund, grund_pfad: a.grund_pfad || "", grund_aktuell: g ? g.pfad : "" });
+    }
+    return out;
+  }
+  // aufraeumen() -> { version, geloescht: [...] }: dieselben Eintraege (alte Versionen, bei der
+  // Ausstattung auch Waisen) samt Datei entfernen. Kurationsroute mode=chipfiguren-aufraeumen
+  // (erst Vorschau, mit bestaetigt=1 loeschen).
   async function aufraeumen() {
     const geloescht = [];
     for (const s of await vorschauAufraeumen()) {
@@ -204,7 +222,7 @@ function mitDeps(deps, art) {
     return { version: art === "ausstattung" ? VERSION_AUSSTATTUNG : VERSION, geloescht };
   }
 
-  return { art: art || "grund", suchen, trefferBuchen, ablegen, verwerfen, ausstattungenVerwerfen, liste, vorschauAufraeumen, aufraeumen };
+  return { art: art || "grund", suchen, trefferBuchen, ablegen, verwerfen, ausstattungenVerwerfen, liste, vorschauAufraeumen, waisen, aufraeumen };
 }
 
 module.exports = {
