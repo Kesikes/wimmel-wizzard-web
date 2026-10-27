@@ -7,6 +7,19 @@ werden muss, und was warten kann. Es wird bei größeren Meilensteinen fortgesch
 
 ---
 
+## 👤 C3 Konto & Aufladen (27.10.2026): Konto ohne Passwort, Zauberguthaben, Gutschein in der App
+
+`docs/c3-konto-aufladen-rueckmeldung-2026-10-27.md`: Konto per Anmelde-Link (30 min, einmal) und
+HttpOnly-Cookie (180 Tage), erste Anmeldung hängt die Sitzung mit allem ans Konto; Kontingente je Stufe
+zentral in `free-tier.js` (Gratis 5 Chip-Figuren/1 Bild · Zauberguthaben 6 Figuren, 3 Foto, 7 Bilder ·
+Großfamilie 10/6/7), Figuren zählen erst bei Zustellung. Pakete über Stripe (`konto-kauf.js`, Webhook
+idempotent, Widerrufsverzicht-Haken Pflicht, § 19-Umsatz), Gutschein einlösen ab 01.01.2027 mit
+Test-Schalter. Oberfläche: Konto-Bereich, Stopp-Screen mit zwei Wegen, Foto-Karte als Weg zum
+Zauberguthaben; `ADMIN_SCHLUESSEL` + `/api/admin`. Rauchtest 390 px 41/41, 101 Tests grün.
+Offen: Anrechnung beim Buch (C5), Anwalts-Wortlaut Widerrufsverzicht.
+
+---
+
 ## 🖨️ C2 Peecho Stufe 1 (27.10.2026): Schnittstelle + Testbestellung (nur Wimmelbuch)
 
 `docs/c2-peecho-stufe1-rueckmeldung-2026-10-27.md`: Peecho-Client (`api/_lib/peecho.js`, reines fetch,
