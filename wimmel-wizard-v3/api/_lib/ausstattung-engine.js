@@ -59,6 +59,13 @@ async function stufe2Starten(job, deps) {
   const db = deps.db || chipFiguren.mitDeps(null, "ausstattung");
   let treffer = null;
   try { treffer = await db.suchen(next.ausstattungSchluessel); } catch (e) { treffer = null; }
+  // v4.2 (27.10.2026): ein Regal-Treffer zaehlt nur, wenn die Ausstattung auf GENAU DIESER Grundfigur
+  // entstanden ist (grund_pfad == chipPfad). Sonst ist es ein Fehltreffer: Edit neu auf der aktuellen
+  // Grundfigur, der alte Eintrag wird beim Ablegen ersetzt (abschliessen -> ablegen({ ersetzen })).
+  if (treffer && !(treffer.grund_pfad && next.chipPfad && treffer.grund_pfad === next.chipPfad)) {
+    next.ausstattungErsetzen = true; next.ausstattungFehltreffer = treffer.grund_pfad || "(ohne grund_pfad)";
+    treffer = null;
+  }
   if (treffer) {
     await db.trefferBuchen(next.ausstattungSchluessel);
     next.status = "done"; next.stufe = 2;
@@ -156,7 +163,7 @@ async function abschliessen(next, deps, inSpeicher) {
   if (!next.chipPfad) { next.ausstattungGespeichert = false; next.ausstattungHinweis = "grundfigur_nicht_im_regal"; return next; }
   const db = deps.db || chipFiguren.mitDeps(null, "ausstattung");
   try {
-    const r = await db.ablegen({ schluessel: next.ausstattungSchluessel, bildUrl: a.url, prompt: CHIPS.ausstattungEditPrompt(next.ausstattungWerte), seed: null, verify: a.verify, grund: next.chipSchluessel || "", grund_pfad: next.chipPfad });
+    const r = await db.ablegen({ schluessel: next.ausstattungSchluessel, bildUrl: a.url, prompt: CHIPS.ausstattungEditPrompt(next.ausstattungWerte), seed: null, verify: a.verify, grund: next.chipSchluessel || "", grund_pfad: next.chipPfad, ersetzen: !!next.ausstattungErsetzen });
     next.resultUrlFal = a.url; next.resultUrl = r.url; next.ausstattungGespeichert = true; next.ausstattungAbgelegt = r.neu;
   } catch (e) {
     next.ausstattungGespeichert = false; next.ausstattungHinweis = e && e.message ? e.message : String(e);

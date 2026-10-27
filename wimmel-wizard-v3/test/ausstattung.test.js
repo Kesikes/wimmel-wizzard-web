@@ -69,6 +69,32 @@ test("Stufe 2: Treffer im Speicher -> sofort fertig, kein Edit", async () => {
   u.fal.zurueck();
 });
 
+test("v4.2: Ausstattung vorhanden, Grundfigur neu -> Fehltreffer, Edit neu auf der neuen Grundfigur, alter Eintrag ersetzt", async () => {
+  const u = umgebung();
+  // Ausstattung von gestern, entstanden auf einer anderen (nie abgelegten / ersetzten) Grundfigur
+  const alt = await u.db.ablegen({ schluessel: AUS, bildUrl: "https://v3.fal.media/gestern.png", grund: GRUND, grund_pfad: "figuren/chips/gestern.png" });
+  assert.ok(u.sp.dateien.has(alt.pfad));
+  let j = await E.stufe2Starten(job({ chipPfad: "figuren/chips/heute.png" }), u.deps);
+  assert.equal(j.status, "in_progress", "kein Treffer: Edit laeuft");
+  assert.equal(j.ausstattungErsetzen, true); assert.equal(j.ausstattungFehltreffer, "figuren/chips/gestern.png");
+  assert.equal(u.fal.log.filter((x) => x[0] === "submit").length, 1, "Edit neu eingereiht");
+  assert.deepEqual(u.fal.log[0][2].image_urls, [job().grundUrl], "auf der aktuellen Grundfigur");
+  j = await E.advanceAusstattung(j, u.deps);
+  assert.equal(j.status, "done"); assert.equal(j.ausstattungGespeichert, true); assert.equal(j.ausstattungAbgelegt, true);
+  const e = await u.db.suchen(AUS);
+  assert.equal(e.grund_pfad, "figuren/chips/heute.png", "Eintrag zeigt auf die neue Grundfigur");
+  assert.notEqual(e.pfad, alt.pfad); assert.equal(u.sp.dateien.has(alt.pfad), false, "alte Datei weg");
+  assert.equal(u.sp.dateien.size, 1);
+  // passender grund_pfad -> Treffer ohne Edit
+  const n = u.fal.log.length;
+  const k = await E.stufe2Starten(job({ chipPfad: "figuren/chips/heute.png" }), u.deps);
+  assert.equal(k.status, "done"); assert.equal(k.ausstattungTreffer, true); assert.equal(u.fal.log.length, n, "kein fal-Aufruf");
+  // ohne grund_pfad am Eintrag (Altbestand) -> nie Treffer
+  await u.kv(["hset", C.ARTEN.ausstattung.key(AUS), "grund_pfad", ""]);
+  const m = await E.stufe2Starten(job({ chipPfad: "figuren/chips/heute.png" }), u.deps);
+  assert.equal(m.status, "in_progress"); assert.equal(m.ausstattungFehltreffer, "(ohne grund_pfad)");
+  u.fal.zurueck();
+});
 test("Stufe 2: kein Treffer -> Edit mit Grundfigur, Pruefung ok -> abgelegt, resultUrl = Ausstattung", async () => {
   const u = umgebung();
   let j = await E.stufe2Starten(job(), u.deps);

@@ -122,6 +122,8 @@ function mitDeps(deps, art) {
   // dessen Eintrag geliefert. Nur Ausstattung: grund = Schluessel der Grundfigur (Kurationsansicht),
   // grund_pfad = Blob-Pfad GENAU DER Grundfigur, auf der der Edit lief (v4.2, 27.10.2026: eine
   // Ausstattung gehoert zu genau einer Grundfigur -- Pflicht, sonst wird nicht abgelegt).
+  // ersetzen = true: ein vorhandener Eintrag (Fehltreffer, andere Grundfigur) wird samt Datei
+  // entfernt, bevor der neue eingetragen wird.
   async function ablegen(a) {
     if (!a || !a.schluessel || !a.bildUrl) throw new Error("ablegen: schluessel und bildUrl noetig.");
     if (art === "ausstattung" && !a.grund_pfad) throw new Error("ablegen: Ausstattung ohne grund_pfad (Grundfigur nicht im Regal) wird nicht abgelegt.");
@@ -132,6 +134,7 @@ function mitDeps(deps, art) {
     const endung = /jpe?g/.test(typ) ? "jpg" : /webp/.test(typ) ? "webp" : "png";
     const pfad = A.ordner(speicher) + "/" + speicher.dateiname(a.schluessel) + "/" + speicher.zeitstempel(jetzt()) + "-" + Math.random().toString(36).slice(2, 8) + "." + endung;
     await speicher.speichern(pfad, bytes, typ);
+    if (a.ersetzen) await verwerfen(a.schluessel);
     const gewonnen = Number(await kv(["hsetnx", keyFigur(a.schluessel), "pfad", pfad])) === 1;
     if (!gewonnen) {
       try { await speicher.loeschen(pfad); } catch (e) { /* Waise ist nicht kritisch */ }
