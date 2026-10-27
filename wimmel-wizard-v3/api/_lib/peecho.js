@@ -2,19 +2,21 @@
 // Paket (reines fetch, wie stripe.js). Noch NICHT an Kundenbestellungen angeschlossen (C5/C6) --
 // bis dahin benutzen ihn nur dev-tools/peecho-test.js und api/peecho-webhook.js.
 //
-// QUELLE: Peecho API Documentation (Apiary, "peechoapiv2") und der Peecho-Blog "How to place your
-// first Peecho API order" (Pfade /rest/v3/). Beide am 27.10.2026 gelesen -- sie widersprechen sich
-// in ZWEI Punkten, deshalb ist die API-Version umschaltbar (PEECHO_API_VERSION, Standard v3; das
-// Testskript probiert beide Versionen gegen /offering/list und meldet, welche antwortet):
-//   * Pfad: Apiary dokumentiert /rest/v2/..., der Blog (neuer) /rest/v3/....
-//   * Form der Bestellung: Apiary flach { offering_id, quantity, file_details, address_details },
-//     Blog (v3) mit Positionen { item_details: [{ item_reference, offering_id, quantity,
-//     file_details }], address_details }. bestellungKoerper() baut beides.
-// Einig sind sich beide bei: merchant_api_key im Body, Bezahlung POST /order/payment mit
-// secret = hex(SHA-256(secretKey + orderId)), Status GET /order/status?merchantApiKey&orderId,
-// Rueckenbreite GET /offering/spine?merchantApiKey&offeringId&countryCodeIso2&numberOfPages,
-// Preis GET /offering/quote?...&countryCodeIso2&currency, Dateien POST /order/files,
-// Callbacks "Order submitted"/"Order status updated" mit signature = hex(SHA-256(secretKey + order_id)).
+// QUELLE (27.10.2026, nach dem ersten Testlauf nachgebessert): die offizielle v3-Doku
+// (https://www.peecho.com/print-api-documentation -> Apiary "peechoapiv3", API-Blueprint gelesen) und
+// die alte v2-Doku ("peechoapiv2", laut Peecho "deprecated, bleibt funktional"). HOST v3:
+// https://test.www.peecho.com/rest/v3/ bzw. https://www.peecho.com/rest/v3/. Pfade und Formen:
+//   v3: POST order/ (item_details[]), POST order/payment, POST order/address, POST order/files,
+//       GET order/details?merchantApiKey&orderId, GET order/spine, GET offering/list,
+//       POST quote { apiKey, countryCode, currency, items:[{offeringId,numberOfPages,quantity}], shippingOption },
+//       POST offering/countries { merchantApiKey, offeringsId:[…] }, GET offering/spine?…&countryCodeIso2&numberOfPages
+//   v2: POST order/ (flach), POST order/payment, POST order/files, GET order/status?orderId,
+//       GET offering/quote?…, GET offering/countries?offeringId, GET offering/spine?…
+// PEECHO_API_VERSION (Standard v3) waehlt Pfad und Form; antwortet ein Pfad mit 404, versucht der
+// Client einmal die andere Version (mitFallback) und meldet im Fehler beide Antworten.
+// Einig sind beide Versionen bei: merchant_api_key im Body (Ausnahme v3 quote: apiKey), Bezahlung
+// mit secret = hex(SHA-256(secretKey + orderId)), Callback-Signatur = hex(SHA-256(secretKey + order_id)).
+// v3 kennt zusaetzlich shipping_option STANDARD | EXPEDITED (Bestellung und Quote).
 //
 // UMGEBUNG (je Modus ein eigener Satz, damit nie ein Live-Schluessel im Test landet):
 //   PEECHO_MODUS             test | live (Standard test). Live wird NUR wirksam mit fertigen
@@ -70,6 +72,8 @@ function callbackSignaturGueltig(payload, secretKey) {
 
 // anfrage(k, methode, pfad, daten) -> JSON. GET haengt daten als Query an (merchantApiKey kommt
 // mit), POST schickt JSON mit merchant_api_key im Body. Fehler tragen status, details, custom_code.
+// opts.schluesselFeld: Name des API-Key-Felds im POST-Body (Standard merchant_api_key; v3 quote: apiKey).
+// Nicht-JSON-Antworten (HTML-Fehlerseiten) werden auf 200 Zeichen gekuerzt.
 async function anfrage(k, methode, pfad, daten, opts) {
   const url0 = k.basis + "/rest/" + k.version + "/" + pfad.replace(/^\/+/, "");
   let url = url0, body, headers = { Accept: "application/json" };
@@ -78,33 +82,72 @@ async function anfrage(k, methode, pfad, daten, opts) {
     url += (url.includes("?") ? "&" : "?") + q.toString();
   } else {
     headers["Content-Type"] = "application/json";
-    body = JSON.stringify(Object.assign({ merchant_api_key: k.apiKey }, daten || {}));
+    const schluessel = {}; schluessel[(opts && opts.schluesselFeld) || "merchant_api_key"] = k.apiKey;
+    body = JSON.stringify(Object.assign(schluessel, daten || {}));
   }
   const resp = await fetch(url, { method: methode, headers, body });
   const text = await resp.text().catch(() => "");
   let json = null;
   try { json = text ? JSON.parse(text) : null; } catch (e) { json = null; }
+  const kurz = text.replace(/\s+/g, " ").trim().slice(0, 200);
   if (!resp.ok) {
-    const err = new Error("Peecho " + resp.status + " " + methode + " " + url0 + (json && json.details ? ": " + json.details : (text ? ": " + text.slice(0, 200) : "")));
-    err.status = resp.status; err.details = json && json.details; err.custom_code = json && json.custom_code; err.antwort = json || text;
+    const err = new Error("Peecho " + resp.status + " " + methode + " " + url0 + (json && json.details ? ": " + json.details : (kurz ? ": " + kurz : "")));
+    err.status = resp.status; err.details = json && json.details; err.custom_code = json && json.custom_code; err.antwort = json || kurz; err.version = k.version;
     throw err;
   }
-  if (json === null && (opts && opts.jsonPflicht)) throw new Error("Peecho antwortete ohne JSON auf " + url0 + ": " + text.slice(0, 200));
+  if (json === null && (opts && opts.jsonPflicht)) throw new Error("Peecho antwortete ohne JSON auf " + url0 + ": " + kurz);
   return json;
+}
+// mitFallback(k, fn) -> fn(k) ; bei 404 einmal fn(k mit der anderen Version). Das Ergebnis traegt
+// versionBenutzt (Objekte), damit das Testskript sagen kann, welche Version geantwortet hat.
+function andereVersion(v) { return v === "v3" ? "v2" : "v3"; }
+async function mitFallback(k, fn) {
+  try {
+    const r = await fn(k);
+    if (r && typeof r === "object" && !Array.isArray(r)) r.versionBenutzt = k.version;
+    return r;
+  } catch (e) {
+    if (!e || e.status !== 404) throw e;
+    const k2 = Object.assign({}, k, { version: andereVersion(k.version) });
+    try {
+      const r = await fn(k2);
+      if (r && typeof r === "object" && !Array.isArray(r)) r.versionBenutzt = k2.version;
+      return r;
+    } catch (e2) {
+      const err = new Error(e.message + " | Fallback " + k2.version + ": " + (e2 && e2.message ? e2.message : String(e2)));
+      err.status = e2 && e2.status; err.details = e2 && e2.details; err.custom_code = e2 && e2.custom_code; err.antwort = { [k.version]: e.antwort, [k2.version]: e2 && e2.antwort };
+      throw err;
+    }
+  }
 }
 
 // --- Offerings ------------------------------------------------------------------------------------
 async function angebote(k, filter) { return anfrage(k, "GET", "offering/list", Object.assign({ currency: WAEHRUNG }, filter || {})); }
-async function laender(k, offeringId) { return anfrage(k, "GET", "offering/countries", { offeringId: offeringId || k.produktBuch }); }
-// rueckenbreite(k, { seiten, land }) -> { spineWidth } in mm (Peecho rechnet aus Produkt, Papier, Seitenzahl, Werk)
+// laender(k, offeringId) -> Liste der Lieferlaender. v3: POST offering/countries { merchantApiKey, offeringsId: [...] }; v2: GET ?offeringId
+async function laender(k, offeringId) {
+  const id = offeringId || k.produktBuch;
+  return mitFallback(k, (kk) => kk.version === "v2"
+    ? anfrage(kk, "GET", "offering/countries", { offeringId: id })
+    : anfrage(kk, "POST", "offering/countries", { offeringsId: [id] }, { schluesselFeld: "merchantApiKey" }));
+}
+// rueckenbreite(k, { seiten, land }) -> { spineWidth } in mm (gleicher Pfad in v2 und v3)
 async function rueckenbreite(k, { seiten, land, offeringId }) {
   landPruefen(land);
-  return anfrage(k, "GET", "offering/spine", { offeringId: offeringId || k.produktBuch, countryCodeIso2: land, numberOfPages: seiten });
+  return mitFallback(k, (kk) => anfrage(kk, "GET", "offering/spine", { offeringId: offeringId || k.produktBuch, countryCodeIso2: land, numberOfPages: seiten }));
 }
-// preis(k, { seiten, menge, land }) -> Angebot von Peecho (base_price, price_per_page, shipping_wholesale, vat, total_price …)
-async function preis(k, { seiten, menge, land, offeringId }) {
+// preis(k, { seiten, menge, land, versand }) -> Angebot von Peecho.
+// v3: POST quote { apiKey, countryCode, currency, items: [{ offeringId, numberOfPages, quantity }], shippingOption }
+//     -> { quoteDetails, quotedItems: [{ basePrice, pricePerPage, productPrice, shippingWholesale, vat, totalItemPrice }], quoteSummary }
+// v2: GET offering/quote?offeringId&numberOfPages&quantity&countryCodeIso2&currency -> { base_price, …, total_price }
+async function preis(k, { seiten, menge, land, offeringId, versand }) {
   landPruefen(land);
-  return anfrage(k, "GET", "offering/quote", { offeringId: offeringId || k.produktBuch, numberOfPages: seiten, quantity: menge || 1, countryCodeIso2: land, currency: WAEHRUNG });
+  const id = offeringId || k.produktBuch;
+  return mitFallback(k, (kk) => {
+    if (kk.version === "v2") return anfrage(kk, "GET", "offering/quote", { offeringId: id, numberOfPages: seiten, quantity: menge || 1, countryCodeIso2: land, currency: WAEHRUNG });
+    const body = { countryCode: land, currency: WAEHRUNG, items: [{ offeringId: id, numberOfPages: seiten, quantity: menge || 1 }] };
+    if (versand) body.shippingOption = versand;
+    return anfrage(kk, "POST", "quote", body, { schluesselFeld: "apiKey", jsonPflicht: true });
+  });
 }
 
 // --- Bestellung -------------------------------------------------------------------------------------
@@ -148,11 +191,13 @@ function bestellungKoerper(k, b) {
   if (k.version === "v2") {
     return { quantity: menge, offering_id: offeringId, currency: WAEHRUNG, order_reference: String(b.referenz), purchase_order: String(b.referenz), file_details, address_details };
   }
-  return {
+  const koerper = {
     purchase_order: String(b.referenz), order_reference: String(b.referenz), currency: WAEHRUNG,
     item_details: [{ item_reference: String(b.referenz) + "-1", offering_id: offeringId, quantity: menge, file_details }],
     address_details,
   };
+  if (b.versand) koerper.shipping_option = String(b.versand).toUpperCase(); // v3: STANDARD | EXPEDITED
+  return koerper;
 }
 // bestellungAnlegen(k, b) -> { order_id, … }
 async function bestellungAnlegen(k, b) { return anfrage(k, "POST", "order/", bestellungKoerper(k, b), { jsonPflicht: true }); }
@@ -165,11 +210,15 @@ async function bezahlen(k, orderId) {
   if (!k.secret) throw new Error("PEECHO_SECRET_" + k.modus.toUpperCase() + " fehlt.");
   return anfrage(k, "POST", "order/payment", { order_id: Number(orderId), secret: zahlungsGeheimnis(k.secret, orderId) }, { jsonPflicht: true });
 }
-async function status(k, orderId) { return anfrage(k, "GET", "order/status", { orderId: Number(orderId) }, { jsonPflicht: true }); }
+// status(k, orderId) -> Stand der Bestellung. v3: GET order/details (order_state, order_price_data,
+// item_price_data, tracking_*); v2: GET order/status. Bei 404 wird die andere Version probiert.
+async function status(k, orderId) {
+  return mitFallback(k, (kk) => anfrage(kk, "GET", kk.version === "v2" ? "order/status" : "order/details", { orderId: Number(orderId) }, { jsonPflicht: true }));
+}
 async function stornieren(k, orderId) { return anfrage(k, "POST", "order/cancel", { order_id: Number(orderId) }); }
 
 module.exports = {
-  BASIS, WAEHRUNG, modus, version, konfiguration, konfiguriert, zahlungsGeheimnis, callbackSignaturGueltig, anfrage,
+  BASIS, WAEHRUNG, modus, version, konfiguration, konfiguriert, zahlungsGeheimnis, callbackSignaturGueltig, anfrage, mitFallback, andereVersion,
   angebote, laender, rueckenbreite, preis, landPruefen, adresseKoerper, dateiKoerper, bestellungKoerper,
   bestellungAnlegen, dateienSetzen, bezahlen, status, stornieren,
 };

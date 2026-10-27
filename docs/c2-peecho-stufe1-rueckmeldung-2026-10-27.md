@@ -67,9 +67,32 @@ Lauf (dauerhaft dann `PEECHO_API_VERSION` setzen). Schritt 6 legt eine zweite Be
 bei der Bezahlung prüft. Das Protokoll liegt in `dev-tools/ausgabe/peecho-test-<datum>.json`.
 Der Link für `api/druck-datei` funktioniert erst nach dem Deploy dieses Standes (neuer Endpunkt).
 
+## 4b. Nachbesserung nach dem ersten Testlauf (27.10., abends)
+
+Testlauf: Bestellung **57115** angelegt und mit Testguthaben bezahlt, 24 Seiten inkl. Umschlag
+angenommen, Rückenbreite 8 mm, 10 Seiten korrekt abgelehnt. 404 bei Preis (`GET /rest/v3/offering/quote`)
+und Status (`GET /rest/v3/order/status`). Ursache: das waren v2-Pfade; Peechos Seite
+`peecho.com/print-api-documentation` bettet die **offizielle v3-Doku** ein (Apiary „peechoapiv3“, API-Blueprint
+gelesen; v2 ist laut Peecho „deprecated, bleibt funktional“). Jetzt umgesetzt (`api/_lib/peecho.js`):
+
+| Zweck | v3 (Standard) | v2 (Fallback bei 404) |
+|---|---|---|
+| Status | `GET /rest/v3/order/details?merchantApiKey&orderId` → `order_state`, `order_price_data`, `item_price_data`, `tracking_*`, `fulfilment_location` | `GET /rest/v2/order/status` |
+| Preis | `POST /rest/v3/quote` `{ apiKey, countryCode, currency, items:[{ offeringId, numberOfPages, quantity }], shippingOption? }` → `quotedItems[]` (`basePrice`, `pricePerPage`, `shippingWholesale`, `vat`, `totalItemPrice`), `quoteSummary` | `GET /rest/v2/offering/quote?…` |
+| Länder | `POST /rest/v3/offering/countries` `{ merchantApiKey, offeringsId:[…] }` | `GET /rest/v2/offering/countries?offeringId` |
+| Rückenbreite, Bestellung, Bezahlung, Dateien | unverändert (gleiche Pfade in v2/v3) | |
+
+Jeder Aufruf probiert bei 404 einmal die andere Version (`mitFallback`), die Antwort trägt
+`versionBenutzt`; HTML-Fehlerseiten werden auf 200 Zeichen gekürzt (Client und Testskript).
+Neu aus der v3-Doku: `shipping_option` **STANDARD | EXPEDITED** an Bestellung und Quote (beantwortet
+Frage 5 unten teilweise — Laufzeiten nennt die Doku nicht), und `number_of_pages` ist laut Blueprint
+„Number of pages of cover and content“ — bestätigt den Testlauf (24 inkl. Umschlag).
+
+Nächster Test: `NUR=2,5 BESTELLUNG=57115 node dev-tools/peecho-test.js`.
+
 ## 5. Offene Fragen an Peecho / Abweichungen zum Auftrag
 
-1. **API-Version und Bestellform.** Der Auftrag sagt `rest/v3/`; die Apiary-Doku dokumentiert `rest/v2/`
+1. **API-Version und Bestellform** *(erledigt, siehe 4b: v3 ist die offizielle Doku, v2 Fallback)*. Der Auftrag sagt `rest/v3/`; die Apiary-v2-Doku dokumentiert `rest/v2/`
    mit *flacher* Bestellung (`offering_id`, `quantity`, `file_details` oben), der neuere Peecho-Blog
    `rest/v3/order/` mit *Positionen* (`item_details[{ item_reference, offering_id, quantity, file_details }]`).
    Der Client baut beide Formen (`PEECHO_API_VERSION`), Schritt 0 des Testskripts zeigt, welche

@@ -66,18 +66,20 @@ test("Aufrufe: GET mit merchantApiKey in der Query, POST mit merchant_api_key im
   const k = { modus: "test", version: "v3", basis: "https://test.www.peecho.com", apiKey: "KEY", secret: "SECRETABCD", produktBuch: 4711 };
   const f = fetchAttrappe((a) => {
     if (a.url.includes("/offering/spine")) return ok({ spineWidth: 9 });
-    if (a.url.includes("/offering/quote")) return ok({ total_price: "12.34", currency: "EUR" });
+    if (a.url.includes("/v3/quote")) return ok({ quotedItems: [{ totalItemPrice: 15.9 }], quoteSummary: { totalWholesalePrice: 15.9 } });
     if (a.url.endsWith("/order/")) return ok({ order_id: 555 }, 201);
     if (a.url.includes("/order/payment")) return ok({ order_state: "PAID" });
-    if (a.url.includes("/order/status")) return ok({ order_id: 555, order_state: "PAID" });
+    if (a.url.includes("/v3/order/details")) return ok({ order_id: 555, order_state: "PAID" });
     return { ok: false, status: 409, text: async () => JSON.stringify({ details: "Credit balance is insufficient", custom_code: "MERCH_INSUFFICIENT_BALANCE" }) };
   });
   try {
     const sp = await P.rueckenbreite(k, { seiten: 24, land: "DE" });
-    assert.equal(sp.spineWidth, 9);
+    assert.equal(sp.spineWidth, 9); assert.equal(sp.versionBenutzt, "v3");
     assert.equal(f.aufrufe[0].url, "https://test.www.peecho.com/rest/v3/offering/spine?merchantApiKey=KEY&offeringId=4711&countryCodeIso2=DE&numberOfPages=24");
-    await P.preis(k, { seiten: 24, menge: 1, land: "DE" });
-    assert.match(f.aufrufe[1].url, /offering\/quote\?merchantApiKey=KEY&offeringId=4711&numberOfPages=24&quantity=1&countryCodeIso2=DE&currency=EUR$/);
+    const q = await P.preis(k, { seiten: 24, menge: 1, land: "DE" });
+    assert.equal(q.quotedItems[0].totalItemPrice, 15.9);
+    assert.equal(f.aufrufe[1].url, "https://test.www.peecho.com/rest/v3/quote");
+    assert.deepEqual(JSON.parse(f.aufrufe[1].init.body), { apiKey: "KEY", countryCode: "DE", currency: "EUR", items: [{ offeringId: 4711, numberOfPages: 24, quantity: 1 }] }, "v3: POST /quote mit apiKey");
     const o = await P.bestellungAnlegen(k, { referenz: "R1", seiten: 24, adresse: ADRESSE, email: "e@x.de", dateien: { inhaltUrl: "https://x/y.pdf" } });
     assert.equal(o.order_id, 555);
     const body = JSON.parse(f.aufrufe[2].init.body);
@@ -87,8 +89,37 @@ test("Aufrufe: GET mit merchantApiKey in der Query, POST mit merchant_api_key im
     assert.equal(z.order_state, "PAID");
     assert.deepEqual(JSON.parse(f.aufrufe[3].init.body), { merchant_api_key: "KEY", order_id: 555, secret: P.zahlungsGeheimnis("SECRETABCD", 555) });
     const st = await P.status(k, 555); assert.equal(st.order_state, "PAID");
+    assert.match(f.aufrufe[4].url, /\/rest\/v3\/order\/details\?merchantApiKey=KEY&orderId=555$/, "v3: order/details statt order/status");
     await assert.rejects(() => P.stornieren(k, 555), (e) => e.status === 409 && e.custom_code === "MERCH_INSUFFICIENT_BALANCE" && /Credit balance/.test(e.message));
     await assert.rejects(() => P.rueckenbreite(k, { seiten: 24, land: "CH" }), /nicht freigeschaltet/);
+  } finally { f.zurueck(); }
+});
+
+test("Fallback auf die andere API-Version bei 404; HTML-Fehlerseiten auf 200 Zeichen gekuerzt", async () => {
+  const k = { modus: "test", version: "v3", basis: "https://test.www.peecho.com", apiKey: "KEY", secret: "S", produktBuch: 4711 };
+  const html = "<!DOCTYPE html><html><head><title>404</title></head><body>" + "x".repeat(5000) + "</body></html>";
+  const f = fetchAttrappe((a) => {
+    if (a.url.includes("/v3/order/details")) return { ok: false, status: 404, text: async () => html };
+    if (a.url.includes("/v2/order/status")) return ok({ order_id: 57115, order_state: "PAID" });
+    if (a.url.includes("/v3/quote")) return { ok: false, status: 404, text: async () => html };
+    if (a.url.includes("/v2/offering/quote")) return ok({ total_price: "15.90" });
+    if (a.url.includes("/v3/offering/countries")) return { ok: false, status: 404, text: async () => html };
+    if (a.url.includes("/v2/offering/countries")) return { ok: false, status: 404, text: async () => html };
+    return { ok: false, status: 500, text: async () => html };
+  });
+  try {
+    const st = await P.status(k, 57115);
+    assert.equal(st.order_state, "PAID"); assert.equal(st.versionBenutzt, "v2");
+    assert.match(f.aufrufe[0].url, /\/v3\/order\/details/); assert.match(f.aufrufe[1].url, /\/v2\/order\/status\?merchantApiKey=KEY&orderId=57115$/);
+    const q = await P.preis(k, { seiten: 24, menge: 1, land: "DE" });
+    assert.equal(q.total_price, "15.90"); assert.equal(q.versionBenutzt, "v2");
+    assert.match(f.aufrufe[3].url, /\/v2\/offering\/quote\?merchantApiKey=KEY&offeringId=4711&numberOfPages=24&quantity=1&countryCodeIso2=DE&currency=EUR$/);
+    await assert.rejects(() => P.laender(k), (e) => {
+      assert.equal(e.status, 404); assert.match(e.message, /Fallback v2/);
+      assert.ok(e.message.length < 700, "Meldung kurz"); assert.ok(e.antwort.v3.length <= 200 && e.antwort.v2.length <= 200, "HTML gekuerzt");
+      return true;
+    });
+    await assert.rejects(() => P.rueckenbreite(k, { seiten: 24, land: "DE" }), (e) => e.status === 500 && e.antwort.length <= 200 && !/Fallback/.test(e.message));
   } finally { f.zurueck(); }
 });
 

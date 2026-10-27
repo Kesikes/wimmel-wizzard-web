@@ -15,6 +15,10 @@
 //   Datei: PEECHO_DATEI_URL=<signierter Link> oder automatisch aus dev-tools/ausgabe/peecho-muster-letzte.json
 //     (vorher: node dev-tools/peecho-muster-pdf.js mit BLOB_READ_WRITE_TOKEN + GUTSCHEIN_SIGNIER_SCHLUESSEL + SITE_URL).
 //   SEITEN=24 (Gesamtseiten inkl. Umschlag), SEITEN_FALSCH=10 (fuer Schritt 6), PEECHO_API_VERSION=v3|v2.
+//   BESTELLUNG=57115 (oder PEECHO_ORDER_ID): vorhandene Bestellung fuer Schritt 4/5 ohne neue Bestellung,
+//     z. B. NUR=2,5 BESTELLUNG=57115 node dev-tools/peecho-test.js
+//   Nachbesserung 27.10.: v3-Pfade laut offizieller v3-Doku -- Status = GET order/details, Preis = POST quote;
+//     antwortet ein Pfad mit 404, probiert der Client einmal die andere Version (Feld versionBenutzt).
 //   Ohne PEECHO_MODUS laeuft alles im Testsystem; PEECHO_MODUS=live wird hier bewusst IGNORIERT.
 //
 // SCHRITTE: 0 Version erkennen (offering/list mit v3, dann v2) und Buch-Angebot zeigen
@@ -53,7 +57,9 @@ function dateiUrl() {
   } catch (e) { /* kein Merkzettel */ }
   return null;
 }
-function fehler(e) { return { fehler: e && e.message ? e.message : String(e), status: e && e.status, custom_code: e && e.custom_code, antwort: e && e.antwort }; }
+// Fehler lesbar: Meldung und Antwort auf 200 Zeichen (HTML-Fehlerseiten!), JSON-Antworten bleiben ganz.
+function kurz(x) { return typeof x === "string" ? x.replace(/\s+/g, " ").trim().slice(0, 200) : x && typeof x === "object" ? Object.fromEntries(Object.entries(x).map(([k, v]) => [k, kurz(v)])) : x; }
+function fehler(e) { return { fehler: kurz(e && e.message ? e.message : String(e)), status: e && e.status, custom_code: e && e.custom_code, version: e && e.version, antwort: kurz(e && e.antwort) }; }
 
 (async () => {
   const k = await P.konfiguration("test"); // immer Testsystem
@@ -66,14 +72,18 @@ function fehler(e) { return { fehler: e && e.message ? e.message : String(e), st
 
   if (TROCKEN) {
     zeig("TROCKEN -- Rueckenbreite (GET)", { url: k.basis + "/rest/" + k.version + "/offering/spine", query: { merchantApiKey: "…", offeringId: k.produktBuch, countryCodeIso2: "DE", numberOfPages: SEITEN } });
-    zeig("TROCKEN -- Preis (GET)", { url: k.basis + "/rest/" + k.version + "/offering/quote", query: { merchantApiKey: "…", offeringId: k.produktBuch, numberOfPages: SEITEN, quantity: 1, countryCodeIso2: "DE", currency: "EUR" } });
+    zeig("TROCKEN -- Preis", k.version === "v2"
+      ? { url: "GET " + k.basis + "/rest/v2/offering/quote", query: { merchantApiKey: "…", offeringId: k.produktBuch, numberOfPages: SEITEN, quantity: 1, countryCodeIso2: "DE", currency: "EUR" } }
+      : { url: "POST " + k.basis + "/rest/v3/quote", body: { apiKey: "…", countryCode: "DE", currency: "EUR", items: [{ offeringId: k.produktBuch, numberOfPages: SEITEN, quantity: 1 }] } });
     zeig("TROCKEN -- Bestellung (POST " + k.version + ")", Object.assign({ merchant_api_key: "…" }, P.bestellungKoerper(Object.assign({}, k, { produktBuch: k.produktBuch || 0 }), bestellung)));
     zeig("TROCKEN -- Bezahlen (POST)", { url: k.basis + "/rest/" + k.version + "/order/payment", body: { merchant_api_key: "…", order_id: "<order_id>", secret: "hex(SHA-256(secretKey + order_id))" } });
-    zeig("TROCKEN -- Status (GET)", { url: k.basis + "/rest/" + k.version + "/order/status", query: { merchantApiKey: "…", orderId: "<order_id>" } });
+    zeig("TROCKEN -- Status (GET)", { url: k.basis + "/rest/" + k.version + (k.version === "v2" ? "/order/status" : "/order/details"), query: { merchantApiKey: "…", orderId: "<order_id>" }, fallback: "bei 404 die andere Version" });
     log("\nTROCKEN=1: keine Aufrufe. Schritt 4 wuerde Testguthaben abziehen.");
     return;
   }
 
+  let orderId = process.env.BESTELLUNG || process.env.PEECHO_ORDER_ID || null;
+  if (orderId) log("Vorhandene Bestellung " + orderId + " fuer Schritte 4/5.");
   // 0 Version erkennen + Buch-Angebot
   if (will(0)) {
     const ergebnis = {};
@@ -99,11 +109,10 @@ function fehler(e) { return { fehler: e && e.message ? e.message : String(e), st
   }
   // 2 Preis
   if (will(2)) {
-    try { const r = await P.preis(k, { seiten: SEITEN, menge: 1, land: "DE" }); zeig("2 Preis von Peecho (1 Buch, " + SEITEN + " Seiten, nach DE)", r); protokoll.schritte.preis = r; }
+    try { const r = await P.preis(k, { seiten: SEITEN, menge: 1, land: "DE" }); zeig("2 Preis von Peecho (1 Buch, " + SEITEN + " Seiten, nach DE; API " + r.versionBenutzt + ")", r); protokoll.schritte.preis = r; }
     catch (e) { zeig("2 Preis FEHLER", fehler(e)); protokoll.schritte.preis = fehler(e); }
   }
   // 3 Bestellung
-  let orderId = process.env.PEECHO_ORDER_ID || null;
   if (will(3)) {
     try { const r = await P.bestellungAnlegen(k, bestellung); zeig("3 Bestellung angelegt (" + referenz + ")", r); orderId = r.order_id || orderId; protokoll.schritte.bestellung = r; }
     catch (e) { zeig("3 Bestellung FEHLER", fehler(e)); protokoll.schritte.bestellung = fehler(e); }
@@ -116,7 +125,7 @@ function fehler(e) { return { fehler: e && e.message ? e.message : String(e), st
   // 5 Status (zweimal, mit Pause -- Peecho prueft die Datei nach der Bezahlung)
   if (will(5) && orderId) {
     for (let i = 0; i < 2; i++) {
-      try { const r = await P.status(k, orderId); zeig("5 Status" + (i ? " (nach 20 s)" : ""), r); protokoll.schritte["status" + i] = r; if (i === 0) await warten(20000); }
+      try { const r = await P.status(k, orderId); zeig("5 Status" + (i ? " (nach 20 s)" : "") + " (API " + r.versionBenutzt + ")", r); protokoll.schritte["status" + i] = r; if (i === 0) await warten(20000); }
       catch (e) { zeig("5 Status FEHLER", fehler(e)); protokoll.schritte["status" + i] = fehler(e); break; }
     }
   }
