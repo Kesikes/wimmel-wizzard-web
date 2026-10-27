@@ -1262,7 +1262,7 @@ Screens.charakterblatt = {
     // eigentliche Fix -- ein besserer Name allein raeumt die Verwechslung nicht aus.
     const btnHinweis = h("div", { style: { display: "flex", gap: "10px", marginTop: "6px" } });
     btnHinweis.appendChild(h("p", { style: { flex: "1", margin: "0", fontSize: "11px", lineHeight: "1.35", color: "rgba(26,26,24,.65)" } },
-      "T-Shirt-Farbe, Brille, Frisur — alles andere bleibt genau so."));
+      "Farbe vom Oberteil, Brille, Frisur — alles andere bleibt genau so."));
     btnHinweis.appendChild(h("p", { style: { flex: "1", margin: "0", fontSize: "11px", lineHeight: "1.35", color: "rgba(26,26,24,.65)" } },
       neuZeichnenGesperrt(person) ? "diese Figur kommt aus dem Figuren-Regal — gleich für alle, die diese Merkmale wählen." : "ganz neu würfeln, wenn die Zeichnung selbst nicht passt."));
     btnHinweis.appendChild(h("p", { style: { flex: "1", margin: "0" } }, ""));
@@ -1399,7 +1399,7 @@ function buildCharEditPanel(person) {
     "wenn die Zeichnung grundsätzlich nicht passt, nimm lieber «Noch einmal zeichnen» — hier male ich über das vorhandene Bild, der Grundcharakter bleibt."));
   const ta = h("textarea", {
     class: "field", id: "char-edit-text", style: { minHeight: "64px", fontSize: "13px" },
-    placeholder: "z. B. T-Shirt blau statt gelb"
+    placeholder: "z. B. Oberteil blau statt gelb"
   });
   ta.value = s.charEditText || "";
   ta.addEventListener("input", () => AppState.update({ charEditText: ta.value }));
