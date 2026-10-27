@@ -148,13 +148,28 @@ function mitDeps(deps, art) {
 
   // verwerfen(schluessel) -> true/false: Kuration. Eintrag + Datei weg; die naechste Kundin mit
   // diesen Chips erzeugt live neu, und das neue Blatt wird wieder abgelegt.
+  // v4.2 (27.10.2026): wird eine GRUNDFIGUR verworfen (oder per ablegen({ ersetzen }) ersetzt), gehen
+  // ihre Ausstattungen mit -- sie sind auf genau diesem Blatt entstanden und passen zu keinem anderen.
   async function verwerfen(s) {
     const e = await suchen(s);
     if (!e) return false;
     await kv(["del", keyFigur(s)]);
     await kv(["srem", KEY_ALLE, s]);
     try { await speicher.loeschen(e.pfad); } catch (err) { /* Eintrag ist weg; Waise im Store ist nicht kritisch */ }
+    if (art !== "ausstattung") await ausstattungenVerwerfen(e);
     return true;
+  }
+  // ausstattungenVerwerfen(grundEintrag) -> [schluessel]: alle Ausstattungen, die auf dieser Grundfigur
+  // entstanden sind (grund_pfad == pfad) oder -- Altbestand ohne grund_pfad -- ihren Schluessel tragen.
+  async function ausstattungenVerwerfen(g) {
+    const aus = mitDeps(deps, "ausstattung");
+    const weg = [];
+    for (const a of await aus.liste()) {
+      if ((a.grund_pfad && a.grund_pfad === g.pfad) || (!a.grund_pfad && a.grund === g.schluessel)) {
+        if (await aus.verwerfen(a.schluessel)) weg.push(a.schluessel);
+      }
+    }
+    return weg;
   }
 
   // liste() -> [{ schluessel, url, treffer, erzeugt_am, seed, grund, grund_pfad }] fuer die Kurationsansicht
@@ -189,7 +204,7 @@ function mitDeps(deps, art) {
     return { version: art === "ausstattung" ? VERSION_AUSSTATTUNG : VERSION, geloescht };
   }
 
-  return { art: art || "grund", suchen, trefferBuchen, ablegen, verwerfen, liste, vorschauAufraeumen, aufraeumen };
+  return { art: art || "grund", suchen, trefferBuchen, ablegen, verwerfen, ausstattungenVerwerfen, liste, vorschauAufraeumen, aufraeumen };
 }
 
 module.exports = {

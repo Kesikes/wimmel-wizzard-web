@@ -95,6 +95,27 @@ test("v4.2: Ausstattung vorhanden, Grundfigur neu -> Fehltreffer, Edit neu auf d
   assert.equal(m.status, "in_progress"); assert.equal(m.ausstattungFehltreffer, "(ohne grund_pfad)");
   u.fal.zurueck();
 });
+test("v4.2: Grundfigur verwerfen oder ersetzen -> ihre Ausstattungen gehen mit, fremde bleiben", async () => {
+  const kv = neuerKvMock(); const sp = speicherAttrappe();
+  const grund = C.mitDeps({ kvCommand: kv, speicher: sp, fetch: holen }, "grund"), aus = C.mitDeps({ kvCommand: kv, speicher: sp, fetch: holen }, "ausstattung");
+  const g = await grund.ablegen({ schluessel: GRUND, bildUrl: "https://v3.fal.media/g.png" });
+  const GRUND2 = "v5|boy|6-9|blond|glatt|kurz|-|hell|-", AUS2 = CH.ausstattungsSchluessel(GRUND2, { oberteil: "rot", brille: false, extra: "nichts" }, "boy");
+  const g2 = await grund.ablegen({ schluessel: GRUND2, bildUrl: "https://v3.fal.media/g2.png" });
+  await aus.ablegen({ schluessel: AUS, bildUrl: "https://v3.fal.media/a.png", grund: GRUND, grund_pfad: g.pfad });
+  const AUS_ROT = CH.ausstattungsSchluessel(GRUND, { oberteil: "rot", brille: false, extra: "nichts" }, "girl");
+  await aus.ablegen({ schluessel: AUS_ROT, bildUrl: "https://v3.fal.media/r.png", grund: GRUND, grund_pfad: g.pfad });
+  await aus.ablegen({ schluessel: AUS2, bildUrl: "https://v3.fal.media/b.png", grund: GRUND2, grund_pfad: g2.pfad });
+  assert.equal(sp.dateien.size, 5);
+  assert.equal(await grund.verwerfen(GRUND), true);
+  assert.equal(await aus.suchen(AUS), null); assert.equal(await aus.suchen(AUS_ROT), null, "beide Ausstattungen der Grundfigur weg");
+  assert.ok(await aus.suchen(AUS2), "fremde Ausstattung bleibt");
+  assert.equal(sp.dateien.size, 2, "Dateien der Grundfigur und ihrer Ausstattungen geloescht");
+  // ersetzen einer Grundfigur (Kuration: verwerfen + neu) raeumt genauso auf -- Altbestand ohne grund_pfad per Schluessel
+  const g3 = await grund.ablegen({ schluessel: GRUND, bildUrl: "https://v3.fal.media/g3.png" });
+  await aus.ablegen({ schluessel: AUS, bildUrl: "https://v3.fal.media/a3.png", grund: GRUND, grund_pfad: g3.pfad });
+  await kv(["hset", C.ARTEN.ausstattung.key(AUS), "grund_pfad", ""]);
+  assert.deepEqual(await grund.ausstattungenVerwerfen(await grund.suchen(GRUND)), [AUS], "Altbestand ohne grund_pfad haengt am Schluessel");
+});
 test("Stufe 2: kein Treffer -> Edit mit Grundfigur, Pruefung ok -> abgelegt, resultUrl = Ausstattung", async () => {
   const u = umgebung();
   let j = await E.stufe2Starten(job(), u.deps);
