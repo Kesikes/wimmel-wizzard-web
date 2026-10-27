@@ -1268,7 +1268,7 @@ Screens.charakterblatt = {
     btnHinweis.appendChild(h("p", { style: { flex: "1", margin: "0" } }, ""));
     btnRow.appendChild(h("button", {
       type: "button", class: "h-black", style: { flex: "1", minHeight: "50px", background: "var(--ink)", color: "var(--paper)", border: "3px solid var(--ink)", fontSize: "13px" },
-      onClick: () => {
+      onClick: (ev) => {
         // Bestaetigung markiert die Person als fertig — das war vorher nirgends
         // verdrahtet (siehe Status-Hinweis: Fortschritt ist ohne echte Pipeline
         // nur eine lokale State-Markierung, kein generiertes Bild).
@@ -1284,9 +1284,22 @@ Screens.charakterblatt = {
         // Nutzerin selbst entscheiden: eine offene Kachel antippen (-> naechste Person), die
         // Bottom-Bar "Weiter zur Geschichte" (NEXT[2], unveraendert vom bestehenden Bottom-Bar-System)
         // nutzen, oder ueber die "+"-Kachel eine weitere Person anlegen.
+        // v4.1 Teil B (27.10.2026, Live-Test: "Passt so" ohne sichtbare Rueckmeldung): der Knopf
+        // zeigt kurz "Gespeichert ✓" und ist solange gesperrt (Doppelklick loest nichts zweites aus),
+        // dann wird die Uebersicht neu aufgebaut und zur Personen-Galerie gerollt, wo die Figur als
+        // fertig markiert ist. Das Ziel (diese Uebersicht, nicht das Dashboard) bleibt wie oben beschlossen.
+        const knopf = ev.currentTarget;
+        if (knopf.disabled) return;
+        knopf.disabled = true;
+        knopf.textContent = "Gespeichert ✓";
+        knopf.setAttribute("aria-live", "polite");
         const people = AppState.data.people.map((p) => (p.id === person.id ? { ...p, status: "done" } : p));
         AppState.update({ people, charMode: null });
-        Router.goScreen("charakterblatt");
+        setTimeout(() => {
+          Router.goScreen("charakterblatt");
+          const galerie = document.getElementById("personen-galerie");
+          if (galerie && galerie.scrollIntoView) galerie.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 900);
       }
     }, "Passt so"));
     wrap.appendChild(btnRow);
@@ -1327,7 +1340,7 @@ Screens.charakterblatt = {
     if (s.charEditOpen) wrap.appendChild(buildCharEditPanel(person));
 
     const peopleGrid = currentPeopleGrid();
-    wrap.appendChild(h("h2", { class: "h-black", style: { margin: "28px 0 3px", fontSize: "21px", lineHeight: ".95", letterSpacing: "-.03em" } }, "Wer spielt mit?"));
+    wrap.appendChild(h("h2", { id: "personen-galerie", class: "h-black", style: { margin: "28px 0 3px", fontSize: "21px", lineHeight: ".95", letterSpacing: "-.03em" } }, "Wer spielt mit?"));
     wrap.appendChild(h("p", { class: "caveat", style: { margin: "0 0 14px", fontSize: "19px" } }, peopleBody(peopleGrid)));
 
     const grid = h("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px" } });
