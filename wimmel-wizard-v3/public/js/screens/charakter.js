@@ -79,6 +79,10 @@ Screens.charakter = {
     // Die Karte bleibt sichtbar, ist aber gesperrt (Schloss + "Ab dem ersten Aufladen"); Antippen
     // zeigt den Hinweis mit Vorher/Nachher statt des Upload-Panels. Der Server sperrt unabhaengig
     // davon (fal-proxy.js, free-tier.js fotoErlaubt()). Anonymer Klickzaehler: FOTO_GESPERRT_EREIGNIS.
+    // GEAENDERT (C3 Konto & Aufladen, Teil D, 27.10.2026): die Foto-Karte ist nicht mehr "gesperrt",
+    // sondern der Weg zum Zauberguthaben -- "Mit Zauberguthaben" statt Schloss, Klick zeigt den
+    // Hinweis mit Vorher/Nachher und den Knopf zum Stopp-Screen (zwei Wege: Zauberguthaben 9,90 EUR,
+    // Gutschein). bezahlt kommt aus dem Konto-Stand (Konto.laden()) oder dem Test-Schalter.
     const fotoGesperrt = !s.bezahlt;
     const fotoCard = h("button", {
       type: "button",
@@ -90,11 +94,11 @@ Screens.charakter = {
       }
     });
     if (fotoGesperrt) {
-      fotoCard.appendChild(h("span", { class: "h-black", "aria-hidden": "true", style: { position: "absolute", top: "-10px", right: "-8px", background: "var(--ink)", color: "var(--paper)", fontSize: "13px", lineHeight: "1", padding: "6px 8px", transform: "rotate(6deg)" } }, "\uD83D\uDD12"));
+      fotoCard.appendChild(h("span", { class: "h-black", "aria-hidden": "true", style: { position: "absolute", top: "-10px", right: "-8px", background: "var(--yellow)", color: "var(--ink)", border: "2px solid var(--ink)", fontSize: "9px", lineHeight: "1", letterSpacing: ".04em", padding: "5px 6px", transform: "rotate(6deg)" } }, "ZAUBER"));
     }
     fotoCard.appendChild(h("span", { class: "h-black", style: { display: "block", fontSize: "15px", lineHeight: "1", letterSpacing: "-.02em" } }, [document.createTextNode("Foto"), h("br"), document.createTextNode("hochladen")]));
     // GEAENDERT (Auftrag 3 Teil 4): "wird ... danach geloescht" -> "wird nur benutzt, um eure Figur zu zeichnen."
-    fotoCard.appendChild(h("span", { style: { display: "block", marginTop: "8px", fontSize: "12px", lineHeight: "1.35" } }, fotoGesperrt ? "Ab dem ersten Aufladen." : "wird nur benutzt, um eure Figur zu zeichnen."));
+    fotoCard.appendChild(h("span", { style: { display: "block", marginTop: "8px", fontSize: "12px", lineHeight: "1.35" } }, fotoGesperrt ? "Mit Zauberguthaben." : "wird nur benutzt, um eure Figur zu zeichnen."));
 
     const chipsCard = h("button", {
       type: "button",
@@ -585,6 +589,7 @@ async function generateCharacterImage(person, buttons) {
   } catch (e) {
     charGenBusy = false;
     AppState.updatePerson(person.id, { pendingJobId: null, pendingSceneDescription: null });
+    if (window.Konto && Konto.stoppZeigen(e)) return; // C3 Teil D: Kontingent -> Stopp-Screen
     const errorP = charGenErrorEl("char-gen-error");
     if (errorP) {
       errorP.textContent = fehlerText(e, "Zeichnen hat nicht geklappt: ");
@@ -737,6 +742,7 @@ async function generateCharacterImageFromPhoto(person, photoDataUri, buttons) {
     // bereits den daraus gezogenen Text und kann dadurch gefahrlos (kein Foto-Bezug mehr) persistiert
     // werden, ein Resume nach einem Reload braucht also KEIN erneutes Foto.
     const result = await Pipeline.runCharacterJobPolling(prompt, {
+      foto: true, // C3 Teil D: Foto-Weg kennzeichnen (free-tier.js zaehlt "foto" getrennt)
       // Siehe Kommentar im Chips-Weg oben: nur der Prompt, nie das Foto.
       onJobId: (jobId) => AppState.updatePerson(person.id, { pendingJobId: jobId, pendingSceneDescription: sceneDescription, charPrompt: prompt }),
     });
@@ -746,6 +752,7 @@ async function generateCharacterImageFromPhoto(person, photoDataUri, buttons) {
   } catch (e) {
     charGenBusy = false;
     AppState.updatePerson(person.id, { pendingJobId: null, pendingSceneDescription: null });
+    if (window.Konto && Konto.stoppZeigen(e)) return; // C3 Teil D
     const errorP = charGenErrorEl("char-photo-error");
     if (errorP) {
       errorP.textContent = fehlerText(e, "Zeichnen hat nicht geklappt: ");
@@ -858,7 +865,7 @@ function resetUploadedPhoto() {
 // NEU (Auftrag 3 Teil 4, 18.10.2026): Hinweis beim Antippen der gesperrten Foto-Karte -- Vorher/
 // Nachher-Bilder (PLATZHALTER, bis Matthias /assets/foto-vorher.webp und foto-nachher.webp liefert:
 // bis dahin zeigen beide Kacheln die Papierfarbe mit Beschriftung) und der Satz aus dem Auftrag.
-const FOTO_GESPERRT_TEXT = "Mit Foto wird die Figur eurem Kind noch ähnlicher. Das schaltet ihr mit dem ersten Aufladen oder eurem Gutschein frei.";
+const FOTO_GESPERRT_TEXT = "Mit Foto wird die Figur eurem Kind noch ähnlicher. Das schaltet ihr mit dem Zauberguthaben oder eurem Gutschein frei.";
 const FOTO_GESPERRT_EREIGNIS = "foto_gesperrt_klick";
 function fotoSperreKlick() {
   // Anonymer Zaehler (api/gutschein.js mode "ereignis"): nur ein Name, keine Session, keine Person.
@@ -866,7 +873,7 @@ function fotoSperreKlick() {
 }
 function buildFotoSperrHinweis() {
   const box = h("div", { style: { marginTop: "14px", border: "4px solid var(--ink)", background: "var(--yellow)", padding: "14px", transform: "rotate(-.5deg)", boxShadow: "5px 6px 0 var(--ink)" } });
-  box.appendChild(h("p", { class: "h-black", style: { margin: "0 0 10px", fontSize: "15px", lineHeight: "1.05", letterSpacing: "-.02em" } }, "Ab dem ersten Aufladen"));
+  box.appendChild(h("p", { class: "h-black", style: { margin: "0 0 10px", fontSize: "15px", lineHeight: "1.05", letterSpacing: "-.02em" } }, "Mit Zauberguthaben"));
   const reihe = h("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", margin: "0 0 10px" } });
   [["foto-vorher.webp", "Vorher: aus Merkmalen"], ["foto-nachher.webp", "Nachher: mit Foto"]].forEach(([datei, text]) => {
     const kachel = h("figure", { style: { margin: "0" } });
@@ -879,6 +886,9 @@ function buildFotoSperrHinweis() {
   });
   box.appendChild(reihe);
   box.appendChild(h("p", { style: { margin: "0", fontSize: "13px", lineHeight: "1.45" } }, FOTO_GESPERRT_TEXT));
+  // C3 Teil D: der Weg zum Zauberguthaben -- Stopp-Screen mit beiden Wegen (screens/konto.js).
+  box.appendChild(h("button", { type: "button", class: "h-black", style: { marginTop: "10px", minHeight: "46px", width: "100%", fontSize: "13px", cursor: "pointer", border: "3px solid var(--ink)", background: "var(--red)", color: "var(--paper)", boxShadow: "4px 4px 0 var(--ink)" },
+    onClick: () => { if (window.Konto) Konto.stoppZeigen({ message: FOTO_GESPERRT_TEXT, stopp: { grund: "foto", stufe: "gratis", bezahlt: false } }); } }, "Zauberguthaben für 9,90 € · oder Gutschein"));
   box.appendChild(h("button", { type: "button", class: "h-black", style: { marginTop: "10px", minHeight: "42px", width: "100%", fontSize: "12px", cursor: "pointer", border: "3px solid var(--ink)", background: "var(--ink)", color: "var(--paper)" },
     onClick: () => { AppState.update({ charMode: "chips" }); const root = document.getElementById("screen-root"); if (root) { root.innerHTML = ""; Screens.charakter.render(root); } } }, "Erst mal mit Merkmalen"));
   return box;
@@ -1481,6 +1491,7 @@ async function neuZeichnen(person, buttons) {
     charGenBusy = false;
     AppState.updatePerson(person.id, { pendingJobId: null, pendingSceneDescription: null });
     setBusyButtons(aktive, false);
+    if (window.Konto && Konto.stoppZeigen(e)) return; // C3 Teil D: Deckel/Kontingent -> Stopp-Screen
     // NEU (26.09.2026, Baustein B "Änderungs-Deckel"): siehe gleiche Begründung bei applyCharEdit().
     zeig((e && e.keinUpsell)
       ? String((e && e.message) || e)
@@ -1535,6 +1546,7 @@ async function applyCharEdit(person, buttons) {
   } catch (e) {
     charGenBusy = false;
     setBusyButtons(activeButtons, false);
+    if (window.Konto && Konto.stoppZeigen(e)) return; // C3 Teil D
     const el = charGenErrorEl("char-edit-error");
     // NEU (26.09.2026, Baustein B "Änderungs-Deckel"): ein erreichter Deckel ist kein technischer
     // Fehlschlag -- "nochmal versuchen?" waere hier irrefuehrend, der Text aus Abschnitt 7 des

@@ -28,7 +28,12 @@ const ROUTES = [
   { path: "/app/entscheidung", screen: "entscheidung" },
   { path: "/app/widmung", screen: "widmung" },
   { path: "/app/bestellen", screen: "bestellen" },
-  { path: "/app/fertig", screen: "fertig" }
+  { path: "/app/fertig", screen: "fertig" },
+  // NEU (C3 Konto & Aufladen, Teil D, 27.10.2026): drei Screens AUSSERHALB der Rail-Reihenfolge
+  // (screenIndex() -> -1; app-shell.js blendet die Bottom-Bar dafuer aus). Siehe screens/konto.js.
+  { path: "/app/konto/loeschen", screen: "kontoLoeschen" },
+  { path: "/app/konto", screen: "konto" },
+  { path: "/app/stopp", screen: "stopp" }
 ];
 
 function routeForPath(pathname) {

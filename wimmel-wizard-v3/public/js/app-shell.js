@@ -106,8 +106,9 @@ function renderBottomBar() {
   // sichtbar (siehe app.css, .bottom-bar-Regel), es gibt also keinen zweiten Button mehr, der hier
   // separat verwaltet werden muesste.
   const appShellEl = document.getElementById("app");
-  if (appShellEl) appShellEl.classList.toggle("with-bottom-bar", idx !== 0 && idx !== 4);
-  if (idx === 0 || idx === 4) {
+  // C3 Teil D (27.10.2026): idx -1 = Konto/Stopp/Loeschen ausserhalb der Rail -> ebenfalls ohne Bar.
+  if (appShellEl) appShellEl.classList.toggle("with-bottom-bar", idx !== 0 && idx !== 4 && idx !== -1);
+  if (idx === 0 || idx === 4 || idx === -1) {
     if (barEl) barEl.style.display = "none";
     return;
   }
@@ -407,13 +408,27 @@ Router.onChange(renderScreen);
 AppState.onChange(() => {
   renderRail();
   renderSaveHint();
+  renderKontoKnopf();
 });
+// NEU (C3 Konto & Aufladen, Teil D, 27.10.2026): Konto-Knopf im Header -- "Konto" bzw. "Anmelden",
+// fuehrt zu Screens.konto (screens/konto.js).
+function renderKontoKnopf() {
+  const b = document.getElementById("konto-knopf");
+  if (!b) return;
+  const k = AppState.data.konto;
+  b.textContent = k ? (k.bezahlt ? "Konto ✓" : "Konto") : "Anmelden";
+  if (!b.dataset.verdrahtet) { b.dataset.verdrahtet = "1"; b.addEventListener("click", () => Router.goScreen("konto")); }
+}
 AppState.onChange(() => scheduleRemoteSync());
 
 document.addEventListener("DOMContentLoaded", () => {
   handleTestParams();
   handleResumeParam().finally(() => {
-    Router.resolve();
+    // NEU (C3 Konto & Aufladen, Teil D, 27.10.2026): Konto-Stand (Cookie) und Kontingente holen,
+    // BEVOR der erste Screen steht -- die Foto-Karte und der Konto-Bereich lesen daraus. Ein
+    // Fehlschlag (kein Netz, alter Server) blockiert nichts: Konto.laden() faengt selbst.
+    const kontoFertig = (window.Konto && !/[?&]bezahlt=/.test(window.location.search)) ? Konto.laden() : Promise.resolve();
+    kontoFertig.finally(() => { renderKontoKnopf(); Router.resolve(); });
     // NEU (22.09.2026): einmal beim Start mit dem Server abgleichen. Vorher lief der Abgleich nur
     // nach einer Aenderung am Stand -- wer die App nur oeffnet und herumklickt, speicherte nie.
     scheduleRemoteSync(true);

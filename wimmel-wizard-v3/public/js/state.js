@@ -163,6 +163,13 @@ const DEFAULT_STATE = {
   // spaeter Paket 2 (Aufladen/Gutschein); bis dahin nur der Test-Schalter /app?bezahlt=an. Die
   // Wahrheit prueft immer der Server (free-tier.js bezahltStatus()).
   bezahlt: false,
+  // NEU (C3 Konto & Aufladen, Teil D, 27.10.2026): Konto-Stand vom Server (api/konto.js ?mode=status,
+  // null = nicht angemeldet), Kontingente des Traegers und das stopp-Objekt der letzten 403-Antwort
+  // fuer den Stopp-Screen (screens/konto.js). bezahlt folgt jetzt aus konto/kontingente; der
+  // Test-Schalter /app?bezahlt=an bleibt (handleTestParams()).
+  konto: null,
+  kontingente: null,
+  stopp: null,
   dedication: "",
   payMethod: 0,
 

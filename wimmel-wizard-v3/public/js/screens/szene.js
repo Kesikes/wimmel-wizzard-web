@@ -1271,6 +1271,8 @@ Screens.zaubern = {
       zauberBusy = false;
       const text = e && e.message ? e.message : String(e);
       const merker = AppState.data.pendingSceneJob;
+      // C3 Teil D (27.10.2026): Bilder-Kontingent erreicht (403 mit stopp) -> Stopp-Screen statt Fehlerkasten.
+      if (e && e.stopp && window.Konto) { if (e.nichtGestartet) AppState.update({ pendingSceneJob: null }); Konto.stoppZeigen(e); return; }
       if (!merker || !merker.jobId || auftragEndgueltigVorbei(e)) {
         if (merker) AppState.update({ pendingSceneJob: null });
         showError(vorsatz + " (" + text + "). Mit „Nochmal versuchen“ fange ich neu an.");

@@ -4168,7 +4168,7 @@ async function composeCharacterImage(generate) {
 // Der Server (api/char-job-start.js) schaut damit in der gemeinsamen Figuren-Datenbank nach: Treffer
 // -> fertiges Blatt ohne fal.ai-Aufruf; kein Treffer -> live, danach fuer alle abgelegt.
 // Chip-Figuren v3 (Teil B): ausstattung = { oberteil, brille, extra } -> Stufe 2 auf dem Server.
-async function startCharacterJob(prompt, anzahl, elementId, chips, ausstattung) {
+async function startCharacterJob(prompt, anzahl, elementId, chips, ausstattung, foto) {
   // NEU (26.09.2026, Baustein A "Free-Tier-Grenzen", siehe api/_lib/free-tier.js): sessionId
   // mitschicken, damit der Server das Figuren-Kontingent JE SESSION zaehlen kann (vorher ging sie
   // nur an api/session.js fuer Speichern/Laden). AppState.data.sessionId existiert immer -- siehe
@@ -4180,12 +4180,16 @@ async function startCharacterJob(prompt, anzahl, elementId, chips, ausstattung) 
   // Erstgenerierung ist kein "neu zaubern" und darf davon nie betroffen sein.
   const resp = await fetch("/api/char-job-start", {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(anzahl === 1 ? { prompt, anzahl: 1, sessionId, elementId: elementId || null } : Object.assign({ prompt, sessionId }, chips ? { chips } : {}, chips && ausstattung ? { ausstattung } : {})),
+    // C3 Teil D: foto=true kennzeichnet den Foto-Weg (free-tier.js zaehlt "foto" getrennt, bis 3 je Stufe).
+    body: JSON.stringify(anzahl === 1 ? Object.assign({ prompt, anzahl: 1, sessionId, elementId: elementId || null }, foto ? { foto: true } : {}) : Object.assign({ prompt, sessionId }, chips ? { chips } : {}, chips && ausstattung ? { ausstattung } : {}, foto ? { foto: true } : {})),
   });
   const data = await parseJsonResponse(resp);
   if (!resp.ok || data.error) {
     const err = new Error(data.error || ("Start-Fehler " + resp.status));
     if (data.keinUpsell === true) err.keinUpsell = true;
+    // NEU (C3 Teil D, 27.10.2026): free-tier.js stoppAntwort() / aenderungs-deckel.js haengen ein
+    // stopp-Objekt an die 403 -- charakter.js/szene.js zeigen damit den Stopp-Screen (Konto.stoppZeigen).
+    if (data.stopp) { err.stopp = data.stopp; err.vorAufruf = data.vorAufruf === true; }
     throw err;
   }
   if (!data.jobId) throw new Error("Start-Antwort hatte keine jobId.");
@@ -4286,7 +4290,7 @@ function waitWithVisibilityWakeup(ms) {
 async function runCharacterJobPolling(prompt, opts) {
   opts = opts || {};
   const intervalMs = opts.intervalMs || 7000;
-  const jobId = opts.existingJobId || await startCharacterJob(prompt, opts.anzahl, opts.elementId, opts.chips, opts.ausstattung);
+  const jobId = opts.existingJobId || await startCharacterJob(prompt, opts.anzahl, opts.elementId, opts.chips, opts.ausstattung, opts.foto === true);
   if (opts.onJobId) opts.onJobId(jobId);
   for (;;) {
     if (opts.signal && opts.signal.aborted) throw new Error("Abgebrochen.");
@@ -4351,6 +4355,7 @@ async function startSceneJob({ jobId, instruction, verifyPrompt, editImageUrl, s
     const err = new Error(data.error || ("Start-Fehler " + resp.status));
     err.httpStatus = resp.status;
     err.nichtGestartet = true;
+    if (data.stopp) { err.stopp = data.stopp; err.vorAufruf = data.vorAufruf === true; } // C3 Teil D
     throw err;
   }
   if (!data.jobId) throw new Error("Start-Antwort hatte keine jobId.");
@@ -4523,6 +4528,7 @@ async function aenderungErlaubt(elementTyp, elementId) {
     const err = new Error(data.error || ("Änderungs-Deckel-Fehler " + resp.status));
     if (data.keinUpsell === true) err.keinUpsell = true;
     if (data.grenze != null) err.grenze = data.grenze;
+    if (data.stopp) err.stopp = data.stopp; // C3 Teil D: Aenderungs-Deckel -> Stopp-Screen (Extra-Zauberpaket)
     throw err;
   }
   return true;
