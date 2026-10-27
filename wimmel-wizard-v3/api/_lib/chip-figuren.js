@@ -30,7 +30,10 @@
 // ZWEI STUFEN (Chip-Figuren v3, 20.10.2026):
 //   chipfigur:{v3-schluessel}          Grundfigur (flux-lora, Kleidung frei (v4), ohne Brille/Extras)
 //   chipausstattung:{v3a-schluessel}   Ausstattung (nano-banana-2/edit auf die Grundfigur: Oberteil-
-//                                      farbe, Brille, ein Extra), Blob-Ordner figuren/chips/ausstattung/
+//                                      farbe, Brille, ein Extra), Blob-Ordner figuren/chips/ausstattung/;
+//                                      Feld grund_pfad = Blob-Pfad GENAU DER Grundfigur, auf der der
+//                                      Edit lief (v4.2) -- ein Treffer zaehlt nur, wenn er zur aktuell
+//                                      abgelegten Grundfigur passt, sonst Edit neu und Eintrag ersetzt.
 // Beide Stores haben denselben Mechanismus (HSETNX-Wettlauf, Trefferzaehler, Kuration); mitDeps()
 // liefert fuer jede Art ein eigenes Objekt (art "grund" | "ausstattung").
 const CHIPS = require("../../public/js/chips.js");
@@ -107,18 +110,21 @@ function mitDeps(deps, art) {
     const o = {};
     for (let i = 0; i + 1 < roh.length; i += 2) o[roh[i]] = roh[i + 1];
     if (!o.pfad) return null;
-    return { schluessel: s, pfad: o.pfad, url: speicher.oeffentlicheUrl(o.pfad), prompt: o.prompt || "", seed: o.seed != null && o.seed !== "" ? Number(o.seed) : null, erzeugt_am: o.erzeugt_am || "", treffer: Number(o.treffer || 0), grund: o.grund || "" };
+    return { schluessel: s, pfad: o.pfad, url: speicher.oeffentlicheUrl(o.pfad), prompt: o.prompt || "", seed: o.seed != null && o.seed !== "" ? Number(o.seed) : null, erzeugt_am: o.erzeugt_am || "", treffer: Number(o.treffer || 0), grund: o.grund || "", grund_pfad: o.grund_pfad || "" };
   }
   async function trefferBuchen(s) {
     try { await kv(["hincrby", keyFigur(s), "treffer", "1"]); } catch (e) { /* Zaehler ist nicht kritisch */ }
   }
 
-  // ablegen({ schluessel, bildUrl, prompt, seed, verify, grund }) -> { pfad, url, neu } -- laedt das
-  // fertige Blatt (fal.media) herunter, speichert es unter figuren/chips[/ausstattung]/..., traegt es
-  // ein. Gewinnt ein anderer Lauf das HSETNX, wird die eigene Datei wieder geloescht und dessen
-  // Eintrag geliefert. grund = Pfad der Grundfigur (nur Ausstattung, fuer die Kurationsansicht).
+  // ablegen({ schluessel, bildUrl, prompt, seed, verify, grund, grund_pfad }) -> { pfad, url, neu } --
+  // laedt das fertige Blatt (fal.media) herunter, speichert es unter figuren/chips[/ausstattung]/...,
+  // traegt es ein. Gewinnt ein anderer Lauf das HSETNX, wird die eigene Datei wieder geloescht und
+  // dessen Eintrag geliefert. Nur Ausstattung: grund = Schluessel der Grundfigur (Kurationsansicht),
+  // grund_pfad = Blob-Pfad GENAU DER Grundfigur, auf der der Edit lief (v4.2, 27.10.2026: eine
+  // Ausstattung gehoert zu genau einer Grundfigur -- Pflicht, sonst wird nicht abgelegt).
   async function ablegen(a) {
     if (!a || !a.schluessel || !a.bildUrl) throw new Error("ablegen: schluessel und bildUrl noetig.");
+    if (art === "ausstattung" && !a.grund_pfad) throw new Error("ablegen: Ausstattung ohne grund_pfad (Grundfigur nicht im Regal) wird nicht abgelegt.");
     const resp = await holen(a.bildUrl);
     if (!resp.ok) throw new Error("Blatt laden: Status " + resp.status);
     const bytes = Buffer.from(await resp.arrayBuffer());
@@ -132,7 +138,7 @@ function mitDeps(deps, art) {
       const vorhanden = await suchen(a.schluessel);
       return { pfad: vorhanden.pfad, url: vorhanden.url, neu: false };
     }
-    await kv(["hset", keyFigur(a.schluessel), "prompt", String(a.prompt || ""), "seed", String(a.seed == null ? "" : a.seed), "erzeugt_am", jetzt().toISOString(), "treffer", "0", "verify", JSON.stringify(a.verify || null), "grund", String(a.grund || "")]);
+    await kv(["hset", keyFigur(a.schluessel), "prompt", String(a.prompt || ""), "seed", String(a.seed == null ? "" : a.seed), "erzeugt_am", jetzt().toISOString(), "treffer", "0", "verify", JSON.stringify(a.verify || null), "grund", String(a.grund || ""), "grund_pfad", String(a.grund_pfad || "")]);
     await kv(["sadd", KEY_ALLE, a.schluessel]);
     return { pfad, url: speicher.oeffentlicheUrl(pfad), neu: true };
   }
@@ -148,13 +154,13 @@ function mitDeps(deps, art) {
     return true;
   }
 
-  // liste() -> [{ schluessel, url, treffer, erzeugt_am, seed, grund }] fuer die Kurationsansicht
+  // liste() -> [{ schluessel, url, treffer, erzeugt_am, seed, grund, grund_pfad }] fuer die Kurationsansicht
   async function liste() {
     const keys = await kv(["smembers", KEY_ALLE]);
     const out = [];
     for (const s of (keys || []).filter(A.aktuell).sort()) {
       const e = await suchen(s);
-      if (e) out.push({ schluessel: s, url: e.url, treffer: e.treffer, erzeugt_am: e.erzeugt_am, seed: e.seed, grund: e.grund });
+      if (e) out.push({ schluessel: s, url: e.url, treffer: e.treffer, erzeugt_am: e.erzeugt_am, seed: e.seed, grund: e.grund, grund_pfad: e.grund_pfad });
     }
     return out;
   }

@@ -102,7 +102,7 @@ module.exports = async (req, res) => {
       let job = {
         jobId, prompt, status: "done", error: null, candidates: [], maxKandidaten: 0, stufe: 1,
         resultUrl: treffer.url, resultSeed: treffer.seed, resultViolations: 0, resultVerify: null,
-        chipSchluessel, chipTreffer: true, chipGespeichert: true, grundUrl: treffer.url,
+        chipSchluessel, chipTreffer: true, chipGespeichert: true, grundUrl: treffer.url, chipPfad: treffer.pfad,
         sessionId: String(body.sessionId).toLowerCase(),
         createdAt: now, updatedAt: now,
       };

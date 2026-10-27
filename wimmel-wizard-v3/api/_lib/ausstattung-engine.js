@@ -150,9 +150,13 @@ async function abschliessen(next, deps, inSpeicher) {
   next.resultUrl = a.url || next.grundUrl;
   next.resultVerify = a.verify || next.resultVerify; next.resultViolations = a.violations == null ? next.resultViolations : a.violations;
   if (!inSpeicher || !a.url) { next.ausstattungGespeichert = false; next.ausstattungHinweis = next.ausstattungHinweis || "nicht_fehlerfrei"; return next; }
+  // v4.2 (27.10.2026): eine Ausstattung gehoert zu genau EINER Grundfigur. Liegt die Grundfigur nicht
+  // im Regal (kein chipPfad), wird auch die Ausstattung nicht abgelegt -- sonst entstuende genau der
+  // verwaiste Eintrag, der am 27.10. ein anderes Kind auslieferte.
+  if (!next.chipPfad) { next.ausstattungGespeichert = false; next.ausstattungHinweis = "grundfigur_nicht_im_regal"; return next; }
   const db = deps.db || chipFiguren.mitDeps(null, "ausstattung");
   try {
-    const r = await db.ablegen({ schluessel: next.ausstattungSchluessel, bildUrl: a.url, prompt: CHIPS.ausstattungEditPrompt(next.ausstattungWerte), seed: null, verify: a.verify, grund: next.chipSchluessel || "" });
+    const r = await db.ablegen({ schluessel: next.ausstattungSchluessel, bildUrl: a.url, prompt: CHIPS.ausstattungEditPrompt(next.ausstattungWerte), seed: null, verify: a.verify, grund: next.chipSchluessel || "", grund_pfad: next.chipPfad });
     next.resultUrlFal = a.url; next.resultUrl = r.url; next.ausstattungGespeichert = true; next.ausstattungAbgelegt = r.neu;
   } catch (e) {
     next.ausstattungGespeichert = false; next.ausstattungHinweis = e && e.message ? e.message : String(e);

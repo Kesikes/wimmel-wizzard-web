@@ -46,7 +46,7 @@ function umgebung(plan) {
   return { kv, sp, db, fal, deps: { FAL_KEY: "k", db, sitzung } };
 }
 function job(extra) {
-  return Object.assign({ jobId: "cj_1", prompt: "wmlstil, girl, ...", status: "done", stufe: 1, resultUrl: "https://www.wimmelwizard.de/api/image-proxy?blob=figuren%2Fchips%2Fg.png", grundUrl: "https://www.wimmelwizard.de/api/image-proxy?blob=figuren%2Fchips%2Fg.png", resultViolations: 0, chipSchluessel: GRUND, ausstattungSchluessel: AUS, ausstattungWerte: WERTE, sessionId: "123e4567-e89b-12d3-a456-426614174000" }, extra || {});
+  return Object.assign({ jobId: "cj_1", prompt: "wmlstil, girl, ...", status: "done", stufe: 1, resultUrl: "https://www.wimmelwizard.de/api/image-proxy?blob=figuren%2Fchips%2Fg.png", grundUrl: "https://www.wimmelwizard.de/api/image-proxy?blob=figuren%2Fchips%2Fg.png", resultViolations: 0, chipSchluessel: GRUND, chipPfad: "figuren/chips/g.png", ausstattungSchluessel: AUS, ausstattungWerte: WERTE, sessionId: "123e4567-e89b-12d3-a456-426614174000" }, extra || {});
 }
 
 test("ausstattungAusBody: nur komplett und zur Rolle passend", () => {
@@ -60,7 +60,7 @@ test("ausstattungAusBody: nur komplett und zur Rolle passend", () => {
 
 test("Stufe 2: Treffer im Speicher -> sofort fertig, kein Edit", async () => {
   const u = umgebung();
-  await u.db.ablegen({ schluessel: AUS, bildUrl: "https://v3.fal.media/alt.png", grund: GRUND });
+  await u.db.ablegen({ schluessel: AUS, bildUrl: "https://v3.fal.media/alt.png", grund: GRUND, grund_pfad: "figuren/chips/g.png" });
   const j = await E.stufe2Starten(job(), u.deps);
   assert.equal(j.status, "done"); assert.equal(j.stufe, 2); assert.equal(j.ausstattungTreffer, true);
   assert.match(j.resultUrl, /image-proxy\?blob=figuren%2Fchips%2Fausstattung/);
@@ -82,7 +82,7 @@ test("Stufe 2: kein Treffer -> Edit mit Grundfigur, Pruefung ok -> abgelegt, res
   assert.equal(j.resultUrlFal, "https://v3.fal.media/req1.png");
   assert.match(j.resultUrl, /figuren%2Fchips%2Fausstattung%2Fv5a-/);
   assert.equal(j.grundUrl, job().grundUrl, "Grundfigur bleibt am Job");
-  const e = await u.db.suchen(AUS); assert.equal(e.grund, GRUND);
+  const e = await u.db.suchen(AUS); assert.equal(e.grund, GRUND); assert.equal(e.grund_pfad, "figuren/chips/g.png", "v4.2: Ausstattung kennt den Blob-Pfad ihrer Grundfigur");
   assert.equal(u.sp.dateien.size, 1);
   u.fal.zurueck();
 });
@@ -138,7 +138,7 @@ test("char-job-start: Grund-Treffer + Ausstattung ohne Treffer -> Job in Stufe 2
     const chips = { rolle: "girl", alter: 7, haarfarbe: "blond", haarform: "glatt", haarlaenge: "lang", frisur: "zoepfe", hautton: "hell" };
     const prompt = "wmlstil, girl, age 7, light skin tone, long straight blonde hair in two braids, round head, minimal face, dot eyes, full body, front view";
     const antwort = () => { const r = { code: 0, body: null }; r.status = (c) => { r.code = c; return r; }; r.json = (b) => { r.body = b; return r; }; return r; };
-    await C.mitDeps().ablegen({ schluessel: GRUND, bildUrl: "https://v3.fal.media/g.png", seed: 7 });
+    const g = await C.mitDeps().ablegen({ schluessel: GRUND, bildUrl: "https://v3.fal.media/g.png", seed: 7 });
     process.env.FAL_KEY = "k";
     let res = antwort();
     await start({ method: "POST", headers: {}, body: { prompt, sessionId: SID, chips, ausstattung: WERTE } }, res);
@@ -146,9 +146,10 @@ test("char-job-start: Grund-Treffer + Ausstattung ohne Treffer -> Job in Stufe 2
     let j = JSON.parse(await kv(["get", "charjob:" + res.body.jobId]));
     assert.equal(j.status, "in_progress"); assert.equal(j.stufe, 2); assert.equal(j.ausstattungSchluessel, AUS);
     assert.match(j.grundUrl, /image-proxy\?blob=figuren%2Fchips%2Fv5-girl/);
+    assert.equal(j.chipPfad, g.pfad, "v4.2: der Job kennt den Blob-Pfad der Grundfigur");
     assert.equal(fal.log.filter((x) => x[0] === "submit").length, 1, "ein Edit eingereiht");
     // Ausstattung jetzt im Speicher -> zweite Sitzung: sofort done, kein Edit
-    await C.mitDeps(null, "ausstattung").ablegen({ schluessel: AUS, bildUrl: "https://v3.fal.media/a.png", grund: GRUND });
+    await C.mitDeps(null, "ausstattung").ablegen({ schluessel: AUS, bildUrl: "https://v3.fal.media/a.png", grund: GRUND, grund_pfad: g.pfad });
     const SID2 = "223e4567-e89b-12d3-a456-426614174000"; await kv(["set", "session:" + SID2, "{}"]);
     res = antwort();
     await start({ method: "POST", headers: {}, body: { prompt, sessionId: SID2, chips, ausstattung: WERTE } }, res);
@@ -169,8 +170,9 @@ test("Kuration (Teil D): Liste getrennt, Aufraeumen erst als Vorschau, verwerfen
   try {
     const handler = require("../api/gutschein");
     const grund = C.mitDeps(null, "grund"), aus = C.mitDeps(null, "ausstattung");
-    await grund.ablegen({ schluessel: GRUND, bildUrl: "https://v3.fal.media/g.png" });
-    await aus.ablegen({ schluessel: AUS, bildUrl: "https://v3.fal.media/a.png", grund: GRUND });
+    const g = await grund.ablegen({ schluessel: GRUND, bildUrl: "https://v3.fal.media/g.png" });
+    await aus.ablegen({ schluessel: AUS, bildUrl: "https://v3.fal.media/a.png", grund: GRUND, grund_pfad: g.pfad });
+    await assert.rejects(() => aus.ablegen({ schluessel: AUS + "x", bildUrl: "https://v3.fal.media/a.png", grund: GRUND }), /grund_pfad/, "v4.2: Ausstattung ohne Grundfigur-Pfad wird nicht abgelegt");
     // Alt-Eintraege (v2 / v1) direkt in KV
     const altG = "v3|girl|6-9|blond|glatt|lang|zoepfe|hell|-", altA = "v3a|" + altG + "|rot|-|nichts";
     await kv(["hset", C.ARTEN.grund.key(altG), "pfad", "figuren/chips/alt.png"]); await kv(["sadd", C.ARTEN.grund.alle, altG]); sp.dateien.set("figuren/chips/alt.png", {});

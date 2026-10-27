@@ -29,6 +29,7 @@ async function chipFigurAblegen(job) {
     const r = await chipFiguren.mitDeps().ablegen({ schluessel: next.chipSchluessel, bildUrl: next.resultUrl, prompt: next.prompt, seed: next.resultSeed, verify: next.resultVerify });
     next.resultUrlFal = next.resultUrl;
     next.resultUrl = r.url;
+    next.chipPfad = r.pfad; // v4.2: Blob-Pfad der Grundfigur -- die Ausstattung gehoert genau zu ihr
     next.chipAbgelegt = r.neu;
   } catch (e) {
     next.chipAbgelegt = false;
