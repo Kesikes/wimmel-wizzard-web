@@ -7,6 +7,16 @@ werden muss, und was warten kann. Es wird bei größeren Meilensteinen fortgesch
 
 ---
 
+## 🖨️ C2 Peecho Stufe 1 (27.10.2026): Schnittstelle + Testbestellung (nur Wimmelbuch)
+
+`docs/c2-peecho-stufe1-rueckmeldung-2026-10-27.md`: Peecho-Client (`api/_lib/peecho.js`, reines fetch,
+Live-Sperre wie Stripe), Muster-Druck-PDF (24 Seiten inkl. Umschlag) mit Ablage `druck/muster/` und
+signiertem Link (`api/druck-datei.js`), Testskript `dev-tools/peecho-test.js` fürs Testsystem, Webhook
+`api/peecho-webhook.js` (signierte Callbacks, nur merken). Offen: API-Version v2/v3, Seitenzahl inkl.
+Umschlag, Farbraum, Versandart — klärt der Testlauf bei Matthias.
+
+---
+
 ## 🩹 Figuren v4.2 (27.10.2026): eine Ausstattung gehört zu genau einer Grundfigur
 
 `docs/figuren-v4-2-rueckmeldung-2026-10-27.md`: Ausstattungen tragen den Blob-Pfad ihrer Grundfigur
