@@ -178,17 +178,49 @@ function mitDeps(deps) {
   }
   function anmeldeUrl(email, sid, jetztMs, warte) { return cfg.siteUrl() + "/api/konto?mode=anmelden&token=" + encodeURIComponent(anmeldeToken(email, sid, jetztMs, warte)); }
   // anmeldeLinkSenden(email, sid) -> { ok, url, warte } -- verschickt die Mail (url nur fuer Tests/Log, nie an den Client; warte geht an das anfragende Geraet).
+  // C3.2 Teil 2 (28.10.2026): zusaetzlich zum Link ein 6-stelliger Zaubercode -- gleiche Gueltigkeit
+  // (30 min), einmal benutzbar, hoechstens CODE_VERSUCHE Fehlversuche, dann neu anfordern. Der Code
+  // haengt am Warte-Schluessel (anmelde-code:{w}), den nur das anfragende Geraet kennt; eine
+  // Anmeldung per Code entwertet den Link (Nonce wird verbraucht) und umgekehrt bleibt der Code
+  // nach dem Link-Klick wirkungslos (Warte-Schluessel ist dann abgeholt).
+  const CODE_VERSUCHE = 5;
+  function neuerCode() { return String(crypto.randomInt(0, 1000000)).padStart(6, "0"); }
   async function anmeldeLinkSenden(email, sid) {
     if (!emailGueltig(email)) throw Object.assign(new Error("Bitte eine gültige E-Mail-Adresse eingeben."), { nutzerfehler: true });
     const warte = crypto.randomBytes(16).toString("hex");
-    const url = anmeldeUrl(email, sid, null, warte);
+    const token = anmeldeToken(email, sid, null, warte);
+    const url = cfg.siteUrl() + "/api/konto?mode=anmelden&token=" + encodeURIComponent(token);
+    const code = neuerCode();
+    const nonce = (tokenLib.pruefe(token, "anmelden") || {}).nonce || "";
+    await d.kv(["set", "anmelde-code:" + warte, JSON.stringify({ code, email: emailNormalisieren(email), sid: SESSION_ID_RE.test(String(sid || "")) ? String(sid).toLowerCase() : "", nonce, versuche: 0 }), "EX", String(ANMELDE_LINK_MINUTEN * 60)]);
+    const codeSchoen = code.slice(0, 3) + " " + code.slice(3);
     const ok = await d.mail({
       to: emailNormalisieren(email), from: cfg.mailAbsender(),
-      subject: "Dein Anmelde-Link für Wimmel Wizard",
-      text: "Hallo,\n\nhier ist dein Anmelde-Link für Wimmel Wizard – er gilt " + ANMELDE_LINK_MINUTEN + " Minuten und nur einmal. Du kannst den Link auf jedem Gerät öffnen – eure Figuren hängen danach an deinem Konto:\n\n" + url + "\n\nWenn du das nicht warst, ignoriere diese Mail einfach.\n\nWimmel Wizard · " + cfg.kontaktEmail(),
-      html: "<p>Hallo,</p><p>hier ist dein Anmelde-Link für Wimmel Wizard – er gilt " + ANMELDE_LINK_MINUTEN + " Minuten und nur einmal. Du kannst den Link auf jedem Gerät öffnen – eure Figuren hängen danach an deinem Konto.</p><p><a href=\"" + url + "\" style=\"display:inline-block;padding:12px 18px;background:#1a1a18;color:#f3efe6;text-decoration:none;font-weight:700\">Jetzt anmelden</a></p><p style=\"font-size:12px;color:#666\">Oder diesen Link öffnen: " + url + "</p><p>Wenn du das nicht warst, ignoriere diese Mail einfach.</p><p>Wimmel Wizard · " + cfg.kontaktEmail() + "</p>",
+      subject: "Dein Zaubercode für Wimmel Wizard: " + codeSchoen,
+      text: "Hallo,\n\ndein Zaubercode für Wimmel Wizard: " + codeSchoen + "\n\nGib ihn in der App ein – dann bist du im selben Fenster angemeldet. Oder öffne diesen Link – du kannst den Link auf jedem Gerät öffnen:\n\n" + url + "\n\nBeides gilt " + ANMELDE_LINK_MINUTEN + " Minuten und nur einmal. Wenn du das nicht warst, ignoriere diese Mail einfach.\n\nWimmel Wizard · " + cfg.kontaktEmail(),
+      html: "<p>Hallo,</p><p>dein Zaubercode für Wimmel Wizard:</p><p style=\"font-size:28px;font-weight:900;letter-spacing:.12em;margin:8px 0 14px\">" + codeSchoen + "</p><p>Gib ihn in der App ein – dann bist du im selben Fenster angemeldet. Oder öffne diesen Link – du kannst den Link auf jedem Gerät öffnen:</p><p><a href=\"" + url + "\" style=\"display:inline-block;padding:12px 18px;background:#1a1a18;color:#f3efe6;text-decoration:none;font-weight:700\">Jetzt anmelden</a></p><p style=\"font-size:12px;color:#666\">Oder diesen Link öffnen: " + url + "</p><p>Beides gilt " + ANMELDE_LINK_MINUTEN + " Minuten und nur einmal. Wenn du das nicht warst, ignoriere diese Mail einfach.</p><p>Wimmel Wizard · " + cfg.kontaktEmail() + "</p>",
     });
-    return { ok: !!ok, url, warte };
+    return { ok: !!ok, url, warte, code };
+  }
+  // anmeldeCodeEinloesen(warte, codeEingabe) -> { konto, sid } | wirft mit .nutzerfehler (+ .versucheUebrig).
+  async function anmeldeCodeEinloesen(warte, codeEingabe) {
+    if (!/^[0-9a-f]{32}$/.test(String(warte || ""))) throw Object.assign(new Error("Bitte zuerst einen Zaubercode anfordern."), { nutzerfehler: true });
+    const key = "anmelde-code:" + warte;
+    const roh = await d.kv(["get", key]);
+    if (!roh) throw Object.assign(new Error("Dieser Zaubercode ist abgelaufen oder schon benutzt – bitte einen neuen anfordern."), { nutzerfehler: true });
+    const e = JSON.parse(roh);
+    const code = String(codeEingabe || "").replace(/\D/g, "");
+    if (code !== e.code) {
+      e.versuche = (e.versuche || 0) + 1;
+      if (e.versuche >= CODE_VERSUCHE) { await d.kv(["del", key]); throw Object.assign(new Error("Zu oft daneben – bitte einen neuen Zaubercode anfordern."), { nutzerfehler: true, versucheUebrig: 0 }); }
+      const ttl = Number(await d.kv(["ttl", key])); await d.kv(["set", key, JSON.stringify(e), "EX", String(ttl > 0 ? ttl : 60)]);
+      throw Object.assign(new Error("Der Code stimmt nicht – noch " + (CODE_VERSUCHE - e.versuche) + (CODE_VERSUCHE - e.versuche === 1 ? " Versuch." : " Versuche.")), { nutzerfehler: true, versucheUebrig: CODE_VERSUCHE - e.versuche });
+    }
+    await d.kv(["del", key]);
+    if (e.nonce) await d.kv(["set", "anmelde-nonce:" + e.nonce, "1", "NX", "EX", String(ANMELDE_LINK_MINUTEN * 60 + 60)]); // Link entwerten
+    let k = await anlegenOderLesen(e.email);
+    if (e.sid) { try { k = await sitzungVerknuepfen(k.id, e.sid); } catch (err) { /* wie beim Link */ } }
+    return { konto: k, sid: e.sid || "" };
   }
   // anmeldeWarten(warte) -> kontoId | null: einmalig, sobald der Link geklickt wurde (Schluessel wird
   // danach geloescht). Nur wer den Warte-Schluessel aus der Antwort auf anmelden-link hat, kommt dran.
@@ -209,7 +241,7 @@ function mitDeps(deps) {
     let k = await anlegenOderLesen(p.email);
     if (p.sid) { try { k = await sitzungVerknuepfen(k.id, p.sid); } catch (e) { /* Sitzung gehoert zu einem anderen Konto: Anmeldung trotzdem gueltig */ } }
     // C3.1 Punkt 4: dem wartenden (anfragenden) Geraet Bescheid geben -- 10 Minuten abholbar.
-    if (p.w && /^[0-9a-f]{32}$/.test(String(p.w))) await d.kv(["set", "anmelde-warte:" + p.w, k.id, "EX", "600"]);
+    if (p.w && /^[0-9a-f]{32}$/.test(String(p.w))) { await d.kv(["set", "anmelde-warte:" + p.w, k.id, "EX", "600"]); await d.kv(["del", "anmelde-code:" + p.w]); } // C3.2: Code nach Link-Klick wirkungslos
     return { konto: k, sid: p.sid || "" };
   }
 
@@ -234,7 +266,7 @@ function mitDeps(deps) {
   async function kontoAusRequest(req) { return lesen(kontoIdAusRequest(req)); }
 
   return { lesen, speichern, perEmail, anlegenOderLesen, kontoZuSitzung, sitzungVerknuepfen, paketGutschreiben, gutscheinGutschreiben, extraVerbrauchen, hatPaket, hatGuthaben, stufe, loeschen,
-    anmeldeToken, anmeldeUrl, anmeldeLinkSenden, anmeldeTokenEinloesen, anmeldeWarten, cookieToken, cookieSetzen, kontoIdAusRequest, kontoAusRequest };
+    anmeldeToken, anmeldeUrl, anmeldeLinkSenden, anmeldeTokenEinloesen, anmeldeWarten, anmeldeCodeEinloesen, CODE_VERSUCHE, cookieToken, cookieSetzen, kontoIdAusRequest, kontoAusRequest };
 }
 
 module.exports = { mitDeps, emailNormalisieren, emailGueltig, emailHash, keyKonto, keyEmail, keySitzung, COOKIE_NAME, COOKIE_TAGE, ANMELDE_LINK_MINUTEN, ZAEHLER, MENGEN };

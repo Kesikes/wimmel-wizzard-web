@@ -4,6 +4,7 @@
 //   POST { mode:"anmelden-link", email, sessionId }   Anmelde-Mail mit Einmal-Link (30 min), streng rate-limitiert
 //   GET  ?mode=anmelden&token=…          Link aus der Mail: Konto anlegen/lesen, Sitzung verknuepfen, Cookie setzen, weiter zu /app/konto (+resume=<sid>)
 //   GET  ?mode=anmelde-warten&warte=…    C3.1: anfragendes Geraet fragt nach, ob der Link benutzt wurde -> Cookie
+//   POST { mode:"anmelden-code", warte, code }   C3.2: 6-stelliger Zaubercode aus der Mail -> Cookie im selben Fenster
 //   POST { mode:"verknuepfen", sessionId }           aktuelle Sitzung ans Konto (Cookie) haengen
 //   POST { mode:"abmelden" }                          Cookie loeschen
 //   POST { mode:"loeschen", bestaetigt:true }         "Meine Daten loeschen": Konto + verknuepfte Sitzungen + Zaehler
@@ -72,6 +73,16 @@ module.exports = async (req, res) => {
       const r = await K.anmeldeLinkSenden(body.email, body.sessionId);
       if (!r.ok) { res.status(502).json({ error: "Die Mail konnte gerade nicht verschickt werden – bitte gleich noch einmal versuchen." }); return; }
       res.status(200).json({ ok: true, warte: r.warte, hinweis: "Wir haben dir einen Anmelde-Link geschickt – er gilt " + kontoModul.ANMELDE_LINK_MINUTEN + " Minuten. Du kannst den Link auf jedem Gerät öffnen." });
+      return;
+    }
+    if (mode === "anmelden-code") {
+      // C3.2 Teil 2: Zaubercode aus der Mail -> Anmeldung im selben Fenster (Cookie). 20 je Stunde und IP.
+      if (!(await checkRateLimit(req, res, { keyPrefix: "kontocode", limit: 20, windowSeconds: 3600 }))) return;
+      let ergebnis;
+      try { ergebnis = await K.anmeldeCodeEinloesen(body.warte, body.code); }
+      catch (e) { if (e && e.nutzerfehler) { res.status(400).json({ error: e.message, versucheUebrig: e.versucheUebrig }); return; } throw e; }
+      K.cookieSetzen(res, ergebnis.konto.id);
+      res.status(200).json({ angemeldet: true, email: ergebnis.konto.email });
       return;
     }
     const k = await K.kontoAusRequest(req);

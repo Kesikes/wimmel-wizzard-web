@@ -439,7 +439,10 @@ document.addEventListener("DOMContentLoaded", () => {
     // NEU (C3 Konto & Aufladen, Teil D, 27.10.2026): Konto-Stand (Cookie) und Kontingente holen,
     // BEVOR der erste Screen steht -- die Foto-Karte und der Konto-Bereich lesen daraus. Ein
     // Fehlschlag (kein Netz, alter Server) blockiert nichts: Konto.laden() faengt selbst.
-    const kontoFertig = (window.Konto && !/[?&]bezahlt=/.test(window.location.search)) ? Konto.laden() : Promise.resolve();
+    // C3.2 Teil 2: Tab aus der Anmelde-Mail? Erst fragen, ob im selben Browser schon ein Tab offen ist.
+    if (window.Konto) Konto.tabStart();
+    const tabFertig = (window.Konto && /[?&]angemeldet=1/.test(window.location.search)) ? Konto.tabPruefen().then((da) => { Konto.andererTab = da; if (da) Konto.tabMelden("angemeldet"); }) : Promise.resolve();
+    const kontoFertig = tabFertig.then(() => (window.Konto && !/[?&]bezahlt=/.test(window.location.search)) ? Konto.laden() : null);
     kontoFertig.finally(() => { renderKontoKnopf(); Router.resolve(); });
     // NEU (22.09.2026): einmal beim Start mit dem Server abgleichen. Vorher lief der Abgleich nur
     // nach einer Aenderung am Stand -- wer die App nur oeffnet und herumklickt, speicherte nie.

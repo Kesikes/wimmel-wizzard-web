@@ -98,6 +98,35 @@ const Konto = {
     return true;
   },
   angebot: [], widerrufsverzichtSatz: "", einloesenAb: "", meldung: "",
+  // C3.2 Teil 2: Tabs desselben Browsers reden ueber einen BroadcastChannel. Der aus der Mail
+  // geoeffnete Tab fragt "wer-da?"; antwortet ein offener Wimmel-Wizard-Tab, meldet der neue Tab ihn
+  // an ("angemeldet": der andere Tab laedt den Konto-Stand -- das Cookie teilen sie ohnehin) und
+  // zeigt selbst nur "Du bist angemeldet ✓ – du kannst dieses Fenster schließen".
+  tabKanal: null, andererTab: false,
+  tabStart() {
+    if (Konto.tabKanal || typeof BroadcastChannel === "undefined") return;
+    try {
+      Konto.tabKanal = new BroadcastChannel("wimmel-wizard-konto");
+      Konto.tabKanal.onmessage = async (ev) => {
+        const m = ev && ev.data || {};
+        if (m.typ === "wer-da") Konto.tabKanal.postMessage({ typ: "da" });
+        if (m.typ === "angemeldet") { await Konto.laden(); Konto.meldung = "Angemeldet – alles Bisherige hängt jetzt an deinem Konto."; if (Router.current === "konto" || Router.current === "stopp") { if (typeof renderScreen === "function") renderScreen(); } }
+      };
+    } catch (e) { Konto.tabKanal = null; }
+  },
+  tabMelden(typ) { try { if (Konto.tabKanal) Konto.tabKanal.postMessage({ typ }); } catch (e) { /* egal */ } },
+  // tabPruefen() -> Promise<boolean>: gibt es im selben Browser schon einen offenen Tab?
+  tabPruefen() {
+    return new Promise((loesen) => {
+      Konto.tabStart();
+      if (!Konto.tabKanal) { loesen(false); return; }
+      let fertig = false;
+      const alt = Konto.tabKanal.onmessage;
+      Konto.tabKanal.onmessage = (ev) => { const m = ev && ev.data || {}; if (m.typ === "da" && !fertig) { fertig = true; Konto.tabKanal.onmessage = alt; loesen(true); } else if (alt) alt(ev); };
+      Konto.tabKanal.postMessage({ typ: "wer-da" });
+      setTimeout(() => { if (!fertig) { fertig = true; Konto.tabKanal.onmessage = alt; loesen(false); } }, 500);
+    });
+  },
   paket(typ) { return (Konto.angebot || []).find((p) => p.id === typ) || { id: typ, name: typ, preis: "" }; },
 };
 window.Konto = Konto;
@@ -115,6 +144,30 @@ function kontoHinweis(text, fehler) {
   return h("p", { style: { margin: "10px 0 0", fontSize: "13px", lineHeight: "1.45", color: fehler ? "var(--red)" : "inherit" }, "aria-live": "polite" }, text);
 }
 // Anmelde-Formular: E-Mail -> Link per Mail. onFertig(hinweis) nach dem Versand.
+// C3.2 Teil 2 (28.10.2026): "Oder gib hier deinen Zaubercode ein" -- Anmeldung im selben Fenster.
+function zaubercodeFeld(warte, onFertig) {
+  const wrap = h("div", { style: { marginTop: "14px", paddingTop: "12px", borderTop: "2px dashed var(--ink)" } });
+  wrap.appendChild(h("label", { for: "zaubercode", class: "h-black", style: { display: "block", fontSize: "12px", letterSpacing: ".04em" } }, "Oder gib hier deinen Zaubercode ein"));
+  wrap.appendChild(h("p", { style: { margin: "4px 0 0", fontSize: "12px", lineHeight: "1.4" } }, "Der 6-stellige Code steht in der Mail – damit bleibst du in diesem Fenster."));
+  const feld = h("input", { class: "field", id: "zaubercode", inputmode: "numeric", autocomplete: "one-time-code", placeholder: "123 456", "aria-label": "Zaubercode", maxlength: "7", style: { letterSpacing: ".18em", fontSize: "20px", textAlign: "center" } });
+  const hinweis = kontoHinweis("", true); hinweis.style.display = "none";
+  const knopf = kontoKnopf("Mit Zaubercode anmelden", async () => {
+    const code = String(feld.value || "").replace(/\D/g, "");
+    if (code.length !== 6) { hinweis.textContent = "Bitte die 6 Ziffern aus der Mail eingeben."; hinweis.style.display = "block"; return; }
+    knopf.disabled = true;
+    try {
+      await Konto.post({ mode: "anmelden-code", warte, code, sessionId: AppState.data.sessionId });
+      Konto.warteStoppen(); await Konto.laden(); if (onFertig) onFertig();
+    } catch (e) {
+      hinweis.textContent = (e && e.message) || "Das hat nicht geklappt."; hinweis.style.display = "block";
+      knopf.disabled = !!(e && e.data && e.data.versucheUebrig === 0);
+      if (knopf.disabled) knopf.textContent = "Bitte neuen Code anfordern";
+    }
+  }, { style: { background: "var(--ink)" } });
+  feld.addEventListener("keydown", (ev) => { if (ev.key === "Enter") { ev.preventDefault(); knopf.click(); } });
+  wrap.appendChild(feld); wrap.appendChild(knopf); wrap.appendChild(hinweis);
+  return wrap;
+}
 function anmeldeFormular(titel, untertitel) {
   const box = kontoKasten("var(--yellow)");
   box.appendChild(h("p", { class: "h-black", style: { margin: "0 0 6px", fontSize: "16px", lineHeight: "1.05", letterSpacing: "-.02em" } }, titel || "Anmelden – ohne Passwort"));
@@ -127,9 +180,10 @@ function anmeldeFormular(titel, untertitel) {
     knopf.disabled = true; knopf.textContent = "schickt …";
     try {
       const r = await Konto.anmeldeLink(email);
-      hinweis.textContent = (r.hinweis || "Wir haben dir einen Link geschickt.") + " Sobald du ihn öffnest, bist du auch hier angemeldet."; hinweis.style.color = "inherit"; hinweis.style.display = "block";
+      hinweis.textContent = (r.hinweis || "Wir haben dir eine Mail geschickt.") + " Sobald du den Link öffnest, bist du auch hier angemeldet."; hinweis.style.color = "inherit"; hinweis.style.display = "block";
       knopf.textContent = "Mail ist unterwegs ✓";
-      if (r.warte) Konto.aufAnmeldungWarten(r.warte, () => { Konto.meldung = "Angemeldet – alles Bisherige hängt jetzt an deinem Konto."; if (Router.current === "konto") kontoNeuZeichnen(); else if (typeof renderScreen === "function") renderScreen(); });
+      const fertig = () => { Konto.meldung = "Angemeldet – alles Bisherige hängt jetzt an deinem Konto."; Konto.tabMelden("angemeldet"); if (Router.current === "konto") kontoNeuZeichnen(); else if (typeof renderScreen === "function") renderScreen(); };
+      if (r.warte) { Konto.aufAnmeldungWarten(r.warte, fertig); box.appendChild(zaubercodeFeld(r.warte, fertig)); }
     } catch (e) {
       hinweis.textContent = (e && e.message) || "Das hat nicht geklappt."; hinweis.style.color = "var(--red)"; hinweis.style.display = "block";
       knopf.disabled = false; knopf.textContent = "Anmelde-Link schicken";
@@ -195,6 +249,16 @@ Screens.konto = {
     wrap.appendChild(h("p", { class: "kicker kicker-yellow", style: { transform: "rotate(-2deg)" } }, "Konto"));
     wrap.appendChild(h("h1", { class: "h1-scr", style: { fontSize: "31px", marginBottom: "8px" } }, k ? "Dein Konto" : "Anmelden"));
     const params = new URLSearchParams(window.location.search);
+    if (params.get("angemeldet") === "1" && Konto.andererTab) {
+      // C3.2 Teil 2: der andere, schon offene Tab ist angemeldet -- dieser hier darf zu.
+      const box = kontoKasten("var(--yellow)");
+      box.appendChild(h("p", { class: "h-black", style: { margin: "0 0 6px", fontSize: "18px", lineHeight: "1.05" } }, "Du bist angemeldet ✓"));
+      box.appendChild(h("p", { style: { margin: "0", fontSize: "13px", lineHeight: "1.45" } }, "Dein anderes Wimmel-Wizard-Fenster ist jetzt angemeldet – du kannst dieses Fenster schließen."));
+      box.appendChild(kontoKnopf("Hier weitermachen", () => { Konto.andererTab = false; Konto.meldung = "Angemeldet – alles Bisherige hängt jetzt an deinem Konto."; kontoNeuZeichnen(); }, { style: { background: "var(--ink)" } }));
+      root.appendChild(h("section", { class: "scr-pad" }, [h("p", { class: "kicker kicker-yellow", style: { transform: "rotate(-2deg)" } }, "Konto"), box]));
+      window.history.replaceState(null, "", window.location.pathname);
+      return;
+    }
     if (params.get("angemeldet") === "1") wrap.appendChild(kontoHinweis("Angemeldet – alles Bisherige hängt jetzt an deinem Konto."));
     // C3.1 Punkt 6 (28.10.2026): Rueckkehr von Stripe -- "Zahlung wird verbucht …" und alle 2 s den
     // Konto-Stand abfragen (max. 2 min), bis das Paket mit dieser Checkout-Session gebucht ist;

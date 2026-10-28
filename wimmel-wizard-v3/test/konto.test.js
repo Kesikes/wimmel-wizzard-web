@@ -354,3 +354,41 @@ test("Teil E: ADMIN_SCHLUESSEL mit Fallback auf GUTSCHEIN_ADMIN_SCHLUESSEL; /api
     u.zurueck();
   }
 });
+
+test("C3.2 Teil 2: Zaubercode -- in der Mail, 6 Ziffern, 5 Fehlversuche, einmal, entwertet den Link; Link-Klick entwertet den Code", async () => {
+  const u = umgebung();
+  try {
+    const r = await u.K.anmeldeLinkSenden("lina@example.de", SID);
+    assert.match(r.code, /^\d{6}$/); assert.match(u.mails[0].subject, /Zaubercode/); assert.ok(u.mails[0].text.includes(r.code.slice(0, 3) + " " + r.code.slice(3)));
+    assert.ok(u.mails[0].text.includes(r.url), "Link bleibt in der Mail");
+    await assert.rejects(() => u.K.anmeldeCodeEinloesen("nix", r.code), /zuerst/);
+    for (let i = 1; i <= 4; i++) { await assert.rejects(() => u.K.anmeldeCodeEinloesen(r.warte, "000000" === r.code ? "111111" : "000000"), new RegExp("noch " + (5 - i) + " Versuch")); }
+    const e = await u.K.anmeldeCodeEinloesen(r.warte, r.code.slice(0, 3) + " " + r.code.slice(3));
+    assert.equal(e.konto.email, "lina@example.de"); assert.deepEqual(e.konto.sitzungen, [SID]);
+    await assert.rejects(() => u.K.anmeldeCodeEinloesen(r.warte, r.code), /abgelaufen oder schon benutzt/, "einmal");
+    const token = decodeURIComponent(r.url.split("token=")[1]);
+    await assert.rejects(() => u.K.anmeldeTokenEinloesen(token), /schon benutzt/, "Code entwertet den Link");
+    // 5. Fehlversuch loescht den Code
+    const r2 = await u.K.anmeldeLinkSenden("lina@example.de", SID);
+    const falsch = r2.code === "000000" ? "111111" : "000000";
+    for (let i = 1; i <= 4; i++) await assert.rejects(() => u.K.anmeldeCodeEinloesen(r2.warte, falsch), /stimmt nicht/);
+    await assert.rejects(() => u.K.anmeldeCodeEinloesen(r2.warte, falsch), /Zu oft/);
+    await assert.rejects(() => u.K.anmeldeCodeEinloesen(r2.warte, r2.code), /abgelaufen oder schon benutzt/);
+    // Link-Klick macht den Code wirkungslos
+    const r3 = await u.K.anmeldeLinkSenden("lina@example.de", SID);
+    await u.K.anmeldeTokenEinloesen(decodeURIComponent(r3.url.split("token=")[1]));
+    await assert.rejects(() => u.K.anmeldeCodeEinloesen(r3.warte, r3.code), /abgelaufen oder schon benutzt/);
+    // Endpunkt
+    const rl = require("../api/_lib/rate-limit"); const rlAlt = rl.checkRateLimit; rl.checkRateLimit = async () => true;
+    const mailMod = require("../api/_lib/mail"); const mailAlt = mailMod.sendMail; mailMod.sendMail = async (a) => { u.mails.push(a); return true; };
+    try {
+      delete require.cache[require.resolve("../api/konto")];
+      const handler = require("../api/konto");
+      const ruf = async (method, query, body) => { const r = antwort(); await handler({ method, query: query || {}, body: body || {}, headers: {} }, r); return r; };
+      let a = await ruf("POST", null, { mode: "anmelden-link", email: "lina@example.de", sessionId: SID });
+      const warte = a.body.warte; const code = u.mails[u.mails.length - 1].subject.match(/(\d{3}) (\d{3})/).slice(1).join("");
+      a = await ruf("POST", null, { mode: "anmelden-code", warte, code: "999999" === code ? "000000" : "999999" }); assert.equal(a.code, 400); assert.equal(a.body.versucheUebrig, 4);
+      a = await ruf("POST", null, { mode: "anmelden-code", warte, code }); assert.equal(a.code, 200); assert.equal(a.body.angemeldet, true); assert.match(a.kopf["Set-Cookie"], /^ww_konto=/);
+    } finally { rl.checkRateLimit = rlAlt; mailMod.sendMail = mailAlt; }
+  } finally { u.zurueck(); }
+});
