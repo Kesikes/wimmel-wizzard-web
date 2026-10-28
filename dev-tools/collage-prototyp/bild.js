@@ -1,4 +1,4 @@
-// dev-tools/collage-prototyp/bild.js — Bildwerkzeuge fuer den Collage-Prototyp (B2, 28.10.2026).
+// dev-tools/collage-prototyp/bild.js — Bildwerkzeuge fuer den Collage-Prototyp (B2, 28.10.2026; Runde 2 B2.2).
 // Reines Node (zlib), KEINE npm-Pakete: PNG lesen/schreiben, Freistellen per Farbschwelle,
 // Zuschneiden, Skalieren (Flaechenmittel), Einsetzen mit Alpha, flacher Bodenschatten (harte Kante).
 // Alle Bilder intern als { w, h, d } mit d = Uint8ClampedArray RGBA (nicht vormultipliziert).
@@ -201,4 +201,62 @@ function polygonFuellen(ziel, punkte, farbe) {
 }
 function rechteck(ziel, x0, y0, x1, y1, farbe) { polygonFuellen(ziel, [[x0, y0], [x1, y0], [x1, y1], [x0, y1]], farbe); }
 
-module.exports = { pngLesen, pngSchreiben, leer, kopie, freistellen, zuschneiden, skalieren, einsetzen, schatten, polygonFuellen, rechteck, FREI };
+// --- Runde 2 (B2.2): Spiegeln, weicher Schatten, Farbangleichung, Kontroll-Beschriftung -----------------
+function spiegeln(b) {
+  const out = leer(b.w, b.h);
+  for (let y = 0; y < b.h; y++) for (let x = 0; x < b.w; x++) out.d.set(b.d.subarray((y * b.w + x) * 4, (y * b.w + x) * 4 + 4), (y * b.w + (b.w - 1 - x)) * 4);
+  return out;
+}
+// weicherSchatten(ziel, cx, cy, rx, ry, staerke): Ellipse, zur Mitte hin dunkler, weicher Rand (V4, ohne KI).
+function weicherSchatten(ziel, cx, cy, rx, ry, staerke) {
+  for (let y = Math.floor(cy - ry); y <= Math.ceil(cy + ry); y++) {
+    if (y < 0 || y >= ziel.h) continue;
+    for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++) {
+      if (x < 0 || x >= ziel.w) continue;
+      const nx = (x - cx) / rx, ny = (y - cy) / ry, q = nx * nx + ny * ny;
+      if (q >= 1) continue;
+      const f = 1 - staerke * Math.pow(1 - q, 1.6), t = (y * ziel.w + x) * 4;
+      ziel.d[t] *= f; ziel.d[t + 1] *= f; ziel.d[t + 2] *= f;
+    }
+  }
+}
+// mittelwert(bild, x0, y0, x1, y1) -> [r, g, b] (deckende Pixel im Rechteck)
+function mittelwert(b, x0, y0, x1, y1) {
+  let r = 0, g = 0, bl = 0, n = 0;
+  for (let y = Math.max(0, Math.floor(y0)); y < Math.min(b.h, Math.ceil(y1)); y += 2) for (let x = Math.max(0, Math.floor(x0)); x < Math.min(b.w, Math.ceil(x1)); x += 2) {
+    const i = (y * b.w + x) * 4; if (b.d[i + 3] < 128) continue; r += b.d[i]; g += b.d[i + 1]; bl += b.d[i + 2]; n++;
+  }
+  return n ? [r / n, g / n, bl / n] : [128, 128, 128];
+}
+// angleichen(sprite, o): Farbangleichung an das Bildlicht -- o.licht = [r,g,b]-Faktoren (um 1), o.anteil
+// (wie stark, 0..1), o.saettigung (z. B. -0.05 = 5 % weniger), o.dunst (0..1) Richtung o.dunstFarbe.
+function angleichen(b, o) {
+  const out = kopie(b), d = out.d;
+  for (let i = 0; i < d.length; i += 4) {
+    if (d[i + 3] === 0) continue;
+    let r = d[i], g = d[i + 1], bl = d[i + 2];
+    r *= 1 + o.anteil * (o.licht[0] - 1); g *= 1 + o.anteil * (o.licht[1] - 1); bl *= 1 + o.anteil * (o.licht[2] - 1);
+    const l = 0.299 * r + 0.587 * g + 0.114 * bl, s = 1 + (o.saettigung || 0);
+    r = l + (r - l) * s; g = l + (g - l) * s; bl = l + (bl - l) * s;
+    if (o.dunst) { r += (o.dunstFarbe[0] - r) * o.dunst; g += (o.dunstFarbe[1] - g) * o.dunst; bl += (o.dunstFarbe[2] - bl) * o.dunst; }
+    d[i] = r; d[i + 1] = g; d[i + 2] = bl;
+  }
+  return out;
+}
+// linie(ziel, x0, y0, x1, y1, rgb, dicke) -- waagerecht/schraeg, fuer die Kontrollansicht
+function linie(ziel, x0, y0, x1, y1, f, dicke) {
+  const n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0))), r = Math.max(0, Math.floor((dicke || 2) / 2));
+  for (let k = 0; k <= n; k++) {
+    const x = Math.round(x0 + (x1 - x0) * k / n), y = Math.round(y0 + (y1 - y0) * k / n);
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) { const xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= ziel.w || yy >= ziel.h) continue; const t = (yy * ziel.w + xx) * 4; ziel.d[t] = f[0]; ziel.d[t + 1] = f[1]; ziel.d[t + 2] = f[2]; }
+  }
+}
+// text(ziel, x, y, s, groesse): Ziffern und wenige Zeichen (3x5-Raster) auf weissem Kaestchen, fuer Kopfmasse.
+const ZEICHEN = { "0": "111101101101111", "1": "010110010010111", "2": "111001111100111", "3": "111001111001111", "4": "101101111001001", "5": "111100111001111", "6": "111100111101111", "7": "111001010010010", "8": "111101111101111", "9": "111101111001111", "%": "101001010100101", "-": "000000111000000", "~": "000011110000000", "*": "101010111010101", " ": "000000000000000" };
+function text(ziel, x, y, s, g, farbe) {
+  g = g || 3; s = String(s); const w = s.length * 4 * g + g, h = 7 * g;
+  rechteck(ziel, x - g, y - g, x - g + w, y - g + h, [255, 255, 255, 230]);
+  [...s].forEach((c, k) => { const m = ZEICHEN[c] || ZEICHEN[" "]; for (let i = 0; i < 15; i++) if (m[i] === "1") rechteck(ziel, x + k * 4 * g + (i % 3) * g, y + Math.floor(i / 3) * g, x + k * 4 * g + (i % 3) * g + g - 1, y + Math.floor(i / 3) * g + g - 1, farbe || [200, 0, 120, 255]); });
+}
+
+module.exports = { pngLesen, pngSchreiben, leer, kopie, freistellen, zuschneiden, skalieren, einsetzen, schatten, polygonFuellen, rechteck, FREI, spiegeln, weicherSchatten, mittelwert, angleichen, linie, text };
