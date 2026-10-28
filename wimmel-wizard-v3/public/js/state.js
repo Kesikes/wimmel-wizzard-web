@@ -170,6 +170,10 @@ const DEFAULT_STATE = {
   konto: null,
   kontingente: null,
   stopp: null,
+  // C3.2 Teil 1 (28.10.2026): Auswahl "Wer ist auf diesem Bild dabei?" (Personen-IDs) fuer das
+  // NAECHSTE Bild; null = Vorbelegung per Rotation (szene.js heldenVorbelegung()). Wird nach jedem
+  // fertigen Bild zurueckgesetzt.
+  bildHelden: null,
   dedication: "",
   payMethod: 0,
 
@@ -487,7 +491,7 @@ const AppState = {
   // GEAENDERT (23.09.2026, Produktentscheidung): notloesung = kein Kandidat hat bestanden, das Bild
   // wird trotzdem angeboten. Das Bild merkt es sich (ehrlicher Hinweis im Ergebnis-Screen), und der
   // naechste Durchgang bleibt kostenlos -- deshalb wird freierDurchgang hier NICHT geleert.
-  addImage({ title, src, promptText, instruction, violations, verify, candidates, richter, quelle, heldenInfo, abgelehnt, angebot, notloesung }) {
+  addImage({ title, src, promptText, instruction, violations, verify, candidates, richter, quelle, heldenInfo, abgelehnt, angebot, notloesung, heldenIds }) {
     const id = "img-" + (this.data.images.length + 1) + "-" + Date.now().toString(36);
     const P = window.Pipeline || {};
     const jetzt = new Date().toISOString();
@@ -502,6 +506,8 @@ const AppState = {
       richter: richter || null, quelle: quelle || null,
       // NEU (21.09.2026): was der Helden-Test getan hat (gefilterte Blaetter, neue Beschreibung).
       heldenInfo: heldenInfo || null,
+      // C3.2 Teil 1: welche Figuren (IDs) in diesem Bild dabei waren -- fuer die Rotation der naechsten Bilder.
+      heldenIds: Array.isArray(heldenIds) ? heldenIds.slice() : null,
       // NEU (21.09.2026): kein Kandidat hat das Stil-Tor bestanden -- Text mit Begruendung, sonst null.
       abgelehnt: abgelehnt || null,
       // NEU (23.09.2026): kein Kandidat hat bestanden, das Bild wird trotzdem gezeigt.
@@ -519,7 +525,7 @@ const AppState = {
         (this.data.testKoepfe === "normal" ? " \u00b7 Köpfe NORMAL" : "")),
       pruefFassung: (P.PRUEF_FASSUNG || null) && (P.PRUEF_FASSUNG + (this.data.testStilTor === "aus" ? " \u00b7 Stil-Tor AUS" : "") + (this.data.testRichter === "aus" ? " \u00b7 Richter AUS" : "")) };
     const images = this.data.images.concat([image]);
-    this.update({ images, currentImageId: id,
+    this.update({ images, currentImageId: id, bildHelden: null, // C3.2: naechstes Bild wieder per Rotation vorbelegen
       freierDurchgang: notloesung ? { grund: "notloesung", am: jetzt } : null });
     return image;
   },

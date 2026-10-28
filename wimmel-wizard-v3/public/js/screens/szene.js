@@ -46,6 +46,63 @@ const THEMES = ["Bauernhof", "Weihnachten", "Urlaub", "Berg", "Stadt", "Spielpla
 // Ruhe-Screen. runGeneration() verbraucht ihn sofort, er gilt also genau fuer EINEN Start.
 let zauberStartAuftrag = false;
 
+// --- C3.2 Teil 1 (28.10.2026): hoechstens HELDEN_JE_BILD Helden je Bild, mit Auswahl ----------------
+// fertigeHelden(s): alle Figuren mit echtem Bild (so wie runGeneration() sie bisher nahm).
+function fertigeHelden(s) { return (s.people || []).filter((p) => p.status === "done" && p.imageUrl); }
+function heldenMax() { return (window.Pipeline && Pipeline.HELDEN_JE_BILD) || 5; }
+// heldenVorbelegung(s): Rotation ueber die Bilder dieses Buchs -- wer bisher am seltensten dabei war,
+// zuerst; bei Gleichstand Kinder vor Erwachsenen (Haustier zaehlt als Held wie alle), dann die
+// Reihenfolge des Figurenblatts. Liefert hoechstens heldenMax() IDs.
+function heldenVorbelegung(s) {
+  const helden = fertigeHelden(s);
+  if (helden.length <= heldenMax()) return helden.map((p) => p.id);
+  const zaehler = {};
+  (s.images || []).forEach((b) => { if (b && b.status === "done") (b.heldenIds || []).forEach((id) => { zaehler[id] = (zaehler[id] || 0) + 1; }); });
+  const kind = (p) => (p.role === "girl" || p.role === "boy") ? 0 : 1;
+  return helden.map((p, i) => ({ p, i, n: zaehler[p.id] || 0 }))
+    .sort((a, b) => (a.n - b.n) || (kind(a.p) - kind(b.p)) || (a.i - b.i))
+    .slice(0, heldenMax()).map((x) => x.p.id);
+}
+// heldenFuerBild(s): die IDs fuers naechste Bild -- Auswahl der Kundin (s.bildHelden), sonst Vorbelegung.
+// Nie mehr als heldenMax(), nie Figuren ohne Bild.
+function heldenFuerBild(s) {
+  const helden = fertigeHelden(s); const gueltig = new Set(helden.map((p) => p.id));
+  const wahl = Array.isArray(s.bildHelden) ? s.bildHelden.filter((id) => gueltig.has(id)) : [];
+  const ids = wahl.length ? wahl : heldenVorbelegung(s);
+  return ids.slice(0, heldenMax());
+}
+// buildHeldenAuswahl(rerender): schlanker Schritt "Wer ist auf diesem Bild dabei?" -- nur bei mehr
+// als heldenMax() fertigen Figuren. Chips: max. heldenMax() aktiv, Hinweis beim Versuch eines weiteren.
+function buildHeldenAuswahl(rerender) {
+  const s = AppState.data; const helden = fertigeHelden(s);
+  if (helden.length <= heldenMax()) return null;
+  const aktiv = new Set(heldenFuerBild(s));
+  const box = h("div", { id: "helden-auswahl", style: { marginTop: "18px", marginBottom: "16px", border: "4px solid var(--ink)", background: "var(--paper)", boxShadow: "5px 6px 0 var(--ink)", padding: "14px" } });
+  box.appendChild(h("p", { class: "h-black", style: { margin: "0 0 4px", fontSize: "16px", lineHeight: "1.05", letterSpacing: "-.02em" } }, "Wer ist auf diesem Bild dabei?"));
+  box.appendChild(h("p", { style: { margin: "0 0 10px", fontSize: "13px", lineHeight: "1.45" } }, "Bis zu " + heldenMax() + " eurer " + helden.length + " Figuren passen auf ein Bild – ihr bestimmt, wer. Wir haben vorbelegt, damit über die Bilder alle gleich oft dabei sind."));
+  const reihe = h("div", { style: { display: "flex", flexWrap: "wrap", gap: "8px" } });
+  const hinweis = h("p", { id: "helden-hinweis", role: "alert", style: { margin: "8px 0 0", fontSize: "12px", fontWeight: "700", color: "var(--red)", display: "none" } }, "Mehr als " + heldenMax() + " passen nicht auf ein Bild – nimm erst jemanden raus.");
+  const stil = (b, an) => { b.style.background = an ? "var(--ink)" : "var(--paper)"; b.style.color = an ? "var(--paper)" : "var(--ink)"; b.setAttribute("aria-pressed", an ? "true" : "false"); };
+  helden.forEach((p) => {
+    const chip = h("button", { type: "button", class: "h-black", "data-held": p.id, style: { minHeight: "40px", padding: "0 12px", fontSize: "12px", letterSpacing: ".04em", textTransform: "uppercase", border: "3px solid var(--ink)", cursor: "pointer", boxShadow: "3px 3px 0 var(--ink)" },
+      onClick: () => {
+        const jetzt = new Set(heldenFuerBild(AppState.data));
+        if (jetzt.has(p.id)) { if (jetzt.size <= 1) return; jetzt.delete(p.id); hinweis.style.display = "none"; }
+        else if (jetzt.size >= heldenMax()) { hinweis.style.display = "block"; return; }
+        else { jetzt.add(p.id); hinweis.style.display = "none"; }
+        AppState.update({ bildHelden: helden.map((x) => x.id).filter((id) => jetzt.has(id)) });
+        [...reihe.children].forEach((c) => stil(c, jetzt.has(c.dataset.held)));
+        zaehlerEl.textContent = jetzt.size + " von " + heldenMax() + " ausgewählt";
+      } }, p.name);
+    stil(chip, aktiv.has(p.id));
+    reihe.appendChild(chip);
+  });
+  box.appendChild(reihe);
+  const zaehlerEl = h("p", { style: { margin: "8px 0 0", fontSize: "11px", color: "var(--ink-a70)" } }, aktiv.size + " von " + heldenMax() + " ausgewählt");
+  box.appendChild(zaehlerEl); box.appendChild(hinweis);
+  return box;
+}
+
 function goZaubernFresh() {
   if (AppState.data.pendingSceneJob) AppState.update({ pendingSceneJob: null });
   zauberStartAuftrag = true;
@@ -124,6 +181,9 @@ Screens.szene = {
     // -- echtes Akkordeon-Verhalten statt "immer unten". Das neu angehaengte Panel bekommt die
     // slideDown-Animation (siehe main.css) und wird per scrollIntoView() sichtbar ins Bild gerutscht,
     // damit das Aufklappen auch tatsaechlich als Bewegung wahrgenommen wird, nicht als Sprung.
+    // C3.2 Teil 1: Auswahl-Schritt (nur bei mehr als HELDEN_JE_BILD fertigen Figuren) VOR den drei Wegen.
+    const heldenAuswahl = buildHeldenAuswahl(() => rerender());
+    if (heldenAuswahl) wrap.appendChild(heldenAuswahl);
     const list = h("div", { style: { display: "flex", flexDirection: "column", gap: "10px" } });
     let openPanelEl = null;
     WAYS.forEach((w) => {
@@ -1320,6 +1380,7 @@ Screens.zaubern = {
         violations: result.best.violations, verify: result.best.verify, candidates: result.candidates,
         richter: result.richter || null, quelle: result.quelle || null, heldenInfo: result.heldenInfo || null,
         abgelehnt: result.abgelehnt || null, angebot: result.angebot || null,
+        heldenIds: heroSpecs.map((x) => x.id), // C3.2 Teil 1: fuer die Rotation der naechsten Bilder
         // NEU (23.09.2026): kein Kandidat hat bestanden -- das Bild wird trotzdem angeboten, und
         // der naechste Durchgang ist kostenlos (siehe addImage() in state.js).
         notloesung: !!(result && result.notloesung)
@@ -1387,7 +1448,10 @@ Screens.zaubern = {
       // er nie fuer einen zweiten Start taugt.
       if (!zauberStartAuftrag) return;
       zauberStartAuftrag = false;
-      const heroSpecs = s.people.filter((p) => p.status === "done" && p.imageUrl).map((p) => {
+      // C3.2 Teil 1: hoechstens HELDEN_JE_BILD Helden -- die Auswahl/Vorbelegung (heldenFuerBild) steuert
+      // Referenzbilder, Beschreibungen und Pruefung gleichermassen (alles laeuft ueber diese heroSpecs).
+      const heldenIds = heldenFuerBild(s); const heldenSet = new Set(heldenIds);
+      const heroSpecs = fertigeHelden(s).filter((p) => heldenSet.has(p.id)).map((p) => {
         const spec = Pipeline.makeCharacterSpec({ id: p.id, name: p.name, role: p.role, sourceType: "chips" });
         spec.identityCore.age = p.age;
         spec.sceneDescription = p.sceneDescription || null;

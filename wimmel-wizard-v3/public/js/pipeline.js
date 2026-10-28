@@ -3950,13 +3950,18 @@ function buildVerifyPrompt(heroSpecs, phaseId, compositionId, heroesAbgleich) {
 // damit spaeter nachvollziehbar ist, welcher Typ ein Bild erzeugt hat. opts.composition erlaubt,
 // den Typ fuer einen gezielten Testlauf festzulegen statt zu wuerfeln (D5: "verschiedene Themen und
 // Kompositionstypen").
+// C3.2 Teil 1 (28.10.2026, Entscheidung Matthias): hoechstens 5 Helden je Wimmelbild. Vorher stand
+// hier ein nacktes slice(0, 5) -- bei 6 Figuren fehlte die sechste still. Jetzt EINE Konstante;
+// WELCHE Helden in ein Bild gehen, entscheidet szene.js (Rotation + Auswahl-Schritt), hier wird nur
+// noch abgesichert. Referenzbilder, Beschreibungen und Pruefung laufen alle ueber refHeroes.
+const HELDEN_JE_BILD = 5;
 function buildSceneComposeInputs({ heroSpecs, theme, situations, phase, composition, usedTexts, licht, heldenNeu, blattfilter, koepfeGross, aufbau }) {
   // NEU (22.09.2026): aufbau "neu"/"alt" -- ohne Angabe PROMPT_AUFBAU (siehe scenePromptNeu()).
   const neuerAufbau = (aufbau || PROMPT_AUFBAU) === "neu";
   const phaseId = (phase && SCENE_PHASES[phase]) ? phase : ACTIVE_SCENE_PHASE;
   const phaseObj = SCENE_PHASES[phaseId];
   const comp = pickComposition(theme, phaseObj, composition);
-  const refHeroes = heroSpecs.slice(0, 5);
+  const refHeroes = heroSpecs.slice(0, HELDEN_JE_BILD);
   const heroRefUrls = refHeroes.map((s) => s.imageUrl).filter(Boolean);
   // GEAENDERT (19.09.2026, siehe sceneBaseCanvasUrl()): das Basisbild ist eine leere Leinwand,
   // KEIN Heldenblatt mehr. Dadurch sind alle Helden gleichberechtigte Referenzen -- vorher war
@@ -4907,7 +4912,7 @@ window.Pipeline = {
   PEN_INSTRUCTION_REMOVE, PEN_INSTRUCTION_REDO, PEN_INSTRUCTION_FIGUR, PEN_INSTRUCTION_FIGUR_OHNE_MARKE, PEN_ZWEI_BILDER, penBildAnweisung,
   buildHeldenPruefPrompt,
   resizeImageToDataUri, generateImage, generateImageWithRetry, verifyImage, countViolations, aenderungErlaubt,
-  richterReferenzUrl, SCENE_PHASES, ACTIVE_SCENE_PHASE, DEPTH_MIN_RATIO, SCALE_MIN_FIT, PROMPT_VERSION, PROMPT_LABEL, promptFingerprint, BILD_FASSUNG, PRUEF_FASSUNG, bildFingerprint, pruefFingerprint, heroRef, HERO_REF_START, lichtBlock, lichtKeywords, VERIFY_MAX_VERSUCHE, PRUEF_VERHALTEN, severityOf, compareSeverity, isGoodEnough,
+  richterReferenzUrl, HELDEN_JE_BILD, SCENE_PHASES, ACTIVE_SCENE_PHASE, DEPTH_MIN_RATIO, SCALE_MIN_FIT, PROMPT_VERSION, PROMPT_LABEL, promptFingerprint, BILD_FASSUNG, PRUEF_FASSUNG, bildFingerprint, pruefFingerprint, heroRef, HERO_REF_START, lichtBlock, lichtKeywords, VERIFY_MAX_VERSUCHE, PRUEF_VERHALTEN, severityOf, compareSeverity, isGoodEnough,
   COMPOSITION_TYPES, pickComposition, querschnittVerboten, chatOrtTyp, chatOrtId, layerSizeText,
   HERO_ACTION_LIBRARY, pickHeroActions, shuffledPool,
   // Szenen-Komposition (neu, siehe Modul-Abschnitt oben)

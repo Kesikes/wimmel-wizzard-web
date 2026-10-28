@@ -102,6 +102,8 @@ const Konto = {
 };
 window.Konto = Konto;
 
+// C3.2 Teil 1 (28.10.2026): Hinweis bei Grossfamilie / mehr als 5 Figuren.
+const HELDEN_HINWEIS = "Auf jedem Bild sind bis zu 5 eurer Figuren – ihr bestimmt, wer.";
 // --- gemeinsame Bausteine ----------------------------------------------------------------------------
 function kontoKasten(farbe, kinder) {
   return h("div", { style: { marginTop: "14px", border: "4px solid var(--ink)", background: farbe || "var(--paper)", padding: "14px", boxShadow: "5px 6px 0 var(--ink)" } }, kinder);
@@ -142,6 +144,7 @@ function aufladenKasten(typ, erschoepft, titelText) {
   const box = kontoKasten("var(--paper)");
   box.appendChild(h("p", { class: "h-black", style: { margin: "0", fontSize: "16px", lineHeight: "1.05", letterSpacing: "-.02em" } }, titelText || (p.name + " – " + p.preis)));
   box.appendChild(h("p", { style: { margin: "6px 0 0", fontSize: "13px", lineHeight: "1.45" } }, p.kurz || ""));
+  if (typ === "grossfamilie") box.appendChild(h("p", { style: { margin: "6px 0 0", fontSize: "13px", lineHeight: "1.45" } }, HELDEN_HINWEIS)); // C3.2 Teil 1
   const haken = h("input", { type: "checkbox", id: "widerruf-" + typ, style: { width: "20px", height: "20px", flex: "none", marginTop: "2px" } });
   const label = h("label", { for: "widerruf-" + typ, style: { display: "flex", gap: "10px", alignItems: "flex-start", margin: "12px 0 0", fontSize: "12px", lineHeight: "1.4", cursor: "pointer" } }, [haken, document.createTextNode(Konto.widerrufsverzichtSatz || "Ich stimme zu, dass Wimmel Wizard sofort mit der Leistung beginnt, und weiß, dass ich dadurch mein Widerrufsrecht verliere.")]);
   box.appendChild(label);
@@ -249,6 +252,7 @@ function kontingentKasten(kt) {
   box.appendChild(zeile("Figuren: " + Math.max(0, kt.figuren.grenze - kt.figuren.stand) + " von " + kt.figuren.grenze + (kt.stufe === "gratis" ? " (aus dem Regal)" : "")));
   if (kt.figuren.fotoGrenze) box.appendChild(zeile("davon per Foto: " + Math.max(0, kt.figuren.fotoGrenze - kt.figuren.foto) + " von " + kt.figuren.fotoGrenze));
   box.appendChild(zeile("Wimmelbilder: " + Math.max(0, kt.bilder.grenze - kt.bilder.stand) + " von " + kt.bilder.grenze));
+  if (kt.figuren.grenze > 5) box.appendChild(h("p", { style: { margin: "8px 0 0", fontSize: "12px", lineHeight: "1.4", color: "var(--ink-a70)" } }, HELDEN_HINWEIS)); // C3.2 Teil 1
   return box;
 }
 
