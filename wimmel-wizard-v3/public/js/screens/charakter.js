@@ -146,8 +146,54 @@ function applyChipStyle(el, on) {
 // GEAENDERT (19.10.2026): gespeichert wird opt.id (String), nicht mehr der Index -- die Listen sind
 // jetzt rollenabhaengig, ein Index waere mehrdeutig. onChange (optional) fuer Folgeaenderungen
 // (Glatze blendet Struktur/Laenge aus).
+// C3.1 Punkt 2 (28.10.2026): jede Pflichtgruppe traegt data-gruppe=<stateKey>; pflichtPruefung()
+// findet die erste fehlende Gruppe, gruppenFehlerZeigen() schreibt den Hinweis direkt darunter,
+// markiert die Gruppe und scrollt hin. Ein Antippen in der Gruppe nimmt die Markierung weg.
+const GRUPPEN_TEXT = {
+  charHairColor: { mensch: "Bitte noch die Haarfarbe antippen.", tier: "Bitte noch die Fellfarbe antippen." },
+  charHairLength: { mensch: "Bitte noch die Haarlänge antippen.", tier: "Bitte noch die Felllänge antippen." },
+  charHairTexture: { mensch: "Bitte noch die Haarstruktur antippen.", tier: "Bitte noch das Fellmuster antippen." },
+  charFrisur: { mensch: "Bitte noch eine Frisur antippen." },
+  charHautton: { mensch: "Bitte noch einen Hautton antippen." },
+  charOberteil: { mensch: "Bitte noch die Lieblingsfarbe fürs Oberteil antippen." },
+};
+// pflichtPruefung(s, person, isPet) -> { gruppe, text } der ersten fehlenden Pflichtangabe oder null.
+// Reihenfolge wie auf dem Screen. Mit Notiz und ganz ohne Haar-Chips bleibt der Freitext-Weg offen
+// (wie bisher); sobald EIN Haar-Chip gewaehlt ist, muessen alle Haar-Angaben da sein.
+function pflichtPruefung(s, person, isPet) {
+  const art = isPet ? "tier" : "mensch";
+  const t = (g) => ({ gruppe: g, text: GRUPPEN_TEXT[g][art] });
+  const haarGewaehlt = !!(s.charHairColor || s.charHairLength || s.charHairTexture || s.charFrisur);
+  const notiz = !!(s.charNote || "").trim();
+  if (haarGewaehlt || !notiz) {
+    if (!s.charHairColor) return t("charHairColor");
+    if (!s.charHairLength) return t("charHairLength");
+    if (!isPet && !CHIPS.istGlatze(s.charHairLength) && !s.charHairTexture) return t("charHairTexture");
+    if (isPet && !s.charHairTexture) return t("charHairTexture");
+    if (!isPet && CHIPS.frisurMoeglich(s.charHairLength) && !s.charFrisur) return t("charFrisur");
+  }
+  if (!isPet && !CHIPS.hauttonEn(s.charHautton)) return t("charHautton");
+  if (!isPet && !s.charOberteil) return t("charOberteil");
+  return null;
+}
+function gruppenFehlerLoeschen(gruppe) {
+  document.querySelectorAll(gruppe ? "[data-gruppe='" + gruppe + "']" : "[data-gruppe]").forEach((el) => {
+    el.style.outline = ""; el.style.outlineOffset = "";
+    const f = el.querySelector(".gruppen-fehler"); if (f) f.remove();
+  });
+}
+function gruppenFehlerZeigen(fehlt) {
+  gruppenFehlerLoeschen();
+  const el = document.querySelector("[data-gruppe='" + fehlt.gruppe + "']");
+  const errorP = charGenErrorEl("char-gen-error");
+  if (!el) { if (errorP) { errorP.textContent = fehlt.text; errorP.style.display = "block"; } return; }
+  if (errorP) errorP.style.display = "none";
+  el.style.outline = "3px solid var(--red)"; el.style.outlineOffset = "4px";
+  el.appendChild(h("p", { class: "gruppen-fehler", role: "alert", style: { margin: "4px 0 8px", fontSize: "12px", fontWeight: "700", color: "var(--red)" } }, fehlt.text));
+  try { el.scrollIntoView({ behavior: "smooth", block: "center" }); } catch (e) { el.scrollIntoView(); }
+}
 function buildSingleSelectGroup(stateKey, options, hint, onChange) {
-  const wrap = h("div", { style: { marginTop: "6px" } });
+  const wrap = h("div", { style: { marginTop: "6px" }, "data-gruppe": stateKey });
   if (hint) wrap.appendChild(h("span", { style: { display: "block", marginBottom: "5px", fontSize: "10px", color: "rgba(26,26,24,.5)" } }, hint));
   const row = h("div", { style: { display: "flex", flexWrap: "wrap", gap: "7px", marginBottom: "8px" } });
   options.forEach((opt, i) => {
@@ -157,6 +203,7 @@ function buildSingleSelectGroup(stateKey, options, hint, onChange) {
       onClick: () => {
         const nowSelected = AppState.data[stateKey] === opt.id;
         AppState.update({ [stateKey]: nowSelected ? null : opt.id });
+        gruppenFehlerLoeschen(stateKey);
         [...row.children].forEach((sib, si) => applyChipStyle(sib, !nowSelected && si === i));
         if (onChange) onChange(nowSelected ? null : opt.id);
       }
@@ -171,7 +218,7 @@ function buildSingleSelectGroup(stateKey, options, hint, onChange) {
 // "Hautton", nur aria-label (hell … dunkel, keine Herkunftsbegriffe). Pflichtfeld ohne
 // Voreinstellung: die Kundin waehlt bewusst. Ausgewaehlt = dicker Tintenring mit Versatzschatten.
 function buildHauttonGroup() {
-  const wrap = h("div", { style: { marginTop: "14px" } });
+  const wrap = h("div", { style: { marginTop: "14px" }, "data-gruppe": "charHautton" });
   wrap.appendChild(h("p", { class: "h-black", style: { margin: "0 0 8px", fontSize: "13px", letterSpacing: "-.01em" } }, "Hautton"));
   const row = h("div", { role: "radiogroup", "aria-label": "Hautton", style: { display: "flex", gap: "10px", alignItems: "center" } });
   const stil = (el, on) => {
@@ -184,7 +231,7 @@ function buildHauttonGroup() {
       type: "button", role: "radio", "aria-label": t.aria, title: "",
       style: { width: "36px", height: "36px", borderRadius: "50%", border: "3px solid var(--ink)", background: t.farbe, cursor: "pointer", padding: "0", flex: "none" },
       onClick: () => {
-        AppState.update({ charHautton: t.id });
+        AppState.update({ charHautton: t.id }); gruppenFehlerLoeschen("charHautton");
         [...row.children].forEach((sib) => stil(sib, sib === tupfer));
       },
     });
@@ -204,7 +251,7 @@ function gruppenTitel(text, optional) {
 // Chip-Figuren v3 Teil E (22.10.2026): Lieblingsfarbe des Oberteils -- Farbtupfer MIT Beschriftung,
 // Pflicht, keine Voreinstellung. Stufe 2 der Erzeugung (Ausstattung), nicht im Grundfigur-Schluessel.
 function buildOberteilGroup() {
-  const wrap = h("div");
+  const wrap = h("div", { "data-gruppe": "charOberteil" });
   wrap.appendChild(gruppenTitel("Lieblingsfarbe fürs Oberteil", false));
   const row = h("div", { role: "radiogroup", "aria-label": "Lieblingsfarbe fürs Oberteil", style: { display: "flex", flexWrap: "wrap", gap: "8px" } });
   const stil = (el, on) => { el.style.background = on ? "var(--ink)" : "#FFF"; el.style.color = on ? "var(--paper)" : "var(--ink)"; el.setAttribute("aria-checked", on ? "true" : "false"); };
@@ -212,7 +259,7 @@ function buildOberteilGroup() {
     const chip = h("button", {
       type: "button", role: "radio",
       style: { display: "inline-flex", alignItems: "center", gap: "7px", cursor: "pointer", fontFamily: "'Archivo',sans-serif", fontSize: "12px", fontWeight: "700", padding: "7px 10px 7px 7px", border: "3px solid var(--ink)", transform: "rotate(" + rot(i) + "deg)" },
-      onClick: () => { AppState.update({ charOberteil: o.id }); [...row.children].forEach((sib) => stil(sib, sib === chip)); },
+      onClick: () => { AppState.update({ charOberteil: o.id }); gruppenFehlerLoeschen("charOberteil"); [...row.children].forEach((sib) => stil(sib, sib === chip)); },
     }, [h("span", { "aria-hidden": "true", style: { display: "inline-block", width: "18px", height: "18px", borderRadius: "50%", background: o.farbe, border: "2px solid var(--ink)", flex: "none" } }), o.label]);
     stil(chip, AppState.data.charOberteil === o.id);
     row.appendChild(chip);
@@ -493,17 +540,13 @@ async function generateCharacterImage(person, buttons) {
   // strukturierte Eingabe -- erst wenn dort NICHTS gewählt ist, zählt ersatzweise die freie Notiz.
   // v2 (19.10.2026): Hautton ist bei Menschen Pflicht, ohne Voreinstellung.
   // v3 (22.10.2026): Frisur bei mittel/lang und die Lieblingsfarbe des Oberteils sind Pflicht.
-  const fehlt = (!hairEn && !(s.charNote || "").trim())
-    ? (isPet ? "Bitte mindestens Fellfarbe, -muster und -länge auswählen oder etwas dazuschreiben." : "Bitte mindestens Haarfarbe, -länge und -struktur auswählen oder etwas dazuschreiben.")
-    : (!isPet && CHIPS.frisurMoeglich(s.charHairLength) && !s.charFrisur) ? "Bitte noch eine Frisur antippen."
-    : (!isPet && !hauttonEn) ? "Bitte noch einen Hautton antippen."
-    : (!isPet && !s.charOberteil) ? "Bitte noch die Lieblingsfarbe fürs Oberteil antippen."
-    : "";
-  if (fehlt) {
-    const errorP = charGenErrorEl("char-gen-error");
-    if (errorP) { errorP.textContent = fehlt; errorP.style.display = "block"; }
-    return;
-  }
+  // C3.1 Punkt 2 (28.10.2026): Pflichtpruefung je Gruppe VOR jeder Kontingent-Pruefung und vor jedem
+  // Serveraufruf. Vorher reichte EIN Haar-Chip (hairPhraseEn war dann nicht leer), der Server bekam
+  // unvollstaendige Chips, fand keinen Regal-Schluessel und nahm still den "live"-Weg -- der ist
+  // gratis gesperrt: Stopp-Screen statt Hinweis. Jetzt: roter Hinweis unter der fehlenden Gruppe.
+  const fehlt = pflichtPruefung(s, person, isPet);
+  if (fehlt) { gruppenFehlerZeigen(fehlt); return; }
+  gruppenFehlerLoeschen();
   { const errorP = charGenErrorEl("char-gen-error"); if (errorP) errorP.style.display = "none"; }
   charGenBusy = true;
   const activeButtons = (buttons || []).filter(Boolean);

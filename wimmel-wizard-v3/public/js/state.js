@@ -316,7 +316,20 @@ const AppState = {
 
   update(patch) {
     Object.assign(this.data, patch);
+    // C3.1 Punkt 2 (28.10.2026): "gewaehlte Chips gehen nie verloren" -- der Merkmale-Entwurf wird
+    // bei jeder Aenderung an der aktuellen Person gespeichert (person.merkmale) und beim naechsten
+    // Wechsel zu ihr wiederhergestellt (setCurrentPerson/addPerson). Vorher setzte jeder Wechsel
+    // (auch Stopp-Screen -> zurueck) die Chips auf null.
+    if (patch && this.data.currentPersonId && Object.keys(patch).some((k) => k in CHAR_DRAFT_FIELDS && k !== "charMode")) {
+      const p = this.data.people.find((x) => x.id === this.data.currentPersonId);
+      if (p) { const m = {}; for (const k of Object.keys(CHAR_DRAFT_FIELDS)) if (k !== "charMode") m[k] = this.data[k]; p.merkmale = m; }
+    }
     this.save();
+  },
+  // merkmaleVon(id): gespeicherter Entwurf einer Person (oder leer) -- fuer den Wechsel.
+  merkmaleVon(id) {
+    const p = id ? this.data.people.find((x) => x.id === id) : null;
+    return Object.assign({}, CHAR_DRAFT_FIELDS, (p && p.merkmale) || {});
   },
 
   onChange(fn) {
@@ -434,7 +447,8 @@ const AppState = {
   // loeschen).
   setCurrentPerson(id) {
     if (this.data.currentPersonId === id) return;
-    this.update(Object.assign({}, CHAR_DRAFT_FIELDS, { currentPersonId: id }));
+    // C3.1 Punkt 2: Entwurf der Zielperson wiederherstellen statt alles zu leeren.
+    this.update(Object.assign({}, this.merkmaleVon(id), { currentPersonId: id }));
   },
   // NEU (Sammel-Runde 11.09.2026, Punkt 4: "Lösch-Funktion für Figuren auf dem Charakterblatt
   // ergänzen"). Entfernt eine Figur vollstaendig aus people. Bereits fertig generierte
