@@ -7,6 +7,16 @@ werden muss, und was warten kann. Es wird bei größeren Meilensteinen fortgesch
 
 ---
 
+## 🧩 C3.2 (28.10.2026): höchstens 5 Helden je Bild, Zaubercode, Wasserzeichen als Rapport
+
+`docs/c3-2-helden-login-wasserzeichen-rueckmeldung-2026-10-28.md`: `HELDEN_JE_BILD = 5` mit Rotation über
+die Bilder und Auswahl-Schritt „Wer ist auf diesem Bild dabei?“ (nur bei > 5 Figuren; steuert Referenzen,
+Beschreibungen und Prüfung); Anmelde-Mail mit 6-stelligem Zaubercode für die Anmeldung im selben Fenster,
+Link-Tab erkennt offenen Tab; Wasserzeichen „Wimmel Wizard“ in Logo-Schrift als diagonaler Rapport
+(wasserzeichen.js, eine Funktion, Konstanten) auf Teilen-Bild und Gutschein-Vorschau. Kein Prompt geändert.
+
+---
+
 ## 🩹 C3.1 Testbefunde (28.10.2026): Zählfehler, Pflichtprüfung, Fortschritt, Geräte, Löschen, Stripe-Rückkehr
 
 `docs/c3-1-testbefunde-rueckmeldung-2026-10-28.md`: Figuren zählen jetzt als Menge je Person (Regal-Treffer
