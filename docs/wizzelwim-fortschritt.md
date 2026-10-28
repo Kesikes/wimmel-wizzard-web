@@ -7,6 +7,17 @@ werden muss, und was warten kann. Es wird bei größeren Meilensteinen fortgesch
 
 ---
 
+## 🩹 C3.1 Testbefunde (28.10.2026): Zählfehler, Pflichtprüfung, Fortschritt, Geräte, Löschen, Stripe-Rückkehr
+
+`docs/c3-1-testbefunde-rueckmeldung-2026-10-28.md`: Figuren zählen jetzt als Menge je Person (Regal-Treffer
+mit Ausstattungs-Edit zählte doppelt, Neu-Zeichnen zählte als neue Figur); Pflichtprüfung je Merkmal-Gruppe
+mit Hinweis unter der Gruppe, Chips bleiben je Person; sichtbarer Fortschritt in der Bottom-Bar, Sperre je
+Figur, Verlassen der Seite geprüft; Anmelde-Link auf jedem Gerät (klickendes Gerät lädt die Sitzung,
+anfragendes wird per Abfrage angemeldet); Löschen mit Guthaben nur mit Haken, anonymer Kaufnachweis bleibt;
+Stripe-Rückkehr fragt bis zur Buchung ab. Rauchtests je Punkt grün, 101 Tests.
+
+---
+
 ## 👤 C3 Konto & Aufladen (27.10.2026): Konto ohne Passwort, Zauberguthaben, Gutschein in der App
 
 `docs/c3-konto-aufladen-rueckmeldung-2026-10-27.md`: Konto per Anmelde-Link (30 min, einmal) und
