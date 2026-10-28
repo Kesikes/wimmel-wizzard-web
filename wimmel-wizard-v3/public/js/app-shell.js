@@ -165,6 +165,9 @@ function renderBottomBar() {
     ? () => mod.onNext({ nextBtn, defaultGoNext })
     : defaultGoNext;
   nextBtn.onclick = goNext;
+  // C3.1 Punkt 3: laeuft fuer die aktuelle Figur ein Zeichenauftrag, zeigt die Bar das (ueberlebt
+  // damit jeden Screen-Wechsel, auch zurueck zur laufenden Figur).
+  if (Screens.charakter && Screens.charakter.zeichnenAnzeige) Screens.charakter.zeichnenAnzeige();
 
   document.getElementById("btn-back").onclick = () => {
     if (idx <= 0) { window.location.href = "/"; return; }

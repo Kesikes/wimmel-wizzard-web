@@ -35,6 +35,23 @@
    .app-shell.with-bottom-bar (main.css) reserviert bereits ungebunden an einen Breakpoint den
    noetigen Platz darunter, das greift dadurch jetzt automatisch auch auf Desktop. */
 
+
+/* C3.1 Punkt 3 (28.10.2026): sichtbarer Fortschritt beim Zeichnen -- Punkte + schmaler Balken in der
+   Bottom-Bar (charakter.js zeichnenAnzeige()). Bei prefers-reduced-motion nur pulsierender Text. */
+.zeichnen-punkte { display: inline-flex; gap: 4px; margin-left: 6px; font-size: 9px; vertical-align: middle; }
+.zeichnen-punkte span { animation: zeichnen-punkt 1.2s ease-in-out infinite; opacity: .25; }
+.zeichnen-punkte span:nth-child(2) { animation-delay: .2s; }
+.zeichnen-punkte span:nth-child(3) { animation-delay: .4s; }
+@keyframes zeichnen-punkt { 0%, 80%, 100% { opacity: .25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
+.zeichnen-balken { position: absolute; left: 0; right: 0; top: -4px; height: 4px; background: var(--ink); overflow: hidden; }
+.zeichnen-balken span { position: absolute; top: 0; bottom: 0; width: 38%; background: var(--yellow); animation: zeichnen-lauf 1.8s ease-in-out infinite; }
+@keyframes zeichnen-lauf { 0% { left: -40%; } 100% { left: 100%; } }
+@keyframes zeichnen-puls { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) {
+  .zeichnen-punkte, .zeichnen-balken { display: none; }
+  .zeichnen-puls { animation: zeichnen-puls 2s ease-in-out infinite; }
+}
+
 /* ---- Wiederkehrende Screen-Atome ---- */
 .scr-pad { padding: 18px 14px 0; }
 .kicker {

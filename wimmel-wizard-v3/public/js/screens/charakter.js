@@ -51,6 +51,11 @@ Screens.charakter = {
     // resumeCharacterJob() oben) und zeigt einen kurzen Hinweis, statt stillschweigend das normale,
     // scheinbar untaetige Formular zu zeigen (das wuerde bei einem erneuten Klick einen zweiten,
     // parallelen Job ausloesen).
+    if (person.zeichenFehler && !person.pendingJobId) {
+      // C3.1 Punkt 3: gemerkter Fehler eines Auftrags, der lief, waehrend die Kundin woanders war.
+      wrap.appendChild(h("div", { role: "alert", style: { border: "3px solid var(--red)", background: "var(--paper)", color: "var(--red)", padding: "12px 14px", marginBottom: "14px", fontSize: "14px", lineHeight: "1.4" } }, person.zeichenFehler));
+      AppState.updatePerson(person.id, { zeichenFehler: null });
+    }
     if (person.pendingJobId) {
       // setTimeout(...,0): renderScreen() (app-shell.js) ruft nach diesem render() noch
       // renderBottomBar() auf, die den "weiter"-Button unbedingt auf seine normale Beschriftung
@@ -60,7 +65,7 @@ Screens.charakter = {
       setTimeout(() => resumeCharacterJob(person), 0);
       wrap.appendChild(h("div", {
         style: { border: "3px solid var(--ink)", background: "var(--blue)", padding: "12px 14px", marginBottom: "14px", fontSize: "14px", lineHeight: "1.4" }
-      }, "Wird weitergezeichnet – die Generierung lief schon, wir setzen sie fort …"));
+      }, zeichnetGerade.has(person.id) ? "Wird gerade gezeichnet – du kannst derweil woanders hin, ich sage Bescheid, sobald die Figur da ist." : "Wird weitergezeichnet – die Generierung lief schon, wir setzen sie fort …"));
     }
     wrap.appendChild(h("p", { class: "kicker kicker-yellow", style: { transform: "rotate(-2deg)" } }, "Figur " + (personIndex + 1) + " von " + s.people.length + " · " + person.name));
     wrap.appendChild(h("h1", { class: "h1-scr", style: { fontSize: "31px" } }, [
@@ -493,8 +498,46 @@ function ausstattungDaten(s, isPet) {
 // nicht angehaengt oder abgebrochen -- die Sperre loest sich von selbst wieder, sobald der laufende
 // Aufruf (Erfolg ODER Fehler) fertig ist, kein manuelles Reset noetig (anders als bei zauberBusy gibt
 // es hier keinen "haengt für immer"-Fall, der einen Retry-Button mit explizitem Reset braeuchte).
-let charGenBusy = false;
+// C3.1 Punkt 3 (28.10.2026): Sperre JE PERSON statt eines globalen Flags. Vorher blockierte eine
+// laufende Figur still jede andere ("if (charGenBusy) return" ohne Rueckmeldung), und nach einem
+// Wechsel zurueck zur laufenden Figur zeigte der Button nichts mehr an. Jetzt: zeichnetGerade haelt
+// die IDs der Personen, deren Auftrag laeuft; zeichnenAnzeige() setzt die Bottom-Bar (Animation,
+// Hinweis) nach jedem Rendern und jeder Zustandsaenderung.
+const zeichnetGerade = new Set();
+function zeichnenStart(id) { zeichnetGerade.add(id); zeichnenAnzeige(); }
+function zeichnenEnde(id) { zeichnetGerade.delete(id); zeichnenAnzeige(); }
+function laeuftAktuellePerson() { const id = AppState.data.currentPersonId; return !!id && zeichnetGerade.has(id); }
+// zeichnenAnzeige(): Bottom-Bar-Zustand "Ich zeichne …" fuer die aktuelle Person -- Punkte-Animation
+// und schmaler Fortschrittsbalken (CSS .zeichnen-*; bei prefers-reduced-motion nur pulsierender
+// Text). Oben im Hinweistext steht, dass man derweil woanders hin kann. Wird von app-shell.js
+// renderBottomBar() nach jedem Rendern aufgerufen, damit der Zustand einen Screen-Wechsel ueberlebt.
+function zeichnenAnzeige() {
+  const b = document.getElementById("btn-next"); if (!b) return;
+  const bar = document.getElementById("bottom-bar"); const soft = document.getElementById("soft-line");
+  const aktiv = (Router.current === "charakter" || Router.current === "charakterblatt") && laeuftAktuellePerson();
+  let balken = document.getElementById("zeichnen-balken");
+  if (aktiv) {
+    if (!b.dataset.zeichnet) { b.dataset.prevText = b.textContent; b.dataset.zeichnet = "1"; }
+    b.disabled = true; b.style.opacity = "0.85";
+    b.innerHTML = ""; b.appendChild(h("span", { class: "zeichnen-puls" }, "Ich zeichne "));
+    const punkte = h("span", { class: "zeichnen-punkte", "aria-hidden": "true" }); for (let i = 0; i < 3; i++) punkte.appendChild(h("span", {}, "●")); b.appendChild(punkte);
+    if (!balken && bar) { balken = h("div", { id: "zeichnen-balken", class: "zeichnen-balken", role: "progressbar", "aria-label": "Figur wird gezeichnet" }, [h("span", {})]); bar.insertBefore(balken, bar.firstChild); }
+    if (soft) { soft.textContent = "Das dauert etwa zwei Minuten. Du kannst derweil zu einer anderen Figur oder ins Figurenblatt – ich zeichne weiter und sage Bescheid."; delete soft.dataset.speicher; }
+  } else {
+    if (b.dataset.zeichnet) { b.disabled = false; b.style.opacity = "1"; b.textContent = b.dataset.prevText || b.textContent; delete b.dataset.zeichnet; }
+    if (balken) balken.remove();
+  }
+}
 function charGenErrorEl(id) { return document.getElementById(id); }
+// C3.1 Punkt 3: Fehler eines Auftrags landet bei SEINER Person -- ist die Kundin gerade woanders,
+// wird er an der Person gemerkt (zeichenFehler) und beim naechsten Oeffnen gezeigt.
+function zeichenFehlerZeigen(person, elementId, text) {
+  const hier = AppState.data.currentPersonId === person.id && Router.current === "charakter";
+  const errorP = hier ? charGenErrorEl(elementId) : null;
+  if (errorP) { errorP.textContent = text; errorP.style.display = "block"; return; }
+  AppState.updatePerson(person.id, { zeichenFehler: text });
+  if (typeof renderScreen === "function" && Router.current === "charakterblatt") renderScreen();
+}
 // v3.1 (26.10.2026): die klare Server-Meldung "Das hat nicht geklappt, bitte noch einmal versuchen."
 // steht fuer sich; alles andere bekommt wie bisher Praefix und "nochmal versuchen?".
 function fehlerText(e, praefix) {
@@ -513,7 +556,8 @@ function fehlerText(e, praefix) {
 // app.html/app-shell.js) -- der Sonderfall hier ist damit gegenstandslos, ALLE uebergebenen Buttons
 // bekommen jetzt einheitlich den Text-Wechsel.
 function setBusyButtons(buttons, busy) {
-  (buttons || []).filter(Boolean).forEach((b) => {
+  // C3.1 Punkt 3: den Bottom-Bar-Button steuert zeichnenAnzeige() (je Person, mit Animation).
+  (buttons || []).filter(Boolean).filter((b) => b.id !== "btn-next").forEach((b) => {
     if (busy) {
       b.dataset.prevText = b.textContent; b.textContent = "Ich zeichne …";
       b.disabled = true;
@@ -527,7 +571,7 @@ function setBusyButtons(buttons, busy) {
 }
 
 async function generateCharacterImage(person, buttons) {
-  if (charGenBusy) return;
+  if (zeichnetGerade.has(person.id)) return;
   const s = AppState.data;
   const isPet = !!person.isPet;
   const hairEn = hairPhraseEn(s, isPet);
@@ -548,7 +592,7 @@ async function generateCharacterImage(person, buttons) {
   if (fehlt) { gruppenFehlerZeigen(fehlt); return; }
   gruppenFehlerLoeschen();
   { const errorP = charGenErrorEl("char-gen-error"); if (errorP) errorP.style.display = "none"; }
-  charGenBusy = true;
+  zeichnenStart(person.id);
   const activeButtons = (buttons || []).filter(Boolean);
   setBusyButtons(activeButtons, true);
   // NEU (Punkt B8, Sammel-Runde 09.09.2026: "Inhaltsmoderation fürs Freitextfeld"). Prüft die freie
@@ -565,14 +609,14 @@ async function generateCharacterImage(person, buttons) {
         const errorP = charGenErrorEl("char-gen-error");
         if (errorP) { errorP.textContent = "Diese Notiz enthält Inhalte, die wir für ein Kinderprodukt nicht verwenden können — magst du sie anpassen?"; errorP.style.display = "block"; }
         setBusyButtons(activeButtons, false);
-        charGenBusy = false;
+        zeichnenEnde(person.id);
         return;
       }
     } catch (modErr) {
       const errorP = charGenErrorEl("char-gen-error");
       if (errorP) { errorP.textContent = "Prüfung der Notiz hat gerade nicht geklappt: " + (modErr && modErr.message ? modErr.message : String(modErr)) + " — bitte nochmal versuchen."; errorP.style.display = "block"; }
       setBusyButtons(activeButtons, false);
-      charGenBusy = false;
+      zeichnenEnde(person.id);
       return;
     }
   }
@@ -628,17 +672,13 @@ async function generateCharacterImage(person, buttons) {
       // sceneDescription. Das Versprechen auf der Karte bleibt damit unangetastet.
       onJobId: (jobId) => AppState.updatePerson(person.id, { pendingJobId: jobId, pendingSceneDescription: sceneDescription, charPrompt: prompt }),
     });
-    charGenBusy = false;
+    zeichnenEnde(person.id);
     await generateExtraViewsAndFinish(person, result, sceneDescription);
   } catch (e) {
-    charGenBusy = false;
+    zeichnenEnde(person.id);
     AppState.updatePerson(person.id, { pendingJobId: null, pendingSceneDescription: null });
     if (window.Konto && Konto.stoppZeigen(e)) return; // C3 Teil D: Kontingent -> Stopp-Screen
-    const errorP = charGenErrorEl("char-gen-error");
-    if (errorP) {
-      errorP.textContent = fehlerText(e, "Zeichnen hat nicht geklappt: ");
-      errorP.style.display = "block";
-    }
+    zeichenFehlerZeigen(person, "char-gen-error", fehlerText(e, "Zeichnen hat nicht geklappt: "));
     setBusyButtons(activeButtons, false);
   }
 }
@@ -716,7 +756,13 @@ async function generateExtraViewsAndFinish(person, frontResult, sceneDescription
       if (p && p.imageUrl === fuer) AppState.updatePerson(person.id, { blatt: { fuer, daten, am: new Date().toISOString() } });
     }).catch(() => { /* Nachholen beim Szenenstart */ });
   }
-  Router.goScreen("charakterblatt");
+  // C3.1 Punkt 3: nur weiterspringen, wenn die Kundin noch bei DIESER Figur ist -- ist sie
+  // inzwischen bei einer anderen Figur oder im Figurenblatt, wird nur der aktuelle Screen frisch
+  // gezeichnet (Kachel "wird gezeichnet …" -> fertig), nichts springt ihr dazwischen.
+  const nochHier = AppState.data.currentPersonId === person.id && Router.current === "charakter";
+  if (nochHier) Router.goScreen("charakterblatt");
+  else if (typeof renderScreen === "function" && (Router.current === "charakterblatt" || Router.current === "dashboard")) renderScreen();
+  else if (typeof renderBottomBar === "function") renderBottomBar();
 }
 
 // ENTFERNT (Sammel-Runde 10.09.2026, Prioritaet-1-Bugfix): styleReferenceUrls() lieferte bisher ein
@@ -749,9 +795,9 @@ async function generateExtraViewsAndFinish(person, frontResult, sceneDescription
 // fuer dieselbe Person laufen koennen sollen) und derselbe "Fehler-Element frisch statt vorab
 // zwischengespeichert holen"-Fix (charGenErrorEl()).
 async function generateCharacterImageFromPhoto(person, photoDataUri, buttons) {
-  if (charGenBusy) return;
+  if (zeichnetGerade.has(person.id)) return;
   { const errorP = charGenErrorEl("char-photo-error"); if (errorP) errorP.style.display = "none"; }
-  charGenBusy = true;
+  zeichnenStart(person.id);
   const activeButtons = (buttons || []).filter(Boolean);
   setBusyButtons(activeButtons, true);
   // BUGFIX (Sammel-Runde 11.09.2026, "Foto-Upload-Pfad: Stil ist komplett falsch, nicht nur
@@ -794,17 +840,13 @@ async function generateCharacterImageFromPhoto(person, photoDataUri, buttons) {
       onJobId: (jobId) => AppState.updatePerson(person.id, { pendingJobId: jobId, pendingSceneDescription: sceneDescription, charPrompt: prompt }),
     });
     resetUploadedPhoto();
-    charGenBusy = false;
+    zeichnenEnde(person.id);
     await generateExtraViewsAndFinish(person, result, sceneDescription);
   } catch (e) {
-    charGenBusy = false;
+    zeichnenEnde(person.id);
     AppState.updatePerson(person.id, { pendingJobId: null, pendingSceneDescription: null });
     if (window.Konto && Konto.stoppZeigen(e)) return; // C3 Teil D
-    const errorP = charGenErrorEl("char-photo-error");
-    if (errorP) {
-      errorP.textContent = fehlerText(e, "Zeichnen hat nicht geklappt: ");
-      errorP.style.display = "block";
-    }
+    zeichenFehlerZeigen(person, "char-photo-error", fehlerText(e, "Zeichnen hat nicht geklappt: "));
     setBusyButtons(activeButtons, false);
   }
 }
@@ -820,26 +862,22 @@ async function generateCharacterImageFromPhoto(person, photoDataUri, buttons) {
 // Pipeline.runCharacterJobPolling()-Aufruf wie ein frischer Start, nur mit opts.existingJobId statt
 // eines neuen Prompts (dafuer in pipeline.js bereits vorbereitet, siehe dortiger Kommentar).
 function resumeCharacterJob(person) {
-  if (charGenBusy) return;
-  charGenBusy = true;
+  if (zeichnetGerade.has(person.id)) return;
+  zeichnenStart(person.id);
   const nextBtn = document.getElementById("btn-next");
   const activeButtons = [nextBtn].filter(Boolean);
   setBusyButtons(activeButtons, true);
   const sceneDescription = person.pendingSceneDescription || "";
   Pipeline.runCharacterJobPolling(null, { existingJobId: person.pendingJobId })
     .then((result) => {
-      charGenBusy = false;
+      zeichnenEnde(person.id);
       return generateExtraViewsAndFinish(person, result, sceneDescription);
     })
     .catch((e) => {
-      charGenBusy = false;
+      zeichnenEnde(person.id);
       AppState.updatePerson(person.id, { pendingJobId: null, pendingSceneDescription: null });
       const errorId = AppState.data.charMode === "foto" ? "char-photo-error" : "char-gen-error";
-      const errorP = charGenErrorEl(errorId);
-      if (errorP) {
-        errorP.textContent = fehlerText(e, "Zeichnen hat nicht geklappt: ");
-        errorP.style.display = "block";
-      }
+      zeichenFehlerZeigen(person, errorId, fehlerText(e, "Zeichnen hat nicht geklappt: "));
       setBusyButtons(activeButtons, false);
     });
 }
@@ -1157,7 +1195,7 @@ function submitAddPerson() {
 // PEOPLE_GRID bleibt als Name exportiert, falls andere Screens ihn referenzieren,
 // zeigt aber immer den aktuellen State.
 function currentPeopleGrid() {
-  return AppState.data.people.map((p) => ({ key: p.id, name: p.name, mark: p.status === "done" ? "✓" : "+", done: p.status === "done" }));
+  return AppState.data.people.map((p) => ({ key: p.id, name: p.name, mark: p.status === "done" ? "✓" : (p.pendingJobId ? "…" : "+"), done: p.status === "done", pending: !!p.pendingJobId }));
 }
 
 function peopleBody(people) {
@@ -1168,6 +1206,9 @@ function peopleBody(people) {
   return done.length + " von " + people.length + " sind fertig. " + (open.length === 1 ? open[0].name + " fehlt noch." : open.length + " fehlen noch.");
 }
 
+// C3.1 Punkt 3: fuer app-shell.js/dashboard.js
+Screens.charakter.zeichnetGerade = (id) => zeichnetGerade.has(id);
+Screens.charakter.zeichnenAnzeige = zeichnenAnzeige;
 Screens.charakterblatt = {
   render(root) {
     const wrap = h("section", { class: "scr-pad" });
@@ -1412,8 +1453,10 @@ Screens.charakterblatt = {
         },
         onClick: () => { AppState.setCurrentPerson(p.key); Router.goScreen(p.done ? "charakterblatt" : "charakter"); }
       });
-      tile.appendChild(h("span", { class: "h-black", style: { display: "block", fontSize: "22px", lineHeight: "1" } }, p.mark));
+      tile.appendChild(h("span", { class: "h-black" + (p.pending ? " zeichnen-puls" : ""), style: { display: "block", fontSize: "22px", lineHeight: "1" } }, p.mark));
       tile.appendChild(h("span", { style: { display: "block", marginTop: "5px", fontFamily: "'Archivo',sans-serif", fontSize: "11px", fontWeight: "700", letterSpacing: ".04em", textTransform: "uppercase" } }, p.name));
+      // C3.1 Punkt 3: laufender Auftrag sichtbar auf der Kachel
+      if (p.pending) tile.appendChild(h("span", { class: "zeichnen-puls", style: { display: "block", marginTop: "3px", fontSize: "10px", color: "var(--red)" } }, "wird gezeichnet …"));
       grid.appendChild(tile);
     });
     // Es gibt kein festes Roster mehr — statt leerer, vorbenannter Plaetze
@@ -1498,7 +1541,7 @@ function neuZeichnenGesperrt(person) {
   return !!(person && person.chipSchluessel) && !(AppState.data && AppState.data.bezahlt);
 }
 async function neuZeichnen(person, buttons) {
-  if (charGenBusy) return;
+  if (zeichnetGerade.has(person.id)) return;
   const el = charGenErrorEl("char-neu-error");
   const zeig = (t) => { const e = charGenErrorEl("char-neu-error"); if (e) { e.textContent = t; e.style.display = "block"; } };
   if (el) el.style.display = "none";
@@ -1515,7 +1558,7 @@ async function neuZeichnen(person, buttons) {
     zeig("Diese Figur ist entstanden, bevor ich mir den Zeichenauftrag gemerkt habe — ich kann sie leider nicht einfach neu zeichnen. Mit «Detail ändern» lässt sich einzelnes ändern; sonst hilft nur löschen und neu anlegen.");
     return;
   }
-  charGenBusy = true;
+  zeichnenStart(person.id);
   const aktive = (buttons || []).filter(Boolean);
   aktive.forEach((b) => { b.dataset.prevText = b.textContent; b.disabled = true; b.textContent = "Zeichnet …"; b.style.opacity = "0.75"; });
   try {
@@ -1528,14 +1571,14 @@ async function neuZeichnen(person, buttons) {
       elementId: person.id,
       onJobId: (jobId) => AppState.updatePerson(person.id, { pendingJobId: jobId, pendingSceneDescription: person.sceneDescription || null, charPrompt: prompt }),
     });
-    charGenBusy = false;
+    zeichnenEnde(person.id);
     // Das alte Stilurteil und die alte Blattbeschreibung gehoeren zum alten Bild und muessen weg,
     // BEVOR das neue Bild gesetzt wird -- sonst stuende kurz ein Urteil an einem Bild, zu dem es
     // nicht gehoert, und die Rueckfrage unten haenge am falschen Blatt.
     AppState.updatePerson(person.id, { stilPruefung: null, stilPruefungVorher: person.stilPruefung || null, blatt: null });
     await generateExtraViewsAndFinish(person, result, person.sceneDescription || "");
   } catch (e) {
-    charGenBusy = false;
+    zeichnenEnde(person.id);
     AppState.updatePerson(person.id, { pendingJobId: null, pendingSceneDescription: null });
     setBusyButtons(aktive, false);
     if (window.Konto && Konto.stoppZeigen(e)) return; // C3 Teil D: Deckel/Kontingent -> Stopp-Screen
@@ -1547,7 +1590,7 @@ async function neuZeichnen(person, buttons) {
 }
 
 async function applyCharEdit(person, buttons) {
-  if (charGenBusy) return;
+  if (zeichnetGerade.has(person.id)) return;
   const errorP = charGenErrorEl("char-edit-error");
   const text = String(AppState.data.charEditText || "").trim();
   if (!text) {
@@ -1555,7 +1598,7 @@ async function applyCharEdit(person, buttons) {
     return;
   }
   { const el = charGenErrorEl("char-edit-error"); if (el) el.style.display = "none"; }
-  charGenBusy = true;
+  zeichnenStart(person.id);
   const activeButtons = (buttons || []).filter(Boolean);
   activeButtons.forEach((b) => { b.dataset.prevText = b.textContent; b.disabled = true; b.textContent = "Wird bearbeitet …"; b.style.opacity = "0.75"; });
   try {
@@ -1566,7 +1609,7 @@ async function applyCharEdit(person, buttons) {
     await Pipeline.aenderungErlaubt("figur", person.id);
     const flagged = await Pipeline.moderateText(text);
     if (flagged) {
-      charGenBusy = false;
+      zeichnenEnde(person.id);
       setBusyButtons(activeButtons, false);
       const el = charGenErrorEl("char-edit-error");
       if (el) { el.textContent = "Das können wir für ein Kinderbuch leider nicht verwenden — magst du es anders formulieren?"; el.style.display = "block"; }
@@ -1575,7 +1618,7 @@ async function applyCharEdit(person, buttons) {
     const changeEn = await Pipeline.translateFreeText(text);
     const instruction = Pipeline.kontextInstruction("Apply exactly this change to the character: \"" + changeEn + "\"");
     const result = await Pipeline.generateImage(instruction, "char", { editImageUrl: person.imageUrl });
-    charGenBusy = false;
+    zeichnenEnde(person.id);
     AppState.update({ charEditOpen: false, charEditText: "" });
     // NEU (23.09.2026, Nutzer: "pruefeBlattStil() auch nach einem Nachschaerfen laufen lassen,
     // damit wir nebenbei messen, ob der Edit-Pfad den Stil verschiebt"). Die Pruefung selbst steckt
@@ -1591,7 +1634,7 @@ async function applyCharEdit(person, buttons) {
     // vorhandenen zeigen dieselbe Figur (siehe Kommentar an generateExtraViewsAndFinish()).
     await generateExtraViewsAndFinish(person, result, person.sceneDescription);
   } catch (e) {
-    charGenBusy = false;
+    zeichnenEnde(person.id);
     setBusyButtons(activeButtons, false);
     if (window.Konto && Konto.stoppZeigen(e)) return; // C3 Teil D
     const el = charGenErrorEl("char-edit-error");
