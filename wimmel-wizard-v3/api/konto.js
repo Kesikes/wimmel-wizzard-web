@@ -21,7 +21,7 @@ function oeffentlich(k, kontingente) {
   return {
     angemeldet: true, email: k.email, bezahlt: !!k.bezahlt, guthaben_cent: k.guthaben_cent || 0, guthaben: cfg.euro(k.guthaben_cent || 0),
     pakete: (k.pakete || []).map((p) => ({ typ: p.typ, name: p.typ === "gutschein" ? "Gutschein" : (cfg.PAKETE[p.typ] || {}).name || p.typ, cent: p.cent, am: p.am })),
-    stufe: kontoModul.mitDeps().stufe(k), extra_aktionen: k.extra_aktionen || 0, gutschein_code: k.gutschein_code || "", sitzungen: (k.sitzungen || []).length,
+    stufe: kontoModul.mitDeps().stufe(k), extra_aktionen: k.extra_aktionen || 0, hat_guthaben: kontoModul.mitDeps().hatGuthaben(k), gutschein_code: k.gutschein_code || "", sitzungen: (k.sitzungen || []).length,
     kontingente,
   };
 }
@@ -42,7 +42,7 @@ module.exports = async (req, res) => {
         try { kontingente = await freeTier.kontingente(sid); } catch (e) { kontingente = null; }
         if (k && kontingente && !(k.sitzungen || []).includes(sid)) kontingente.sitzungNichtVerknuepft = true;
       }
-      res.status(200).json(Object.assign(oeffentlich(k, kontingente), { einloesen_ab: cfg.EINLOESEN_AB, pakete_angebot: Object.values(cfg.PAKETE).map((p) => ({ id: p.id, name: p.name, cent: p.cent, preis: cfg.euro(p.cent), kurz: p.kurz })), widerrufsverzicht_satz: cfg.WIDERRUFSVERZICHT_SATZ }));
+      res.status(200).json(Object.assign(oeffentlich(k, kontingente), { einloesen_ab: cfg.EINLOESEN_AB, pakete_angebot: Object.values(cfg.PAKETE).map((p) => ({ id: p.id, name: p.name, cent: p.cent, preis: cfg.euro(p.cent), kurz: p.kurz })), widerrufsverzicht_satz: cfg.WIDERRUFSVERZICHT_SATZ, guthaben_verfall_satz: cfg.GUTHABEN_VERFALL_SATZ, guthaben_verfall_haken: cfg.GUTHABEN_VERFALL_HAKEN }));
       return;
     }
     if (req.method === "GET" && mode === "anmelden") {
@@ -86,10 +86,12 @@ module.exports = async (req, res) => {
     }
     if (mode === "loeschen") {
       if (body.bestaetigt !== true) { res.status(400).json({ error: "Bitte das Löschen bestätigen." }); return; }
+      // C3.1 Punkt 5: mit Guthaben/Paketen braucht es den zweiten Haken ("Ich weiß, dass mein Guthaben verfällt.")
+      if (K.hatGuthaben(k) && body.guthabenVerfaellt !== true) { res.status(400).json({ error: "Bitte bestätigen, dass dein Guthaben verfällt.", guthabenVerfaellt: true, guthaben_cent: k.guthaben_cent || 0 }); return; }
       const r = await K.loeschen(k.id);
       K.cookieSetzen(res, null, true);
-      console.log("[konto] geloescht " + k.id + " (" + r.geloescht.length + " Schlüssel)");
-      res.status(200).json({ ok: true, geloescht: r.geloescht.length });
+      console.log("[konto] geloescht " + k.id + " (" + r.geloescht.length + " Schlüssel, " + r.kaufnachweise + " Kaufnachweise)");
+      res.status(200).json({ ok: true, geloescht: r.geloescht.length, kaufnachweise: r.kaufnachweise });
       return;
     }
     if (mode === "aufladen") { await require("./_lib/konto-kauf").aufladenStarten(req, res, k, body); return; }

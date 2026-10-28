@@ -111,7 +111,7 @@ function mitDeps(deps) {
     if (p.stripe_session_id && k.pakete.some((x) => x.stripe_session_id === p.stripe_session_id)) return { konto: k, neu: false };
     const paket = cfg.PAKETE[p.typ];
     if (!paket) throw new Error("Unbekanntes Paket: " + p.typ);
-    k.pakete.push({ typ: p.typ, cent: Number(p.cent) || paket.cent, am: d.jetzt().toISOString(), stripe_session_id: p.stripe_session_id || "" });
+    k.pakete.push({ typ: p.typ, cent: Number(p.cent) || paket.cent, am: d.jetzt().toISOString(), stripe_session_id: p.stripe_session_id || "", stripe_payment_intent: p.stripe_payment_intent || "" });
     if (p.typ === "zauberguthaben") { k.bezahlt = true; k.guthaben_cent = (k.guthaben_cent || 0) + (Number(p.cent) || paket.cent); }
     if (p.typ === "extra") k.extra_aktionen = (k.extra_aktionen || 0) + (paket.aktionen || 0);
     await speichern(k);
@@ -134,15 +134,29 @@ function mitDeps(deps) {
     k.extra_aktionen -= 1; await speichern(k);
     return true;
   }
+  // hatGuthaben(k): Guthaben oder gekaufte Pakete, die beim Loeschen verfallen wuerden.
+  function hatGuthaben(k) { return !!(k && ((k.guthaben_cent || 0) > 0 || (k.pakete || []).length > 0 || (k.extra_aktionen || 0) > 0)); }
   function hatPaket(k, typ) { return !!(k && Array.isArray(k.pakete) && k.pakete.some((p) => p.typ === typ)); }
   // stufe(k) -> "gratis" | "zauberguthaben" | "grossfamilie"
   function stufe(k) { if (!k || !k.bezahlt) return "gratis"; return hatPaket(k, "grossfamilie") ? "grossfamilie" : "zauberguthaben"; }
 
-  // loeschen(kontoId) -> { geloescht: [...] }: Konto, Index, Sitzungszuordnungen, Sitzungsstaende
-  // (session:{sid}) und Zaehler -- "Meine Daten loeschen". Gutscheine bleiben (Kaufbeleg, Erstattung).
+  // loeschen(kontoId) -> { geloescht: [...], kaufnachweise }: Konto, Index, Sitzungszuordnungen,
+  // Sitzungsstaende (session:{sid}) und Zaehler -- "Meine Daten loeschen". Gutscheine bleiben
+  // (Kaufbeleg, Erstattung). C3.1 Punkt 5: je gekauftem Paket bleibt ein MINIMALER, ANONYMER
+  // Kaufnachweis fuer die Buchhaltung (kaufnachweis:{stripe_session_id}: Betrag, Datum, Paket,
+  // Stripe-IDs, Loeschdatum -- kein Klarname, keine E-Mail, keine Konto-ID); Index SET kaufnachweise.
   async function loeschen(kontoId) {
     const k = await lesen(kontoId);
-    if (!k) return { geloescht: [] };
+    if (!k) return { geloescht: [], kaufnachweise: 0 };
+    let kaufnachweise = 0;
+    for (const p of k.pakete || []) {
+      if (p.typ === "gutschein" || !(p.stripe_session_id || p.am)) continue;
+      const id = p.stripe_session_id || ("k-" + crypto.createHash("sha256").update(k.id + "|" + p.am).digest("hex").slice(0, 24));
+      const nachweis = { betrag_cent: Number(p.cent) || 0, datum: p.am, paket: p.typ, stripe_session_id: p.stripe_session_id || "", stripe_payment_intent: p.stripe_payment_intent || "", konto_geloescht_am: d.jetzt().toISOString() };
+      await d.kv(["set", "kaufnachweis:" + id, JSON.stringify(nachweis)]);
+      await d.kv(["sadd", "kaufnachweise", id]);
+      kaufnachweise++;
+    }
     const keys = [keyKonto(k.id), keyEmail(k.email)];
     for (const z of ZAEHLER.concat(MENGEN)) keys.push("freitier:" + z + ":konto:" + k.id);
     for (const s of k.sitzungen || []) {
@@ -150,7 +164,7 @@ function mitDeps(deps) {
       for (const z of ZAEHLER.concat(MENGEN)) keys.push("freitier:" + z + ":" + s);
     }
     await d.kv(["del"].concat(keys));
-    return { geloescht: keys };
+    return { geloescht: keys, kaufnachweise };
   }
 
   // --- Anmelde-Link -------------------------------------------------------------------------------
@@ -219,7 +233,7 @@ function mitDeps(deps) {
   }
   async function kontoAusRequest(req) { return lesen(kontoIdAusRequest(req)); }
 
-  return { lesen, speichern, perEmail, anlegenOderLesen, kontoZuSitzung, sitzungVerknuepfen, paketGutschreiben, gutscheinGutschreiben, extraVerbrauchen, hatPaket, stufe, loeschen,
+  return { lesen, speichern, perEmail, anlegenOderLesen, kontoZuSitzung, sitzungVerknuepfen, paketGutschreiben, gutscheinGutschreiben, extraVerbrauchen, hatPaket, hatGuthaben, stufe, loeschen,
     anmeldeToken, anmeldeUrl, anmeldeLinkSenden, anmeldeTokenEinloesen, anmeldeWarten, cookieToken, cookieSetzen, kontoIdAusRequest, kontoAusRequest };
 }
 

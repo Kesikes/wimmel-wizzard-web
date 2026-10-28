@@ -19,6 +19,7 @@ const Konto = {
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.error || ("Status " + resp.status));
       Konto.angebot = data.pakete_angebot || []; Konto.widerrufsverzichtSatz = data.widerrufsverzicht_satz || ""; Konto.einloesenAb = data.einloesen_ab || "";
+      Konto.guthabenVerfallSatz = data.guthaben_verfall_satz || ""; Konto.guthabenVerfallHaken = data.guthaben_verfall_haken || "";
       const konto = data.angemeldet ? data : null;
       // Sitzung noch nicht am Konto -> jetzt anhaengen (einmal), danach Kontingente des Kontos.
       if (konto && data.kontingente && data.kontingente.sitzungNichtVerknuepft) { try { return await Konto.verknuepfen(); } catch (e) { /* unten normal weiter */ } }
@@ -72,7 +73,7 @@ const Konto = {
     return data;
   },
   async abmelden() { await Konto.post({ mode: "abmelden" }); AppState.update({ konto: null, bezahlt: false }); await Konto.laden(); },
-  async loeschen() { const r = await Konto.post({ mode: "loeschen", bestaetigt: true }); AppState.update({ konto: null, bezahlt: false, kontingente: null }); return r; },
+  async loeschen(guthabenVerfaellt) { const r = await Konto.post({ mode: "loeschen", bestaetigt: true, guthabenVerfaellt: guthabenVerfaellt === true }); AppState.update({ konto: null, bezahlt: false, kontingente: null }); return r; },
   // stoppZeigen(e): Fehler mit stopp-Objekt -> Stopp-Screen. Gibt true zurueck, wenn er gezeigt wurde.
   stoppZeigen(e) {
     const st = e && e.stopp;
@@ -228,11 +229,25 @@ Screens.kontoLoeschen = {
     const wrap = h("section", { class: "scr-pad" });
     wrap.appendChild(h("p", { class: "kicker kicker-red", style: { transform: "rotate(-2deg)" } }, "Meine Daten löschen"));
     wrap.appendChild(h("h1", { class: "h1-scr", style: { fontSize: "31px", marginBottom: "8px" } }, "Wirklich alles löschen?"));
-    wrap.appendChild(h("p", { style: { margin: "0", fontSize: "14px", lineHeight: "1.5" } }, "Weg sind dann: dein Konto, alle damit verbundenen Sitzungen mit Figuren und Bildern, und die Zähler. Gekauftes Guthaben lässt sich danach nicht wiederherstellen. Gutscheine bleiben als Kaufbeleg bestehen."));
+    wrap.appendChild(h("p", { style: { margin: "0", fontSize: "14px", lineHeight: "1.5" } }, "Weg sind dann: dein Konto, alle damit verbundenen Sitzungen mit Figuren und Bildern, und die Zähler. Gutscheine bleiben als Kaufbeleg bestehen; von gekauften Paketen bleibt nur ein anonymer Kaufnachweis für die Buchhaltung (Betrag, Datum, Paket, Stripe-Zahlungs-ID – ohne Name und E-Mail)."));
+    // C3.1 Punkt 5: Restguthaben/Pakete -> deutlicher Hinweis + eigener Pflicht-Haken.
+    const k = AppState.data.konto; const mitGuthaben = !!(k && k.hat_guthaben);
+    let haken = null;
+    if (mitGuthaben) {
+      const box = kontoKasten("var(--yellow)");
+      box.appendChild(h("p", { class: "h-black", style: { margin: "0 0 6px", fontSize: "15px", lineHeight: "1.1" } }, (Konto.guthabenVerfallSatz || "Dein Guthaben von {betrag} verfällt beim Löschen und kann nicht erstattet werden.").replace("{betrag}", k.guthaben)));
+      if ((k.pakete || []).length) box.appendChild(h("p", { style: { margin: "0 0 6px", fontSize: "13px", lineHeight: "1.45" } }, "Pakete, die dann weg sind: " + k.pakete.map((p) => p.name).join(", ") + "."));
+      haken = h("input", { type: "checkbox", id: "guthaben-verfaellt", style: { width: "20px", height: "20px", flex: "none", marginTop: "2px" } });
+      box.appendChild(h("label", { for: "guthaben-verfaellt", style: { display: "flex", gap: "10px", alignItems: "flex-start", margin: "10px 0 0", fontSize: "13px", lineHeight: "1.4", cursor: "pointer" } }, [haken, document.createTextNode(Konto.guthabenVerfallHaken || "Ich weiß, dass mein Guthaben verfällt.")]));
+      box.appendChild(h("p", { style: { margin: "4px 0 0", fontSize: "10px", color: "var(--ink-a70)" } }, "[Platzhalter-Wortlaut, wird vom Anwalt geprüft]"));
+      wrap.appendChild(box);
+    }
     const hinweis = kontoHinweis("", true); hinweis.style.display = "none";
     wrap.appendChild(kontoKnopf("Ja, alles löschen", async (ev) => {
-      const b = ev.currentTarget; if (b.disabled) return; b.disabled = true; b.textContent = "löscht …";
-      try { await Konto.loeschen(); try { localStorage.clear(); } catch (e) { /* egal */ } window.location.href = "/app/konto?geloescht=1"; }
+      const b = ev.currentTarget; if (b.disabled) return;
+      if (haken && !haken.checked) { hinweis.textContent = "Bitte bestätigen, dass dein Guthaben verfällt."; hinweis.style.display = "block"; return; }
+      b.disabled = true; b.textContent = "löscht …";
+      try { await Konto.loeschen(!!(haken && haken.checked)); try { localStorage.clear(); } catch (e) { /* egal */ } window.location.href = "/app/konto?geloescht=1"; }
       catch (e) { hinweis.textContent = (e && e.message) || "Das hat nicht geklappt."; hinweis.style.display = "block"; b.disabled = false; b.textContent = "Ja, alles löschen"; }
     }));
     wrap.appendChild(hinweis);

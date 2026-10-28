@@ -183,8 +183,19 @@ test("Endpunkt api/konto: status, anmelden-link, anmelden (Cookie + Redirect), v
     r = await ruf("POST", null, { mode: "loeschen" }, cookie); assert.equal(r.code, 400, "ohne Bestaetigung nichts");
     r = await ruf("POST", null, { mode: "abmelden" }, cookie); assert.match(r.kopf["Set-Cookie"], /Max-Age=0/);
     await u.kv(["set", "session:" + SID, "{\"x\":1}"]);
+    // C3.1 Punkt 5: mit Guthaben/Paketen braucht es den zweiten Haken; danach bleibt ein anonymer Kaufnachweis
+    const kId = await u.kv(["get", kontoModul.keySitzung(SID)]);
+    await u.K.paketGutschreiben(kId, { typ: "zauberguthaben", cent: 990, stripe_session_id: "cs_l1", stripe_payment_intent: "pi_l1" });
+    r = await ruf("GET", { mode: "status", sessionId: SID }, null, cookie); assert.equal(r.body.hat_guthaben, true); assert.match(r.body.guthaben_verfall_satz, /verfällt/);
     r = await ruf("POST", null, { mode: "loeschen", bestaetigt: true }, cookie);
-    assert.equal(r.code, 200); assert.ok(r.body.geloescht >= 4);
+    assert.equal(r.code, 400); assert.equal(r.body.guthabenVerfaellt, true); assert.equal(r.body.guthaben_cent, 990);
+    r = await ruf("POST", null, { mode: "loeschen", bestaetigt: true, guthabenVerfaellt: true }, cookie);
+    assert.equal(r.code, 200); assert.ok(r.body.geloescht >= 4); assert.equal(r.body.kaufnachweise, 1);
+    const nachweis = JSON.parse(await u.kv(["get", "kaufnachweis:cs_l1"]));
+    assert.deepEqual(Object.keys(nachweis).sort(), ["betrag_cent", "datum", "konto_geloescht_am", "paket", "stripe_payment_intent", "stripe_session_id"], "nur anonyme Felder");
+    assert.equal(nachweis.betrag_cent, 990); assert.equal(nachweis.paket, "zauberguthaben"); assert.equal(nachweis.stripe_payment_intent, "pi_l1");
+    assert.ok(!JSON.stringify(nachweis).includes("lina@") && !JSON.stringify(nachweis).includes(kId), "kein Klarname, keine E-Mail, keine Konto-ID");
+    assert.deepEqual(await u.kv(["smembers", "kaufnachweise"]), ["cs_l1"]);
     assert.equal(await u.kv(["get", "session:" + SID]), null, "verknuepfte Sitzung geloescht"); assert.equal(await u.kv(["get", kontoModul.keySitzung(SID)]), null);
     r = await ruf("GET", { mode: "status", sessionId: SID }, null, cookie); assert.equal(r.body.angemeldet, false, "Konto weg");
   } finally { u.zurueck(); rl.checkRateLimit = rlAlt; mailMod.sendMail = mailAlt; void kvMod; }

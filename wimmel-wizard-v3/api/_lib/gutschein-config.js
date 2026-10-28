@@ -53,6 +53,10 @@ const WIDERRUFSVERZICHT_SATZ = "Ich stimme zu, dass Wimmel Wizard sofort mit der
 // Gutscheine werden in der App erst ab diesem Tag eingeloest (Beta-Phase). Test-Schalter:
 // TEST_EINLOESEN_SESSION_IDS (kommagetrennt oder "*"), damit Matthias es vorher durchspielen kann.
 const EINLOESEN_AB = "2027-01-01";
+// C3.1 Punkt 5 (28.10.2026): Hinweis auf der Loeschseite, wenn Guthaben/Pakete verfallen. [PLATZHALTER,
+// Wortlaut fuer den Anwalt markiert -- wie WIDERRUFSVERZICHT_SATZ.] {betrag} wird ersetzt.
+const GUTHABEN_VERFALL_SATZ = "Dein Guthaben von {betrag} verfällt beim Löschen und kann nicht erstattet werden.";
+const GUTHABEN_VERFALL_HAKEN = "Ich weiß, dass mein Guthaben verfällt.";
 const VERSANDLAENDER = ["DE"];
 const VERSAND_SATZ = "inkl. Versand innerhalb Deutschlands";
 const EINLOESBAR_SATZ = "Einlösbar für den Versand innerhalb Deutschlands.";
@@ -266,7 +270,7 @@ async function oeffentlicheConfig() {
 }
 
 module.exports = {
-  MARKE, PRODUKTE, PAKETE, WIDERRUFSVERZICHT_SATZ, EINLOESEN_AB, VERSAND_SATZ, VERSANDLAENDER, EINLOESBAR_SATZ, UST_HINWEIS,
+  MARKE, PRODUKTE, PAKETE, WIDERRUFSVERZICHT_SATZ, GUTHABEN_VERFALL_SATZ, GUTHABEN_VERFALL_HAKEN, EINLOESEN_AB, VERSAND_SATZ, VERSANDLAENDER, EINLOESBAR_SATZ, UST_HINWEIS,
   EINLOESEFRIST_MONATE, WIDERRUF_TAGE, WIDERRUF_PUFFER_TAGE, WIDMUNG_MAX_ZEICHEN,
   GARANTIE_SATZ, BETA_SATZ, EINLOESUNG_AB_SATZ, WIDERRUF_SATZ, SO_GEHTS,
   QUELLEN, quelleNormalisieren, GEFEHLT_OPTIONEN,

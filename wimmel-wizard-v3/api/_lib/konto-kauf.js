@@ -71,7 +71,7 @@ async function paketVerarbeiten(event, deps) {
   if (neu !== "OK") return { status: "schon_verarbeitet", grund: "Event-ID bekannt", typ, konto_id: kontoId };
   try {
     const cent = Number.isFinite(Number(session.amount_total)) ? Number(session.amount_total) : cfg.PAKETE[typ].cent;
-    const r = await K.paketGutschreiben(kontoId, { typ, cent, stripe_session_id: session.id });
+    const r = await K.paketGutschreiben(kontoId, { typ, cent, stripe_session_id: session.id, stripe_payment_intent: typeof session.payment_intent === "string" ? session.payment_intent : (session.payment_intent && session.payment_intent.id) || "" });
     if (!r.neu) return { status: "schon_verarbeitet", grund: "Session bekannt", typ, konto_id: kontoId };
     await service.umsatzBuchen(cent, service.umsatzJahr(d.jetzt().toISOString()), { kv: d.kv });
     await d.kv(["del", "konto-checkout:" + session.id]);
