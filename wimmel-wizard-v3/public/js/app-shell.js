@@ -304,8 +304,17 @@ async function handleResumeParam() {
   if (!resumeId) return;
   // URL sofort bereinigen (vor dem Ergebnis) -- ein spaeterer Reload/Verlauf-Zurueck soll nicht
   // denselben Resume-Versuch wiederholen bzw. bei einem ungueltigen Link nicht wiederholt dieselbe
-  // Fehlermeldung zeigen.
-  window.history.replaceState(null, "", window.location.pathname + window.location.hash);
+  // Fehlermeldung zeigen. Andere Parameter (C3.1: angemeldet=1) bleiben fuer den Konto-Screen.
+  params.delete("resume");
+  window.history.replaceState(null, "", window.location.pathname + (params.toString() ? "?" + params.toString() : "") + window.location.hash);
+  // C3.1 Punkt 4: nach dem Anmelde-Link auf einem ANDEREN Geraet die anfragende Sitzung laden --
+  // aber nur, wenn hier noch nichts angelegt ist (sonst bleibt der eigene Stand; beide Sitzungen
+  // haengen ohnehin am Konto). Dieselbe Sitzung: nichts zu tun.
+  if (params.get("angemeldet") === "1") {
+    const eigene = AppState.data;
+    const hatInhalt = (eigene.people || []).length > 0 || (eigene.images || []).length > 0;
+    if (String(resumeId).toLowerCase() === String(eigene.sessionId || "").toLowerCase() || hatInhalt) return;
+  }
   try {
     const data = await Pipeline.loadSessionRemote(resumeId);
     if (data) {

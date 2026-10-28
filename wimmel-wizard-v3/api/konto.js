@@ -2,7 +2,8 @@
 // api/session.js, api/gutschein.js -- Vercel-Funktionen sind knapp):
 //   GET  ?mode=status[&sessionId=…]     Konto aus dem Cookie + Kontingente des Traegers (ohne Konto: nur Kontingente der Sitzung)
 //   POST { mode:"anmelden-link", email, sessionId }   Anmelde-Mail mit Einmal-Link (30 min), streng rate-limitiert
-//   GET  ?mode=anmelden&token=…          Link aus der Mail: Konto anlegen/lesen, Sitzung verknuepfen, Cookie setzen, weiter zu /app/konto
+//   GET  ?mode=anmelden&token=…          Link aus der Mail: Konto anlegen/lesen, Sitzung verknuepfen, Cookie setzen, weiter zu /app/konto (+resume=<sid>)
+//   GET  ?mode=anmelde-warten&warte=…    C3.1: anfragendes Geraet fragt nach, ob der Link benutzt wurde -> Cookie
 //   POST { mode:"verknuepfen", sessionId }           aktuelle Sitzung ans Konto (Cookie) haengen
 //   POST { mode:"abmelden" }                          Cookie loeschen
 //   POST { mode:"loeschen", bestaetigt:true }         "Meine Daten loeschen": Konto + verknuepfte Sitzungen + Zaehler
@@ -49,7 +50,17 @@ module.exports = async (req, res) => {
       try { ergebnis = await K.anmeldeTokenEinloesen(req.query && req.query.token); }
       catch (e) { if (e && e.nutzerfehler) { weiterleiten(res, "/app/konto?anmeldung=" + encodeURIComponent(e.message)); return; } throw e; }
       K.cookieSetzen(res, ergebnis.konto.id);
-      weiterleiten(res, "/app/konto?angemeldet=1");
+      // C3.1 Punkt 4: das klickende Geraet bekommt die anfragende Sitzung mit (resume) -- app-shell.js
+      // laedt sie, wenn auf diesem Geraet noch nichts angelegt ist (anderes Geraet, leere Seite).
+      weiterleiten(res, "/app/konto?angemeldet=1" + (ergebnis.sid ? "&resume=" + encodeURIComponent(ergebnis.sid) : ""));
+      return;
+    }
+    if (req.method === "GET" && mode === "anmelde-warten") {
+      // C3.1 Punkt 4: fragt das anfragende Geraet alle 3 s (max. 10 min) -- wurde der Link benutzt?
+      const kontoId = await K.anmeldeWarten(req.query && req.query.warte);
+      if (!kontoId) { res.status(200).json({ angemeldet: false }); return; }
+      K.cookieSetzen(res, kontoId);
+      res.status(200).json({ angemeldet: true });
       return;
     }
     if (req.method !== "POST") { res.status(405).json({ error: "Nur GET/POST erlaubt." }); return; }
@@ -60,7 +71,7 @@ module.exports = async (req, res) => {
       if (!kontoModul.emailGueltig(body.email)) { res.status(400).json({ error: "Bitte eine gültige E-Mail-Adresse eingeben." }); return; }
       const r = await K.anmeldeLinkSenden(body.email, body.sessionId);
       if (!r.ok) { res.status(502).json({ error: "Die Mail konnte gerade nicht verschickt werden – bitte gleich noch einmal versuchen." }); return; }
-      res.status(200).json({ ok: true, hinweis: "Wir haben dir einen Anmelde-Link geschickt – er gilt " + kontoModul.ANMELDE_LINK_MINUTEN + " Minuten." });
+      res.status(200).json({ ok: true, warte: r.warte, hinweis: "Wir haben dir einen Anmelde-Link geschickt – er gilt " + kontoModul.ANMELDE_LINK_MINUTEN + " Minuten. Du kannst den Link auf jedem Gerät öffnen." });
       return;
     }
     const k = await K.kontoAusRequest(req);

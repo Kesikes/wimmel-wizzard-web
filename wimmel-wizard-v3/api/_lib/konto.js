@@ -154,22 +154,36 @@ function mitDeps(deps) {
   }
 
   // --- Anmelde-Link -------------------------------------------------------------------------------
-  function anmeldeToken(email, sid, jetztMs) {
+  // C3.1 Punkt 4 (28.10.2026): die ANFRAGENDE Sitzung steht im Token (sid, seit C3) -- und zusaetzlich
+  // ein Warte-Schluessel (w): das anfragende Geraet fragt damit alle 3 s nach (mode=anmelde-warten),
+  // ob der Link irgendwo geklickt wurde, und bekommt dann selbst das Cookie. Der Link darf auf jedem
+  // Geraet geoeffnet werden; das klickende Geraet laedt danach die Sitzung aus dem Token (resume).
+  function anmeldeToken(email, sid, jetztMs, warte) {
     const bis = Math.floor((jetztMs || d.jetzt().getTime()) / 1000) + ANMELDE_LINK_MINUTEN * 60;
-    return tokenLib.signiere({ z: "anmelden", email: emailNormalisieren(email), sid: SESSION_ID_RE.test(String(sid || "")) ? String(sid).toLowerCase() : "", nonce: crypto.randomBytes(12).toString("hex"), bis });
+    return tokenLib.signiere({ z: "anmelden", email: emailNormalisieren(email), sid: SESSION_ID_RE.test(String(sid || "")) ? String(sid).toLowerCase() : "", nonce: crypto.randomBytes(12).toString("hex"), bis, w: warte || "" });
   }
-  function anmeldeUrl(email, sid, jetztMs) { return cfg.siteUrl() + "/api/konto?mode=anmelden&token=" + encodeURIComponent(anmeldeToken(email, sid, jetztMs)); }
-  // anmeldeLinkSenden(email, sid) -> { ok, url } -- verschickt die Mail (url nur fuer Tests/Log sichtbar machen, nie an den Client).
+  function anmeldeUrl(email, sid, jetztMs, warte) { return cfg.siteUrl() + "/api/konto?mode=anmelden&token=" + encodeURIComponent(anmeldeToken(email, sid, jetztMs, warte)); }
+  // anmeldeLinkSenden(email, sid) -> { ok, url, warte } -- verschickt die Mail (url nur fuer Tests/Log, nie an den Client; warte geht an das anfragende Geraet).
   async function anmeldeLinkSenden(email, sid) {
     if (!emailGueltig(email)) throw Object.assign(new Error("Bitte eine gültige E-Mail-Adresse eingeben."), { nutzerfehler: true });
-    const url = anmeldeUrl(email, sid);
+    const warte = crypto.randomBytes(16).toString("hex");
+    const url = anmeldeUrl(email, sid, null, warte);
     const ok = await d.mail({
       to: emailNormalisieren(email), from: cfg.mailAbsender(),
       subject: "Dein Anmelde-Link für Wimmel Wizard",
-      text: "Hallo,\n\nhier ist dein Anmelde-Link für Wimmel Wizard – er gilt " + ANMELDE_LINK_MINUTEN + " Minuten und nur einmal:\n\n" + url + "\n\nWenn du das nicht warst, ignoriere diese Mail einfach.\n\nWimmel Wizard · " + cfg.kontaktEmail(),
-      html: "<p>Hallo,</p><p>hier ist dein Anmelde-Link für Wimmel Wizard – er gilt " + ANMELDE_LINK_MINUTEN + " Minuten und nur einmal:</p><p><a href=\"" + url + "\" style=\"display:inline-block;padding:12px 18px;background:#1a1a18;color:#f3efe6;text-decoration:none;font-weight:700\">Jetzt anmelden</a></p><p style=\"font-size:12px;color:#666\">Oder diesen Link öffnen: " + url + "</p><p>Wenn du das nicht warst, ignoriere diese Mail einfach.</p><p>Wimmel Wizard · " + cfg.kontaktEmail() + "</p>",
+      text: "Hallo,\n\nhier ist dein Anmelde-Link für Wimmel Wizard – er gilt " + ANMELDE_LINK_MINUTEN + " Minuten und nur einmal. Du kannst den Link auf jedem Gerät öffnen – eure Figuren hängen danach an deinem Konto:\n\n" + url + "\n\nWenn du das nicht warst, ignoriere diese Mail einfach.\n\nWimmel Wizard · " + cfg.kontaktEmail(),
+      html: "<p>Hallo,</p><p>hier ist dein Anmelde-Link für Wimmel Wizard – er gilt " + ANMELDE_LINK_MINUTEN + " Minuten und nur einmal. Du kannst den Link auf jedem Gerät öffnen – eure Figuren hängen danach an deinem Konto.</p><p><a href=\"" + url + "\" style=\"display:inline-block;padding:12px 18px;background:#1a1a18;color:#f3efe6;text-decoration:none;font-weight:700\">Jetzt anmelden</a></p><p style=\"font-size:12px;color:#666\">Oder diesen Link öffnen: " + url + "</p><p>Wenn du das nicht warst, ignoriere diese Mail einfach.</p><p>Wimmel Wizard · " + cfg.kontaktEmail() + "</p>",
     });
-    return { ok: !!ok, url };
+    return { ok: !!ok, url, warte };
+  }
+  // anmeldeWarten(warte) -> kontoId | null: einmalig, sobald der Link geklickt wurde (Schluessel wird
+  // danach geloescht). Nur wer den Warte-Schluessel aus der Antwort auf anmelden-link hat, kommt dran.
+  async function anmeldeWarten(warte) {
+    if (!/^[0-9a-f]{32}$/.test(String(warte || ""))) return null;
+    const kontoId = await d.kv(["get", "anmelde-warte:" + warte]);
+    if (!kontoId) return null;
+    await d.kv(["del", "anmelde-warte:" + warte]);
+    return String(kontoId);
   }
   // anmeldeTokenEinloesen(token) -> { konto, sid } | wirft mit .nutzerfehler. Einmalig (Nonce SET NX).
   async function anmeldeTokenEinloesen(token) {
@@ -180,6 +194,8 @@ function mitDeps(deps) {
     if (frisch !== "OK") throw Object.assign(new Error("Dieser Anmelde-Link wurde schon benutzt – bitte einen neuen anfordern."), { nutzerfehler: true });
     let k = await anlegenOderLesen(p.email);
     if (p.sid) { try { k = await sitzungVerknuepfen(k.id, p.sid); } catch (e) { /* Sitzung gehoert zu einem anderen Konto: Anmeldung trotzdem gueltig */ } }
+    // C3.1 Punkt 4: dem wartenden (anfragenden) Geraet Bescheid geben -- 10 Minuten abholbar.
+    if (p.w && /^[0-9a-f]{32}$/.test(String(p.w))) await d.kv(["set", "anmelde-warte:" + p.w, k.id, "EX", "600"]);
     return { konto: k, sid: p.sid || "" };
   }
 
@@ -204,7 +220,7 @@ function mitDeps(deps) {
   async function kontoAusRequest(req) { return lesen(kontoIdAusRequest(req)); }
 
   return { lesen, speichern, perEmail, anlegenOderLesen, kontoZuSitzung, sitzungVerknuepfen, paketGutschreiben, gutscheinGutschreiben, extraVerbrauchen, hatPaket, stufe, loeschen,
-    anmeldeToken, anmeldeUrl, anmeldeLinkSenden, anmeldeTokenEinloesen, cookieToken, cookieSetzen, kontoIdAusRequest, kontoAusRequest };
+    anmeldeToken, anmeldeUrl, anmeldeLinkSenden, anmeldeTokenEinloesen, anmeldeWarten, cookieToken, cookieSetzen, kontoIdAusRequest, kontoAusRequest };
 }
 
 module.exports = { mitDeps, emailNormalisieren, emailGueltig, emailHash, keyKonto, keyEmail, keySitzung, COOKIE_NAME, COOKIE_TAGE, ANMELDE_LINK_MINUTEN, ZAEHLER, MENGEN };

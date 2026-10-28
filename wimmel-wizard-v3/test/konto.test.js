@@ -62,8 +62,14 @@ test("Anmelde-Link: Mail mit signiertem Einmal-Link (30 min), Einloesen legt Kon
     assert.equal(u.mails.length, 1); assert.equal(u.mails[0].to, "lina@example.de"); assert.match(u.mails[0].text, /api\/konto\?mode=anmelden&token=/);
     assert.equal(u.mails[0].from, cfg.mailAbsender());
     const token = decodeURIComponent(r.url.split("token=")[1]);
+    // C3.1 Punkt 4: Warte-Schluessel fuer das anfragende Geraet; vor dem Klick nichts, danach einmal das Konto
+    assert.match(r.warte, /^[0-9a-f]{32}$/); assert.match(u.mails[0].text, /auf jedem Gerät öffnen/);
+    assert.equal(await u.K.anmeldeWarten(r.warte), null, "vor dem Klick: noch nicht angemeldet");
     const e = await u.K.anmeldeTokenEinloesen(token);
     assert.equal(e.konto.email, "lina@example.de"); assert.equal(e.sid, SID); assert.deepEqual(e.konto.sitzungen, [SID]);
+    assert.equal(await u.K.anmeldeWarten(r.warte), e.konto.id, "nach dem Klick: Konto-ID abholbar");
+    assert.equal(await u.K.anmeldeWarten(r.warte), null, "nur einmal abholbar");
+    assert.equal(await u.K.anmeldeWarten("x"), null);
     await assert.rejects(() => u.K.anmeldeTokenEinloesen(token), /schon benutzt/);
     await assert.rejects(() => u.K.anmeldeTokenEinloesen(token + "x"), /ungültig/);
     const alt = u.K.anmeldeToken("lina@example.de", SID, Date.now() - 31 * 60 * 1000);
@@ -157,11 +163,15 @@ test("Endpunkt api/konto: status, anmelden-link, anmelden (Cookie + Redirect), v
     let r = await ruf("GET", { mode: "status", sessionId: SID });
     assert.equal(r.code, 200); assert.equal(r.body.angemeldet, false); assert.equal(r.body.kontingente.stufe, "gratis"); assert.equal(r.body.einloesen_ab, cfg.EINLOESEN_AB); assert.equal(r.body.pakete_angebot.length, 3);
     r = await ruf("POST", null, { mode: "anmelden-link", email: "lina@example.de", sessionId: SID });
-    assert.equal(r.code, 200); assert.equal(mails.length, 1);
+    assert.equal(r.code, 200); assert.equal(mails.length, 1); const warte = r.body.warte; assert.match(warte, /^[0-9a-f]{32}$/);
+    r = await ruf("GET", { mode: "anmelde-warten", warte }); assert.equal(r.body.angemeldet, false); assert.equal(r.kopf["Set-Cookie"], undefined);
     const token = decodeURIComponent(mails[0].text.match(/token=([^\s]+)/)[1]);
     r = await ruf("GET", { mode: "anmelden", token });
-    assert.equal(r.code, 302); assert.equal(r.kopf.Location, "/app/konto?angemeldet=1"); assert.match(r.kopf["Set-Cookie"], /^ww_konto=/);
+    assert.equal(r.code, 302); assert.equal(r.kopf.Location, "/app/konto?angemeldet=1&resume=" + SID, "C3.1: klickendes Geraet bekommt die anfragende Sitzung"); assert.match(r.kopf["Set-Cookie"], /^ww_konto=/);
     const cookie = r.kopf["Set-Cookie"].split(";")[0];
+    // C3.1 Punkt 4: anfragendes Geraet holt sich das Cookie ab (einmal)
+    r = await ruf("GET", { mode: "anmelde-warten", warte }); assert.equal(r.body.angemeldet, true); assert.match(r.kopf["Set-Cookie"], /^ww_konto=/);
+    r = await ruf("GET", { mode: "anmelde-warten", warte }); assert.equal(r.body.angemeldet, false);
     r = await ruf("GET", { mode: "anmelden", token });
     assert.equal(r.code, 302); assert.match(r.kopf.Location, /anmeldung=.*schon/);
     r = await ruf("GET", { mode: "status", sessionId: SID }, null, cookie);

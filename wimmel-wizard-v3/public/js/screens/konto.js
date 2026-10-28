@@ -41,6 +41,24 @@ const Konto = {
     return data;
   },
   async anmeldeLink(email) { return Konto.post({ mode: "anmelden-link", email, sessionId: AppState.data.sessionId }); },
+  // C3.1 Punkt 4: nach dem Versand alle 3 s (max. 10 min) nachfragen, ob der Link -- auf welchem Geraet
+  // auch immer -- benutzt wurde. Dann hat auch dieses Geraet das Cookie: Stand laden, Screen frisch.
+  warteTimer: null,
+  aufAnmeldungWarten(warte, onFertig) {
+    Konto.warteStoppen();
+    const bis = Date.now() + 10 * 60 * 1000;
+    const tick = async () => {
+      if (Date.now() > bis) { Konto.warteStoppen(); return; }
+      try {
+        const resp = await fetch("/api/konto?mode=anmelde-warten&warte=" + encodeURIComponent(warte), { credentials: "same-origin" });
+        const data = await resp.json();
+        if (data && data.angemeldet) { Konto.warteStoppen(); await Konto.laden(); if (onFertig) onFertig(); return; }
+      } catch (e) { /* naechster Versuch */ }
+      Konto.warteTimer = setTimeout(tick, 3000);
+    };
+    Konto.warteTimer = setTimeout(tick, 3000);
+  },
+  warteStoppen() { if (Konto.warteTimer) { clearTimeout(Konto.warteTimer); Konto.warteTimer = null; } },
   async aufladen(typ, erschoepft) {
     const data = await Konto.post({ mode: "aufladen", typ, sessionId: AppState.data.sessionId, widerrufsverzicht: true, erschoepft: !!erschoepft });
     if (data.url) window.location.href = data.url;
@@ -82,7 +100,7 @@ function kontoHinweis(text, fehler) {
 function anmeldeFormular(titel, untertitel) {
   const box = kontoKasten("var(--yellow)");
   box.appendChild(h("p", { class: "h-black", style: { margin: "0 0 6px", fontSize: "16px", lineHeight: "1.05", letterSpacing: "-.02em" } }, titel || "Anmelden – ohne Passwort"));
-  box.appendChild(h("p", { style: { margin: "0 0 10px", fontSize: "13px", lineHeight: "1.45" } }, untertitel || "Wir schicken dir einen Link per Mail. Ein Klick, und alles Bisherige hängt an deinem Konto."));
+  box.appendChild(h("p", { style: { margin: "0 0 10px", fontSize: "13px", lineHeight: "1.45" } }, untertitel || "Wir schicken dir einen Link per Mail. Ein Klick, und alles Bisherige hängt an deinem Konto. Du kannst den Link auf jedem Gerät öffnen."));
   const feld = h("input", { class: "field", type: "email", inputmode: "email", autocomplete: "email", placeholder: "deine@mail.de", "aria-label": "E-Mail-Adresse", id: "konto-email" });
   const hinweis = kontoHinweis(""); hinweis.style.display = "none";
   const knopf = kontoKnopf("Anmelde-Link schicken", async () => {
@@ -91,8 +109,9 @@ function anmeldeFormular(titel, untertitel) {
     knopf.disabled = true; knopf.textContent = "schickt …";
     try {
       const r = await Konto.anmeldeLink(email);
-      hinweis.textContent = r.hinweis || "Mail ist unterwegs – bitte Postfach prüfen."; hinweis.style.color = "inherit"; hinweis.style.display = "block";
+      hinweis.textContent = (r.hinweis || "Wir haben dir einen Link geschickt.") + " Sobald du ihn öffnest, bist du auch hier angemeldet."; hinweis.style.color = "inherit"; hinweis.style.display = "block";
       knopf.textContent = "Mail ist unterwegs ✓";
+      if (r.warte) Konto.aufAnmeldungWarten(r.warte, () => { Konto.meldung = "Angemeldet – alles Bisherige hängt jetzt an deinem Konto."; if (Router.current === "konto") kontoNeuZeichnen(); else if (typeof renderScreen === "function") renderScreen(); });
     } catch (e) {
       hinweis.textContent = (e && e.message) || "Das hat nicht geklappt."; hinweis.style.color = "var(--red)"; hinweis.style.display = "block";
       knopf.disabled = false; knopf.textContent = "Anmelde-Link schicken";
