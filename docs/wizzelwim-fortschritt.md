@@ -7,6 +7,14 @@ werden muss, und was warten kann. Es wird bei größeren Meilensteinen fortgesch
 
 ---
 
+## 👪 C3.3 (28.10.2026): die Familie gehört zum Konto
+
+`docs/c3-3-familie-im-konto-rueckmeldung-2026-10-28.md`: nach jeder Anmeldung (Code, Link, neuer Tab, anderes
+Gerät) wird die Familie des Kontos geladen bzw. bei zwei Familien mit Inhalt die Auswahl gezeigt; „Meine
+Familien“ im Konto mit Öffnen/Entfernen; Kontingente bestätigt am Konto, Figuren-ID je Familie eindeutig.
+
+---
+
 ## 🧩 C3.2 (28.10.2026): höchstens 5 Helden je Bild, Zaubercode, Wasserzeichen als Rapport
 
 `docs/c3-2-helden-login-wasserzeichen-rueckmeldung-2026-10-28.md`: `HELDEN_JE_BILD = 5` mit Rotation über
