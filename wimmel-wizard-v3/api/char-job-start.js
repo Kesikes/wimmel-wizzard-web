@@ -85,6 +85,15 @@ module.exports = async (req, res) => {
   // NEU (Auftrag 3 Teil 5): Figuren-Datenbank zuerst, siehe Kopfkommentar. Ein KV-/Speicher-Fehler
   // beim Nachschlagen fuehrt zum Live-Weg (fail-open), nie zu einem Fehler bei der Kundin.
   let chipSchluessel = chipSchluesselAus(body, anzahl);
+  // C3.1 Punkt 1: die Figur (personId) als Kontingent-Einheit -- Neu-Zeichnen/Aendern derselben Figur
+  // zaehlt nicht noch einmal (free-tier.js, Mengen statt Zaehler). Ohne gueltige ID zaehlt die jobId.
+  const figurId = freeTier.istGueltigeFigurId(body.elementId) ? String(body.elementId) : null;
+  // C3.1 Punkt 2: unvollstaendige Merkmale sind ein Eingabefehler, kein Kontingent-Ende. Vorher wurde
+  // eine Figur ohne Schluessel still zum "live"-Weg -- und der ist gratis gesperrt (Stopp-Screen).
+  if (anzahl === 2 && body.chips && typeof body.chips === "object" && !chipSchluessel) {
+    res.status(400).json({ error: "Bitte alle Merkmale antippen (Haarfarbe, -länge, -struktur, ggf. Frisur, Hautton).", unvollstaendig: true });
+    return;
+  }
   // Chip-Figuren v3 (Teil B): Ausstattung (Oberteil-Farbe, Brille, Extra) als zweite Stufe -- nur bei
   // Menschen mit vollstaendiger Angabe; Tiere und Figuren mit Notiz laufen einstufig.
   const rolle = body.chips && body.chips.rolle ? String(body.chips.rolle).toLowerCase() : "";
@@ -98,14 +107,16 @@ module.exports = async (req, res) => {
     try { treffer = await db.suchen(chipSchluessel); } catch (e) { treffer = null; }
     if (treffer) {
       // C3: Regal-Treffer = sofort zugestellte Chip-Figur -> erst pruefen, dann buchen.
-      if (!(await freeTier.figurenErlaubt(req, res, body.sessionId, "chip"))) return;
-      await freeTier.figurenBuchen(body.sessionId, "chip");
+      if (!(await freeTier.figurenErlaubt(req, res, body.sessionId, "chip", figurId))) return;
+      await freeTier.figurenBuchen(body.sessionId, "chip", figurId || jobId);
       const now = Date.now();
       let job = {
         jobId, prompt, status: "done", error: null, candidates: [], maxKandidaten: 0, stufe: 1,
         resultUrl: treffer.url, resultSeed: treffer.seed, resultViolations: 0, resultVerify: null,
         chipSchluessel, chipTreffer: true, chipGespeichert: true, grundUrl: treffer.url, chipPfad: treffer.pfad,
         sessionId: String(body.sessionId).toLowerCase(),
+        // C3.1: schon gebucht (oben) -- char-job-status.js darf beim "done" der Stufe 2 nicht noch einmal buchen.
+        figurArt: "chip", figurId: figurId || jobId, figurGebucht: true,
         createdAt: now, updatedAt: now,
       };
       await db.trefferBuchen(chipSchluessel);
@@ -128,7 +139,7 @@ module.exports = async (req, res) => {
   // live gezeichnet und danach abgelegt), "foto" (body.foto === true, Foto-Weg aus charakter.js), sonst
   // "live" (frei beschriebene Figur -- nur mit Zauberguthaben).
   const figurArt = body.foto === true ? "foto" : chipSchluessel ? "chip" : "live";
-  if (!(await freeTier.figurenErlaubt(req, res, body.sessionId, figurArt))) return;
+  if (!(await freeTier.figurenErlaubt(req, res, body.sessionId, figurArt, figurId))) return;
 
   // NEU (26.09.2026, Baustein B "Änderungs-Deckel", siehe api/_lib/aenderungs-deckel.js): der
   // ZUSÄTZLICHE Pro-Element-Deckel für "komplett neu zaubern" IN DER BEZAHLTEN PHASE (2× je Figur,
@@ -154,7 +165,7 @@ module.exports = async (req, res) => {
     // Teil 5: Schluessel am Job, damit char-job-status.js das fertige Blatt ablegen kann.
     if (chipSchluessel) { job.chipSchluessel = chipSchluessel; job.chipTreffer = false; job.chipGespeichert = false; }
     // C3: Art und Sitzung am Job, damit char-job-status.js die zugestellte Figur buchen kann.
-    job.figurArt = figurArt; job.figurGebucht = false;
+    job.figurArt = figurArt; job.figurGebucht = false; job.figurId = figurId || jobId;
     if (!job.sessionId && freeTier.istGueltigeSessionId(body.sessionId)) job.sessionId = String(body.sessionId).toLowerCase();
     // Teil B: Ausstattung folgt nach Stufe 1 (char-job-status.js -> stufe2Starten).
     if (zweiStufen) { job.ausstattungSchluessel = ausstattungSchluessel; job.ausstattungWerte = ausstattungWerte; job.sessionId = String(body.sessionId).toLowerCase(); }

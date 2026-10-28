@@ -238,7 +238,8 @@ function buildDesktopDashboard(s, notice) {
   const dDoneImages = AppState.doneImagesCount();
   const stand = h("div", { style: { border: "4px solid var(--ink)", background: "var(--blue)", padding: "18px" } });
   stand.appendChild(h("p", { class: "h-black", style: { margin: "0 0 12px", fontSize: "12px", letterSpacing: ".08em" } }, "Stand jetzt"));
-  stand.appendChild(standRow("Figuren", dDoneChars + " von " + dTotalChars));
+  stand.appendChild(standRow("Figuren", dDoneChars + " von " + dTotalChars + " gezeichnet"));
+  if (s.kontingente && s.kontingente.figuren) stand.appendChild(standRow("Noch frei", Math.max(0, s.kontingente.figuren.grenze - s.kontingente.figuren.stand) + " von " + s.kontingente.figuren.grenze + " Figuren")); // C3.1: Server-Stand, wie im Konto
   stand.appendChild(standRow("Wimmelbilder", bilderStand(dDoneImages)));
   stand.appendChild(standRow("Produkt", produkt(s.tier).name + " · " + produkt(s.tier).preis));
   stand.appendChild(h("p", { class: "caveat", style: { margin: "12px 0 0", fontSize: "20px", lineHeight: "1.1" } }, "nichts davon ist verbindlich."));
@@ -300,12 +301,23 @@ function buildDesktopDashboard(s, notice) {
 // Kartentexte, live aus dem Fortschritt berechnet statt fest aus der Referenz
 // abgeschrieben (Referenz zeigt selbst nur einen Demo-Zwischenstand).
 function charakterBody(s, doneChars, totalChars) {
-  if (doneChars === 0) return "Noch niemand gezeichnet. Leg los, wann du willst.";
-  if (doneChars >= totalChars) return "Alle sind gezeichnet.";
+  const frei = kontingentSatz(s);
+  if (doneChars === 0) return "Noch niemand gezeichnet. Leg los, wann du willst." + frei;
+  if (doneChars >= totalChars) return "Alle sind gezeichnet." + frei;
   const doneNames = s.people.filter((p) => p.status === "done").map((p) => p.name);
   const openCount = totalChars - doneChars;
   const namesText = doneNames.length <= 2 ? doneNames.join(" und ") : doneNames.slice(0, -1).join(", ") + " und " + doneNames[doneNames.length - 1];
-  return namesText + (doneNames.length === 1 ? " ist" : " sind") + " schon gezeichnet. " + openCount + (openCount === 1 ? " fehlt noch." : " fehlen noch.");
+  return namesText + (doneNames.length === 1 ? " ist" : " sind") + " schon gezeichnet. " + openCount + (openCount === 1 ? " fehlt noch." : " fehlen noch.") + frei;
+}
+// C3.1 Punkt 1 (28.10.2026): EINE Quelle fuer "verbraucht / erlaubt" -- der Server (api/konto.js
+// ?mode=status -> free-tier.js kontingente(), Stand in AppState.data.kontingente). Dashboard und
+// Konto-Bereich (screens/konto.js kontingentKasten) zeigen dieselben Zahlen; der Ring daneben zaehlt
+// weiter die angelegten Personen (gezeichnet / angelegt), das ist etwas anderes.
+function kontingentSatz(s) {
+  const kt = s.kontingente;
+  if (!kt || !kt.figuren) return "";
+  const frei = Math.max(0, kt.figuren.grenze - kt.figuren.stand);
+  return " Noch frei: " + frei + " von " + kt.figuren.grenze + " Figuren" + (kt.stufe === "gratis" ? " (aus dem Regal)" : "") + ".";
 }
 
 function bildBody(s, doneImages) {

@@ -224,24 +224,33 @@ test("char-job-start: Treffer -> Job sofort done, kein fal, eigener Zaehler bis 
     let res = antwort();
     await start({ method: "POST", headers: {}, body: { prompt, sessionId: SID, chips } }, res);
     assert.equal(res.code, 500, "kein Treffer -> Live-Weg");
-    assert.equal(await kv(["get", "freitier:figuren:" + SID]), null, "C3: ein gescheiterter Lauf zaehlt nicht");
+    assert.equal(await kv(["scard", "freitier:figur-ids:" + SID]), 0, "C3: ein gescheiterter Lauf zaehlt nicht");
+    // C3.1 Punkt 2: unvollstaendige Chips (kein Schluessel) sind ein Eingabefehler (400), kein Stopp
+    res = antwort();
+    await start({ method: "POST", headers: {}, body: { prompt, sessionId: SID, chips: Object.assign({}, chips, { haarlaenge: "" }) } }, res);
+    assert.equal(res.code, 400); assert.equal(res.body.unvollstaendig, true); assert.equal(res.body.stopp, undefined);
     // Eintrag anlegen -> Treffer
     const db = C.mitDeps();
     await db.ablegen({ schluessel: S, bildUrl: "https://v3.fal.media/a.png", seed: 7 });
     for (let i = 1; i <= ft.FIGUREN_GRATIS_CHIPS; i++) {
       res = antwort();
-      await start({ method: "POST", headers: {}, body: { prompt, sessionId: SID, chips } }, res);
+      await start({ method: "POST", headers: {}, body: { prompt, sessionId: SID, chips, elementId: "person-" + i } }, res);
       assert.equal(res.code, 200, "Treffer " + i);
       assert.equal(res.body.chipTreffer, true);
       const job = JSON.parse(await kv(["get", "charjob:" + res.body.jobId]));
       assert.equal(job.status, "done"); assert.equal(job.chipTreffer, true); assert.equal(job.resultSeed, 7);
       assert.match(job.resultUrl, /image-proxy\?blob=figuren/);
     }
-    assert.equal(await kv(["get", "freitier:figuren:" + SID]), String(ft.FIGUREN_GRATIS_CHIPS), "C3: zugestellte Regal-Figuren zaehlen als Figuren");
-    assert.equal(await kv(["get", "freitier:figuren_chips:" + SID]), String(ft.FIGUREN_GRATIS_CHIPS));
+    assert.equal(await kv(["scard", "freitier:figur-ids:" + SID]), ft.FIGUREN_GRATIS_CHIPS, "C3: zugestellte Regal-Figuren zaehlen als Figuren");
+    assert.equal(await kv(["scard", "freitier:figur-ids:chip:" + SID]), ft.FIGUREN_GRATIS_CHIPS);
     assert.equal((await db.suchen(S)).treffer, ft.FIGUREN_GRATIS_CHIPS);
+    // C3.1: Person 3 noch einmal aus dem Regal -> kein neues Kontingent, Stand bleibt
     res = antwort();
-    await start({ method: "POST", headers: {}, body: { prompt, sessionId: SID, chips } }, res);
+    await start({ method: "POST", headers: {}, body: { prompt, sessionId: SID, chips, elementId: "person-3" } }, res);
+    assert.equal(res.code, 200, "bekannte Figur neu zeichnen geht");
+    assert.equal(await kv(["scard", "freitier:figur-ids:" + SID]), ft.FIGUREN_GRATIS_CHIPS, "Menge: dieselbe Figur zaehlt nicht doppelt");
+    res = antwort();
+    await start({ method: "POST", headers: {}, body: { prompt, sessionId: SID, chips, elementId: "person-6" } }, res);
     assert.equal(res.code, 403); assert.equal(res.body.kontingent, "figuren_chips"); assert.equal(res.body.stopp.stufe, "gratis"); assert.equal(res.body.stopp.zauberguthabenMoeglich, true);
     // Notiz/"Neu zeichnen": anzahl 1 geht nie an die DB -- und ist gratis eine "live"-Figur -> Stopp
     res = antwort();

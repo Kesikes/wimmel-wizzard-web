@@ -4181,7 +4181,9 @@ async function startCharacterJob(prompt, anzahl, elementId, chips, ausstattung, 
   const resp = await fetch("/api/char-job-start", {
     method: "POST", headers: { "Content-Type": "application/json" },
     // C3 Teil D: foto=true kennzeichnet den Foto-Weg (free-tier.js zaehlt "foto" getrennt, bis 3 je Stufe).
-    body: JSON.stringify(anzahl === 1 ? Object.assign({ prompt, anzahl: 1, sessionId, elementId: elementId || null }, foto ? { foto: true } : {}) : Object.assign({ prompt, sessionId }, chips ? { chips } : {}, chips && ausstattung ? { ausstattung } : {}, foto ? { foto: true } : {})),
+    // C3.1 Punkt 1: elementId (personId) IMMER mitschicken -- der Server zaehlt Figuren als Menge je
+    // Person (free-tier.js); Neu-Zeichnen/Aendern derselben Person ist keine neue Figur.
+    body: JSON.stringify(anzahl === 1 ? Object.assign({ prompt, anzahl: 1, sessionId, elementId: elementId || null }, foto ? { foto: true } : {}) : Object.assign({ prompt, sessionId, elementId: elementId || null }, chips ? { chips } : {}, chips && ausstattung ? { ausstattung } : {}, foto ? { foto: true } : {})),
   });
   const data = await parseJsonResponse(resp);
   if (!resp.ok || data.error) {

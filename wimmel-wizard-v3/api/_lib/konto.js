@@ -32,7 +32,8 @@ const COOKIE_TAGE = 180;
 const ANMELDE_LINK_MINUTEN = 30;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const SESSION_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const ZAEHLER = ["figuren", "figuren_chips", "figuren_foto", "bilder"];
+const ZAEHLER = ["figuren", "figuren_chips", "figuren_foto", "bilder"]; // figuren* = Altzaehler (C3.1: nur noch geloescht/uebertragen, nicht gelesen)
+const MENGEN = ["figur-ids", "figur-ids:chip", "figur-ids:foto"]; // C3.1: Figuren als Mengen (free-tier.js FIGUR_MENGEN)
 
 function emailNormalisieren(e) { return String(e || "").trim().toLowerCase(); }
 function emailGueltig(e) { const n = emailNormalisieren(e); return !!n && n.length <= 254 && EMAIL_RE.test(n); }
@@ -92,6 +93,11 @@ function mitDeps(deps) {
         const wert = Number(await d.kv(["get", "freitier:" + z + ":" + s])) || 0;
         if (wert > 0) { await d.kv(["incrby", "freitier:" + z + ":konto:" + k.id, String(wert)]); await d.kv(["del", "freitier:" + z + ":" + s]); }
       }
+      // C3.1: Figuren-Mengen der Sitzung in die des Kontos (Vereinigung, keine Doppelten)
+      for (const m of MENGEN) {
+        const ids = await d.kv(["smembers", "freitier:" + m + ":" + s]);
+        if (Array.isArray(ids) && ids.length) { await d.kv(["sadd", "freitier:" + m + ":konto:" + k.id].concat(ids)); await d.kv(["del", "freitier:" + m + ":" + s]); }
+      }
     }
     if (!k.sitzungen.includes(s)) { k.sitzungen.push(s); await speichern(k); }
     return k;
@@ -138,10 +144,10 @@ function mitDeps(deps) {
     const k = await lesen(kontoId);
     if (!k) return { geloescht: [] };
     const keys = [keyKonto(k.id), keyEmail(k.email)];
-    for (const z of ZAEHLER) keys.push("freitier:" + z + ":konto:" + k.id);
+    for (const z of ZAEHLER.concat(MENGEN)) keys.push("freitier:" + z + ":konto:" + k.id);
     for (const s of k.sitzungen || []) {
       keys.push(keySitzung(s), "session:" + s);
-      for (const z of ZAEHLER) keys.push("freitier:" + z + ":" + s);
+      for (const z of ZAEHLER.concat(MENGEN)) keys.push("freitier:" + z + ":" + s);
     }
     await d.kv(["del"].concat(keys));
     return { geloescht: keys };
@@ -201,4 +207,4 @@ function mitDeps(deps) {
     anmeldeToken, anmeldeUrl, anmeldeLinkSenden, anmeldeTokenEinloesen, cookieToken, cookieSetzen, kontoIdAusRequest, kontoAusRequest };
 }
 
-module.exports = { mitDeps, emailNormalisieren, emailGueltig, emailHash, keyKonto, keyEmail, keySitzung, COOKIE_NAME, COOKIE_TAGE, ANMELDE_LINK_MINUTEN, ZAEHLER };
+module.exports = { mitDeps, emailNormalisieren, emailGueltig, emailHash, keyKonto, keyEmail, keySitzung, COOKIE_NAME, COOKIE_TAGE, ANMELDE_LINK_MINUTEN, ZAEHLER, MENGEN };

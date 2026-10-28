@@ -574,6 +574,7 @@ async function generateCharacterImage(person, buttons) {
     // eine gesetzte pendingJobId und setzt das Polling automatisch fort, statt einen Fehler zu
     // zeigen oder (schlimmer) eine zweite, parallele Generierung zu starten.
     const result = await Pipeline.runCharacterJobPolling(prompt, {
+      elementId: person.id, // C3.1 Punkt 1: Figur = Kontingent-Einheit (Server zaehlt je Person)
       // Teil 5: Chip-Werte fuer die Figuren-Datenbank (null bei Notiz -> live, nicht abgelegt).
       chips,
       // Teil B: Ausstattung fuer Stufe 2 (nur zusammen mit chips wirksam).
@@ -629,6 +630,8 @@ async function generateCharacterImage(person, buttons) {
 // bleiben in pipeline.js stehen, werden aber vom Produktpfad nicht mehr aufgerufen.
 async function generateExtraViewsAndFinish(person, frontResult, sceneDescription) {
   const vorhanden = (AppState.data.people || []).find((x) => x.id === person.id) || person;
+  // C3.1 Punkt 1: Figur zugestellt -> Kontingent-Stand vom Server neu holen (Dashboard/Konto lesen daraus).
+  if (window.Konto) Konto.laden().catch(() => {});
   AppState.updatePerson(person.id, {
     imageUrl: frontResult.url, imageSeed: frontResult.seed, sceneDescription,
     pendingJobId: null, pendingSceneDescription: null,
@@ -743,6 +746,7 @@ async function generateCharacterImageFromPhoto(person, photoDataUri, buttons) {
     // werden, ein Resume nach einem Reload braucht also KEIN erneutes Foto.
     const result = await Pipeline.runCharacterJobPolling(prompt, {
       foto: true, // C3 Teil D: Foto-Weg kennzeichnen (free-tier.js zaehlt "foto" getrennt)
+      elementId: person.id, // C3.1 Punkt 1
       // Siehe Kommentar im Chips-Weg oben: nur der Prompt, nie das Foto.
       onJobId: (jobId) => AppState.updatePerson(person.id, { pendingJobId: jobId, pendingSceneDescription: sceneDescription, charPrompt: prompt }),
     });

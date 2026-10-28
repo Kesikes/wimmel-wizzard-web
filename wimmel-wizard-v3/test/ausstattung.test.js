@@ -203,8 +203,9 @@ test("char-job-start: Grund-Treffer + Ausstattung ohne Treffer -> Job in Stufe 2
     j = JSON.parse(await kv(["get", "charjob:" + res.body.jobId]));
     assert.equal(j.status, "done"); assert.equal(j.ausstattungTreffer, true); assert.match(j.resultUrl, /ausstattung/);
     assert.equal(fal.log.filter((x) => x[0] === "submit").length, 1, "kein weiterer Edit");
-    assert.equal(await kv(["get", "freitier:figuren:" + SID2]), "1", "C3: zugestellte Regal-Figur zaehlt als Figur");
-    assert.equal(await kv(["get", "freitier:figuren_chips:" + SID2]), "1");
+    assert.equal(await kv(["scard", "freitier:figur-ids:" + SID2]), 1, "C3: zugestellte Regal-Figur zaehlt als Figur");
+    assert.equal(await kv(["scard", "freitier:figur-ids:chip:" + SID2]), 1);
+    assert.equal(j.figurGebucht, true, "C3.1: Treffer-Job ist als gebucht markiert (sonst bucht Stufe 2 doppelt)");
   } finally {
     C.mitDeps = echteDeps; rl.checkRateLimit = rlAlt; kd.deckelErlaubt = kdAlt; fal.zurueck(); delete process.env.FAL_KEY;
   }

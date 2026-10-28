@@ -14,10 +14,18 @@
 // figurenBuchen()/bilderBuchen() buchen erst, wenn der Job wirklich "done" ist (char-job-status.js,
 // scene-job-engine.js). Bis C3 buchte figurenErlaubtUndGebucht() vor dem Aufruf -- das ist weg.
 //
-// KONTINGENT-TRAEGER: die Zaehler haengen an der Sitzung (freitier:<art>:<sid>), bis die Sitzung an ein
-// Konto haengt -- dann am Konto (freitier:<art>:konto:<id>, ohne TTL; konto.js sitzungVerknuepfen()
-// uebertraegt die Sitzungszaehler). Mehrere Sitzungen eines Kontos teilen sich so ein Kontingent.
+// KONTINGENT-TRAEGER: die Staende haengen an der Sitzung (…:<sid>), bis die Sitzung an ein Konto haengt
+// -- dann am Konto (…:konto:<id>, ohne TTL; konto.js sitzungVerknuepfen() uebertraegt sie). Mehrere
+// Sitzungen eines Kontos teilen sich so ein Kontingent.
 //
+// ZAEHLWEISE (C3.1 Punkt 1, 28.10.2026): FIGUREN werden als MENGE der zugestellten Figuren-IDs gefuehrt
+// (SET freitier:figur-ids[:chip|:foto]:<traeger>, Mitglied = personId aus dem Client, ersatzweise die
+// jobId), Stand = SCARD. Eine Figur, die neu gezeichnet oder geaendert wird, bleibt EINE Figur -- vorher
+// zaehlte ein INCR-Zaehler jeden fertigen Job, und die Regal-Treffer mit Ausstattungs-Edit wurden
+// sogar doppelt gebucht (char-job-start.js buchte, char-job-status.js beim "done" der Stufe 2 noch
+// einmal: figurGebucht fehlte). Befund Matthias 28.10.: 4 gezeichnete Figuren, Zaehler 5, Stopp bei
+// der fuenften. Die alten Zaehler freitier:figuren*:<traeger> werden NICHT mehr gelesen (Alt-Sitzungen
+// vor diesem Tag fangen bei 0 an -- vor dem Launch unkritisch). Bilder bleiben ein INCR-Zaehler.
 // bezahltStatus(sid): Test-Schalter TEST_BEZAHLT_SESSION_IDS (wie bisher) ODER Konto mit bezahlt=true.
 // FAIL-OPEN wie ueberall (rate-limit.js/kosten-deckel.js): ist KV nicht erreichbar, darf die
 // Generierung stattfinden.
@@ -63,7 +71,7 @@ async function bezahltStatus(sessionId) { return (await stufe(sessionId)).bezahl
 async function fotoErlaubt(sessionId) { return bezahltStatus(sessionId); }
 const FOTO_GESPERRT_TEXT = "Mit Foto wird die Figur eurem Kind noch ähnlicher. Das schaltet ihr mit dem Zauberguthaben oder eurem Gutschein frei.";
 
-// traegerKey(art, sessionId, konto) -> Zaehler-Schluessel (Konto, wenn verknuepft, sonst Sitzung)
+// traegerKey(art, sessionId, konto) -> Schluessel (Konto, wenn verknuepft, sonst Sitzung)
 function traegerKey(art, sessionId, konto) {
   return "freitier:" + art + ":" + (konto ? "konto:" + konto.id : String(sessionId).toLowerCase());
 }
@@ -72,11 +80,22 @@ async function zaehler(art, sessionId, konto) {
   const n = roh == null ? 0 : Number(roh);
   return Number.isFinite(n) ? n : 0;
 }
+// Figuren-Mengen: "figur-ids" (alle), "figur-ids:chip", "figur-ids:foto"
+const FIGUR_MENGEN = { gesamt: "figur-ids", chip: "figur-ids:chip", foto: "figur-ids:foto" };
+const FIGUR_ID_RE = /^[a-z0-9äöüß_.:-]{1,80}$/i;
+function istGueltigeFigurId(v) { return typeof v === "string" && FIGUR_ID_RE.test(v); }
+async function mengeGroesse(menge, sessionId, konto) {
+  const n = Number(await kvCommandSafe(["scard", traegerKey(menge, sessionId, konto)]));
+  return Number.isFinite(n) ? n : 0;
+}
+async function inMenge(menge, sessionId, konto, figurId) {
+  return Number(await kvCommandSafe(["sismember", traegerKey(menge, sessionId, konto), figurId])) === 1;
+}
 // figurenStand(sessionId, konto) -> { gesamt, chips, foto, live } (zugestellte Figuren des Traegers)
 async function figurenStand(sessionId, konto) {
-  const gesamt = await zaehler("figuren", sessionId, konto);
-  const chips = await zaehler("figuren_chips", sessionId, konto);
-  const foto = await zaehler("figuren_foto", sessionId, konto);
+  const gesamt = await mengeGroesse(FIGUR_MENGEN.gesamt, sessionId, konto);
+  const chips = await mengeGroesse(FIGUR_MENGEN.chip, sessionId, konto);
+  const foto = await mengeGroesse(FIGUR_MENGEN.foto, sessionId, konto);
   return { gesamt, chips, foto, live: Math.max(0, gesamt - chips - foto) };
 }
 
@@ -97,32 +116,47 @@ function stoppAntwort(res, grund, st, stand, grenze, kontingent) {
   return false;
 }
 
-// figurenErlaubt(req, res, sessionId, art): DAS TOR fuer api/char-job-start.js -- nur lesen, nicht
-// buchen. art: "chip" (Figuren-Regal), "live" (frei gezeichnet, mit Notiz), "foto". true = weiter;
-// false = Antwort ist raus (400/403 mit stopp-Objekt fuer den Stopp-Screen).
-async function figurenErlaubt(req, res, sessionId, art) {
+// figurenErlaubt(req, res, sessionId, art, figurId): DAS TOR fuer api/char-job-start.js -- nur lesen,
+// nicht buchen. art: "chip" (Figuren-Regal), "live" (frei gezeichnet, mit Notiz), "foto". figurId =
+// personId aus dem Client: ist diese Figur schon zugestellt, ist der Aufruf ein Neu-Zeichnen/Aendern
+// derselben Figur und zaehlt nicht als neue (nur ein ERSTER Foto-Weg prueft das Foto-Kontingent).
+// true = weiter; false = Antwort ist raus (400/403 mit stopp-Objekt fuer den Stopp-Screen).
+async function figurenErlaubt(req, res, sessionId, art, figurId) {
   if (!istGueltigeSessionId(sessionId)) { res.status(400).json({ error: "Ungültige oder fehlende sessionId." }); return false; }
   if (!ARTEN.includes(art)) art = "live";
-  let st, stand;
-  try { st = await stufe(sessionId); stand = await figurenStand(sessionId, st.konto); } catch (e) { return true; } // fail-open
+  let st, stand, bekannt = false, fotoBekannt = false;
+  try {
+    st = await stufe(sessionId); stand = await figurenStand(sessionId, st.konto);
+    if (istGueltigeFigurId(figurId)) {
+      bekannt = await inMenge(FIGUR_MENGEN.gesamt, sessionId, st.konto, figurId);
+      fotoBekannt = bekannt && await inMenge(FIGUR_MENGEN.foto, sessionId, st.konto, figurId);
+    }
+  } catch (e) { return true; } // fail-open
   const g = st.grenzen;
-  if (art === "foto" && stand.foto >= g.foto) return stoppAntwort(res, "foto", st, stand.foto, g.foto, "figuren_foto");
+  if (art === "foto" && !fotoBekannt && stand.foto >= g.foto) return stoppAntwort(res, "foto", st, stand.foto, g.foto, "figuren_foto");
+  if (bekannt) return true; // dieselbe Figur noch einmal: kein neues Kontingent
   if (art === "live" && !st.bezahlt) return stoppAntwort(res, "live", st, stand.gesamt, g.figuren, "figuren");
   if (art === "chip" && !st.bezahlt && stand.chips >= g.chipFiguren) return stoppAntwort(res, "figuren", st, stand.chips, g.chipFiguren, "figuren_chips");
   if (stand.gesamt >= g.figuren) return stoppAntwort(res, "figuren", st, stand.gesamt, g.figuren, "figuren");
   return true;
 }
-// figurenBuchen(sessionId, art): EINMAL je ZUGESTELLTER Figur (char-job-start.js bei Regal-Treffer,
-// char-job-status.js beim Uebergang auf "done"). Wirft nie.
-async function figurenBuchen(sessionId, art) {
+// figurenBuchen(sessionId, art, figurId): bei ZUSTELLUNG (char-job-start.js bei Regal-Treffer,
+// char-job-status.js beim Uebergang auf "done"). Idempotent: dieselbe figurId (personId, ersatzweise
+// jobId) landet nur einmal in der Menge. Wirft nie.
+async function figurenBuchen(sessionId, art, figurId) {
   if (!istGueltigeSessionId(sessionId)) return;
   if (!ARTEN.includes(art)) art = "live";
+  if (!istGueltigeFigurId(figurId)) return;
   try {
     const konto = await kontoZuSitzung(sessionId);
-    const ttl = konto ? 0 : TTL;
-    await kvIncrWithExpiry(traegerKey("figuren", sessionId, konto), ttl);
-    if (art === "chip") await kvIncrWithExpiry(traegerKey("figuren_chips", sessionId, konto), ttl);
-    if (art === "foto") await kvIncrWithExpiry(traegerKey("figuren_foto", sessionId, konto), ttl);
+    const mengen = [FIGUR_MENGEN.gesamt];
+    if (art === "chip") mengen.push(FIGUR_MENGEN.chip);
+    if (art === "foto") mengen.push(FIGUR_MENGEN.foto);
+    for (const m of mengen) {
+      const key = traegerKey(m, sessionId, konto);
+      await kvCommandSafe(["sadd", key, figurId]);
+      if (!konto) await kvCommandSafe(["expire", key, String(TTL)]);
+    }
   } catch (e) { /* bewusst ignoriert -- ein Zaehlfehler darf die Figur nicht verweigern */ }
 }
 
@@ -160,6 +194,6 @@ async function kontingente(sessionId) {
 
 module.exports = {
   KONTINGENTE, FIGUREN_GRATIS, FIGUREN_GRATIS_CHIPS, FIGUREN_HART, BILDER_GRATIS, BILDER_HART, ARTEN,
-  istGueltigeSessionId, stufe, bezahltStatus, fotoErlaubt, FOTO_GESPERRT_TEXT, traegerKey, figurenStand, kontoZuSitzung,
+  istGueltigeSessionId, istGueltigeFigurId, FIGUR_MENGEN, stufe, bezahltStatus, fotoErlaubt, FOTO_GESPERRT_TEXT, traegerKey, figurenStand, kontoZuSitzung,
   figurenErlaubt, figurenBuchen, bilderErlaubt, bilderBuchen, kontingente, stoppText,
 };

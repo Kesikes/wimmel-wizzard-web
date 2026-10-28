@@ -33,11 +33,11 @@ test("Konto: anlegen (einmal je E-Mail, normalisiert), Sitzung verknuepfen ueber
     assert.equal(await u.kv(["get", kontoModul.keyEmail("OMA@example.de")]), a.id, "Index ueber sha256(email)");
     assert.equal(await u.kv(["ttl", kontoModul.keyKonto(a.id)]), -1, "Konto ohne TTL");
     // Sitzung hat schon 3 Regal-Figuren und 1 Bild -> wandern ins Konto
-    await u.kv(["set", "freitier:figuren:" + SID, "3"]); await u.kv(["set", "freitier:figuren_chips:" + SID, "3"]); await u.kv(["set", "freitier:bilder:" + SID, "1"]);
+    await u.kv(["sadd", "freitier:figur-ids:" + SID, "lina", "ben", "oma"]); await u.kv(["sadd", "freitier:figur-ids:chip:" + SID, "lina", "ben", "oma"]); await u.kv(["set", "freitier:bilder:" + SID, "1"]);
     const k = await u.K.sitzungVerknuepfen(a.id, SID.toUpperCase());
     assert.deepEqual(k.sitzungen, [SID]);
-    assert.equal(await u.kv(["get", "freitier:figuren:konto:" + a.id]), "3"); assert.equal(await u.kv(["get", "freitier:bilder:konto:" + a.id]), "1");
-    assert.equal(await u.kv(["get", "freitier:figuren:" + SID]), null, "Sitzungszaehler uebertragen");
+    assert.equal(await u.kv(["scard", "freitier:figur-ids:konto:" + a.id]), 3); assert.equal(await u.kv(["get", "freitier:bilder:konto:" + a.id]), "1");
+    assert.equal(await u.kv(["scard", "freitier:figur-ids:" + SID]), 0, "Sitzungsmengen uebertragen");
     assert.equal((await u.K.kontoZuSitzung(SID)).id, a.id);
     await u.K.sitzungVerknuepfen(a.id, SID); assert.equal((await u.K.lesen(a.id)).sitzungen.length, 1, "doppelt verknuepfen aendert nichts");
     const fremd = await u.K.anlegenOderLesen("opa@example.de");
@@ -87,36 +87,44 @@ test("Kontingente je Stufe: gratis 5 Regal-Figuren / keine Foto / 1 Bild; Zauber
     assert.equal(await ft.bezahltStatus(SID), false);
     let a = r(); assert.equal(await ft.figurenErlaubt({}, a, SID, "foto"), false); assert.equal(a.code, 403); assert.equal(a.body.stopp.grund, "foto"); assert.equal(a.body.vorAufruf, true);
     a = r(); assert.equal(await ft.figurenErlaubt({}, a, SID, "live"), false); assert.equal(a.body.stopp.grund, "live");
-    for (let i = 0; i < 5; i++) { a = r(); assert.equal(await ft.figurenErlaubt({}, a, SID, "chip"), true, "Regal-Figur " + (i + 1)); await ft.figurenBuchen(SID, "chip"); }
-    a = r(); assert.equal(await ft.figurenErlaubt({}, a, SID, "chip"), false); assert.equal(a.body.kontingent, "figuren_chips"); assert.equal(a.body.stopp.zauberguthabenMoeglich, true);
+    for (let i = 0; i < 5; i++) { a = r(); assert.equal(await ft.figurenErlaubt({}, a, SID, "chip", "figur-" + i), true, "Regal-Figur " + (i + 1)); await ft.figurenBuchen(SID, "chip", "figur-" + i); }
+    a = r(); assert.equal(await ft.figurenErlaubt({}, a, SID, "chip", "figur-5"), false); assert.equal(a.body.kontingent, "figuren_chips"); assert.equal(a.body.stopp.zauberguthabenMoeglich, true);
+    // C3.1 Punkt 1: dieselbe Figur noch einmal (Neu zeichnen / Detail aendern) ist keine neue Figur --
+    // auch nicht als "live" (anzahl 1 ohne Chips); doppeltes Buchen aendert den Stand nicht.
+    a = r(); assert.equal(await ft.figurenErlaubt({}, a, SID, "chip", "figur-2"), true, "bekannte Figur neu zeichnen");
+    a = r(); assert.equal(await ft.figurenErlaubt({}, a, SID, "live", "figur-2"), true, "bekannte Figur als live (anzahl 1)");
+    await ft.figurenBuchen(SID, "chip", "figur-2"); await ft.figurenBuchen(SID, "live", "figur-2");
+    assert.equal((await ft.figurenStand(SID, null)).gesamt, 5, "Menge statt Zaehler: 5 bleibt 5");
+    a = r(); assert.equal(await ft.figurenErlaubt({}, a, SID, "foto", "figur-2"), false, "Foto bleibt gratis gesperrt, auch fuer bekannte Figur");
     // Bild: 1 gratis, gebucht erst bei Zustellung
     a = r(); assert.equal(await ft.bilderErlaubt({}, a, SID), true);
     await ft.bilderBuchen(SID);
     a = r(); assert.equal(await ft.bilderErlaubt({}, a, SID), false); assert.equal(a.body.stopp.grund, "bild");
     // Gescheiterter Lauf: pruefen ohne buchen aendert nichts
-    assert.equal(await u.kv(["get", "freitier:figuren:" + SID]), "5");
+    assert.equal(await u.kv(["scard", "freitier:figur-ids:" + SID]), 5);
     // Konto mit Zauberguthaben -> Sitzung verknuepfen -> Zaehler wandern, Grenzen 6/3/7
     const k = await u.K.anlegenOderLesen("mama@example.de");
     await u.K.paketGutschreiben(k.id, { typ: "zauberguthaben", cent: 990, stripe_session_id: "cs_z" });
     await u.K.sitzungVerknuepfen(k.id, SID);
     assert.equal(await ft.bezahltStatus(SID), true);
     let kt = await ft.kontingente(SID); assert.equal(kt.stufe, "zauberguthaben"); assert.equal(kt.figuren.stand, 5); assert.equal(kt.figuren.grenze, 6); assert.equal(kt.bilder.grenze, 7); assert.equal(kt.figuren.fotoGrenze, 3);
-    a = r(); assert.equal(await ft.figurenErlaubt({}, a, SID, "foto"), true); await ft.figurenBuchen(SID, "foto");
-    a = r(); assert.equal(await ft.figurenErlaubt({}, a, SID, "foto"), false); assert.equal(a.body.stopp.grund, "figuren"); assert.equal(a.body.stopp.grossfamilieMoeglich, true, "6 von 6 -> Grossfamilie anbieten");
-    assert.equal(await u.kv(["get", "freitier:figuren:konto:" + k.id]), "6"); assert.equal(await u.kv(["get", "freitier:figuren_foto:konto:" + k.id]), "1");
+    a = r(); assert.equal(await ft.figurenErlaubt({}, a, SID, "foto", "papa"), true); await ft.figurenBuchen(SID, "foto", "papa");
+    a = r(); assert.equal(await ft.figurenErlaubt({}, a, SID, "foto", "tante"), false); assert.equal(a.body.stopp.grund, "figuren"); assert.equal(a.body.stopp.grossfamilieMoeglich, true, "6 von 6 -> Grossfamilie anbieten");
+    assert.equal(await u.kv(["scard", "freitier:figur-ids:konto:" + k.id]), 6); assert.equal(await u.kv(["scard", "freitier:figur-ids:foto:konto:" + k.id]), 1);
+    a = r(); assert.equal(await ft.figurenErlaubt({}, a, SID, "foto", "papa"), true, "Foto-Figur noch einmal mit Foto: kein neues Kontingent");
     a = r(); assert.equal(await ft.bilderErlaubt({}, a, SID), true, "Bild 2 von 7");
     // zweite Sitzung desselben Kontos teilt das Kontingent
     await u.K.sitzungVerknuepfen(k.id, SID2);
-    a = r(); assert.equal(await ft.figurenErlaubt({}, a, SID2, "chip"), false, "Kontingent gilt je Konto");
+    a = r(); assert.equal(await ft.figurenErlaubt({}, a, SID2, "chip", "neu"), false, "Kontingent gilt je Konto");
     // Grossfamilie: bis 10, davon bis 6 per Foto
     await u.K.paketGutschreiben(k.id, { typ: "grossfamilie", cent: 490, stripe_session_id: "cs_g" });
-    for (let i = 0; i < 4; i++) { a = r(); assert.equal(await ft.figurenErlaubt({}, a, SID, "foto"), true, "Grossfamilie Figur " + (7 + i)); await ft.figurenBuchen(SID, "foto"); }
-    a = r(); assert.equal(await ft.figurenErlaubt({}, a, SID, "chip"), false); assert.equal(a.body.stopp.stufe, "grossfamilie"); assert.equal(a.body.stopp.grossfamilieMoeglich, false);
+    for (let i = 0; i < 4; i++) { a = r(); assert.equal(await ft.figurenErlaubt({}, a, SID, "foto", "gf-" + i), true, "Grossfamilie Figur " + (7 + i)); await ft.figurenBuchen(SID, "foto", "gf-" + i); }
+    a = r(); assert.equal(await ft.figurenErlaubt({}, a, SID, "chip", "gf-9"), false); assert.equal(a.body.stopp.stufe, "grossfamilie"); assert.equal(a.body.stopp.grossfamilieMoeglich, false);
     kt = await ft.kontingente(SID2); assert.equal(kt.figuren.stand, 10); assert.equal(kt.figuren.foto, 5);
     // Test-Schalter wirkt weiter (ohne Konto)
     process.env.TEST_BEZAHLT_SESSION_IDS = "*";
     const SID3 = "323e4567-e89b-12d3-a456-426614174000";
-    a = r(); assert.equal(await ft.figurenErlaubt({}, a, SID3, "foto"), true);
+    a = r(); assert.equal(await ft.figurenErlaubt({}, a, SID3, "foto", "x"), true);
     delete process.env.TEST_BEZAHLT_SESSION_IDS;
   } finally { u.zurueck(); }
 });

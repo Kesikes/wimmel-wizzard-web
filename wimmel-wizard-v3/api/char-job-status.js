@@ -104,7 +104,7 @@ module.exports = async (req, res) => {
           // Uebergang auf "done" (gescheiterte Laeufe zaehlen nicht). Regal-Treffer bucht char-job-start.js.
           if (job.status === "done" && !job.figurGebucht && job.sessionId) {
             job.figurGebucht = true;
-            await freeTier.figurenBuchen(job.sessionId, job.figurArt || "live");
+            await freeTier.figurenBuchen(job.sessionId, job.figurArt || "live", job.figurId || jobId);
           }
           // v3.1 Kostendeckel je Figur: beim Abschluss (done/error) einmal die Versuche ins Log.
           if (job.status !== "in_progress" && !job.versucheGeloggt) {
