@@ -2282,22 +2282,25 @@ async function teilenBildErzeugen(image) {
   c.width = w; c.height = h;
   const ctx = c.getContext("2d");
   ctx.drawImage(quelle, 0, 0, w, h);
-  // Wasserzeichen: Kasten in Tinte, Schrift in Papier, Groesse relativ zur Bildbreite
-  const text = "Wimmel Wizard \u00b7 " + teilenSiteUrl().replace(/^https?:\/\//, "");
-  const groesse = Math.max(18, Math.round(w * 0.024));
-  ctx.font = "bold " + groesse + "px Archivo, Arial, sans-serif";
-  const breite = ctx.measureText(text).width + groesse * 1.2;
-  const hoehe = groesse * 1.9;
-  const rand = Math.round(groesse * 0.8);
-  ctx.fillStyle = "rgba(26,26,24,.88)";
-  ctx.fillRect(w - breite - rand, h - hoehe - rand, breite, hoehe);
-  ctx.fillStyle = "#F2EDE1";
+  // C3.2 Teil 3 (28.10.2026): Wasserzeichen als Rapport ueber das ganze Bild (wasserzeichen.js) --
+  // vorher nur ein Absender-Kasten unten rechts, der sich wegschneiden liess. Dazu unten rechts
+  // weiterhin klein die Adresse, damit klar ist, wo es das gibt.
+  const groesse = Wasserzeichen.schriftGroesseFuer(w);
+  await Wasserzeichen.schriftLaden(groesse);
+  Wasserzeichen.anwenden(ctx, w, h, groesse);
+  const text = teilenSiteUrl().replace(/^https?:\/\//, "");
+  const klein = Math.max(14, Math.round(w * 0.02));
+  ctx.font = "bold " + klein + "px Archivo, Arial, sans-serif";
   ctx.textBaseline = "middle";
-  ctx.fillText(text, w - breite - rand + groesse * 0.6, h - rand - hoehe / 2);
+  const breite = ctx.measureText(text).width + klein * 1.2, hoehe = klein * 1.8, rand = Math.round(klein * 0.7);
+  ctx.fillStyle = "rgba(26,26,24,.88)"; ctx.fillRect(w - breite - rand, h - hoehe - rand, breite, hoehe);
+  ctx.fillStyle = "#F2EDE1"; ctx.fillText(text, w - breite - rand + klein * 0.6, h - rand - hoehe / 2);
   const blob = await new Promise((resolve) => c.toBlob(resolve, "image/jpeg", 0.9));
   if (!blob) throw new Error("Bild konnte nicht erzeugt werden.");
   return new File([blob], "wimmel-wizard.jpg", { type: "image/jpeg" });
 }
+// Fuer Rauchtests/Dev erreichbar (erzeugt nur die Datei, teilt nichts).
+Screens.ergebnis = Screens.ergebnis || {}; Screens.ergebnis.teilenBildErzeugen = teilenBildErzeugen;
 function teilenZaehlen() {
   try {
     fetch("/api/gutschein", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode: "teilen", sessionId: AppState.data.sessionId }) }).catch(() => {});

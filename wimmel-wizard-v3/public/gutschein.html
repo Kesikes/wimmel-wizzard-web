@@ -88,7 +88,7 @@
         <div style="margin-top: 12px;">
           <p class="gs-label">So sieht der Gutschein aus</p>
           <div class="gs-vorschau" id="vorschau" aria-live="polite">
-            <div class="wz h-black">Wimmel Wizard · Wimmel Wizard · Wimmel Wizard</div>
+            <div class="wz" aria-hidden="true"></div>
             <div class="kopf"><span class="h-black k">Gutschein</span><span class="h-black m">Wimmel Wizard</span></div>
             <p class="h-black titel" id="v-titel">Ein Wimmelbuch für euch</p>
             <div class="koerper">
@@ -164,6 +164,7 @@
   </div>
 </div>
 
+<script src="/js/wasserzeichen.js"></script>
 <script src="/js/gutschein-seiten.js"></script>
 <script>
 (function () {
@@ -174,6 +175,8 @@
   var versandAn = "mich";
 
   $("lp-cta").href = GS.mitQuelle("/app");
+  // C3.2 Teil 3: Rapport-Wasserzeichen auf der Vorschau (Tinte, dezent, sobald die Logo-Schrift da ist).
+  if (window.Wasserzeichen) { Wasserzeichen.schriftLaden(22).then(function () { Wasserzeichen.alsHintergrund(document.querySelector(".gs-vorschau .wz"), 22, 0.07, "dunkel"); }); }
   $("f-datum").min = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 
   function produktObj() { return (CFG.produkte || []).filter(function (p) { return p.id === produkt; })[0] || CFG.produkte[0]; }

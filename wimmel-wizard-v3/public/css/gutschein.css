@@ -74,7 +74,8 @@ textarea.gs-feld { min-height: 96px; resize: none; padding: 11px; line-height: 1
 
 /* Live-Vorschau des Gutscheins (spiegelt das PDF) */
 .gs-vorschau { border: 4px solid var(--ink); background: var(--paper); padding: 14px 14px 12px; position: relative; overflow: hidden; transform: rotate(-.8deg); box-shadow: 6px 7px 0 var(--ink); }
-.gs-vorschau .wz { position: absolute; left: -10%; top: 36%; width: 120%; text-align: center; font-size: 28px; letter-spacing: .02em; color: var(--ink); opacity: .05; transform: rotate(-14deg); pointer-events: none; white-space: nowrap; }
+/* C3.2 Teil 3: Rapport "Wimmel Wizard" aus wasserzeichen.js (Hintergrundkachel, gedreht), statt einer einzelnen Zeile */
+.gs-vorschau .wz { position: absolute; left: -40%; top: -40%; width: 180%; height: 180%; pointer-events: none; }
 .gs-vorschau .kopf { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; }
 .gs-vorschau .kopf .k { font-size: 9px; letter-spacing: .1em; padding: 4px 7px; background: var(--yellow); border: 2px solid var(--ink); }
 .gs-vorschau .kopf .m { font-size: 10px; letter-spacing: .04em; }
