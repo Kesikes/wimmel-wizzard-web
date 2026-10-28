@@ -259,4 +259,42 @@ function text(ziel, x, y, s, g, farbe) {
   [...s].forEach((c, k) => { const m = ZEICHEN[c] || ZEICHEN[" "]; for (let i = 0; i < 15; i++) if (m[i] === "1") rechteck(ziel, x + k * 4 * g + (i % 3) * g, y + Math.floor(i / 3) * g, x + k * 4 * g + (i % 3) * g + g - 1, y + Math.floor(i / 3) * g + g - 1, farbe || [200, 0, 120, 255]); });
 }
 
-module.exports = { pngLesen, pngSchreiben, leer, kopie, freistellen, zuschneiden, skalieren, einsetzen, schatten, polygonFuellen, rechteck, FREI, spiegeln, weicherSchatten, mittelwert, angleichen, linie, text };
+// --- Runde 3 (B2.3): eingeschlossene weisse Flaechen (Ersatz, falls BiRefNet Konturen anfrisst) -------
+// loecherEntfernen(bild, { min, schonen }): Die Farbschwelle (freistellen) entfernt nur Hintergrund, der
+// mit dem Bildrand verbunden ist. Zwischen Bankbeinen, unter Armen, zwischen Beinen bleibt Weiss stehen.
+// Hier werden REINWEISSE Flaechen (alle Kanaele >= LOCH.WEISS, kaum Farbe) ab min Pixeln entfernt, ausser
+// sie beruehren eine der schonen-Boxen (Gesicht: Augenweiss, helle Haut). Weisse Kleidung ist im Stil
+// gezeichnet (Schattenton, leicht getoent) und bleibt meist stehen -- Kontrolle im Pruefbild auf Magenta.
+// Zusaetzlich: neutral graue Flaechen unten (Bodenschatten des Bildmodells unter Bank/Fuessen).
+const LOCH = { WEISS: 243, SPANNE: 12, GRAU_MIN: 120, GRAU_SPANNE: 10 };
+function loecherEntfernen(bild, opt) {
+  const { w, h } = bild, out = kopie(bild), d = out.d;
+  const min = (opt && opt.min) || Math.max(60, Math.round(w * h * 0.0004)), schonen = (opt && opt.schonen) || [];
+  const farbe = (p) => { const i = p * 4; return [d[i], d[i + 1], d[i + 2], d[i + 3]]; };
+  const weiss = (p) => { const [r, g, b, a] = farbe(p); return a > 0 && Math.min(r, g, b) >= LOCH.WEISS && Math.max(r, g, b) - Math.min(r, g, b) <= LOCH.SPANNE; };
+  // grauer Bodenschatten, den das Bildmodell unter Bank/Fuesse malt (wir zeichnen unseren eigenen)
+  const grau = (p) => { const [r, g, b, a] = farbe(p); return a > 0 && Math.min(r, g, b) >= LOCH.GRAU_MIN && Math.max(r, g, b) < LOCH.WEISS && Math.max(r, g, b) - Math.min(r, g, b) <= LOCH.GRAU_SPANNE; };
+  let entfernt = 0, flaechen = 0;
+  for (const [art, test] of [["weiss", weiss], ["grau", grau]]) {
+    const gesehen = new Uint8Array(w * h);
+    for (let p0 = 0; p0 < w * h; p0++) {
+      if (gesehen[p0] || !test(p0)) continue;
+      const teil = [p0], st = [p0]; gesehen[p0] = 1; let x0 = w, x1 = 0, y0 = h, y1 = 0;
+      while (st.length) {
+        const q = st.pop(), x = q % w, y = (q - x) / w;
+        if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+        for (const r of [x > 0 ? q - 1 : -1, x < w - 1 ? q + 1 : -1, y > 0 ? q - w : -1, y < h - 1 ? q + w : -1]) if (r >= 0 && !gesehen[r] && test(r)) { gesehen[r] = 1; st.push(r); teil.push(r); }
+      }
+      if (teil.length < min) continue;
+      if (art === "grau" && (y1 < h * 0.85 || x1 - x0 < 0.25 * w)) continue;  // nur breit am Boden
+      if (schonen.some(([a, b, c, e]) => x1 >= a && x0 <= c && y1 >= b && y0 <= e)) continue;
+      for (const q of teil) d[q * 4 + 3] = 0;
+      entfernt += teil.length; flaechen++;
+    }
+  }
+  return { bild: out, entfernt, flaechen };
+}
+// aufFarbe(sprite, rgb): Pruefbild -- Figur auf kraeftiger Farbe (Loecher und Reste sofort sichtbar)
+function aufFarbe(b, f) { const out = leer(b.w, b.h); for (let i = 0; i < out.d.length; i += 4) { out.d[i] = f[0]; out.d[i + 1] = f[1]; out.d[i + 2] = f[2]; out.d[i + 3] = 255; } einsetzen(out, b, 0, 0); return out; }
+
+module.exports = { pngLesen, pngSchreiben, leer, kopie, freistellen, zuschneiden, skalieren, einsetzen, schatten, polygonFuellen, rechteck, FREI, spiegeln, weicherSchatten, mittelwert, angleichen, linie, text, loecherEntfernen, aufFarbe, LOCH };

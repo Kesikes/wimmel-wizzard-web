@@ -44,7 +44,7 @@ const DICHTE = Math.max(10, Math.min(45, Number(ENV.DICHTE || 30)));
 const PAAR = Math.max(0, Math.min(1, Number(ENV.PAAR || 0.45)));
 const PLATZ_SEED = Number(ENV.PLATZ_SEED || 20261029);
 const QUALITAET = ["high", "medium", "low"].includes(ENV.QUALITAET) ? ENV.QUALITAET : "high";
-if (!TROCKEN && !NUR_V1 && !FAL_KEY) { console.error("FAL_KEY fehlt (oder TROCKEN=1 / NUR_V1=1)."); process.exit(1); }
+if (require.main === module && !TROCKEN && !NUR_V1 && !FAL_KEY) { console.error("FAL_KEY fehlt (oder TROCKEN=1 / NUR_V1=1)."); process.exit(1); }
 
 const Q = require(path.join(APP, "api/_lib/fal-queue.js"));
 const AUSSTATTUNG = require(path.join(APP, "api/_lib/ausstattung-engine.js"));
@@ -249,7 +249,19 @@ function platzieren(hgId, bg, elemente, rnd) {
 
 // --- Zusammensetzen: V1 (roh), V4 (Code-Schatten + Farbangleichung), Kontrolle (Kopfmasse) ----------
 function spriteFuer(g) { const s = g.spiegel ? B.spiegeln(g.sprite) : g.sprite; return B.skalieren(s, Math.max(1, Math.round(g.w)), Math.max(1, Math.round(g.h))); }
-function zusammensetzen(bg, gesetzt, art, def) {
+// V4-Stellschrauben (Runde 3: drei Stufen zum Auswaehlen; "mittel" = Runde 2):
+//   deckkraft   wie dunkel der Schatten in der Mitte ist (0..1)
+//   laenge      wie weit der Schatten in Sonnenrichtung reicht (Anteil der Figurenbreite)
+//   angleichung wie stark die Figur den Farbton des Bildlichts annimmt (0..1)
+//   saettigung  Saettigungsaenderung der Figur (-0.05 = 5 % blasser)
+//   dunst       Luftdunst ganz hinten (Anteil Richtung Umgebungsfarbe, nach vorne 0)
+const V4_STUFEN = {
+  dezent: { deckkraft: 0.28, laenge: 0.14, angleichung: 0.2, saettigung: -0.03, dunst: 0.06 },
+  mittel: { deckkraft: 0.42, laenge: 0.22, angleichung: 0.35, saettigung: -0.05, dunst: 0.10 },
+  kraeftig: { deckkraft: 0.58, laenge: 0.34, angleichung: 0.5, saettigung: -0.08, dunst: 0.15 },
+};
+function zusammensetzen(bg, gesetzt, art, def, stufe) {
+  const V = stufe || V4_STUFEN.mittel;
   const out = B.kopie(bg), W = bg.w, H = bg.h;
   const global = B.mittelwert(bg, 0, 0, W, H), lum = 0.299 * global[0] + 0.587 * global[1] + 0.114 * global[2];
   const licht = global.map((c) => Math.min(1.15, Math.max(0.85, c / lum)));
@@ -259,10 +271,10 @@ function zusammensetzen(bg, gesetzt, art, def) {
     const w = sp.w, h = sp.h, fx = g.fuss[0], fy = g.fuss[1];
     const breit = g.sitzend ? 0.5 : (g.personen || 1) > 1 ? 0.44 : 0.34;
     if (art === "v4") {
-      B.weicherSchatten(out, fx + sonne[0] * w * 0.22, fy - h * 0.004 + sonne[1] * w * 0.1, w * (breit + 0.2), w * (breit * 0.3 + 0.03), 0.42);
+      B.weicherSchatten(out, fx + sonne[0] * w * V.laenge, fy - h * 0.004 + sonne[1] * w * V.laenge * 0.45, w * (breit + V.laenge * 0.9), w * (breit * 0.3 + 0.03), V.deckkraft);
       const t = Math.max(0, Math.min(1, (fy / H - def.kopf.y[0]) / (def.kopf.y[1] - def.kopf.y[0])));
       const lokal = B.mittelwert(bg, fx - w, fy - h, fx + w, fy + h * 0.1);
-      sp = B.angleichen(sp, { licht, anteil: 0.35, saettigung: -0.05, dunst: 0.10 * (1 - t), dunstFarbe: lokal });
+      sp = B.angleichen(sp, { licht, anteil: V.angleichung, saettigung: V.saettigung, dunst: V.dunst * (1 - t), dunstFarbe: lokal });
     } else {
       B.schatten(out, fx, fy - h * 0.006, w * breit, w * breit * 0.24);
     }
@@ -306,8 +318,30 @@ function html(datum, r1, zeilen, figuren, kostenListe, hinweise) {
     + "<p style=\"font-size:11px\">Positionen, Posen, Kopfmaße und Regelprüfung je Figur: JSON daneben. GPT-Image-2-Preise sind Richtwerte.</p></body></html>";
 }
 
+// Auswahl je Bild: alle Posen, dann Vorderansichten bis 1/3 frontal (Personen gezaehlt), dann
+// Wiederholungen (gespiegelt, nicht neben derselben Person).
+function nebenAuswahl(rnd, heldenElemente, neben, vorneSprites, poseSprites) {
+  const frontalHelden = heldenElemente.filter((e) => e.frontal).reduce((a, e) => a + (e.personen || 1), 0);
+  const out = [];
+  const nimm = (n, art) => {
+    const p = art === "vorne" ? null : poseSprites[n.id];
+    const quelle = p || vorneSprites[n.id], pose = p ? p.pose : "vorne", P = POSEN[pose] || {};
+    return { id: n.id + "-" + pose + (art === "wdh" ? "-2" : ""), person: n.id, art: "neben", name: n.name + (art === "wdh" ? " (2)" : ""), heldenIds: [], sprite: quelle.sprite, kopf: quelle.kopf,
+      pose, frontal: pose === "vorne", sitzend: !!P.sitzend, blick: pose === "vorne" ? null : (quelle.kopf.blick || P.blick || null), typen: pose === "vorne" ? ["stehen", "wasser-ufer", "gehen"] : P.typen };
+  };
+  const mitPose = mischen(rnd, neben.filter((n) => poseSprites[n.id]));
+  for (const n of mitPose) if (heldenElemente.length + out.length < DICHTE) out.push(nimm(n, "pose"));
+  const frontalFrei = Math.max(0, Math.floor((DICHTE + 1) / 3) - frontalHelden);
+  for (const n of mischen(rnd, neben).slice(0, frontalFrei)) if (heldenElemente.length + out.length < DICHTE) out.push(nimm(n, "vorne"));
+  for (let i = 0; heldenElemente.length + out.length < DICHTE && i < mitPose.length; i++) out.push(nimm(mitPose[i], "wdh"));
+  return out;
+}
+
+module.exports = { POSEN, POSEN_FOLGE, posePrompt, HELDEN_POSE, STIL_EDIT, BEHALTEN, BEHALTEN_RUECKEN, M, PREIS, V4_STUFEN, zufall, mischen, kosten, kostenTabelle, hash, imCache, falBild, hochladen, laden,
+  cache: () => CACHE, cacheSchreiben, runde1Finden, pngDatei, drucklayout, platzieren, zusammensetzen, nebenAuswahl, esc, PFADE: { REPO, APP, INPUT, AUSGABE, CACHE_DATEI, POSEN_ORDNER } };
+
 // --- Hauptablauf --------------------------------------------------------------------------------------
-(async () => {
+if (require.main === module) (async () => {
   const datum = new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-");
   const r1Datei = runde1Finden(), R1 = JSON.parse(fs.readFileSync(r1Datei, "utf8"));
   const r1Name = "collage-" + R1.datum, r1Ordner = path.join(path.dirname(r1Datei), r1Name), r1Fig = path.join(r1Ordner, "figuren");
@@ -392,24 +426,8 @@ function html(datum, r1, zeilen, figuren, kostenListe, hinweise) {
   }
   for (const n of neben) figurListe.push({ name: n.name, pose: "vorne", kopf: kopfText(vorneSprites[n.id].kopf), bild: r1Name + "/figuren/" + n.id + ".png" });
 
-  // Auswahl je Bild: alle Posen, dann Vorderansichten bis 1/3 frontal (Personen gezaehlt), dann Wiederholungen.
   const heldenElemente = elemente.slice();
-  const frontalHelden = heldenElemente.filter((e) => e.frontal).reduce((a, e) => a + (e.personen || 1), 0);
-  const nebenElemente = (rnd) => {
-    const out = [];
-    const nimm = (n, art) => {
-      const p = art === "vorne" ? null : poseSprites[n.id];
-      const quelle = p || vorneSprites[n.id], pose = p ? p.pose : "vorne", P = POSEN[pose] || {};
-      return { id: n.id + "-" + pose + (art === "wdh" ? "-2" : ""), person: n.id, art: "neben", name: n.name + (art === "wdh" ? " (2)" : ""), heldenIds: [], sprite: quelle.sprite, kopf: quelle.kopf,
-        pose, frontal: pose === "vorne", sitzend: !!P.sitzend, blick: pose === "vorne" ? null : (quelle.kopf.blick || P.blick || null), typen: pose === "vorne" ? ["stehen", "wasser-ufer", "gehen"] : P.typen };
-    };
-    const mitPose = mischen(rnd, neben.filter((n) => poseSprites[n.id]));
-    for (const n of mitPose) if (heldenElemente.length + out.length < DICHTE) out.push(nimm(n, "pose"));
-    const frontalFrei = Math.max(0, Math.floor((DICHTE + 1) / 3) - frontalHelden);
-    for (const n of mischen(rnd, neben).slice(0, frontalFrei)) if (heldenElemente.length + out.length < DICHTE) out.push(nimm(n, "vorne"));
-    for (let i = 0; heldenElemente.length + out.length < DICHTE && i < mitPose.length; i++) out.push(nimm(mitPose[i], "wdh"));
-    return out;
-  };
+  const nebenElemente = (rnd) => nebenAuswahl(rnd, heldenElemente, neben, vorneSprites, poseSprites);
 
   // je Hintergrund
   const zeilen = [], positionen = {};
