@@ -410,3 +410,24 @@ test("C3.3 Punkt 1: familien() fasst die Sitzungen des Kontos zusammen; leere Si
     await assert.rejects(() => u.K.familieEntfernen(k.id, "323e4567-e89b-12d3-a456-426614174000", { nurLeer: true }), /gehört nicht/);
   } finally { u.zurueck(); }
 });
+
+test("C3.3 Punkt 2: Endpunkt familie-entfernen -- nur mit Bestaetigung, nie die geoeffnete Familie, Kontingent bleibt", async () => {
+  const u = umgebung();
+  try {
+    const k = await u.K.anlegenOderLesen("familie2@example.de");
+    await u.K.sitzungVerknuepfen(k.id, SID); await u.K.sitzungVerknuepfen(k.id, SID2);
+    await u.kv(["set", "session:" + SID2, JSON.stringify({ people: [{ id: "opa", name: "Opa" }] })]);
+    await u.kv(["sadd", "freitier:figur-ids:konto:" + k.id, SID + ":lina", SID2 + ":opa"]);
+    delete require.cache[require.resolve("../api/konto")];
+    const handler = require("../api/konto");
+    const cookie = (() => { const r = antwort(); u.K.cookieSetzen(r, k.id); return r.kopf["Set-Cookie"].split(";")[0]; })();
+    const ruf = async (body) => { const r = antwort(); await handler({ method: "POST", query: {}, body, headers: { cookie } }, r); return r; };
+    let r = await ruf({ mode: "familie-entfernen", sid: SID2, sessionId: SID }); assert.equal(r.code, 400, "ohne Bestaetigung nichts");
+    r = await ruf({ mode: "familie-entfernen", sid: SID2, leer: true, sessionId: SID }); assert.equal(r.code, 409, "nicht leer -> nicht als leer entfernbar");
+    r = await ruf({ mode: "familie-entfernen", sid: SID, bestaetigt: true, sessionId: SID }); assert.equal(r.code, 409, "geoeffnete Familie nicht");
+    r = await ruf({ mode: "familie-entfernen", sid: SID2, bestaetigt: true, sessionId: SID }); assert.equal(r.code, 200);
+    assert.deepEqual((await u.K.lesen(k.id)).sitzungen, [SID]); assert.equal(await u.kv(["get", "session:" + SID2]), null);
+    assert.equal(await u.kv(["scard", "freitier:figur-ids:konto:" + k.id]), 2, "Kontingent bleibt (keine Figur zurueck)");
+    r = await ruf({ mode: "familien", sessionId: SID }); assert.equal(r.body.familien.length, 1);
+  } finally { u.zurueck(); }
+});

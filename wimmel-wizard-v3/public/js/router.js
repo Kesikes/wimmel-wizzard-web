@@ -32,6 +32,7 @@ const ROUTES = [
   // NEU (C3 Konto & Aufladen, Teil D, 27.10.2026): drei Screens AUSSERHALB der Rail-Reihenfolge
   // (screenIndex() -> -1; app-shell.js blendet die Bottom-Bar dafuer aus). Siehe screens/konto.js.
   { path: "/app/konto/loeschen", screen: "kontoLoeschen" },
+  { path: "/app/konto/familie-entfernen", screen: "familieEntfernen" }, // C3.3 Punkt 2
   { path: "/app/konto", screen: "konto" },
   { path: "/app/stopp", screen: "stopp" },
   // C3.3 (28.10.2026): Auswahl nach der Anmeldung

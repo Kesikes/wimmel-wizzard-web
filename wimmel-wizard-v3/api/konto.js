@@ -6,7 +6,7 @@
 //   GET  ?mode=anmelde-warten&warte=…    C3.1: anfragendes Geraet fragt nach, ob der Link benutzt wurde -> Cookie
 //   POST { mode:"anmelden-code", warte, code }   C3.2: 6-stelliger Zaubercode aus der Mail -> Cookie im selben Fenster
 //   POST { mode:"familien", sessionId }           C3.3: Familien (Sitzungen) des Kontos mit Vorschau
-//   POST { mode:"familie-entfernen", sid, leer:true }   C3.3: leere Sitzung vom Konto loesen
+//   POST { mode:"familie-entfernen", sid, leer:true | bestaetigt:true, sessionId }   C3.3: Familie vom Konto loesen
 //   POST { mode:"verknuepfen", sessionId }           aktuelle Sitzung ans Konto (Cookie) haengen
 //   POST { mode:"abmelden" }                          Cookie loeschen
 //   POST { mode:"loeschen", bestaetigt:true }         "Meine Daten loeschen": Konto + verknuepfte Sitzungen + Zaehler
@@ -113,9 +113,13 @@ module.exports = async (req, res) => {
       return;
     }
     if (mode === "familie-entfernen") {
-      // C3.3 Punkt 1: nur LEERE Sitzungen (Aufraeumen nach dem Laden einer anderen Familie).
-      if (body.leer !== true) { res.status(400).json({ error: "Bitte das Entfernen bestätigen." }); return; }
-      try { await K.familieEntfernen(k.id, body.sid, { nurLeer: true }); }
+      // C3.3: leer:true = Aufraeumen nach dem Laden einer anderen Familie (nur wenn wirklich leer);
+      // bestaetigt:true = "Meine Familien" -> Entfernen nach der Bestaetigungsseite (Punkt 2). Die
+      // gerade geoeffnete Familie (body.sessionId) laesst sich so nicht entfernen.
+      const nurLeer = body.leer === true;
+      if (!nurLeer && body.bestaetigt !== true) { res.status(400).json({ error: "Bitte das Entfernen bestätigen." }); return; }
+      if (!nurLeer && String(body.sid || "").toLowerCase() === String(body.sessionId || "").toLowerCase()) { res.status(409).json({ error: "Diese Familie ist gerade geöffnet – öffne erst eine andere." }); return; }
+      try { await K.familieEntfernen(k.id, body.sid, { nurLeer }); }
       catch (e) { if (e && e.nutzerfehler) { res.status(409).json({ error: e.message }); return; } throw e; }
       res.status(200).json({ ok: true });
       return;

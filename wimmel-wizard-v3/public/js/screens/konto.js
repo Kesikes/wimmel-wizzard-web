@@ -345,6 +345,7 @@ Screens.konto = {
       info.appendChild(h("p", { style: { margin: "8px 0 0", fontSize: "13px" } }, [h("span", { class: "h-black", style: { fontSize: "11px", letterSpacing: ".06em" } }, "PAKETE "), document.createTextNode(pakete || "noch keins")]));
       if (k.extra_aktionen) info.appendChild(h("p", { style: { margin: "8px 0 0", fontSize: "13px" } }, [h("span", { class: "h-black", style: { fontSize: "11px", letterSpacing: ".06em" } }, "EXTRA-AKTIONEN "), document.createTextNode(String(k.extra_aktionen))]));
       wrap.appendChild(info);
+      wrap.appendChild(meineFamilien()); // C3.3 Punkt 2
       if (kt) wrap.appendChild(kontingentKasten(kt));
       if (!k.bezahlt) wrap.appendChild(aufladenKasten("zauberguthaben"));
       else if (k.stufe === "zauberguthaben") wrap.appendChild(aufladenKasten("grossfamilie"));
@@ -393,6 +394,7 @@ function familienKarte(f, modus, onWahl) {
   if (f.aktuell) kopf.appendChild(h("span", { class: "h-black", style: { fontSize: "9px", letterSpacing: ".08em", padding: "4px 6px", background: "var(--ink)", color: "var(--paper)" } }, modus === "auswahl" ? "IN DIESEM FENSTER" : "GEÖFFNET"));
   karte.appendChild(kopf);
   karte.appendChild(h("p", { style: { margin: "8px 0 0", fontSize: "12px", lineHeight: "1.4" } }, f.figuren + (f.figuren === 1 ? " Figur" : " Figuren") + " · " + f.bilder + (f.bilder === 1 ? " Bild" : " Bilder") + " · " + familieDatum(f.geaendert)));
+  if (modus === "anzeige") return karte;
   if (modus === "auswahl") {
     karte.appendChild(kontoKnopf(f.aktuell ? "Diese weiterbearbeiten" : "Diese Familie öffnen", () => onWahl(f), { style: f.aktuell ? { background: "var(--ink)" } : {} }));
   } else {
@@ -405,6 +407,49 @@ function familienKarte(f, modus, onWahl) {
   }
   return karte;
 }
+// C3.3 Punkt 2: "Meine Familien" im Konto-Bereich -- alle Familien (Sitzungen) mit Vorschau, Oeffnen
+// und Entfernen (Bestaetigungsseite). Grundlage fuer das spaetere Folgebuch mit derselben Familie.
+function meineFamilien() {
+  const box = h("div", { id: "meine-familien", style: { marginTop: "18px" } });
+  box.appendChild(h("p", { class: "h-black", style: { margin: "0", fontSize: "16px", lineHeight: "1.05", letterSpacing: "-.02em" } }, "Meine Familien"));
+  box.appendChild(h("p", { style: { margin: "4px 0 0", fontSize: "12px", lineHeight: "1.4" } }, "Jede Familie behält ihre Figuren und Bilder – auf jedem Gerät, auf dem du angemeldet bist."));
+  const liste = h("div", {}, [h("p", { style: { margin: "10px 0 0", fontSize: "12px", color: "var(--ink-a70)" } }, "lädt …")]);
+  const hinweis = kontoHinweis("", true); hinweis.style.display = "none";
+  box.appendChild(liste); box.appendChild(hinweis);
+  Konto.familien().then((familien) => {
+    liste.innerHTML = "";
+    const sichtbar = familien.filter((f) => f.aktuell || !f.leer);
+    Konto.familienCache = sichtbar;
+    if (!sichtbar.length) { liste.appendChild(h("p", { style: { margin: "10px 0 0", fontSize: "12px" } }, "Noch keine Familie gespeichert.")); return; }
+    sichtbar.forEach((f) => liste.appendChild(familienKarte(f, "konto", async (gewaehlt, aktion) => {
+      if (aktion === "entfernen") { Konto.familieZiel = gewaehlt; Router.goScreen("familieEntfernen"); return; }
+      try { await Konto.familieOeffnen(gewaehlt.sid); Konto.meldung = "Familie geöffnet: " + gewaehlt.namen.slice(0, 4).join(", ") + "."; kontoNeuZeichnen(); }
+      catch (e) { hinweis.textContent = (e && e.message) || "Das hat nicht geklappt."; hinweis.style.display = "block"; }
+    })));
+  }).catch((e) => { liste.innerHTML = ""; liste.appendChild(kontoHinweis((e && e.message) || "Familien konnten gerade nicht geladen werden.", true)); });
+  return box;
+}
+// Bestaetigungsseite "Familie entfernen?" (statt confirm()).
+Screens.familieEntfernen = {
+  render(root) {
+    const f = Konto.familieZiel;
+    if (!f) { Router.goScreen("konto"); return; }
+    const wrap = h("section", { class: "scr-pad" });
+    wrap.appendChild(h("p", { class: "kicker kicker-red", style: { transform: "rotate(-2deg)" } }, "Meine Familien"));
+    wrap.appendChild(h("h1", { class: "h1-scr", style: { fontSize: "31px", marginBottom: "8px" } }, "Familie entfernen?"));
+    wrap.appendChild(familienKarte(f, "anzeige"));
+    wrap.appendChild(h("p", { style: { margin: "14px 0 0", fontSize: "14px", lineHeight: "1.5" } }, "Diese Familie mit allen Figuren und Bildern wird aus deinem Konto entfernt. Das lässt sich nicht rückgängig machen. Was schon gezaubert wurde, zählt weiter zu eurem Kontingent."));
+    const hinweis = kontoHinweis("", true); hinweis.style.display = "none";
+    wrap.appendChild(kontoKnopf("Ja, Familie entfernen", async (ev) => {
+      const b = ev.currentTarget; if (b.disabled) return; b.disabled = true; b.textContent = "entfernt …";
+      try { await Konto.post({ mode: "familie-entfernen", sid: f.sid, bestaetigt: true, sessionId: AppState.data.sessionId }); Konto.familieZiel = null; Konto.meldung = "Familie entfernt."; await Konto.laden(); Router.goScreen("konto"); }
+      catch (e) { hinweis.textContent = (e && e.message) || "Das hat nicht geklappt."; hinweis.style.display = "block"; b.disabled = false; b.textContent = "Ja, Familie entfernen"; }
+    }));
+    wrap.appendChild(hinweis);
+    wrap.appendChild(kontoKnopf("Nein, zurück", () => { Konto.familieZiel = null; Router.goScreen("konto"); }, { style: { background: "var(--paper)", color: "var(--ink)" } }));
+    root.appendChild(wrap);
+  }
+};
 // Auswahl-Screen nach der Anmeldung: "Welche Familie moechtest du weiterbearbeiten?"
 Screens.familien = {
   render(root) {
