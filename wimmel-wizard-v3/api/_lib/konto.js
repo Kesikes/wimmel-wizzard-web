@@ -134,6 +134,47 @@ function mitDeps(deps) {
     k.extra_aktionen -= 1; await speichern(k);
     return true;
   }
+  // --- C3.3 (28.10.2026): die Familie gehoert zum Konto ---------------------------------------------
+  // Eine "Familie" ist eine Sitzung des Kontos (k.sitzungen) mit ihrem gespeicherten Stand
+  // (session:{sid}, api/session.js). familien() liefert je Sitzung eine knappe Zusammenfassung fuer
+  // Auswahl-Screen und "Meine Familien" -- zuletzt geaenderte zuerst.
+  async function sitzungsStand(sid) {
+    try { const roh = await d.kv(["get", "session:" + sid]); return roh ? JSON.parse(roh) : null; } catch (e) { return null; }
+  }
+  function familieZusammenfassen(sid, data, aktuell) {
+    const people = data && Array.isArray(data.people) ? data.people.filter(Boolean) : [];
+    const bilder = data && Array.isArray(data.images) ? data.images.filter((b) => b && b.status === "done").length : 0;
+    return {
+      sid, figuren: people.length, bilder, namen: people.map((p) => p.name).filter(Boolean),
+      vorschau: people.filter((p) => typeof p.imageUrl === "string" && /^https?:\/\//.test(p.imageUrl)).slice(0, 5).map((p) => ({ name: p.name || "", bild: p.imageUrl })),
+      geaendert: (data && data.savedAt) || null, leer: people.length === 0 && bilder === 0, gespeichert: !!data, aktuell: !!aktuell,
+    };
+  }
+  async function familien(kontoId, aktuelleSid) {
+    const k = await lesen(kontoId);
+    if (!k) return [];
+    const aktuell = String(aktuelleSid || "").toLowerCase();
+    const liste = [];
+    for (const sid of k.sitzungen || []) liste.push(familieZusammenfassen(sid, await sitzungsStand(sid), sid === aktuell));
+    return liste.sort((a, b) => String(b.geaendert || "").localeCompare(String(a.geaendert || "")));
+  }
+  // familieEntfernen(kontoId, sid, { nurLeer }) -> { ok }: Sitzung vom Konto loesen und ihren Stand
+  // loeschen. nurLeer: nur wenn die Sitzung nichts enthaelt (Aufraeumen nach dem Laden einer anderen
+  // Familie). Die Kontingente bleiben am Konto -- gezaehlte Figuren/Bilder zaehlen weiter (C3.3 Punkt 3).
+  async function familieEntfernen(kontoId, sid, opts) {
+    const k = await lesen(kontoId);
+    if (!k) throw Object.assign(new Error("Konto nicht gefunden."), { nutzerfehler: true });
+    const s = String(sid || "").toLowerCase();
+    if (!(k.sitzungen || []).includes(s)) throw Object.assign(new Error("Diese Familie gehört nicht zu deinem Konto."), { nutzerfehler: true });
+    if (opts && opts.nurLeer) {
+      const f = familieZusammenfassen(s, await sitzungsStand(s), false);
+      if (!f.leer) throw Object.assign(new Error("Diese Familie ist nicht leer."), { nutzerfehler: true });
+    }
+    k.sitzungen = k.sitzungen.filter((x) => x !== s);
+    await speichern(k);
+    await d.kv(["del", keySitzung(s), "session:" + s]);
+    return { ok: true };
+  }
   // hatGuthaben(k): Guthaben oder gekaufte Pakete, die beim Loeschen verfallen wuerden.
   function hatGuthaben(k) { return !!(k && ((k.guthaben_cent || 0) > 0 || (k.pakete || []).length > 0 || (k.extra_aktionen || 0) > 0)); }
   function hatPaket(k, typ) { return !!(k && Array.isArray(k.pakete) && k.pakete.some((p) => p.typ === typ)); }
@@ -265,7 +306,7 @@ function mitDeps(deps) {
   }
   async function kontoAusRequest(req) { return lesen(kontoIdAusRequest(req)); }
 
-  return { lesen, speichern, perEmail, anlegenOderLesen, kontoZuSitzung, sitzungVerknuepfen, paketGutschreiben, gutscheinGutschreiben, extraVerbrauchen, hatPaket, hatGuthaben, stufe, loeschen,
+  return { lesen, speichern, perEmail, anlegenOderLesen, kontoZuSitzung, sitzungVerknuepfen, paketGutschreiben, gutscheinGutschreiben, extraVerbrauchen, hatPaket, hatGuthaben, stufe, loeschen, familien, familieEntfernen,
     anmeldeToken, anmeldeUrl, anmeldeLinkSenden, anmeldeTokenEinloesen, anmeldeWarten, anmeldeCodeEinloesen, CODE_VERSUCHE, cookieToken, cookieSetzen, kontoIdAusRequest, kontoAusRequest };
 }
 

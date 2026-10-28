@@ -5,6 +5,8 @@
 //   GET  ?mode=anmelden&token=…          Link aus der Mail: Konto anlegen/lesen, Sitzung verknuepfen, Cookie setzen, weiter zu /app/konto (+resume=<sid>)
 //   GET  ?mode=anmelde-warten&warte=…    C3.1: anfragendes Geraet fragt nach, ob der Link benutzt wurde -> Cookie
 //   POST { mode:"anmelden-code", warte, code }   C3.2: 6-stelliger Zaubercode aus der Mail -> Cookie im selben Fenster
+//   POST { mode:"familien", sessionId }           C3.3: Familien (Sitzungen) des Kontos mit Vorschau
+//   POST { mode:"familie-entfernen", sid, leer:true }   C3.3: leere Sitzung vom Konto loesen
 //   POST { mode:"verknuepfen", sessionId }           aktuelle Sitzung ans Konto (Cookie) haengen
 //   POST { mode:"abmelden" }                          Cookie loeschen
 //   POST { mode:"loeschen", bestaetigt:true }         "Meine Daten loeschen": Konto + verknuepfte Sitzungen + Zaehler
@@ -103,6 +105,19 @@ module.exports = async (req, res) => {
       K.cookieSetzen(res, null, true);
       console.log("[konto] geloescht " + k.id + " (" + r.geloescht.length + " Schlüssel, " + r.kaufnachweise + " Kaufnachweise)");
       res.status(200).json({ ok: true, geloescht: r.geloescht.length, kaufnachweise: r.kaufnachweise });
+      return;
+    }
+    if (mode === "familien") {
+      // C3.3: Familien (Sitzungen) des Kontos fuer Auswahl-Screen und "Meine Familien".
+      res.status(200).json({ familien: await K.familien(k.id, body.sessionId) });
+      return;
+    }
+    if (mode === "familie-entfernen") {
+      // C3.3 Punkt 1: nur LEERE Sitzungen (Aufraeumen nach dem Laden einer anderen Familie).
+      if (body.leer !== true) { res.status(400).json({ error: "Bitte das Entfernen bestätigen." }); return; }
+      try { await K.familieEntfernen(k.id, body.sid, { nurLeer: true }); }
+      catch (e) { if (e && e.nutzerfehler) { res.status(409).json({ error: e.message }); return; } throw e; }
+      res.status(200).json({ ok: true });
       return;
     }
     if (mode === "aufladen") { await require("./_lib/konto-kauf").aufladenStarten(req, res, k, body); return; }

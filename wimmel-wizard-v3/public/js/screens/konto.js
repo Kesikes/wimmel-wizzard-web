@@ -89,6 +89,59 @@ const Konto = {
   },
   async abmelden() { await Konto.post({ mode: "abmelden" }); AppState.update({ konto: null, bezahlt: false }); await Konto.laden(); },
   async loeschen(guthabenVerfaellt) { const r = await Konto.post({ mode: "loeschen", bestaetigt: true, guthabenVerfaellt: guthabenVerfaellt === true }); AppState.update({ konto: null, bezahlt: false, kontingente: null }); return r; },
+  // --- C3.3 Punkt 1 (28.10.2026): nach JEDER Anmeldung die Familie des Kontos laden --------------------
+  // Vorher hing eine Anmeldung nur die anfragende (oft leere) Sitzung ans Konto; geladen wurde eine
+  // andere nur beim Link auf einem anderen Geraet. Jetzt, fuer Link, Code, Link im neuen Tab und
+  // anderes Geraet gleich: aktuelle Sitzung leer -> die zuletzt geaenderte Familie des Kontos laden
+  // (und die leere Sitzung vom Konto loesen); aktuelle mit Inhalt UND eine andere mit Inhalt ->
+  // Auswahl-Screen (/app/familien); sonst bleibt es beim Anhaengen.
+  async familien() { const r = await Konto.post({ mode: "familien", sessionId: AppState.data.sessionId }); return r.familien || []; },
+  hatInhalt(s) { s = s || AppState.data; return (s.people || []).length > 0 || (s.images || []).some((b) => b && b.status === "done"); },
+  async familieOeffnen(sid, opts) {
+    const alt = AppState.data.sessionId;
+    if (sid === alt) return;
+    if (Konto.hatInhalt()) { try { await Pipeline.saveSessionRemote(alt, AppState.data); } catch (e) { /* bleibt lokal, Sync holt es nach */ } }
+    const data = await Pipeline.loadSessionRemote(sid);
+    if (!data) throw new Error("Diese Familie konnte gerade nicht geladen werden – bitte gleich noch einmal versuchen.");
+    AppState.hydrate(Object.assign({}, data, { sessionId: sid, stopp: null }));
+    if (opts && opts.altLeerEntfernen && alt) { try { await Konto.post({ mode: "familie-entfernen", sid: alt, leer: true }); } catch (e) { /* nicht leer oder schon weg -- bleibt im Konto */ } }
+    await Konto.laden();
+  },
+  familieLaeuft: false, auswahlListe: null,
+  // familieNachAnmeldung(opts) -> "nichts" | "geladen" | "auswahl". opts.ohneAuswahl: nur laden, nie
+  // den Auswahl-Screen zeigen (fuer Hintergrund-Tabs, die nur mitbekommen, dass angemeldet wurde).
+  async familieNachAnmeldung(opts) {
+    if (Konto.familieLaeuft || !AppState.data.konto) return "nichts";
+    Konto.familieLaeuft = true;
+    try {
+      let liste = await Konto.familien();
+      const andere = liste.filter((f) => !f.aktuell && !f.leer);
+      if (!andere.length) return "nichts";
+      if (!Konto.hatInhalt()) {
+        await Konto.familieOeffnen(andere[0].sid, { altLeerEntfernen: true });
+        const namen = andere[0].namen.slice(0, 4).join(", ") + (andere[0].namen.length > 4 ? " …" : "");
+        Konto.meldung = "Willkommen zurück – eure Familie ist geladen" + (namen ? ": " + namen : "") + ".";
+        return "geladen";
+      }
+      if (opts && opts.ohneAuswahl) return "nichts";
+      // Auswahl: den eigenen Stand erst speichern, damit seine Karte aktuell ist.
+      try { await Pipeline.saveSessionRemote(AppState.data.sessionId, AppState.data); liste = await Konto.familien(); } catch (e) { /* Karte zeigt den letzten Stand */ }
+      Konto.auswahlListe = liste.filter((f) => f.aktuell || !f.leer);
+      Router.goScreen("familien");
+      return "auswahl";
+    } catch (e) {
+      console.warn("[konto] Familie nach Anmeldung: " + (e && e.message ? e.message : e));
+      return "nichts";
+    } finally { Konto.familieLaeuft = false; }
+  },
+  // nachAnmeldungWeiter(): gemeinsamer Abschluss aller Anmelde-Wege im Client.
+  async nachAnmeldungWeiter(opts) {
+    const r = await Konto.familieNachAnmeldung(opts);
+    if (r === "auswahl") return r;
+    if (!Konto.meldung) Konto.meldung = "Angemeldet – alles Bisherige hängt jetzt an deinem Konto.";
+    if (Router.current === "konto") kontoNeuZeichnen(); else if (typeof renderScreen === "function") renderScreen();
+    return r;
+  },
   // stoppZeigen(e): Fehler mit stopp-Objekt -> Stopp-Screen. Gibt true zurueck, wenn er gezeigt wurde.
   stoppZeigen(e) {
     const st = e && e.stopp;
@@ -110,7 +163,7 @@ const Konto = {
       Konto.tabKanal.onmessage = async (ev) => {
         const m = ev && ev.data || {};
         if (m.typ === "wer-da") Konto.tabKanal.postMessage({ typ: "da" });
-        if (m.typ === "angemeldet") { await Konto.laden(); Konto.meldung = "Angemeldet – alles Bisherige hängt jetzt an deinem Konto."; if (Router.current === "konto" || Router.current === "stopp") { if (typeof renderScreen === "function") renderScreen(); } }
+        if (m.typ === "angemeldet") { await Konto.laden(); await Konto.nachAnmeldungWeiter({ ohneAuswahl: true }); } // C3.3: leerer Tab laedt die Familie
       };
     } catch (e) { Konto.tabKanal = null; }
   },
@@ -182,7 +235,7 @@ function anmeldeFormular(titel, untertitel) {
       const r = await Konto.anmeldeLink(email);
       hinweis.textContent = (r.hinweis || "Wir haben dir eine Mail geschickt.") + " Sobald du den Link öffnest, bist du auch hier angemeldet."; hinweis.style.color = "inherit"; hinweis.style.display = "block";
       knopf.textContent = "Mail ist unterwegs ✓";
-      const fertig = () => { Konto.meldung = "Angemeldet – alles Bisherige hängt jetzt an deinem Konto."; Konto.tabMelden("angemeldet"); if (Router.current === "konto") kontoNeuZeichnen(); else if (typeof renderScreen === "function") renderScreen(); };
+      const fertig = async () => { Konto.tabMelden("angemeldet"); await Konto.nachAnmeldungWeiter(); }; // C3.3: Familie laden / Auswahl
       if (r.warte) { Konto.aufAnmeldungWarten(r.warte, fertig); box.appendChild(zaubercodeFeld(r.warte, fertig)); }
     } catch (e) {
       hinweis.textContent = (e && e.message) || "Das hat nicht geklappt."; hinweis.style.color = "var(--red)"; hinweis.style.display = "block";
@@ -254,7 +307,7 @@ Screens.konto = {
       const box = kontoKasten("var(--yellow)");
       box.appendChild(h("p", { class: "h-black", style: { margin: "0 0 6px", fontSize: "18px", lineHeight: "1.05" } }, "Du bist angemeldet ✓"));
       box.appendChild(h("p", { style: { margin: "0", fontSize: "13px", lineHeight: "1.45" } }, "Dein anderes Wimmel-Wizard-Fenster ist jetzt angemeldet – du kannst dieses Fenster schließen."));
-      box.appendChild(kontoKnopf("Hier weitermachen", () => { Konto.andererTab = false; Konto.meldung = "Angemeldet – alles Bisherige hängt jetzt an deinem Konto."; kontoNeuZeichnen(); }, { style: { background: "var(--ink)" } }));
+      box.appendChild(kontoKnopf("Hier weitermachen", () => { Konto.andererTab = false; Konto.nachAnmeldungWeiter(); }, { style: { background: "var(--ink)" } }));
       root.appendChild(h("section", { class: "scr-pad" }, [h("p", { class: "kicker kicker-yellow", style: { transform: "rotate(-2deg)" } }, "Konto"), box]));
       window.history.replaceState(null, "", window.location.pathname);
       return;
@@ -319,6 +372,60 @@ function kontingentKasten(kt) {
   if (kt.figuren.grenze > 5) box.appendChild(h("p", { style: { margin: "8px 0 0", fontSize: "12px", lineHeight: "1.4", color: "var(--ink-a70)" } }, HELDEN_HINWEIS)); // C3.2 Teil 1
   return box;
 }
+
+// --- C3.3: Familien-Karte (Auswahl-Screen und "Meine Familien") -------------------------------------
+function familieDatum(iso) {
+  if (!iso) return "noch nicht gespeichert";
+  const d = new Date(iso); if (isNaN(d)) return "";
+  const heute = new Date(); const gleich = d.toDateString() === heute.toDateString();
+  const zeit = d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+  return "geändert " + (gleich ? "heute, " + zeit : "am " + d.toLocaleDateString("de-DE") + ", " + zeit);
+}
+function familienKarte(f, modus, onWahl) {
+  const karte = h("div", { "data-familie": f.sid, style: { marginTop: "12px", border: "4px solid var(--ink)", background: f.aktuell ? "var(--yellow)" : "var(--paper)", boxShadow: "5px 6px 0 var(--ink)", padding: "12px 14px" } });
+  const kopf = h("div", { style: { display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" } });
+  const bilder = h("div", { style: { display: "flex" } });
+  (f.vorschau || []).forEach((v, i) => bilder.appendChild(h("img", { src: v.bild, alt: v.name, title: v.name, style: { width: "40px", height: "40px", objectFit: "cover", border: "3px solid var(--ink)", background: "var(--blue)", marginLeft: i ? "-8px" : "0", borderRadius: "50%" } })));
+  if (!(f.vorschau || []).length) bilder.appendChild(h("span", { style: { width: "40px", height: "40px", border: "3px dashed var(--ink)", borderRadius: "50%", display: "inline-block" } }));
+  kopf.appendChild(bilder);
+  const titel = (f.namen || []).slice(0, 4).join(", ") + ((f.namen || []).length > 4 ? " …" : "");
+  kopf.appendChild(h("p", { class: "h-black", style: { margin: "0", fontSize: "15px", lineHeight: "1.1", letterSpacing: "-.01em", flex: "1 1 140px" } }, titel || "noch ohne Figuren"));
+  if (f.aktuell) kopf.appendChild(h("span", { class: "h-black", style: { fontSize: "9px", letterSpacing: ".08em", padding: "4px 6px", background: "var(--ink)", color: "var(--paper)" } }, modus === "auswahl" ? "IN DIESEM FENSTER" : "GEÖFFNET"));
+  karte.appendChild(kopf);
+  karte.appendChild(h("p", { style: { margin: "8px 0 0", fontSize: "12px", lineHeight: "1.4" } }, f.figuren + (f.figuren === 1 ? " Figur" : " Figuren") + " · " + f.bilder + (f.bilder === 1 ? " Bild" : " Bilder") + " · " + familieDatum(f.geaendert)));
+  if (modus === "auswahl") {
+    karte.appendChild(kontoKnopf(f.aktuell ? "Diese weiterbearbeiten" : "Diese Familie öffnen", () => onWahl(f), { style: f.aktuell ? { background: "var(--ink)" } : {} }));
+  } else {
+    const reihe = h("div", { style: { display: "flex", gap: "8px", marginTop: "10px" } });
+    if (!f.aktuell) {
+      reihe.appendChild(kontoKnopf("Öffnen", () => onWahl(f, "oeffnen"), { style: { marginTop: "0", background: "var(--ink)", minHeight: "42px" } }));
+      reihe.appendChild(kontoKnopf("Entfernen", () => onWahl(f, "entfernen"), { attrs: { "data-aktion": "entfernen" }, style: { marginTop: "0", background: "var(--paper)", color: "var(--red)", minHeight: "42px" } }));
+    }
+    if (reihe.children.length) karte.appendChild(reihe);
+  }
+  return karte;
+}
+// Auswahl-Screen nach der Anmeldung: "Welche Familie moechtest du weiterbearbeiten?"
+Screens.familien = {
+  render(root) {
+    const wrap = h("section", { class: "scr-pad" });
+    wrap.appendChild(h("p", { class: "kicker kicker-yellow", style: { transform: "rotate(-2deg)" } }, "Angemeldet ✓"));
+    wrap.appendChild(h("h1", { class: "h1-scr", style: { fontSize: "29px", marginBottom: "8px" } }, "Welche Familie möchtest du weiterbearbeiten?"));
+    wrap.appendChild(h("p", { style: { margin: "0", fontSize: "13px", lineHeight: "1.45" } }, "In deinem Konto liegt schon eine Familie, und hier im Fenster ist eine neue entstanden. Die andere bleibt im Konto erhalten – du findest sie unter „Meine Familien“."));
+    const hinweis = kontoHinweis("", true); hinweis.style.display = "none";
+    const liste = Konto.auswahlListe || [];
+    if (!liste.length) { Router.goScreen("dashboard"); return; }
+    liste.forEach((f) => wrap.appendChild(familienKarte(f, "auswahl", async (gewaehlt) => {
+      try {
+        if (!gewaehlt.aktuell) await Konto.familieOeffnen(gewaehlt.sid);
+        Konto.auswahlListe = null;
+        Router.goScreen("dashboard");
+      } catch (e) { hinweis.textContent = (e && e.message) || "Das hat nicht geklappt."; hinweis.style.display = "block"; }
+    })));
+    wrap.appendChild(hinweis);
+    root.appendChild(wrap);
+  }
+};
 
 // --- Daten loeschen: Bestaetigungsseite statt confirm() ----------------------------------------------
 Screens.kontoLoeschen = {

@@ -33,7 +33,9 @@ const ROUTES = [
   // (screenIndex() -> -1; app-shell.js blendet die Bottom-Bar dafuer aus). Siehe screens/konto.js.
   { path: "/app/konto/loeschen", screen: "kontoLoeschen" },
   { path: "/app/konto", screen: "konto" },
-  { path: "/app/stopp", screen: "stopp" }
+  { path: "/app/stopp", screen: "stopp" },
+  // C3.3 (28.10.2026): Auswahl nach der Anmeldung
+  { path: "/app/familien", screen: "familien" }
 ];
 
 function routeForPath(pathname) {

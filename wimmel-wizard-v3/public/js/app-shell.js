@@ -434,6 +434,7 @@ function renderKontoKnopf() {
 AppState.onChange(() => scheduleRemoteSync());
 
 document.addEventListener("DOMContentLoaded", () => {
+  const angemeldetPerLink = /[?&]angemeldet=1/.test(window.location.search); // C3.3, vor dem Bereinigen der URL merken
   handleTestParams();
   handleResumeParam().finally(() => {
     // NEU (C3 Konto & Aufladen, Teil D, 27.10.2026): Konto-Stand (Cookie) und Kontingente holen,
@@ -443,7 +444,12 @@ document.addEventListener("DOMContentLoaded", () => {
     if (window.Konto) Konto.tabStart();
     const tabFertig = (window.Konto && /[?&]angemeldet=1/.test(window.location.search)) ? Konto.tabPruefen().then((da) => { Konto.andererTab = da; if (da) Konto.tabMelden("angemeldet"); }) : Promise.resolve();
     const kontoFertig = tabFertig.then(() => (window.Konto && !/[?&]bezahlt=/.test(window.location.search)) ? Konto.laden() : null);
-    kontoFertig.finally(() => { renderKontoKnopf(); Router.resolve(); });
+    // C3.3 Punkt 1: kam dieser Tab ueber den Anmelde-Link (und ist kein Neben-Tab), die Familie des
+    // Kontos laden bzw. die Auswahl zeigen -- gleiche Regel wie nach Code oder Abfrage.
+    kontoFertig.finally(() => {
+      renderKontoKnopf(); Router.resolve();
+      if (angemeldetPerLink && window.Konto && !Konto.andererTab) Konto.nachAnmeldungWeiter();
+    });
     // NEU (22.09.2026): einmal beim Start mit dem Server abgleichen. Vorher lief der Abgleich nur
     // nach einer Aenderung am Stand -- wer die App nur oeffnet und herumklickt, speicherte nie.
     scheduleRemoteSync(true);

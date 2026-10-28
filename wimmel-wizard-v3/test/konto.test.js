@@ -392,3 +392,21 @@ test("C3.2 Teil 2: Zaubercode -- in der Mail, 6 Ziffern, 5 Fehlversuche, einmal,
     } finally { rl.checkRateLimit = rlAlt; mailMod.sendMail = mailAlt; }
   } finally { u.zurueck(); }
 });
+
+test("C3.3 Punkt 1: familien() fasst die Sitzungen des Kontos zusammen; leere Sitzung laesst sich loesen, volle nicht (nurLeer)", async () => {
+  const u = umgebung();
+  try {
+    const k = await u.K.anlegenOderLesen("familie@example.de");
+    await u.K.sitzungVerknuepfen(k.id, SID); await u.K.sitzungVerknuepfen(k.id, SID2);
+    await u.kv(["set", "session:" + SID, JSON.stringify({ savedAt: "2026-10-28T10:00:00.000Z", people: [{ id: "lina", name: "Lina", imageUrl: "https://x/l.png" }, { id: "ben", name: "Ben", imageUrl: "https://x/b.png" }], images: [{ status: "done" }, { status: "offen" }] })]);
+    const liste = await u.K.familien(k.id, SID2);
+    assert.equal(liste.length, 2);
+    assert.equal(liste[0].sid, SID, "zuletzt geaendert zuerst");
+    assert.deepEqual(liste[0].namen, ["Lina", "Ben"]); assert.equal(liste[0].figuren, 2); assert.equal(liste[0].bilder, 1); assert.equal(liste[0].vorschau.length, 2); assert.equal(liste[0].leer, false); assert.equal(liste[0].aktuell, false);
+    assert.equal(liste[1].sid, SID2); assert.equal(liste[1].leer, true); assert.equal(liste[1].aktuell, true); assert.equal(liste[1].gespeichert, false);
+    await assert.rejects(() => u.K.familieEntfernen(k.id, SID, { nurLeer: true }), /nicht leer/);
+    await u.K.familieEntfernen(k.id, SID2, { nurLeer: true });
+    assert.deepEqual((await u.K.lesen(k.id)).sitzungen, [SID]); assert.equal(await u.kv(["get", kontoModul.keySitzung(SID2)]), null);
+    await assert.rejects(() => u.K.familieEntfernen(k.id, "323e4567-e89b-12d3-a456-426614174000", { nurLeer: true }), /gehört nicht/);
+  } finally { u.zurueck(); }
+});
