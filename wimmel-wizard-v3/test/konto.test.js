@@ -431,3 +431,22 @@ test("C3.3 Punkt 2: Endpunkt familie-entfernen -- nur mit Bestaetigung, nie die 
     r = await ruf({ mode: "familien", sessionId: SID }); assert.equal(r.body.familien.length, 1);
   } finally { u.zurueck(); }
 });
+
+test("C3.3 Punkt 3: Figuren-ID je Familie eindeutig -- zwei Familien mit je einer 'Lina' zaehlen doppelt, Neu-Zeichnen nicht; Zaehler am Konto", async () => {
+  const u = umgebung();
+  const ft = require("../api/_lib/free-tier");
+  try {
+    assert.equal(ft.figurIdFuer(SID, "lina"), SID + ":lina"); assert.equal(ft.figurIdFuer("kaputt", "lina"), null); assert.equal(ft.figurIdFuer(SID, ""), null);
+    const k = await u.K.anlegenOderLesen("zaehler@example.de");
+    await u.K.sitzungVerknuepfen(k.id, SID); await u.K.sitzungVerknuepfen(k.id, SID2);
+    await ft.figurenBuchen(SID, "chip", ft.figurIdFuer(SID, "lina"));
+    await ft.figurenBuchen(SID2, "chip", ft.figurIdFuer(SID2, "lina"));
+    await ft.figurenBuchen(SID, "chip", ft.figurIdFuer(SID, "lina")); // neu gezeichnet
+    const a = await ft.kontingente(SID), b = await ft.kontingente(SID2);
+    assert.equal(a.figuren.stand, 2); assert.equal(b.figuren.stand, 2, "beide Familien sehen denselben Konto-Stand");
+    // Familie entfernen gibt nichts zurueck
+    await u.kv(["set", "session:" + SID2, JSON.stringify({ people: [{ id: "lina", name: "Lina" }] })]);
+    await u.K.familieEntfernen(k.id, SID2);
+    assert.equal((await ft.kontingente(SID)).figuren.stand, 2);
+  } finally { u.zurueck(); }
+});

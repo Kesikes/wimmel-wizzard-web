@@ -84,6 +84,16 @@ async function zaehler(art, sessionId, konto) {
 const FIGUR_MENGEN = { gesamt: "figur-ids", chip: "figur-ids:chip", foto: "figur-ids:foto" };
 const FIGUR_ID_RE = /^[a-z0-9äöüß_.:-]{1,80}$/i;
 function istGueltigeFigurId(v) { return typeof v === "string" && FIGUR_ID_RE.test(v); }
+// figurIdFuer(sessionId, elementId) -> "<sid>:<personId>" | null. C3.3 Punkt 3 (28.10.2026): die
+// Personen-ID allein ("lina") ist nur innerhalb EINER Familie eindeutig -- zwei Familien eines Kontos
+// mit je einer "Lina" zaehlten in der Konto-Menge als EINE Figur (Familienwechsel = geschenktes
+// Kontingent). Mit der Familie (Sitzung) davor ist die ID kontoweit eindeutig; Neu-Zeichnen derselben
+// Figur in derselben Familie bleibt eine Figur, auch auf einem anderen Geraet (gleiche Sitzung).
+function figurIdFuer(sessionId, elementId) {
+  if (!istGueltigeSessionId(sessionId) || typeof elementId !== "string" || !elementId) return null;
+  const id = String(sessionId).toLowerCase() + ":" + elementId;
+  return istGueltigeFigurId(id) ? id : null;
+}
 async function mengeGroesse(menge, sessionId, konto) {
   const n = Number(await kvCommandSafe(["scard", traegerKey(menge, sessionId, konto)]));
   return Number.isFinite(n) ? n : 0;
@@ -194,6 +204,6 @@ async function kontingente(sessionId) {
 
 module.exports = {
   KONTINGENTE, FIGUREN_GRATIS, FIGUREN_GRATIS_CHIPS, FIGUREN_HART, BILDER_GRATIS, BILDER_HART, ARTEN,
-  istGueltigeSessionId, istGueltigeFigurId, FIGUR_MENGEN, stufe, bezahltStatus, fotoErlaubt, FOTO_GESPERRT_TEXT, traegerKey, figurenStand, kontoZuSitzung,
+  istGueltigeSessionId, istGueltigeFigurId, figurIdFuer, FIGUR_MENGEN, stufe, bezahltStatus, fotoErlaubt, FOTO_GESPERRT_TEXT, traegerKey, figurenStand, kontoZuSitzung,
   figurenErlaubt, figurenBuchen, bilderErlaubt, bilderBuchen, kontingente, stoppText,
 };

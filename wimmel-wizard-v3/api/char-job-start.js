@@ -87,7 +87,8 @@ module.exports = async (req, res) => {
   let chipSchluessel = chipSchluesselAus(body, anzahl);
   // C3.1 Punkt 1: die Figur (personId) als Kontingent-Einheit -- Neu-Zeichnen/Aendern derselben Figur
   // zaehlt nicht noch einmal (free-tier.js, Mengen statt Zaehler). Ohne gueltige ID zaehlt die jobId.
-  const figurId = freeTier.istGueltigeFigurId(body.elementId) ? String(body.elementId) : null;
+  // C3.3 Punkt 3: "<sid>:<personId>" -- kontoweit eindeutig (zwei Familien mit je einer "Lina").
+  const figurId = freeTier.figurIdFuer(body.sessionId, body.elementId);
   // C3.1 Punkt 2: unvollstaendige Merkmale sind ein Eingabefehler, kein Kontingent-Ende. Vorher wurde
   // eine Figur ohne Schluessel still zum "live"-Weg -- und der ist gratis gesperrt (Stopp-Screen).
   if (anzahl === 2 && body.chips && typeof body.chips === "object" && !chipSchluessel) {
