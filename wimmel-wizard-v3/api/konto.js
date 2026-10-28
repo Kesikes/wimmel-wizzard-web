@@ -20,7 +20,7 @@ function oeffentlich(k, kontingente) {
   if (!k) return { angemeldet: false, kontingente };
   return {
     angemeldet: true, email: k.email, bezahlt: !!k.bezahlt, guthaben_cent: k.guthaben_cent || 0, guthaben: cfg.euro(k.guthaben_cent || 0),
-    pakete: (k.pakete || []).map((p) => ({ typ: p.typ, name: p.typ === "gutschein" ? "Gutschein" : (cfg.PAKETE[p.typ] || {}).name || p.typ, cent: p.cent, am: p.am })),
+    pakete: (k.pakete || []).map((p) => ({ typ: p.typ, name: p.typ === "gutschein" ? "Gutschein" : (cfg.PAKETE[p.typ] || {}).name || p.typ, cent: p.cent, am: p.am, stripe_session_id: p.stripe_session_id || "" })), // stripe_session_id: C3.1 Punkt 6, Rueckkehrseite prueft die Buchung
     stufe: kontoModul.mitDeps().stufe(k), extra_aktionen: k.extra_aktionen || 0, hat_guthaben: kontoModul.mitDeps().hatGuthaben(k), gutschein_code: k.gutschein_code || "", sitzungen: (k.sitzungen || []).length,
     kontingente,
   };

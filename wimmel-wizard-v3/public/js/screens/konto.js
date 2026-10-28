@@ -60,6 +60,21 @@ const Konto = {
     Konto.warteTimer = setTimeout(tick, 3000);
   },
   warteStoppen() { if (Konto.warteTimer) { clearTimeout(Konto.warteTimer); Konto.warteTimer = null; } },
+  // C3.1 Punkt 6: nach der Stripe-Rueckkehr alle 2 s (max. 2 min) nachsehen, ob das Paket gebucht ist.
+  buchungTimer: null,
+  aufBuchungWarten(typ, cs) {
+    if (Konto.buchungTimer) clearTimeout(Konto.buchungTimer);
+    const bis = Date.now() + 2 * 60 * 1000;
+    const tick = async () => {
+      const data = await Konto.laden();
+      const k = data && data.angemeldet ? data : null;
+      const da = !!(k && (k.pakete || []).some((p) => cs ? p.stripe_session_id === cs : p.typ === typ));
+      if (da) { Konto.buchungTimer = null; Konto.meldung = "Danke! " + Konto.paket(typ).name + " ist freigeschaltet. Eine Bestätigung kommt per Mail."; if (Router.current === "konto") kontoNeuZeichnen(); return; }
+      if (Date.now() > bis) { Konto.buchungTimer = null; const el = document.getElementById("buchung-hinweis"); if (el) el.textContent = "Die Bestätigung von Stripe lässt auf sich warten. Sobald sie da ist, ist das Paket freigeschaltet – wir schreiben dir dann per Mail. Du kannst diese Seite später einfach noch einmal öffnen."; return; }
+      Konto.buchungTimer = setTimeout(tick, 2000);
+    };
+    Konto.buchungTimer = setTimeout(tick, 1500);
+  },
   async aufladen(typ, erschoepft) {
     const data = await Konto.post({ mode: "aufladen", typ, sessionId: AppState.data.sessionId, widerrufsverzicht: true, erschoepft: !!erschoepft });
     if (data.url) window.location.href = data.url;
@@ -178,7 +193,21 @@ Screens.konto = {
     wrap.appendChild(h("h1", { class: "h1-scr", style: { fontSize: "31px", marginBottom: "8px" } }, k ? "Dein Konto" : "Anmelden"));
     const params = new URLSearchParams(window.location.search);
     if (params.get("angemeldet") === "1") wrap.appendChild(kontoHinweis("Angemeldet – alles Bisherige hängt jetzt an deinem Konto."));
-    if (params.get("aufgeladen")) wrap.appendChild(kontoHinweis("Danke! Sobald Stripe die Zahlung bestätigt, ist " + Konto.paket(params.get("aufgeladen")).name + " freigeschaltet – das dauert meist nur Sekunden. Eine Bestätigung kommt per Mail."));
+    // C3.1 Punkt 6 (28.10.2026): Rueckkehr von Stripe -- "Zahlung wird verbucht …" und alle 2 s den
+    // Konto-Stand abfragen (max. 2 min), bis das Paket mit dieser Checkout-Session gebucht ist;
+    // dann Erfolgsmeldung und Screen frisch. Kein manuelles Neuladen mehr noetig.
+    if (params.get("aufgeladen")) {
+      const typ = params.get("aufgeladen"), cs = params.get("session_id") || "";
+      const schonDa = !!(k && (k.pakete || []).some((p) => cs ? p.stripe_session_id === cs : p.typ === typ));
+      if (schonDa) wrap.appendChild(kontoHinweis("Danke! " + Konto.paket(typ).name + " ist freigeschaltet. Eine Bestätigung kommt per Mail."));
+      else {
+        const box = kontoKasten("var(--yellow)");
+        box.appendChild(h("p", { class: "h-black buchung-puls", style: { margin: "0 0 6px", fontSize: "16px", lineHeight: "1.05" } }, "Zahlung wird verbucht …"));
+        box.appendChild(h("p", { style: { margin: "0", fontSize: "13px", lineHeight: "1.45" }, "aria-live": "polite", id: "buchung-hinweis" }, "Stripe hat deine Zahlung angenommen – wir warten auf die Bestätigung, das dauert meist nur Sekunden."));
+        wrap.appendChild(box);
+        Konto.aufBuchungWarten(typ, cs);
+      }
+    }
     if (params.get("aufladen") === "abgebrochen") wrap.appendChild(kontoHinweis("Kein Problem – nichts wurde gekauft."));
     if (params.get("anmeldung")) wrap.appendChild(kontoHinweis(params.get("anmeldung"), true));
     if (params.get("geloescht") === "1") wrap.appendChild(kontoHinweis("Dein Konto und deine gespeicherten Stände sind gelöscht."));

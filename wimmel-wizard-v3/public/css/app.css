@@ -47,6 +47,8 @@
 .zeichnen-balken span { position: absolute; top: 0; bottom: 0; width: 38%; background: var(--yellow); animation: zeichnen-lauf 1.8s ease-in-out infinite; }
 @keyframes zeichnen-lauf { 0% { left: -40%; } 100% { left: 100%; } }
 @keyframes zeichnen-puls { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+/* C3.1 Punkt 6: "Zahlung wird verbucht …" pulsiert ruhig (nur Deckkraft, auch bei reduced-motion ok). */
+.buchung-puls { animation: zeichnen-puls 1.6s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) {
   .zeichnen-punkte, .zeichnen-balken { display: none; }
   .zeichnen-puls { animation: zeichnen-puls 2s ease-in-out infinite; }
