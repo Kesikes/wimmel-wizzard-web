@@ -249,19 +249,23 @@ function platzieren(hgId, bg, elemente, rnd) {
 
 // --- Zusammensetzen: V1 (roh), V4 (Code-Schatten + Farbangleichung), Kontrolle (Kopfmasse) ----------
 function spriteFuer(g) { const s = g.spiegel ? B.spiegeln(g.sprite) : g.sprite; return B.skalieren(s, Math.max(1, Math.round(g.w)), Math.max(1, Math.round(g.h))); }
-// V4-Stellschrauben (Runde 3: drei Stufen zum Auswaehlen; "mittel" = Runde 2):
-//   deckkraft   wie dunkel der Schatten in der Mitte ist (0..1)
+// V4-Stellschrauben (Runde 3: Stufen zum Auswaehlen; Nachbesserung 29.10.: "mittel" kuerzer, haerter,
+// direkt an den Fuessen -- Standard fuer alle Hintergruende; "runde2" = Werte von Runde 2):
+//   deckkraft   wie dunkel der Schatten im Kern ist (0..1)
 //   laenge      wie weit der Schatten in Sonnenrichtung reicht (Anteil der Figurenbreite)
+//   versatz     wie weit die Schattenmitte von den Fuessen wegrueckt (Anteil der Laenge; 0 = unter den Fuessen)
+//   weich       Breite des weichen Randes (1 = ganz weich wie Runde 2, 0.3 = fester Kern)
 //   angleichung wie stark die Figur den Farbton des Bildlichts annimmt (0..1)
 //   saettigung  Saettigungsaenderung der Figur (-0.05 = 5 % blasser)
 //   dunst       Luftdunst ganz hinten (Anteil Richtung Umgebungsfarbe, nach vorne 0)
 const V4_STUFEN = {
-  dezent: { deckkraft: 0.28, laenge: 0.14, angleichung: 0.2, saettigung: -0.03, dunst: 0.06 },
-  mittel: { deckkraft: 0.42, laenge: 0.22, angleichung: 0.35, saettigung: -0.05, dunst: 0.10 },
-  kraeftig: { deckkraft: 0.58, laenge: 0.34, angleichung: 0.5, saettigung: -0.08, dunst: 0.15 },
+  dezent: { deckkraft: 0.28, laenge: 0.14, versatz: 1, weich: 1, angleichung: 0.2, saettigung: -0.03, dunst: 0.06 },
+  mittel: { deckkraft: 0.45, laenge: 0.10, versatz: 0.5, weich: 0.35, angleichung: 0.35, saettigung: -0.05, dunst: 0.10 },
+  kraeftig: { deckkraft: 0.58, laenge: 0.34, versatz: 1, weich: 1, angleichung: 0.5, saettigung: -0.08, dunst: 0.15 },
+  runde2: { deckkraft: 0.42, laenge: 0.22, versatz: 1, weich: 1, angleichung: 0.35, saettigung: -0.05, dunst: 0.10 },
 };
 function zusammensetzen(bg, gesetzt, art, def, stufe) {
-  const V = stufe || V4_STUFEN.mittel;
+  const V = stufe || V4_STUFEN.runde2;
   const out = B.kopie(bg), W = bg.w, H = bg.h;
   const global = B.mittelwert(bg, 0, 0, W, H), lum = 0.299 * global[0] + 0.587 * global[1] + 0.114 * global[2];
   const licht = global.map((c) => Math.min(1.15, Math.max(0.85, c / lum)));
@@ -271,7 +275,8 @@ function zusammensetzen(bg, gesetzt, art, def, stufe) {
     const w = sp.w, h = sp.h, fx = g.fuss[0], fy = g.fuss[1];
     const breit = g.sitzend ? 0.5 : (g.personen || 1) > 1 ? 0.44 : 0.34;
     if (art === "v4") {
-      B.weicherSchatten(out, fx + sonne[0] * w * V.laenge, fy - h * 0.004 + sonne[1] * w * V.laenge * 0.45, w * (breit + V.laenge * 0.9), w * (breit * 0.3 + 0.03), V.deckkraft);
+      const vs = V.versatz == null ? 1 : V.versatz, gross = vs >= 1 ? 0.9 : 0.6;
+      B.weicherSchatten(out, fx + sonne[0] * w * V.laenge * vs, fy - h * 0.004 + sonne[1] * w * V.laenge * 0.45 * vs, w * (breit + V.laenge * gross), w * (breit * (vs >= 1 ? 0.3 : 0.26) + (vs >= 1 ? 0.03 : 0.02)), V.deckkraft, V.weich);
       const t = Math.max(0, Math.min(1, (fy / H - def.kopf.y[0]) / (def.kopf.y[1] - def.kopf.y[0])));
       const lokal = B.mittelwert(bg, fx - w, fy - h, fx + w, fy + h * 0.1);
       sp = B.angleichen(sp, { licht, anteil: V.angleichung, saettigung: V.saettigung, dunst: V.dunst * (1 - t), dunstFarbe: lokal });

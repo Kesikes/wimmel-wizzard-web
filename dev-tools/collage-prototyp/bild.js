@@ -207,15 +207,20 @@ function spiegeln(b) {
   for (let y = 0; y < b.h; y++) for (let x = 0; x < b.w; x++) out.d.set(b.d.subarray((y * b.w + x) * 4, (y * b.w + x) * 4 + 4), (y * b.w + (b.w - 1 - x)) * 4);
   return out;
 }
-// weicherSchatten(ziel, cx, cy, rx, ry, staerke): Ellipse, zur Mitte hin dunkler, weicher Rand (V4, ohne KI).
-function weicherSchatten(ziel, cx, cy, rx, ry, staerke) {
+// weicherSchatten(ziel, cx, cy, rx, ry, staerke, weich): Ellipse; weich = Breite des weichen Randes als
+// Anteil des Radius (1 = von der Mitte an weich wie Runde 2; 0.3 = fester Kern, schmaler weicher Rand).
+function weicherSchatten(ziel, cx, cy, rx, ry, staerke, weich) {
+  const wr = weich == null ? 1 : Math.max(0.05, Math.min(1, weich));
   for (let y = Math.floor(cy - ry); y <= Math.ceil(cy + ry); y++) {
     if (y < 0 || y >= ziel.h) continue;
     for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++) {
       if (x < 0 || x >= ziel.w) continue;
       const nx = (x - cx) / rx, ny = (y - cy) / ry, q = nx * nx + ny * ny;
       if (q >= 1) continue;
-      const f = 1 - staerke * Math.pow(1 - q, 1.6), t = (y * ziel.w + x) * 4;
+      let a;
+      if (wr >= 1) a = Math.pow(1 - q, 1.6);
+      else { const dd = Math.sqrt(q), kern = 1 - wr; a = dd <= kern ? 1 : (() => { const t = (1 - dd) / wr; return t * t * (3 - 2 * t); })(); }
+      const f = 1 - staerke * a, t = (y * ziel.w + x) * 4;
       ziel.d[t] *= f; ziel.d[t + 1] *= f; ziel.d[t + 2] *= f;
     }
   }

@@ -125,18 +125,21 @@ function kopfMessen(s, opt) {
   const gesichter = wahl.map((p) => ({ wangen: Math.round(p.dx), wange: Math.round((p.a.bw + p.b.bw) / 2), y: Math.round(p.y), x: Math.round((p.a.cx + p.b.cx) / 2) }));
   if (gesichter.length) {
     const wangen = gesichter.reduce((a, g) => a + g.wangen, 0) / gesichter.length, wange = gesichter.reduce((a, g) => a + g.wange, 0) / gesichter.length;
-    return { wangen, methode: "wangen", wangenY: gesichter[0].y, wangenX: gesichter[0].x, gesichter, wange, kopfbreite: kb.breite, verhaeltnis: kb.breite ? wangen / kb.breite : null, wangeVerhaeltnis: wangen / wange, blick: null };
+    return { wangen, methode: "wangen", wangenY: gesichter[0].y, wangenX: gesichter[0].x, gesichter, wange, kopfbreite: kb.breite, kopfBox: kopfBox(kb), verhaeltnis: kb.breite ? wangen / kb.breite : null, wangeVerhaeltnis: wangen / wange, blick: null };
   }
   // Profil: genau ein grosser Wangenfleck im Kopf. Wangenabstand = Fleckbreite x (Wangenabstand/Fleck-
   // breite derselben Person von vorne, sonst 3,8 = Mittel der Runde-1-Figuren). Blick: Seite mit mehr Hautfarbe (dort ist das Gesicht).
   const einzeln = fl.filter((f) => f.cy < kb.unten + 4 && f.cy > kb.oben).sort((p, q) => q.n - p.n)[0];
   if (einzeln && einzeln.bw >= 0.08 * kb.breite) {
     const v = (opt && opt.wangeVerhaeltnis) || 3.8;
-    return { wangen: einzeln.bw * v, methode: "eine-wange", wangenY: Math.round(einzeln.cy), wangenX: Math.round(einzeln.cx), gesichter: [], wange: einzeln.bw, kopfbreite: kb.breite, wangeVerhaeltnis: v, blick: blickAusHaut(s, einzeln, kb) };
+    return { wangen: einzeln.bw * v, methode: "eine-wange", wangenY: Math.round(einzeln.cy), wangenX: Math.round(einzeln.cx), gesichter: [], wange: einzeln.bw, kopfbreite: kb.breite, kopfBox: kopfBox(kb), wangeVerhaeltnis: v, blick: blickAusHaut(s, einzeln, kb) };
   }
   const v = (opt && opt.verhaeltnis) || 0.5;
-  return { wangen: kb.breite * v, methode: "kopfbreite", wangenY: Math.round(kb.oben + 0.55 * (kb.unten - kb.oben)), wangenX: Math.round(kb.mitte), gesichter: [], kopfbreite: kb.breite, verhaeltnis: v, blick: null };
+  return { wangen: kb.breite * v, methode: "kopfbreite", wangenY: Math.round(kb.oben + 0.55 * (kb.unten - kb.oben)), wangenX: Math.round(kb.mitte), gesichter: [], kopfbreite: kb.breite, kopfBox: kopfBox(kb), verhaeltnis: v, blick: null };
 }
+
+// Kopf samt Haar als Rechteck [x0, y0, x1, y1] (Silhouetten-Zeilenprofil bis zum Hals)
+function kopfBox(kb) { return [Math.round(kb.mitte - kb.breite / 2), kb.oben, Math.round(kb.mitte + kb.breite / 2), kb.unten]; }
 
 function blickAusHaut(s, f, kb) {
   const { w, h, d } = s, r = f.bw / 2, haut = [0, 0, 0];
